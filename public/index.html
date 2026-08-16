@@ -706,12 +706,27 @@ tbody tr:hover{background:var(--kaca);}
 .foto-kartu .hilang{position:absolute;inset:0;display:none;place-items:center;text-align:center;
   padding:14px;font-family:var(--font-mono);font-size:10px;line-height:1.6;color:var(--muted);
   background:repeating-linear-gradient(45deg,transparent 0 8px,var(--kaca) 8px 16px);}
-.foto-kartu.kosong{cursor:default;}
+/* Ubin kosong tetap bisa ditekan — ia jadi tombol pilih berkas untuk slot itu. */
+.foto-kartu.kosong{cursor:pointer;}
 .foto-kartu.kosong .hilang{display:grid;}
+.foto-kartu.kosong .hilang b{color:var(--accent);letter-spacing:.08em;}
 .foto-kartu.kosong img{visibility:hidden;}
-.foto-kartu .isi{padding:10px 13px 12px;}
+.foto-kartu.sibuk{cursor:progress;opacity:.55;}
+.foto-kartu .isi{padding:10px 13px 12px;position:relative;}
 .foto-kartu .ket{font-size:12.5px;line-height:1.45;}
-.foto-kartu .meta{font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-top:5px;}
+.foto-kartu .meta{font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-top:5px;
+  padding-right:44px;word-break:break-all;}
+/* Muncul hanya saat ubinnya disentuh tetikus — daftar foto tidak boleh
+   berjejer tombol hapus yang mengundang kecelakaan. */
+.foto-kartu .buang{position:absolute;right:10px;bottom:10px;opacity:0;transition:opacity .15s;
+  background:var(--panel-2);color:var(--muted);border:1px solid var(--line);border-radius:7px;
+  padding:3px 8px;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.06em;cursor:pointer;}
+.foto-kartu:hover .buang,.foto-kartu .buang:focus{opacity:1;}
+.foto-kartu .buang:hover{border-color:var(--fail);color:var(--fail);}
+
+.gal-kabar{margin-top:12px;font-size:12px;line-height:1.6;color:var(--muted);}
+.gal-kabar b{color:var(--text);font-weight:600;}
+.gal-kabar .gagal{color:var(--fail);}
 
 .foto-besar{position:fixed;inset:0;z-index:200;display:none;place-items:center;padding:28px;
   background:rgba(0,0,0,.86);backdrop-filter:blur(3px);cursor:zoom-out;}
@@ -754,9 +769,11 @@ tbody tr:hover{background:var(--kaca);}
 .brk-atur{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-bottom:14px;}
 .brk-atur label{display:block;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.11em;
   text-transform:uppercase;color:var(--muted);margin-bottom:5px;}
-.brk-atur select{width:100%;background:var(--panel-2);color:var(--text);border:1px solid var(--line);
+.brk-atur select,.brk-atur input{width:100%;background:var(--panel-2);color:var(--text);border:1px solid var(--line);
   border-radius:8px;padding:8px 10px;font-family:var(--font-body);font-size:12.5px;}
-.brk-atur select:focus{outline:none;border-color:var(--accent);}
+.brk-atur select:focus,.brk-atur input:focus{outline:none;border-color:var(--accent);}
+/* Ikon pemilih tanggal bawaan peramban hitam pekat — tak terbaca di tema gelap. */
+html[data-tema="gelap"] .brk-atur input[type=date]::-webkit-calendar-picker-indicator{filter:invert(.7);}
 
 .brk-rupa{width:44px;height:44px;border-radius:8px;border:1px solid var(--line);overflow:hidden;flex:none;
   display:grid;place-items:center;background:var(--panel-2);}
@@ -1355,25 +1372,30 @@ const CONTOH = { UNIT, TROUBLE, LOGBOOK };
    itu sebabnya blok ini berada di luar CONTOH. Tidak ikut diganti saat
    halaman tersambung ke server — E-Logbook belum punya modul galeri.
 
-   Menambah foto = taruh berkasnya di public/foto/<unit>/ lalu tambah satu
-   baris di sini. Foto yang berkasnya belum ada tidak merusak apa pun:
-   ubinnya tetap tampil dengan tanda "berkas belum ada" (lihat onerror di
-   gambarGaleri), jadi daftarnya boleh ditulis lebih dulu.
+   Isinya TIDAK ditulis di berkas ini, melainkan dibaca dari
+   public/foto/daftar.json — berkas yang sama yang ditulis ulang server tiap
+   ada foto baru diunggah. Kalau daftarnya ikut dikeraskan di sini, unggahan
+   dari layar tidak akan pernah terlihat sampai kodenya disunting tangan.
+
+   Foto yang berkasnya belum ada tidak merusak apa pun: ubinnya tetap tampil
+   sebagai tombol "pilih berkas" (lihat gambarGaleri), jadi daftarnya boleh
+   ditulis lebih dulu dan berkasnya menyusul.
 
    `tgl` boleh dikosongkan kalau tanggalnya belum pasti.
    ======================================================================= */
-const FOTO = {
-  radtel: [
-    { berkas:'radtel-01-pengarahan-ruang-teknik.jpg', tgl:'',
-      ket:'Pengarahan di ruang teknik bersama tim vendor.' },
-    { berkas:'radtel-02-pengujian-cwp.jpg', tgl:'',
-      ket:'Pengujian di controller working position — layar situasi dan panel VCCS.' },
-    { berkas:'radtel-03-tim-ruang-teknik.jpg', tgl:'',
-      ket:'Foto bersama tim teknik dan vendor di ruang teknik.' },
-    { berkas:'radtel-04-tim-ruang-kontrol.jpg', tgl:'',
-      ket:'Foto bersama di ruang kontrol.' }
-  ]
-};
+let FOTO = {};
+
+/** Baca daftar galeri dari server. Gagal = galeri kosong, sisanya tetap jalan. */
+async function muatGaleri(){
+  try{
+    // cache:'no-store' — daftarnya berubah tiap unggahan, dan salinan lama di
+    // cache peramban membuat foto yang baru masuk seolah tidak tersimpan.
+    const r = await fetch('/foto/daftar.json', { cache:'no-store' });
+    if(r.ok) FOTO = await r.json();
+  }catch(e){
+    console.warn('Daftar galeri tidak terbaca:', e && e.message || e);
+  }
+}
 
 const MODUL = [
   { st:'Sudah jalan', jalan:true, nama:'E-Logbook Fasilitas', ket:'Logbook, Daily Check, Isu, Monitoring, DS Test, LTK, TTD QR, Rekap. Delapan unit, dipakai harian.' },
@@ -2497,6 +2519,10 @@ const catatanContoh = (teks) => SRV.aktif
 kmMulai();      // konsol masuk: jam, panggung 3D, tombol pembuka kartu
 srvPeriksa();   // lalu tanya server: ada, dan sesinya masih hidup?
 
+// Daftar galeri ditarik sejak layar masuk, jauh sebelum tab Galeri dibuka.
+// Gambar ulang kalau ternyata sudah keburu ada unit terbuka.
+muatGaleri().then(()=>{ if(unitDibuka) gambarUnit(); });
+
 /* =======================================================================
    JAM DAN NAVIGASI
    ======================================================================= */
@@ -2924,20 +2950,43 @@ function gambarUnit(){
           <figure class="foto-kartu" data-foto="${i}">
             <div class="bing">
               <img src="/foto/${esc(unitDibuka)}/${esc(f.berkas)}" alt="${esc(f.ket)}" loading="lazy">
-              <div class="hilang">BERKAS BELUM ADA<br>${esc(f.berkas)}</div>
+              <div class="hilang">BERKAS BELUM ADA<br>${esc(f.berkas)}<br><b>TEKAN UNTUK MEMILIH</b></div>
             </div>
             <figcaption class="isi">
               <div class="ket">${esc(f.ket)}</div>
               <div class="meta">${f.tgl ? tglIndo(f.tgl) + ' · ' : ''}${esc(f.berkas)}</div>
+              <button class="buang" data-buang="${esc(f.berkas)}" title="Hapus foto ini">Hapus</button>
             </figcaption>
           </figure>`).join('')}</div></div>`
           : `<div class="badan" style="color:var(--muted);font-size:12.5px">Belum ada foto untuk unit ini.</div>`}
       </div>
+
+      <div class="panel"><div class="kepala"><h3>Tambah foto</h3>
+        <span class="ket">tersimpan permanen di server ini</span></div>
+        <div class="badan">
+          <div class="brk-atur">
+            <div><label for="galKet">Keterangan</label>
+              <input type="text" id="galKet" placeholder="mis. Kalibrasi pemancar setelah ganti modul"></div>
+            <div><label for="galTgl">Tanggal</label>
+              <input type="date" id="galTgl"></div>
+          </div>
+          <label class="jatuh" id="galJatuh">
+            <input type="file" id="galInput" accept="image/*" multiple>
+            <div class="ajak">Tarik foto ke sini, atau tekan untuk memilih</div>
+            <div class="ket2">Boleh beberapa sekaligus · .jpg .png .webp · paling besar 15 MB per berkas<br>
+              Dua kotak di atas berlaku untuk foto yang ditambahkan berikutnya.</div>
+          </label>
+          <div id="galKabar" class="gal-kabar"></div>
+        </div>
+      </div>
+
       <div class="catatan">
-        <b>Foto sungguhan, bukan ilustrasi.</b> Berkasnya disajikan langsung dari
-        <span class="mono">public/foto/${esc(unitDibuka)}/</span> — tidak lewat E-Logbook, karena
-        modul galeri belum ada di sana. Menambah foto: taruh berkasnya di folder itu, lalu tambah
-        satu baris pada blok <span class="mono">FOTO</span> di berkas ini.
+        <b>Foto sungguhan, bukan ilustrasi.</b> Berkasnya tersimpan di
+        <span class="mono">public/foto/${esc(unitDibuka)}/</span> dan keterangannya di
+        <span class="mono">public/foto/daftar.json</span> — bukan di E-Logbook, karena modul galeri
+        belum ada di sana. Ubin bertanda <b>BERKAS BELUM ADA</b> adalah slot yang sudah diberi
+        keterangan tapi berkasnya belum masuk: tekan ubinnya untuk mengisi slot itu, dan
+        keterangannya ikut terpakai.
       </div>
     </div>
 
@@ -3009,21 +3058,160 @@ function gambarUnit(){
  * masuk, dan yang belum masuk harus kelihatan supaya tidak terlupakan.
  */
 function gambarGaleri(foto){
-  const grid = el('fotoGrid'); if(!grid) return;
+  const grid = el('fotoGrid');
+  const unit = unitDibuka;
 
-  grid.querySelectorAll('.foto-kartu').forEach(kartu=>{
+  if(grid) grid.querySelectorAll('.foto-kartu').forEach(kartu=>{
     const img = kartu.querySelector('img');
+    const f = foto[Number(kartu.dataset.foto)];
     const tandai = ()=>kartu.classList.add('kosong');
     // Gambar yang gagal sebelum baris ini jalan tidak pernah memicu onerror
     // lagi — complete && naturalWidth 0 menangkap keadaan itu.
     if(img.complete && !img.naturalWidth) tandai();
     img.addEventListener('error', tandai);
 
-    kartu.addEventListener('click', ()=>{
-      if(kartu.classList.contains('kosong')) return;
-      const f = foto[Number(kartu.dataset.foto)];
+    kartu.addEventListener('click', e=>{
+      if(e.target.closest('.buang')) return;      // ditangani pendengar di bawah
+      if(kartu.classList.contains('sibuk')) return;
+      // Ubin yang berkasnya belum ada berperan sebagai tombol: ia mengisi
+      // slot itu, jadi nama berkas dan keterangannya sudah ditentukan dan
+      // yang diminta dari pemakai cuma gambarnya.
+      if(kartu.classList.contains('kosong')) return isiSlotFoto(unit, f, kartu);
       bukaFotoBesar(img.src, f);
     });
+
+    kartu.querySelector('.buang').addEventListener('click', async ()=>{
+      if(!confirm(`Hapus foto "${f.ket || f.berkas}"?\n\nBerkasnya ikut terhapus dari server.`)) return;
+      kartu.classList.add('sibuk');
+      try{
+        const r = await fetch(`/galeri/${encodeURIComponent(unit)}/${encodeURIComponent(f.berkas)}`,
+          { method:'DELETE' });
+        const j = await r.json().catch(()=>({}));
+        if(!r.ok) throw new Error(j.error || 'server menjawab ' + r.status);
+        await muatGaleri(); gambarUnit();
+      }catch(e){
+        kartu.classList.remove('sibuk');
+        pesan('Gagal menghapus: ' + (e && e.message || e));
+      }
+    });
+  });
+
+  pasangUnggahFoto(unit);
+}
+
+/** Pilih satu berkas untuk mengisi slot yang keterangannya sudah ditulis. */
+function isiSlotFoto(unit, f, kartu){
+  const pilih = document.createElement('input');
+  pilih.type = 'file';
+  pilih.accept = 'image/*';
+  pilih.addEventListener('change', async ()=>{
+    const berkas = pilih.files[0]; if(!berkas) return;
+    kartu.classList.add('sibuk');
+    try{
+      // Nama slot yang dipakai, bukan nama berkas asal: seluruh gunanya slot
+      // adalah supaya foto ini punya nama dan keterangan yang sudah disepakati.
+      await kirimFoto(unit, berkas, f.berkas, f.ket, f.tgl);
+      await muatGaleri(); gambarUnit();
+    }catch(e){
+      kartu.classList.remove('sibuk');
+      pesan('Gagal mengunggah: ' + (e && e.message || e));
+    }
+  });
+  pilih.click();
+}
+
+const FOTO_EXT_SAH = /\.(jpe?g|png|webp)$/i;
+const FOTO_BATAS_KLIEN = 15 * 1024 * 1024;
+
+/**
+ * Kirim satu foto ke server.
+ *
+ * Base64 lewat FileReader, bukan multipart: bentuknya sama dengan lampiran di
+ * E-Logbook, jadi seluruh aplikasi ini cuma punya satu bentuk badan permintaan.
+ * Yang dipotong hanya kepala 'data:...;base64,' di depan.
+ */
+async function kirimFoto(unit, berkas, nama, ket, tgl){
+  if(berkas.size > FOTO_BATAS_KLIEN) throw new Error('lebih dari 15 MB');
+  if(!FOTO_EXT_SAH.test(nama)) throw new Error('hanya .jpg, .png, atau .webp');
+
+  const isi = await new Promise((selesai, gagal)=>{
+    const baca = new FileReader();
+    baca.onload = ()=>selesai(String(baca.result).split(',')[1] || '');
+    baca.onerror = ()=>gagal(new Error('berkas tidak terbaca'));
+    baca.readAsDataURL(berkas);
+  });
+
+  const r = await fetch('/galeri/' + encodeURIComponent(unit), {
+    method:'POST', headers:{ 'Content-Type':'application/json' },
+    body: JSON.stringify({ berkas:nama, ket:ket || '', tgl:tgl || '', isi })
+  });
+  const j = await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(j.error || 'server menjawab ' + r.status);
+  return j;
+}
+
+/**
+ * Nama berkas yang aman dipakai sebagai nama berkas di disk sekaligus bagian
+ * URL: huruf kecil, tanpa spasi, tanpa aksen. Diawali kode unit dan tanggal
+ * supaya folder foto tetap terbaca walau dibuka lewat Explorer.
+ */
+function namaFotoBaru(unit, asal, tgl){
+  const ext = (asal.match(FOTO_EXT_SAH) || ['.jpg'])[0].toLowerCase().replace('.jpeg','.jpg');
+  // NFD memisahkan aksen jadi tanda gabung tersendiri, \p{M} membuangnya —
+  // "Kalibrasi Ané" jadi "kalibrasi-ane", bukan "kalibrasi-an-".
+  const pokok = asal.replace(FOTO_EXT_SAH,'')
+    .normalize('NFD').replace(/\p{M}/gu,'')
+    .toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,48) || 'foto';
+  const cap = (tgl || new Date().toISOString().slice(0,10)).replace(/-/g,'');
+  return `${unit}-${cap}-${pokok}${ext}`;
+}
+
+function pasangUnggahFoto(unit){
+  const jatuh = el('galJatuh'); if(!jatuh) return;
+  const masuk = el('galInput');
+  const kabar = el('galKabar');
+
+  const terima = async (daftar)=>{
+    const berkas = [...daftar].filter(b=>FOTO_EXT_SAH.test(b.name));
+    const ditolak = daftar.length - berkas.length;
+    if(!berkas.length){
+      kabar.innerHTML = `<span class="gagal">Tidak ada foto yang bisa dipakai — hanya .jpg, .png, dan .webp.</span>`;
+      return;
+    }
+    const ket = el('galKet').value.trim();
+    const tgl = el('galTgl').value;
+    let sudah = 0;
+    const gagal = [];
+    for(const b of berkas){
+      kabar.innerHTML = `Mengunggah <b>${esc(b.name)}</b> — ${sudah + 1} dari ${berkas.length}...`;
+      try{
+        await kirimFoto(unit, b, namaFotoBaru(unit, b.name, tgl), ket, tgl);
+        sudah++;
+      }catch(e){
+        gagal.push(`${b.name}: ${e && e.message || e}`);
+      }
+    }
+    await muatGaleri();
+    // Keterangan sengaja dikosongkan setelah berhasil: dipakai ulang tanpa
+    // sadar, seluruh galeri bisa berakhir dengan satu kalimat yang sama.
+    if(sudah) el('galKet').value = '';
+    gambarUnit();
+    const k = el('galKabar');
+    k.innerHTML = `<b>${sudah} foto tersimpan.</b>`
+      + (ditolak ? ` ${ditolak} berkas dilewati karena bukan gambar.` : '')
+      + (gagal.length ? `<br><span class="gagal">Gagal: ${esc(gagal.join('; '))}</span>` : '');
+  };
+
+  masuk.addEventListener('change', ()=>{ terima(masuk.files); masuk.value = ''; });
+
+  ['dragenter','dragover'].forEach(n=>jatuh.addEventListener(n, e=>{
+    e.preventDefault(); jatuh.classList.add('siap');
+  }));
+  ['dragleave','drop'].forEach(n=>jatuh.addEventListener(n, e=>{
+    e.preventDefault(); jatuh.classList.remove('siap');
+  }));
+  jatuh.addEventListener('drop', e=>{
+    if(e.dataTransfer && e.dataTransfer.files.length) terima(e.dataTransfer.files);
   });
 }
 

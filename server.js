@@ -24,6 +24,7 @@
 
 import express from 'express';
 import path from 'node:path';
+import fs from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 
 try { process.loadEnvFile?.(); } catch { /* tidak ada .env: pakai bawaan */ }
@@ -116,6 +117,130 @@ async function teruskan(req, res) {
 for (const jalur of JALUR_TERUS) {
   app.use(jalur, badanMentah, teruskan);
 }
+
+/* =====================================================================
+   GALERI FOTO — satu-satunya bagian yang menulis ke disk
+
+   Foto tersimpan di public/foto/<unit>/, keterangannya di
+   public/foto/daftar.json. Keduanya bersebelahan dan ikut masuk git, jadi
+   memindahkan proyek ini tidak pernah memisahkan foto dari keterangannya.
+
+   Modul galeri belum ada di E-Logbook, jadi ini benar-benar milik aplikasi
+   ini — bukan sesuatu yang nanti diambil dari sana.
+
+   Berkasnya dikirim sebagai base64 di dalam JSON, bentuk yang sama dengan
+   lampiran di E-Logbook. Tidak perlu pengurai multipart, dan satu bentuk
+   badan permintaan untuk seluruh aplikasi.
+   ===================================================================== */
+
+const FOTO_DIR   = path.join(ROOT, 'public', 'foto');
+const FOTO_JSON  = path.join(FOTO_DIR, 'daftar.json');
+const FOTO_BATAS = 15 * 1024 * 1024;   // per berkas, sebelum base64
+const FOTO_EXT   = new Set(['.jpg', '.jpeg', '.png', '.webp']);
+
+/** Kode unit dipakai sebagai nama folder — hanya huruf dan angka yang boleh. */
+const unitSah = (u) => /^[a-z0-9]{2,32}$/.test(String(u || ''));
+
+/**
+ * Nama berkas datang dari klien, jadi tidak boleh dipercaya: `../` di dalamnya
+ * cukup untuk menulis ke mana saja di disk. basename() memotong seluruh jalur,
+ * lalu daftar putih karakter menutup sisanya.
+ */
+function berkasSah(nama) {
+  const n = path.basename(String(nama || '')).trim();
+  if (!n || n.length > 120) return '';
+  if (!/^[A-Za-z0-9._-]+$/.test(n)) return '';
+  if (!FOTO_EXT.has(path.extname(n).toLowerCase())) return '';
+  return n;
+}
+
+async function bacaDaftar() {
+  try {
+    return JSON.parse(await fs.readFile(FOTO_JSON, 'utf8'));
+  } catch {
+    return {};   // belum ada, atau rusak: mulai dari kosong
+  }
+}
+
+/**
+ * Tulis lewat berkas sementara lalu rename. rename di dalam satu volume
+ * bersifat atomik, jadi daftar.json tidak pernah tertangkap separuh tertulis
+ * kalau prosesnya mati di tengah jalan.
+ */
+async function tulisDaftar(daftar) {
+  const sementara = FOTO_JSON + '.tmp';
+  await fs.writeFile(sementara, JSON.stringify(daftar, null, 2) + '\n', 'utf8');
+  await fs.rename(sementara, FOTO_JSON);
+}
+
+const badanGaleri = express.json({ limit: '60mb' });
+
+app.post('/galeri/:unit', badanGaleri, async (req, res) => {
+  const unit = String(req.params.unit || '').toLowerCase();
+  if (!unitSah(unit)) return res.status(400).json({ error: 'Kode unit tidak sah.' });
+
+  const nama = berkasSah(req.body?.berkas);
+  if (!nama) return res.status(400).json({ error: 'Nama berkas tidak sah — harus .jpg, .jpeg, .png, atau .webp.' });
+
+  const isi = Buffer.from(String(req.body?.isi || ''), 'base64');
+  if (!isi.length) return res.status(400).json({ error: 'Isi berkas kosong.' });
+  if (isi.length > FOTO_BATAS) {
+    return res.status(413).json({ error: `Berkas lebih dari ${Math.round(FOTO_BATAS / 1024 / 1024)} MB.` });
+  }
+
+  try {
+    await fs.mkdir(path.join(FOTO_DIR, unit), { recursive: true });
+    await fs.writeFile(path.join(FOTO_DIR, unit, nama), isi);
+
+    const daftar = await bacaDaftar();
+    const isiUnit = daftar[unit] || (daftar[unit] = []);
+    const lama = isiUnit.find(f => f.berkas === nama);
+    const entri = {
+      berkas: nama,
+      tgl: /^\d{4}-\d{2}-\d{2}$/.test(req.body?.tgl || '') ? req.body.tgl : '',
+      ket: String(req.body?.ket || '').slice(0, 400)
+    };
+    // Mengunggah ulang berkas dengan nama yang sama mengisi entri yang sudah
+    // ada, tidak menambah entri kembar. Keterangan lama dipertahankan kalau
+    // yang baru dikirim kosong — mengganti berkas bukan berarti membuang
+    // keterangan yang sudah ditulis dengan susah payah.
+    if (lama) {
+      lama.tgl = entri.tgl || lama.tgl;
+      lama.ket = entri.ket || lama.ket;
+    } else {
+      isiUnit.push(entri);
+    }
+    await tulisDaftar(daftar);
+
+    res.json({ ok: true, berkas: nama, jumlah: isiUnit.length });
+  } catch (e) {
+    console.error('[galeri] gagal menyimpan:', e);
+    res.status(500).json({ error: 'Gagal menyimpan berkas: ' + (e?.message || e) });
+  }
+});
+
+app.delete('/galeri/:unit/:berkas', async (req, res) => {
+  const unit = String(req.params.unit || '').toLowerCase();
+  const nama = berkasSah(req.params.berkas);
+  if (!unitSah(unit) || !nama) return res.status(400).json({ error: 'Permintaan tidak sah.' });
+
+  try {
+    const daftar = await bacaDaftar();
+    // Hanya berkas yang memang terdaftar yang boleh dihapus. Tanpa syarat ini,
+    // endpoint ini bisa dipakai menghapus berkas apa pun di dalam foto/.
+    const isiUnit = daftar[unit] || [];
+    if (!isiUnit.some(f => f.berkas === nama)) {
+      return res.status(404).json({ error: 'Foto tidak ada dalam daftar.' });
+    }
+    daftar[unit] = isiUnit.filter(f => f.berkas !== nama);
+    await tulisDaftar(daftar);
+    await fs.rm(path.join(FOTO_DIR, unit, nama), { force: true });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[galeri] gagal menghapus:', e);
+    res.status(500).json({ error: 'Gagal menghapus: ' + (e?.message || e) });
+  }
+});
 
 /* =====================================================================
    HALAMAN

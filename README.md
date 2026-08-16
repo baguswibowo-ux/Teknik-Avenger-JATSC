@@ -77,24 +77,39 @@ Tab **Galeri** di dashboard unit menampilkan foto dokumentasi kegiatan. Ini foto
 sungguhan, bukan ilustrasi — dan bukan pula lewat E-Logbook, karena modul galeri
 belum ada di sana.
 
-Dua langkah:
+Menambah foto dilakukan **dari layar, tanpa menyentuh kode**: isi keterangan dan
+tanggal di kotak "Tambah foto", lalu tarik fotonya ke sana. Berkasnya tersimpan
+permanen di `public/foto/<kode unit>/` dan keterangannya ditulis ke
+`public/foto/daftar.json` oleh server.
 
-1. Taruh berkasnya di `public/foto/<kode unit>/`, mis.
-   `public/foto/radtel/radtel-01-pengarahan-ruang-teknik.jpg`
-2. Tambah satu baris pada blok `FOTO` di `public/index.html` (cari
-   `GALERI FOTO`):
+Ada dua cara foto masuk:
 
-   ```js
-   { berkas:'radtel-05-kalibrasi.jpg', tgl:'2026-08-16',
-     ket:'Kalibrasi pemancar setelah penggantian modul.' },
-   ```
+- **Slot yang menunggu.** Ubin bertanda `BERKAS BELUM ADA` adalah entri yang
+  keterangannya sudah ditulis tapi berkasnya belum masuk. Tekan ubinnya, pilih
+  berkasnya — nama dan keterangan slot itu yang dipakai, bukan nama berkas asal.
+  Berguna kalau daftar fotonya disiapkan lebih dulu.
+- **Foto baru.** Tarik ke kotak "Tambah foto". Namanya dirapikan otomatis jadi
+  `<unit>-<tanggal>-<nama-berkas>.jpg`.
 
-Urutannya bebas — daftar boleh ditulis lebih dulu, berkasnya menyusul. Foto yang
-berkasnya belum ada **tidak merusak apa pun**: ubinnya tetap muncul dengan tanda
-`BERKAS BELUM ADA` beserta nama berkas yang ditunggu, jadi yang belum masuk
-tidak terlupakan. `tgl` boleh dikosongkan.
+Batas 15 MB per berkas, hanya `.jpg`, `.png`, dan `.webp`.
 
-Klik foto untuk membukanya besar; tekan `Esc` atau klik di luar untuk menutup.
+Klik foto untuk membukanya besar; `Esc` atau klik di luar untuk menutup. Tombol
+**Hapus** muncul di pojok ubin saat disentuh tetikus — berkasnya ikut terhapus
+dari server, jadi ia bertanya dulu.
+
+Foto dan `daftar.json` bersebelahan di folder yang sama dan keduanya ikut masuk
+git, jadi memindahkan proyek ini tidak pernah memisahkan foto dari
+keterangannya.
+
+### Catatan keamanan
+
+`POST /galeri/:unit` dan `DELETE /galeri/:unit/:berkas` adalah **satu-satunya
+bagian aplikasi ini yang menulis ke disk**, dan keduanya belum meminta login.
+Nama berkas disaring ketat (basename, daftar putih karakter, hanya ekstensi
+gambar) sehingga tidak bisa dipakai menulis ke luar `public/foto/`, dan
+penghapusan hanya berlaku untuk berkas yang memang terdaftar. Tetap saja:
+sebelum server ini dibuka ke jaringan kantor, kedua endpoint itu perlu diberi
+pemeriksaan sesi.
 
 ## Setelan
 
