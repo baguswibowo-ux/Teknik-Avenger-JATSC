@@ -5,3 +5,6 @@ uploads/
 data/
 .DS_Store
 Thumbs.db
+
+# setelan lokal Claude Code, bukan bagian proyek
+.claude/
