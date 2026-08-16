@@ -59,6 +59,27 @@ adanya, tanpa satu baris pun diubah dari bentuk aslinya.
 
 Jalur yang diteruskan: `/api/*` dan `/uploads/*`.
 
+### Masuk dan membuka E-Logbook
+
+**Masuk dengan akun E-Logbook.** Di kartu masuk, pilih sumber **Server
+E-Logbook** lalu isi username dan password E-Logbook Anda. Kalau di peramban itu
+sesi E-Logbook masih hidup, tombolnya berubah jadi "Lanjutkan sebagai …" dan
+password tidak diminta lagi.
+
+**Membuka aplikasi E-Logbook.** Tombol **Buka E-Logbook** ada di tiga tempat:
+kartu masuk, ikon buku di kepala halaman, dan layar unit. Semuanya membuka
+E-Logbook di tab baru.
+
+Tombol itu menunjuk E-Logbook **langsung**, bukan lewat penerusan — seluruh aset
+E-Logbook memanggil `/css/` dan `/js/` dari akar, dan akar di sini milik
+dashboard. Alamatnya dirangkai dari hostname yang sedang dipakai peramban
+ditambah port E-Logbook, jadi ikut benar walau dashboard dibuka dari komputer
+lain. Kalau E-Logbook ada di alamat yang lain sendiri, isi `ELOGBOOK_TAUTAN`.
+
+E-Logbook tidak membaca satu pun parameter URL dan unit aktifnya hanya ada di
+memori, jadi tidak ada cara menunjuk unit tertentu dari luar — tombolnya membuka
+aplikasinya saja, unitnya dipilih di sana.
+
 ### Kalau E-Logbook mati
 
 Pemeriksaan `/api/me` gagal, pilihan sumber "server" padam sendiri, dan halaman
@@ -121,6 +142,7 @@ Lewat environment variable, atau salin `.env.example` jadi `.env`:
 | `HOST`          | `0.0.0.0`               | alamat bind                                 |
 | `ELOGBOOK_ASAL` | `http://127.0.0.1:3000` | alamat server E-Logbook                     |
 | `ELOGBOOK_MATI` | —                       | set `1` untuk memutus penerusan             |
+| `ELOGBOOK_TAUTAN` | —                     | alamat E-Logbook untuk tombol "Buka E-Logbook", kalau bukan hostname yang sama |
 
 `GET /_info` menjawab setelan yang sedang dipakai — berguna untuk memastikan
 servernya menunjuk ke E-Logbook yang benar.

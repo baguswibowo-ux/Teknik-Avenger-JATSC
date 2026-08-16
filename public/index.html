@@ -332,6 +332,11 @@ button{font:inherit;}
 .km-sumber-tombol button.km-pilih{background:var(--km-sian-latar);color:var(--km-sian);
   box-shadow:inset 0 -2px 0 var(--km-sian);}
 .km-sumber-tombol button:disabled{opacity:.4;cursor:not-allowed;}
+.km-tautan-luar{display:block;margin-top:14px;text-align:center;text-decoration:none;
+  font-family:var(--font-mono);font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--km-redup-3);transition:color .16s;}
+.km-tautan-luar:hover{color:var(--km-sian);}
+
 .km-sumber-ket{display:flex;align-items:flex-start;gap:7px;margin-top:9px;
   font:400 10px/1.5 'IBM Plex Mono',monospace;letter-spacing:.04em;color:var(--km-redup-3);}
 .km-sumber-ket i{margin-top:4px;width:6px;height:6px;flex:none;border-radius:50%;
@@ -426,8 +431,11 @@ header.konsol::after{content:"";position:absolute;inset:0;pointer-events:none;
 .jam .blok{text-align:right;}
 .jam .nilai{font-family:var(--font-mono);font-size:18px;font-weight:600;color:var(--accent);line-height:1.1;}
 .jam .label{font-family:var(--font-mono);font-size:9px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;}
+/* Dipakai <button> maupun <a> — tanpa text-decoration:none, tautannya
+   membawa garis bawah yang menyeberang di bawah ikonnya. */
 .tombol-ikon{background:var(--panel);border:1px solid var(--line);color:var(--text);border-radius:9px;
-  width:34px;height:34px;display:grid;place-items:center;cursor:pointer;transition:.16s;}
+  width:34px;height:34px;display:grid;place-items:center;cursor:pointer;transition:.16s;
+  text-decoration:none;}
 .tombol-ikon:hover{border-color:var(--accent);color:var(--accent);}
 
 .kartu-akun{display:flex;align-items:center;gap:9px;border:1px solid var(--line);border-radius:10px;
@@ -947,6 +955,11 @@ td select.brk-kat{background:var(--panel-2);color:var(--text);border:1px solid v
             <div class="km-ket" id="ketAkunContoh">Ini prototipe: sandinya tidak diperiksa dan tidak ada data
               sungguhan di baliknya. Pemeriksaan akun yang asli tetap milik server E-Logbook.</div>
           </div>
+
+          <!-- Jalan keluar bagi yang datang ke sini padahal yang dicari
+               E-Logbook. Tanpa ini, satu-satunya cara masuk ke sana adalah
+               menghafal alamatnya. -->
+          <a class="km-tautan-luar" href="#" data-elogbook>Buka aplikasi E-Logbook &rarr;</a>
         </div>
       </div>
     </section>
@@ -1032,6 +1045,12 @@ td select.brk-kat{background:var(--panel-2);color:var(--text);border:1px solid v
       <div class="blok"><div class="nilai" id="jamWib">--:--:--</div><div class="label" id="tglWib">WIB</div></div>
       <div class="kartu-akun"><span class="av" id="avAkun">--</span>
         <span><span class="nm" id="nmAkun">—</span><br><span class="pr" id="prAkun">—</span></span></div>
+      <a class="tombol-ikon" href="#" data-elogbook id="tautanElogbook" title="Buka E-Logbook">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+          <path d="M9 7h7"/><path d="M9 11h7"/></svg>
+      </a>
       <button class="tombol-ikon" id="tombolTema" title="Ganti mode terang/gelap">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
           <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
@@ -1150,7 +1169,7 @@ td select.brk-kat{background:var(--panel-2);color:var(--text);border:1px solid v
     hasilnya baru bagus kalau logbook, isu, dan LTK sudah punya kolom penanda peralatan.
   </div>
   <div style="margin-top:20px;display:flex;gap:10px;flex-wrap:wrap">
-    <a class="btn" href="/">Buka E-Logbook yang sekarang</a>
+    <a class="btn" href="#" data-elogbook>Buka E-Logbook yang sekarang</a>
     <button class="btn garis" onclick="pindahLayar('beranda')">Kembali ke beranda</button>
   </div>
 </section>
@@ -2523,6 +2542,52 @@ srvPeriksa();   // lalu tanya server: ada, dan sesinya masih hidup?
 // Gambar ulang kalau ternyata sudah keburu ada unit terbuka.
 muatGaleri().then(()=>{ if(unitDibuka) gambarUnit(); });
 
+muatTautanElogbook();
+
+/* =======================================================================
+   TAUTAN KE E-LOGBOOK
+
+   Dashboard ini di port 3100, E-Logbook di 3000 — dua alamat berbeda bagi
+   peramban. Data memang lewat penerusan di server.js, tapi tombol "Buka
+   E-Logbook" harus menunjuk aplikasi E-Logbook yang sungguhan, dan itu tidak
+   bisa lewat penerusan: seluruh aset E-Logbook memanggil /css/ dan /js/ dari
+   akar, yang di sini milik dashboard.
+
+   Dulu tombolnya cukup href="/" karena halaman ini memang disajikan DARI
+   E-Logbook. Setelah pindah, "/" berarti dashboard ini sendiri — tombolnya
+   hanya memuat ulang halaman yang sedang dibuka.
+   ======================================================================= */
+let TAUTAN_ELOGBOOK = '';
+
+async function muatTautanElogbook(){
+  let port = 3000;
+  try{
+    const r = await fetch('/_info', { cache:'no-store' });
+    if(r.ok){
+      const j = await r.json();
+      if(j.tautanElogbook){ pasangTautanElogbook(j.tautanElogbook); return; }
+      if(j.portElogbook) port = j.portElogbook;
+    }
+  }catch(e){
+    console.warn('Info server tidak terbaca, alamat E-Logbook ditebak:', e && e.message || e);
+  }
+  // hostname yang sedang dipakai, bukan 127.0.0.1: kalau dashboard ini dibuka
+  // dari komputer lain, 127.0.0.1 di sana menunjuk komputer itu sendiri.
+  pasangTautanElogbook(`${location.protocol}//${location.hostname}:${port}`);
+}
+
+function pasangTautanElogbook(alamat){
+  TAUTAN_ELOGBOOK = alamat;
+  document.querySelectorAll('[data-elogbook]').forEach(a=>{
+    a.href = alamat;
+    // Tab baru: dashboard yang sedang dibaca tidak boleh hilang hanya karena
+    // seseorang ingin melihat logbooknya sebentar.
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.title = 'Membuka ' + alamat + ' di tab baru';
+  });
+}
+
 /* =======================================================================
    JAM DAN NAVIGASI
    ======================================================================= */
@@ -2845,7 +2910,10 @@ function gambarUnit(){
         <div class="mono" style="font-size:10.5px;color:var(--muted);margin-top:5px">
           kode dinas ${u.dinas.join(' · ')} · ${alat.length} peralatan terdaftar</div>
       </div>
-      <a class="btn" href="/">Buka E-Logbook unit ini</a>
+      <!-- Bukan "unit ini": E-Logbook tidak membaca satu pun parameter URL,
+           dan unit aktifnya cuma ada di memori — tidak ada cara menunjuknya
+           dari luar. Yang dijanjikan tombol ini hanya membuka aplikasinya. -->
+      <a class="btn" href="#" data-elogbook>Buka E-Logbook</a>
     </div>
 
     <div class="subtab" id="subtab">
@@ -3047,6 +3115,10 @@ function gambarUnit(){
   gambarRinciAlat();
   gambarGaleri(foto);
   brkPasang();
+  // Layar ini digambar ulang tiap pindah unit, jadi tombol E-Logbook di
+  // dalamnya selalu lahir kembali dengan href="#" — alamatnya harus dipasang
+  // ulang di sini, bukan sekali saja saat halaman dimuat.
+  if(TAUTAN_ELOGBOOK) pasangTautanElogbook(TAUTAN_ELOGBOOK);
 }
 
 /**

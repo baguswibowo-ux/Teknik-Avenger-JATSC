@@ -251,7 +251,15 @@ app.get('/_info', (_req, res) => {
     aplikasi: 'Dashboard Fasilitas Teknik JATSC (Avenger)',
     versi: process.env.npm_package_version || '0.1.0',
     port: PORT,
-    elogbook: TERUS ? ASAL : null
+    elogbook: TERUS ? ASAL : null,
+    // Alamat E-Logbook untuk DIBUKA DI PERAMBAN, berbeda dari ASAL yang dipakai
+    // server ini. ASAL menunjuk 127.0.0.1 — benar dari sisi server, tapi kalau
+    // dashboardnya dibuka dari komputer lain di jaringan, 127.0.0.1 di sana
+    // adalah komputer itu sendiri, bukan mesin E-Logbook. Karena itu bawaannya
+    // null: halaman merangkainya dari hostname yang sedang ia pakai, dan
+    // ELOGBOOK_TAUTAN dipakai hanya kalau alamatnya memang lain sendiri.
+    tautanElogbook: process.env.ELOGBOOK_TAUTAN || null,
+    portElogbook: TERUS ? Number(new URL(ASAL).port || 80) : null
   });
 });
 
