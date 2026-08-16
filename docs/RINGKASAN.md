@@ -80,6 +80,16 @@ tombol untuk mengisi slot yang keterangannya sudah ditulis.
 **Tiga jalan masuk ke E-Logbook.** Dari kartu masuk, ikon buku di kepala
 halaman, dan layar unit.
 
+**Pilihan tujuan di kartu masuk.** Paling atas, sebelum kolom password: mau ke
+**Dashboard Teknik** atau ke **E-Logbook**. Sebelumnya jalan ke E-Logbook cuma
+tautan kecil di kaki kartu — terbaca sebagai catatan tambahan, padahal bagi
+sebagian besar orang teknik justru itu tujuan hariannya. Memilih E-Logbook
+melepas kolom username dan password dari halaman, bukan meredupkannya: selama
+kolomnya masih kelihatan akan selalu ada yang mengetik password di kotak yang
+salah. Alamat E-Logbook-nya ditulis terang di bawah tombolnya, karena alamat itu
+berbeda-beda tergantung dari mana dashboard dibuka dan yang mau menyimpan
+bookmark perlu melihatnya.
+
 **Kelola Akun — akun E-Logbook diurus dari depan.** Tab baru di dashboard, hanya
 muncul untuk administrator yang masuk lewat server. Isinya daftar seluruh akun
 beserta peran dan unitnya, dengan tombol untuk menambah akun, mengganti nama

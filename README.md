@@ -61,14 +61,24 @@ Jalur yang diteruskan: `/api/*` dan `/uploads/*`.
 
 ### Masuk dan membuka E-Logbook
 
-**Masuk dengan akun E-Logbook.** Di kartu masuk, pilih sumber **Server
-E-Logbook** lalu isi username dan password E-Logbook Anda. Kalau di peramban itu
-sesi E-Logbook masih hidup, tombolnya berubah jadi "Lanjutkan sebagai …" dan
-password tidak diminta lagi.
+**Pilih tujuan lebih dulu.** Paling atas di kartu masuk ada dua pilihan:
+**Dashboard Teknik** atau **E-Logbook**. Dua aplikasi berbeda, satu akun, dan
+sekarang satu pintu — yang datang mencari logbook harian tidak perlu tahu alamat
+E-Logbook, cukup memilihnya di sini.
 
-**Membuka aplikasi E-Logbook.** Tombol **Buka E-Logbook** ada di tiga tempat:
-kartu masuk, ikon buku di kepala halaman, dan layar unit. Semuanya membuka
-E-Logbook di tab baru.
+Memilih E-Logbook melepas kolom username dan password dari halaman, bukan sekadar
+meredupkannya. Selama kolom itu masih kelihatan, akan selalu ada yang mengetikkan
+passwordnya di sana padahal yang dituju aplikasi sebelah, lalu mengira akunnya
+bermasalah.
+
+**Masuk dengan akun E-Logbook.** Dengan tujuan **Dashboard Teknik**, pilih sumber
+**Server E-Logbook** lalu isi username dan password E-Logbook Anda. Kalau di
+peramban itu sesi E-Logbook masih hidup, tombolnya berubah jadi "Lanjutkan
+sebagai …" dan password tidak diminta lagi.
+
+**Membuka aplikasi E-Logbook.** Selain lewat pilihan tujuan di kartu masuk,
+tombol **Buka E-Logbook** ada di ikon buku pada kepala halaman dan di layar unit.
+Semuanya membuka E-Logbook di tab baru.
 
 Tombol itu menunjuk E-Logbook **langsung**, bukan lewat penerusan — seluruh aset
 E-Logbook memanggil `/css/` dan `/js/` dari akar, dan akar di sini milik

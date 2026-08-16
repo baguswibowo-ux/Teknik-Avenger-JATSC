@@ -332,10 +332,21 @@ button{font:inherit;}
 .km-sumber-tombol button.km-pilih{background:var(--km-sian-latar);color:var(--km-sian);
   box-shadow:inset 0 -2px 0 var(--km-sian);}
 .km-sumber-tombol button:disabled{opacity:.4;cursor:not-allowed;}
-.km-tautan-luar{display:block;margin-top:14px;text-align:center;text-decoration:none;
-  font-family:var(--font-mono);font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;
-  color:var(--km-redup-3);transition:color .16s;}
-.km-tautan-luar:hover{color:var(--km-sian);}
+
+/* Judul mungil di atas sekelompok tombol. Dipakai TUJUAN dan SUMBER DATA. */
+.km-jdl-mini{font:400 9px/1 'IBM Plex Mono',monospace;letter-spacing:.2em;
+  color:var(--km-redup-4);margin-bottom:7px;}
+/* Pilihan tujuan dipisah garis dari sisanya: yang di bawahnya berubah total
+   tergantung pilihan ini, jadi hubungannya harus terbaca sebelum diklik. */
+.km-tujuan{padding-bottom:14px;margin-bottom:2px;border-bottom:1px solid var(--km-line-3);}
+
+/* Panel pengganti kolom masuk kalau yang dituju E-Logbook. Kolom username dan
+   password bukan diredupkan melainkan benar-benar dilepas dari halaman: selama
+   masih kelihatan, akan selalu ada yang mengetikkan passwordnya di sana padahal
+   yang dituju aplikasi sebelah. */
+.km-elog p{font:400 11.5px/1.65 'IBM Plex Sans',sans-serif;color:var(--km-redup-3);margin:13px 0 0;}
+.km-elog p b{color:var(--km-terang-3);font-weight:600;}
+a.km-tombol-masuk{display:block;text-align:center;text-decoration:none;}
 
 .km-sumber-ket{display:flex;align-items:flex-start;gap:7px;margin-top:9px;
   font:400 10px/1.5 'IBM Plex Mono',monospace;letter-spacing:.04em;color:var(--km-redup-3);}
@@ -987,37 +998,55 @@ tr.akun-mati td:not(:last-child){opacity:.55;}
                   aria-label="Tutup kartu masuk">&times;</button>
           <div class="km-eyebrow">PERUM LPPNPI &middot; CABANG JATSC</div>
           <h2>Dashboard Fasilitas Teknik</h2>
-          <p class="km-sub-teks">Masuk dengan akun E-Logbook Anda — akunnya satu, sama persis dengan
+          <p class="km-sub-teks" id="kmSubTeks">Masuk dengan akun E-Logbook Anda — akunnya satu, sama persis dengan
             yang dipakai di sana. Setelah masuk, semua akun melihat trouble dan jadwal dinas seluruh
             unit; isi per unit terbuka sesuai peran akun.</p>
 
-          <div class="km-sumber">
-            <div class="km-jdl" style="font:400 9px/1 'IBM Plex Mono',monospace;letter-spacing:.2em;
-              color:var(--km-redup-4);margin-bottom:7px;">SUMBER DATA</div>
+          <!-- Dua aplikasi, satu alamat masuk. Yang membuka halaman ini belum
+               tentu mencari dashboard — sebagian besar orang teknik sehari-harinya
+               membuka E-Logbook. Pilihannya ditaruh paling atas, sebelum kolom
+               password, supaya tidak ada yang terlanjur mengetik di kotak yang
+               salah lalu bingung kenapa akunnya seperti tidak dikenali. -->
+          <div class="km-tujuan">
+            <div class="km-jdl-mini">TUJUAN</div>
             <div class="km-sumber-tombol">
-              <button type="button" id="btnSumberServer" disabled>SERVER E-LOGBOOK</button>
-              <button type="button" id="btnSumberContoh" class="km-pilih">DATA CONTOH</button>
+              <button type="button" id="btnTujuanDash" class="km-pilih">DASHBOARD TEKNIK</button>
+              <button type="button" id="btnTujuanElog">E-LOGBOOK</button>
             </div>
-            <div class="km-sumber-ket km-sibuk" id="ketSumber"><i></i><span>Memeriksa sambungan ke server…</span></div>
           </div>
 
-          <div class="km-kolom"><label for="iUser">Username</label>
-            <input type="text" id="iUser" autocomplete="off" spellcheck="false" placeholder="mis. radtel"></div>
-          <div class="km-kolom"><label for="iPass">Password</label>
-            <input type="password" id="iPass" autocomplete="off" placeholder="prototipe — tidak diperiksa"></div>
-          <button class="km-tombol-masuk" id="btnMasuk">Masuk</button>
+          <div id="kmBagianDash">
+            <div class="km-sumber">
+              <div class="km-jdl-mini">SUMBER DATA</div>
+              <div class="km-sumber-tombol">
+                <button type="button" id="btnSumberServer" disabled>SERVER E-LOGBOOK</button>
+                <button type="button" id="btnSumberContoh" class="km-pilih">DATA CONTOH</button>
+              </div>
+              <div class="km-sumber-ket km-sibuk" id="ketSumber"><i></i><span>Memeriksa sambungan ke server…</span></div>
+            </div>
 
-          <div class="km-akun" id="kotakAkunContoh">
-            <div class="km-jdl">Akun contoh — klik untuk mengisi</div>
-            <div class="km-baris" id="akunContoh"></div>
-            <div class="km-ket" id="ketAkunContoh">Ini prototipe: sandinya tidak diperiksa dan tidak ada data
-              sungguhan di baliknya. Pemeriksaan akun yang asli tetap milik server E-Logbook.</div>
+            <div class="km-kolom"><label for="iUser">Username</label>
+              <input type="text" id="iUser" autocomplete="off" spellcheck="false" placeholder="mis. radtel"></div>
+            <div class="km-kolom"><label for="iPass">Password</label>
+              <input type="password" id="iPass" autocomplete="off" placeholder="prototipe — tidak diperiksa"></div>
+            <button class="km-tombol-masuk" id="btnMasuk">Masuk</button>
+
+            <div class="km-akun" id="kotakAkunContoh">
+              <div class="km-jdl">Akun contoh — klik untuk mengisi</div>
+              <div class="km-baris" id="akunContoh"></div>
+              <div class="km-ket" id="ketAkunContoh">Ini prototipe: sandinya tidak diperiksa dan tidak ada data
+                sungguhan di baliknya. Pemeriksaan akun yang asli tetap milik server E-Logbook.</div>
+            </div>
           </div>
 
-          <!-- Jalan keluar bagi yang datang ke sini padahal yang dicari
-               E-Logbook. Tanpa ini, satu-satunya cara masuk ke sana adalah
-               menghafal alamatnya. -->
-          <a class="km-tautan-luar" href="#" data-elogbook>Buka aplikasi E-Logbook &rarr;</a>
+          <div class="km-elog" id="kmBagianElog" hidden>
+            <p>E-Logbook aplikasi tersendiri dengan halaman masuknya sendiri. Yang dikerjakan di sana
+              <b>logbook harian, daily check, isu, LTK, dan tanda tangan</b> — bukan ringkasan
+              seperti di dashboard ini.</p>
+            <p>Akunnya sama persis dengan yang dipakai di sini, jadi tidak ada akun kedua yang perlu diingat.</p>
+            <a class="km-tombol-masuk" href="#" data-elogbook>Buka E-Logbook &rarr;</a>
+            <div class="km-sumber-ket" id="ketElog"><i></i><span>Mencari alamat E-Logbook…</span></div>
+          </div>
         </div>
       </div>
     </section>
@@ -2246,8 +2275,29 @@ function kmSegarkanSesi(){
    apa-apa, dan itu keadaan awalnya. */
 function kmSetMasuk(buka){
   el('kmLapisMasuk').classList.toggle('km-buka', buka);
-  if(buka) el('iUser').focus();
+  // Kolom username hanya ada selama tujuannya dashboard. Memanggil focus() pada
+  // kolom yang sedang hidden tidak melempar error, tapi juga tidak mengenai apa
+  // pun — fokusnya tertinggal di tombol yang barusan diklik.
+  if(buka) (el('kmBagianDash').hidden ? el('btnTujuanElog') : el('iUser')).focus();
   else document.activeElement?.blur?.();   // fokus tidak boleh tertinggal di kartu yang sudah tak terlihat
+}
+
+/* Tujuan: dashboard ini, atau E-Logbook sebelah.
+   Keduanya memakai akun yang sama dan sama-sama dijangkau dari alamat ini, jadi
+   yang benar-benar perlu dipilih di depan cuma mau ke mana. Sebelumnya jalan ke
+   E-Logbook cuma tautan kecil di kaki kartu — terbaca sebagai catatan tambahan,
+   padahal bagi sebagian besar orang teknik justru itu tujuan utamanya. */
+function pilihTujuan(mode){
+  const elog = mode === 'elogbook';
+  el('btnTujuanElog').classList.toggle('km-pilih', elog);
+  el('btnTujuanDash').classList.toggle('km-pilih', !elog);
+  el('kmBagianDash').hidden = elog;
+  el('kmBagianElog').hidden = !elog;
+  el('kmSubTeks').textContent = elog
+    ? 'Logbook harian dan tanda tangan dikerjakan di E-Logbook. Dashboard ini hanya membaca hasilnya.'
+    : 'Masuk dengan akun E-Logbook Anda — akunnya satu, sama persis dengan yang dipakai di sana. '
+      + 'Setelah masuk, semua akun melihat trouble dan jadwal dinas seluruh unit; isi per unit terbuka sesuai peran akun.';
+  if(!elog) el('iUser').focus();
 }
 
 function kmMulai(){
@@ -2260,6 +2310,8 @@ function kmMulai(){
   el('kmSesi').addEventListener('click', ()=>kmSetMasuk(true));
   el('kmPicuMasuk').addEventListener('click', ()=>kmSetMasuk(true));
   el('kmTutupMasuk').addEventListener('click', ()=>kmSetMasuk(false));
+  el('btnTujuanDash').addEventListener('click', ()=>pilihTujuan('dashboard'));
+  el('btnTujuanElog').addEventListener('click', ()=>pilihTujuan('elogbook'));
   /* Esc menutup kartu, tapi hanya selama layar masuk yang di depan — kalau
      dashboardnya sudah terbuka, Esc di sana bukan urusan layar ini. */
   document.addEventListener('keydown', e=>{
@@ -3035,6 +3087,11 @@ function pasangTautanElogbook(alamat){
     a.rel = 'noopener';
     a.title = 'Membuka ' + alamat + ' di tab baru';
   });
+  // Alamatnya ditulis terang-terangan di kartu masuk, bukan cuma disembunyikan
+  // di title tombol: alamat E-Logbook berbeda-beda tergantung dari mana
+  // dashboard ini dibuka, dan yang mau menyimpan bookmark perlu melihatnya.
+  const ket = el('ketElog');
+  if(ket) ket.querySelector('span').textContent = alamat + ' — dibuka di tab baru';
 }
 
 /* =======================================================================
