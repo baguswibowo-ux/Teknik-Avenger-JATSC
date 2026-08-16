@@ -80,6 +80,32 @@ E-Logbook tidak membaca satu pun parameter URL dan unit aktifnya hanya ada di
 memori, jadi tidak ada cara menunjuk unit tertentu dari luar — tombolnya membuka
 aplikasinya saja, unitnya dipilih di sana.
 
+### Kelola Akun
+
+Administrator yang masuk lewat server E-Logbook mendapat tab **Kelola Akun**.
+Dari situ akun E-Logbook bisa ditambah, diganti nama tampilan, peran, dan unit
+logbooknya, diganti passwordnya, dinonaktifkan, dan dihapus — tanpa perlu
+membuka E-Logbook.
+
+Akunnya tetap milik E-Logbook. Dashboard ini tidak menyimpan akun sendiri, tidak
+membuka basis datanya, dan tidak menyunting satu pun berkasnya: yang dipakai
+hanya fungsi administrator yang sudah ada di API-nya (`listUsers`, `addUser`,
+`setUserNama`, `setUserRole`, `setUserUnit`, `setUserAktif`, `setUserPassword`,
+`deleteUser`), lewat penerusan `/api/*` yang sama dengan data lainnya.
+
+Tab ini disembunyikan dari peran selain administrator, tapi itu **cuma
+kenyamanan** — yang benar-benar menjaga adalah E-Logbook, yang menolak seluruh
+fungsi di atas dengan 403 untuk peran lain. Menyembunyikan tombol tidak pernah
+jadi pengaman.
+
+Dua hal yang sengaja dibuat merepotkan, karena keduanya tidak bisa dibatalkan:
+menghapus akun hanya boleh setelah akunnya nonaktif, dan tombolnya baru hidup
+setelah usernamenya diketik ulang persis. Catatan logbook yang pernah diinput
+akun itu tetap tinggal, bahkan setelah akunnya hilang.
+
+Password lama tidak bisa dilihat dari mana pun, termasuk dari sini — yang
+tersimpan di E-Logbook hanya sidik acaknya. Yang tersedia cuma menggantinya.
+
 ### Kalau E-Logbook mati
 
 Pemeriksaan `/api/me` gagal, pilihan sumber "server" padam sendiri, dan halaman

@@ -797,6 +797,63 @@ td select.brk-kat{background:var(--panel-2);color:var(--text);border:1px solid v
   padding:4px 9px;cursor:pointer;font-family:var(--font-mono);font-size:10.5px;transition:.16s;}
 .brk-buang:hover{border-color:var(--fail);color:var(--fail);}
 
+/* ---------- Kelola akun ----------
+   Kartu ubahnya lapisan tetap di atas halaman, bukan panel yang menyisip di
+   dalam tabel. Mengubah peran atau unit sebuah akun bukan pekerjaan sambil
+   lalu: satu akun sekali waktu, dengan sisa layar diredupkan, jadi tidak ada
+   baris sebelah yang tanpa sengaja ikut tersunting. */
+.pil{font-family:var(--font-mono);font-size:10px;letter-spacing:.06em;padding:2px 8px;border-radius:20px;
+  display:inline-block;white-space:nowrap;border:1px solid var(--line);color:var(--muted);}
+.pil.admin{background:rgba(229,72,77,.13);color:var(--fail);border-color:rgba(229,72,77,.4);}
+.pil.pejabat{background:rgba(255,179,0,.13);color:var(--warn);border-color:rgba(255,179,0,.4);}
+.pil.teknisi{background:rgba(41,182,246,.13);color:var(--accent);border-color:rgba(41,182,246,.4);}
+.pil.aktif-ya{background:rgba(46,204,113,.13);color:var(--ok);border-color:rgba(46,204,113,.4);}
+.pil.awas{background:rgba(229,72,77,.13);color:var(--fail);border-color:rgba(229,72,77,.4);}
+.pil.aktif-tidak{opacity:.75;}
+/* Baris akun nonaktif diredupkan, bukan disembunyikan — yang dinonaktifkan
+   justru yang paling perlu terlihat saat memutuskan siapa yang boleh dihapus. */
+tr.akun-mati td:not(:last-child){opacity:.55;}
+.unit-pil{display:flex;flex-wrap:wrap;gap:4px;}
+
+.lapis-ubah{position:fixed;inset:0;z-index:180;display:none;place-items:center;padding:24px;
+  background:rgba(0,0,0,.72);backdrop-filter:blur(3px);overflow:auto;}
+.lapis-ubah.buka{display:grid;}
+.kartu-ubah{width:min(520px,100%);background:var(--panel);border:1px solid var(--line);border-radius:14px;
+  box-shadow:0 26px 60px rgba(0,0,0,.55);overflow:hidden;}
+.kartu-ubah .kepala{display:flex;justify-content:space-between;align-items:center;gap:10px;
+  padding:13px 16px;border-bottom:1px solid var(--line);background:var(--panel-2);}
+.kartu-ubah .kepala h3{font-size:14px;}
+.kartu-ubah .kepala .ket{font-family:var(--font-mono);font-size:10.5px;color:var(--muted);}
+.kartu-ubah .badan{padding:15px 16px;}
+.kartu-ubah .kaki{display:flex;justify-content:flex-end;gap:9px;flex-wrap:wrap;
+  padding:12px 16px;border-top:1px solid var(--line);background:var(--panel-2);}
+
+.isian{margin-bottom:13px;}
+.isian > label{display:block;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.11em;
+  text-transform:uppercase;color:var(--muted);margin-bottom:5px;}
+.isian input,.isian select{width:100%;background:var(--panel-2);color:var(--text);border:1px solid var(--line);
+  border-radius:8px;padding:8px 10px;font-family:var(--font-body);font-size:12.5px;}
+.isian input:focus,.isian select:focus{outline:none;border-color:var(--accent);}
+.isian input:disabled,.isian select:disabled{opacity:.5;cursor:not-allowed;}
+.isian .bantu{font-size:11px;color:var(--muted);line-height:1.55;margin-top:5px;}
+.kotak-unit{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:6px;
+  border:1px solid var(--line);border-radius:9px;padding:9px 10px;background:var(--panel-2);}
+.kotak-unit.mati{opacity:.45;pointer-events:none;}
+.kotak-unit label{display:flex;align-items:center;gap:7px;font-size:12px;cursor:pointer;}
+.kotak-unit input{width:auto;accent-color:var(--accent);}
+
+/* Wilayah hapus sengaja dipisah dan diberi garis merah: satu-satunya tombol di
+   seluruh aplikasi ini yang membuang sesuatu di E-Logbook untuk selamanya. */
+.bahaya{border:1px solid rgba(229,72,77,.4);border-radius:10px;padding:11px 13px;margin-top:4px;
+  background:rgba(229,72,77,.05);}
+.bahaya .jdl{font-family:var(--font-display);font-size:12.5px;font-weight:600;color:var(--fail);}
+.bahaya p{font-size:11.5px;color:var(--muted);line-height:1.6;margin:5px 0 9px;}
+.bahaya input{width:100%;background:var(--panel-2);color:var(--text);border:1px solid var(--line);
+  border-radius:8px;padding:7px 10px;font-family:var(--font-mono);font-size:12px;margin-bottom:9px;}
+.btn.bahaya-tombol{background:none;border:1px solid var(--fail);color:var(--fail);}
+.btn.bahaya-tombol:hover{background:var(--fail);color:#fff;}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none;filter:none;}
+
 .modul-baris{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;}
 .modul{border:1px solid var(--line);border-radius:12px;padding:13px 14px;background:var(--panel);}
 .modul.jalan{border-color:var(--accent);background:linear-gradient(160deg,rgba(41,182,246,.09),var(--panel));}
@@ -930,8 +987,9 @@ td select.brk-kat{background:var(--panel-2);color:var(--text);border:1px solid v
                   aria-label="Tutup kartu masuk">&times;</button>
           <div class="km-eyebrow">PERUM LPPNPI &middot; CABANG JATSC</div>
           <h2>Dashboard Fasilitas Teknik</h2>
-          <p class="km-sub-teks">Masuk dengan akun teknisi Anda. Setelah masuk, semua akun
-            melihat trouble dan jadwal dinas seluruh unit. Isi per unit terbuka sesuai peran akun.</p>
+          <p class="km-sub-teks">Masuk dengan akun E-Logbook Anda — akunnya satu, sama persis dengan
+            yang dipakai di sana. Setelah masuk, semua akun melihat trouble dan jadwal dinas seluruh
+            unit; isi per unit terbuka sesuai peran akun.</p>
 
           <div class="km-sumber">
             <div class="km-jdl" style="font:400 9px/1 'IBM Plex Mono',monospace;letter-spacing:.2em;
@@ -1069,6 +1127,9 @@ td select.brk-kat{background:var(--panel-2);color:var(--text);border:1px solid v
   <button data-layar="dinas">Dinas Hari Ini</button>
   <button data-layar="unit">Database Unit</button>
   <button data-layar="modul">Peta Modul</button>
+  <!-- Hanya muncul untuk administrator yang masuk lewat server E-Logbook.
+       Penjagaan yang sebenarnya ada di server sana; ini cuma kenyamanan. -->
+  <button data-layar="akun" id="relAkun" hidden>Kelola Akun</button>
 </div></nav>
 
 <main>
@@ -1174,6 +1235,39 @@ td select.brk-kat{background:var(--panel-2);color:var(--text);border:1px solid v
   </div>
 </section>
 
+<!-- ============ KELOLA AKUN ============ -->
+<section class="layar" id="l-akun">
+  <div class="judul-seksi"><h2>Kelola Akun</h2>
+    <span class="ket">Akun E-Logbook, diurus dari sini.</span></div>
+  <div class="pemisah"></div>
+
+  <div class="ubin-baris" id="ubinAkun" style="margin-top:0"></div>
+  <!-- Peringatan yang tetap terpampang, bukan toast: yang begini perlu tetap
+       terlihat sampai benar-benar dibereskan. -->
+  <div id="awasAkun"></div>
+
+  <div class="panel" style="margin-top:18px">
+    <div class="kepala"><h3>Daftar Akun</h3>
+      <span style="display:flex;gap:8px;align-items:center">
+        <span class="ket" id="ketAkunJam"></span>
+        <button class="btn garis kecil" id="btnSegarAkun">Muat ulang</button>
+        <button class="btn kecil" id="btnTambahAkun">Tambah akun</button>
+      </span>
+    </div>
+    <div class="gulir" style="max-height:none"><table id="tblAkun"></table></div>
+  </div>
+
+  <div class="catatan">
+    <b>Yang disentuh dan yang tidak.</b> Layar ini tidak menyimpan akun sendiri dan tidak
+    membuka basis data E-Logbook. Yang dipakai hanya fungsi administrator yang memang sudah
+    ada di API-nya, dipanggil lewat penerusan yang sama dengan data lainnya — jadi tidak ada
+    satu berkas pun di E-Logbook yang berubah karena layar ini.
+    Sandi tidak pernah bisa dibaca dari sini, hanya diganti.
+    Menonaktifkan akun memutus sesinya tanpa menghilangkan apa pun; catatan logbook yang
+    pernah ia input tetap tinggal, bahkan setelah akunnya dihapus.
+  </div>
+</section>
+
 </main>
 </div><!-- /#app -->
 
@@ -1186,6 +1280,24 @@ td select.brk-kat{background:var(--panel-2);color:var(--text);border:1px solid v
   <div>
     <img alt="">
     <div class="kap"></div>
+  </div>
+</div>
+
+<!-- Kartu ubah/tambah akun. Isinya dibangun JS: satu kartu untuk dua keperluan,
+     karena kolomnya nyaris sama dan dua salinan markup akan saling meleset
+     begitu salah satunya diubah. Di luar #app dengan alasan yang sama dengan
+     lapis foto di atas. -->
+<div class="lapis-ubah" id="lapisAkun" role="dialog" aria-modal="true" aria-labelledby="judulKartuAkun">
+  <div class="kartu-ubah">
+    <div class="kepala">
+      <h3 id="judulKartuAkun">Ubah akun</h3>
+      <span class="ket" id="ketKartuAkun"></span>
+    </div>
+    <div class="badan" id="badanKartuAkun"></div>
+    <div class="kaki">
+      <button class="btn garis" id="btnBatalAkun">Batal</button>
+      <button class="btn" id="btnSimpanAkun">Simpan perubahan</button>
+    </div>
   </div>
 </div>
 
@@ -1418,6 +1530,7 @@ async function muatGaleri(){
 
 const MODUL = [
   { st:'Sudah jalan', jalan:true, nama:'E-Logbook Fasilitas', ket:'Logbook, Daily Check, Isu, Monitoring, DS Test, LTK, TTD QR, Rekap. Delapan unit, dipakai harian.' },
+  { st:'Sudah jalan', jalan:true, nama:'Kelola Akun', ket:'Akun E-Logbook diurus dari depan: tambah, peran, unit, reset password, aktif/nonaktif. Datanya tetap di E-Logbook — yang dipakai API administratornya.' },
   { st:'Rencana', nama:'Jadwal Dinas', ket:'Input jadwal bulanan per unit. Yang mengisi kotak "berdinas hari ini".' },
   { st:'Rencana', nama:'Sparepart', ket:'Persediaan, batas minimum, dan pemakaian yang tersambung ke logbook.' },
   { st:'Rencana', nama:'Sejarah Peralatan', ket:'Satu garis waktu per peralatan, dirangkai dari logbook, isu, dan LTK.' },
@@ -2261,6 +2374,7 @@ el('tombolKeluar').addEventListener('click', ()=>{
   // JEMBATAN E-LOGBOOK. Kartu masuknya digambar ulang supaya baris status,
   // tombol, dan blok SESI tidak tertinggal di keadaan sebelum keluar.
   pilihSumber(SRV.mode);
+  pasangTabAkun();          // tab Kelola Akun ikut pergi bersama akunnya
   pindahLayar('beranda');
 });
 
@@ -2351,7 +2465,7 @@ function pilihSumber(mode){
     ? (SRV.sesi ? 'kosongkan — sesi Anda masih aktif' : 'password akun E-Logbook')
     : 'prototipe — tidak diperiksa';
   el('ketAkunContoh').textContent = server
-    ? 'Akun contoh di atas hanya berlaku untuk data contoh. Menekan salah satunya memindahkan sumber data ke sana.'
+    ? 'Akun contoh di atas hanya berlaku untuk data contoh — bukan akun sungguhan. Yang dipakai di sini akun E-Logbook Anda, dan administrator mengurusnya dari dalam dashboard ini lewat tab Kelola Akun.'
     : 'Ini prototipe: sandinya tidak diperiksa dan tidak ada data sungguhan di baliknya. Pemeriksaan akun yang asli tetap milik server E-Logbook.';
   el('btnMasuk').textContent = server && SRV.sesi
     ? 'Lanjutkan sebagai ' + (SRV.sesi.nama || SRV.sesi.username)
@@ -2437,6 +2551,11 @@ async function masukServer(){
  */
 async function srvMuat(){
   const awal = await srvApi('getAllData', '');
+  // Daftar akun ikut di jawaban pertama, tapi hanya untuk administrator —
+  // server yang memutuskan itu, bukan halaman ini. Untuk peran lain isinya
+  // memang kosong, dan layar Kelola Akun pun tidak muncul.
+  USERS = Array.isArray(awal.users) ? awal.users : [];
+  USERS_JAM = USERS.length ? new Date() : null;
   const paket = { [awal.unit]: awal };
   for(const u of (awal.unitSaya || [])){
     if(paket[u.kode]) continue;
@@ -2503,6 +2622,9 @@ function srvPasang(unitSaya, paket){
   akun = {
     user:  SRV.sesi.username,
     nama:  SRV.sesi.nama || SRV.sesi.username,
+    // peran dipakai untuk ditampilkan, role untuk diperiksa. Dipisah karena
+    // sebutan di layar boleh berganti kapan saja, kode peran tidak.
+    role:  SRV.sesi.role,
     peran: PERAN_SERVER[SRV.sesi.role] || SRV.sesi.role || 'Pengguna',
     unit:  UNIT.every(u=>kodeBoleh.includes(u.kode)) ? 'semua' : kodeBoleh
   };
@@ -2534,6 +2656,333 @@ function gambarKetSumber(){
 /** Catatan penanda di layar unit, hanya saat datanya nyata. */
 const catatanContoh = (teks) => SRV.aktif
   ? `<div class="catatan"><b>Masih data contoh.</b> ${teks}</div>` : '';
+
+/* =======================================================================
+   KELOLA AKUN — akun E-Logbook diurus dari depan
+
+   Kenapa di sini, bukan di E-Logbook: akunnya satu, tapi pintunya dua. Selama
+   pengelolaannya tinggal di dalam E-Logbook, setiap penambahan atau pergantian
+   peran menuntut administrator berpindah aplikasi lebih dulu. Ditaruh di depan,
+   satu tempat saja yang perlu dibuka.
+
+   Yang TIDAK dilakukan layar ini, dan itu disengaja: tidak menyimpan akun
+   sendiri, tidak menyentuh basis data E-Logbook, tidak menyunting satu pun
+   berkasnya. Semuanya lewat fungsi administrator yang memang sudah ada di
+   API-nya — listUsers, addUser, setUserNama, setUserRole, setUserUnit,
+   setUserAktif, setUserPassword, deleteUser — dipanggil ke /api/* pada asal
+   yang sama, persis seperti data lainnya. Kalau layar ini dibuang besok, tidak
+   ada satu pun jejaknya yang tertinggal di sana.
+
+   Penjagaannya juga tetap milik server. Tab ini disembunyikan dari yang bukan
+   administrator, tapi itu cuma kenyamanan: E-Logbook menolak seluruh fungsi di
+   atas dengan 403 untuk peran lain, dan menyembunyikan tombol tidak pernah
+   menghalangi siapa pun memanggil API-nya langsung.
+
+   Aturan yang ditegakkan server dan sengaja ditiru di sini supaya salahnya
+   ketahuan sebelum permintaannya berangkat: teknisi harus punya minimal satu
+   unit, password minimal 6 karakter, administrator aktif terakhir tidak boleh
+   diturunkan atau dinonaktifkan, akun sendiri tidak bisa diturunkan sendiri,
+   dan hanya akun nonaktif yang boleh dihapus.
+   ======================================================================= */
+
+let USERS = [];          // daftar akun terakhir dari server
+let USERS_JAM = null;    // kapan daftar itu diambil
+let akunDibuka = null;   // salinan akun yang sedang terbuka di kartu; null = tambah baru
+
+/** Layar ini hanya berarti untuk administrator yang datanya memang dari server. */
+const bolehKelolaAkun = () => SRV.aktif && !!akun && akun.role === 'admin';
+
+const SEMUA_UNIT_PERAN = ['admin', 'pejabat'];
+const samaIsi = (a, b) => a.length === b.length && a.every(k => b.includes(k));
+
+function pasangTabAkun(){
+  const boleh = bolehKelolaAkun();
+  el('relAkun').hidden = !boleh;
+  // Yang sedang membuka layar ini lalu kehilangan haknya — keluar, atau pindah
+  // ke data contoh — tidak boleh ditinggal menatap tabel yang tak berlaku lagi.
+  if(!boleh && el('l-akun').classList.contains('aktif')) pindahLayar('beranda');
+}
+
+async function muatUsers(){
+  USERS = (await srvApi('listUsers')) || [];
+  USERS_JAM = new Date();
+}
+
+function gambarAkun(){
+  if(!bolehKelolaAkun()) return;
+
+  const total = USERS.length;
+  const hidup = USERS.filter(u=>u.aktif).length;
+  const admin = USERS.filter(u=>u.role === 'admin' && u.aktif).length;
+  const buntu = USERS.filter(u=>u.aktif && !SEMUA_UNIT_PERAN.includes(u.role) && !(u.unit||[]).length).length;
+
+  el('ubinAkun').innerHTML = [
+    ['Akun terdaftar', total, 'seluruh peran', 'biru'],
+    ['Aktif', hidup, 'boleh masuk', 'hijau'],
+    ['Nonaktif', total - hidup, (total - hidup) ? 'sesinya terputus' : 'tidak ada', (total - hidup) ? 'kuning' : ''],
+    // Administrator terakhir ditandai merah bukan karena salah, melainkan
+    // karena satu kesalahan kecil pada akun itu mengunci semua orang di luar.
+    ['Administrator aktif', admin, admin <= 1 ? 'tinggal satu — hati-hati' : 'boleh mengelola akun',
+      admin <= 1 ? 'merah' : '']
+  ].map(([l,n,s,w])=>`<div class="ubin ${w}"><div class="label">${l}</div>
+    <div class="angka">${n}</div><div class="sub">${esc(s)}</div></div>`).join('');
+
+  el('ketAkunJam').textContent = USERS_JAM
+    ? 'diambil pukul ' + USERS_JAM.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}) : '';
+
+  const saya = String(akun.user || '').toLowerCase();
+  el('tblAkun').innerHTML =
+    `<thead><tr><th>Username</th><th>Nama</th><th>Peran</th><th>Unit logbook</th>
+      <th>Status</th><th></th></tr></thead><tbody>` +
+    USERS.map(u=>{
+      const semua = SEMUA_UNIT_PERAN.includes(u.role);
+      const unit = semua
+        ? '<span class="pil">seluruh unit</span>'
+        : (u.unit || []).length
+          ? u.unit.map(k=>`<span class="pil">${esc(namaUnit(k))}</span>`).join('')
+          : '<span class="pil awas">belum ada unit</span>';
+      return `<tr class="${u.aktif ? '' : 'akun-mati'}">
+        <td class="mono">${esc(u.username)}${u.username.toLowerCase() === saya ? ' <span class="pil">Anda</span>' : ''}</td>
+        <td>${esc(u.nama || '—')}</td>
+        <td><span class="pil ${esc(u.role)}">${esc(PERAN_SERVER[u.role] || u.role)}</span></td>
+        <td><div class="unit-pil">${unit}</div></td>
+        <td><span class="pil ${u.aktif ? 'aktif-ya' : 'aktif-tidak'}">${u.aktif ? 'Aktif' : 'Nonaktif'}</span></td>
+        <td style="text-align:right"><button class="btn garis kecil" data-ubah="${esc(u.username)}">Ubah</button></td>
+      </tr>`;
+    }).join('') + '</tbody>';
+
+  el('awasAkun').innerHTML = buntu
+    ? `<div class="catatan" style="border-left-color:var(--fail)"><b>${buntu} akun teknisi aktif belum punya unit.</b>
+       Akun itu bisa masuk, tapi tidak menemukan satu pun logbook yang boleh dibukanya. Beri unitnya
+       lewat tombol Ubah, atau nonaktifkan akunnya kalau memang belum dipakai.</div>`
+    : '';
+}
+
+/* ---------- Kartu ubah / tambah ---------- */
+
+const unitTercentang = () =>
+  [...el('aUnit').querySelectorAll('input:checked')].map(c=>c.value);
+
+function segarkanUnitKartu(){
+  const semua = SEMUA_UNIT_PERAN.includes(el('aRole').value);
+  el('aUnit').classList.toggle('mati', semua);
+  el('aUnitKet').textContent = semua
+    ? 'Administrator dan pejabat otomatis memegang seluruh unit — tidak perlu dipilih.'
+    : 'Teknisi harus punya minimal satu unit. Tanpa itu akunnya bisa masuk tapi tidak bisa membuka apa pun.';
+}
+
+function isiKartuAkun(u){
+  const baru = !u;
+  // Disalin, bukan dipakai langsung: nilai asli ini yang nanti dibandingkan
+  // dengan isi kolom untuk menentukan apa saja yang benar-benar perlu dikirim.
+  akunDibuka = u ? { ...u, unit: [...(u.unit || [])] } : null;
+
+  const diri = !baru && u.username.toLowerCase() === String(akun.user || '').toLowerCase();
+  const role = baru ? 'teknisi' : u.role;
+
+  el('judulKartuAkun').textContent = baru ? 'Tambah akun' : 'Ubah akun';
+  el('ketKartuAkun').textContent   = baru ? 'akun baru di E-Logbook' : u.username;
+  el('btnSimpanAkun').textContent  = baru ? 'Buat akun' : 'Simpan perubahan';
+
+  const kotakHapus = (!baru && !diri) ? `
+    <div class="bahaya">
+      <div class="jdl">Hapus akun</div>
+      <p>${u.aktif
+        ? 'Hanya akun yang sudah nonaktif yang boleh dihapus. Nonaktifkan dulu lewat kolom Status di atas, simpan, lalu buka kartu ini lagi.'
+        : 'Tidak bisa dibatalkan. Catatan logbook yang pernah diinput akun ini tetap tinggal di E-Logbook — yang hilang hanya akunnya. Ketik ulang usernamenya untuk membuka tombol.'}</p>
+      ${u.aktif ? '' : `<input id="aHapusKetik" autocomplete="off" spellcheck="false" placeholder="ketik: ${esc(u.username)}">
+      <button class="btn bahaya-tombol" id="btnHapusAkun" disabled>Hapus akun ini</button>`}
+    </div>` : '';
+
+  el('badanKartuAkun').innerHTML = `
+    ${baru ? `<div class="isian"><label for="aUser">Username</label>
+      <input id="aUser" autocomplete="off" spellcheck="false" placeholder="mis. budi.santoso">
+      <div class="bantu">3–32 karakter: huruf kecil, angka, titik, garis bawah, atau strip.
+        Tidak bisa diubah lagi setelah akunnya jadi.</div></div>` : ''}
+
+    <div class="isian"><label for="aNama">Nama tampilan</label>
+      <input id="aNama" autocomplete="off" value="${baru ? '' : esc(u.nama || '')}"
+        placeholder="nama yang muncul di logbook">
+      <div class="bantu">Nama inilah yang dicocokkan E-Logbook saat menunjuk penerima tanda
+        tangan susulan — mengganti sebutan jabatan cukup di sini, tanpa akun baru.</div></div>
+
+    <div class="isian"><label for="aRole">Peran</label>
+      <select id="aRole"${diri ? ' disabled' : ''}>
+        <option value="teknisi">Teknisi — hanya menambah, pada unit yang diberikan</option>
+        <option value="pejabat">Pejabat — melihat seluruh unit, hanya membubuhkan tanda tangan</option>
+        <option value="admin">Administrator — kendali penuh, termasuk mengelola akun</option>
+      </select>
+      ${diri ? '<div class="bantu">Ini akun Anda sendiri. Perannya tidak bisa diturunkan sendiri — kalau tidak, administrator terakhir bisa mengunci dirinya di luar.</div>' : ''}</div>
+
+    <div class="isian"><label>Unit logbook</label>
+      <div class="kotak-unit" id="aUnit">${UNIT.map(x=>
+        `<label><input type="checkbox" value="${esc(x.kode)}"${
+          (!baru && (u.unit || []).includes(x.kode)) ? ' checked' : ''}>${esc(x.nama)}</label>`).join('')}</div>
+      <div class="bantu" id="aUnitKet"></div></div>
+
+    <div class="isian"><label for="aAktif">Status</label>
+      <select id="aAktif"${(baru || diri) ? ' disabled' : ''}>
+        <option value="1">Aktif — boleh masuk</option>
+        <option value="0">Nonaktif — sesinya terputus, tidak bisa masuk</option>
+      </select>
+      <div class="bantu">${diri ? 'Akun sendiri tidak bisa dinonaktifkan.'
+        : baru ? 'Akun baru langsung aktif.'
+        : 'Menonaktifkan tidak menghapus apa pun — catatan yang pernah diinput akun ini tetap ada.'}</div></div>
+
+    <div class="isian"><label for="aPass">${baru ? 'Password awal' : 'Ganti password'}</label>
+      <input type="password" id="aPass" autocomplete="new-password"
+        placeholder="${baru ? 'minimal 6 karakter' : 'kosongkan bila tidak diganti'}">
+      <div class="bantu">Password lama tidak bisa dilihat dari mana pun, termasuk dari sini —
+        yang tersimpan di E-Logbook hanya sidik acaknya.</div></div>
+
+    ${kotakHapus}`;
+
+  el('aRole').value = role;
+  if(!baru) el('aAktif').value = u.aktif ? '1' : '0';
+  el('aRole').addEventListener('change', segarkanUnitKartu);
+  segarkanUnitKartu();
+
+  // Tombol hapus baru hidup setelah usernamenya diketik ulang persis. Kotak
+  // centang atau satu klik "yakin?" terlalu mudah ditekan tanpa dibaca.
+  const ketik = el('aHapusKetik');
+  if(ketik){
+    ketik.addEventListener('input', ()=>{
+      el('btnHapusAkun').disabled = ketik.value.trim().toLowerCase() !== u.username.toLowerCase();
+    });
+    el('btnHapusAkun').addEventListener('click', ()=>hapusAkun(u.username));
+  }
+}
+
+function bukaKartuAkun(u){
+  isiKartuAkun(u);
+  el('lapisAkun').classList.add('buka');
+  (el('aUser') || el('aNama')).focus();
+}
+
+function tutupKartuAkun(){
+  el('lapisAkun').classList.remove('buka');
+  akunDibuka = null;
+}
+
+async function buatAkunBaru(){
+  const username = el('aUser').value.trim().toLowerCase();
+  const nama     = el('aNama').value.trim();
+  const role     = el('aRole').value;
+  const password = el('aPass').value;
+  const unit     = unitTercentang();
+
+  if(!/^[a-z0-9._-]{3,32}$/.test(username)){
+    throw new Error('Username 3–32 karakter, hanya huruf kecil, angka, titik, garis bawah, atau strip.');
+  }
+  if(!nama) throw new Error('Nama tampilan belum diisi.');
+  if(password.length < 6) throw new Error('Password minimal 6 karakter.');
+  if(!SEMUA_UNIT_PERAN.includes(role) && !unit.length){
+    throw new Error('Pilih minimal satu unit logbook untuk akun teknisi.');
+  }
+
+  await srvApi('addUser', { username, password, nama, role, unit });
+  pesan('Akun ' + username + ' dibuat.');
+}
+
+/**
+ * Kirim hanya yang benar-benar berubah, satu panggilan per perubahan.
+ *
+ * Urutannya disengaja. Peran lebih dulu, karena syarat unit di server
+ * ditentukan oleh peran yang berlaku saat itu; unit menyusul; password paling
+ * akhir, supaya kalau ada langkah yang gagal di tengah, yang belum sempat
+ * terkirim adalah yang paling tidak menyusahkan untuk diulang.
+ */
+async function simpanUbahan(asal){
+  const nama  = el('aNama').value.trim();
+  const role  = el('aRole').value;
+  const aktif = el('aAktif').value === '1';
+  const pass  = el('aPass').value;
+  const unit  = unitTercentang();
+  const semua = SEMUA_UNIT_PERAN.includes(role);
+
+  if(!nama) throw new Error('Nama tampilan tidak boleh kosong.');
+  if(pass && pass.length < 6) throw new Error('Password minimal 6 karakter.');
+  if(!semua && !unit.length) throw new Error('Akun teknisi harus punya minimal satu unit logbook.');
+
+  // Administrator dan pejabat memegang seluruh unit tanpa satu pun baris di
+  // tabel unitnya — daftar yang terbaca untuk mereka dihitung server, bukan
+  // disimpan. Begitu perannya turun jadi teknisi, hitungan itu tidak berlaku
+  // lagi dan yang tersisa bisa jadi cuma satu unit warisan. Karena itu unitnya
+  // selalu dikirim ulang saat turun peran, sekalipun kelihatannya tidak berubah.
+  const asalSemua = SEMUA_UNIT_PERAN.includes(asal.role);
+
+  const kerja = [];
+  if(role !== asal.role)                             kerja.push(['setUserRole', [asal.username, role]]);
+  if(!semua && (asalSemua || !samaIsi(unit, asal.unit || [])))
+                                                     kerja.push(['setUserUnit', [asal.username, unit]]);
+  if(nama !== (asal.nama || ''))                     kerja.push(['setUserNama', [asal.username, nama]]);
+  if(aktif !== !!asal.aktif)                         kerja.push(['setUserAktif', [asal.username, aktif]]);
+  if(pass)                                           kerja.push(['setUserPassword', [asal.username, pass]]);
+
+  if(!kerja.length){ pesan('Tidak ada yang diubah.'); return; }
+  for(const [fn, args] of kerja) await srvApi(fn, ...args);
+  pesan(kerja.length + ' perubahan tersimpan untuk ' + asal.username + '.');
+}
+
+async function simpanAkun(){
+  const btn = el('btnSimpanAkun');
+  const teksAsli = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Menyimpan...';
+  try{
+    if(akunDibuka) await simpanUbahan(akunDibuka);
+    else           await buatAkunBaru();
+    await muatUsers();
+    gambarAkun();
+    tutupKartuAkun();
+  }catch(e){
+    // Kartunya sengaja dibiarkan terbuka: isian yang sudah diketik tidak boleh
+    // hilang hanya karena satu syarat belum terpenuhi.
+    console.error('Gagal menyimpan akun:', e);
+    pesan('Gagal: ' + (e && e.message || e));
+  }finally{
+    btn.disabled = false;
+    btn.textContent = teksAsli;
+  }
+}
+
+async function hapusAkun(username){
+  const btn = el('btnHapusAkun');
+  btn.disabled = true;
+  btn.textContent = 'Menghapus...';
+  try{
+    await srvApi('deleteUser', username);
+    await muatUsers();
+    gambarAkun();
+    tutupKartuAkun();
+    pesan('Akun ' + username + ' dihapus. Catatan logbooknya tetap ada.');
+  }catch(e){
+    console.error('Gagal menghapus akun:', e);
+    pesan('Gagal menghapus: ' + (e && e.message || e));
+    btn.disabled = false;
+    btn.textContent = 'Hapus akun ini';
+  }
+}
+
+el('tblAkun').addEventListener('click', e=>{
+  const b = e.target.closest('button[data-ubah]'); if(!b) return;
+  const u = USERS.find(x=>x.username === b.dataset.ubah);
+  if(u) bukaKartuAkun(u);
+});
+el('btnTambahAkun').addEventListener('click', ()=>bukaKartuAkun(null));
+el('btnSegarAkun').addEventListener('click', async ()=>{
+  const b = el('btnSegarAkun');
+  b.disabled = true;
+  try{ await muatUsers(); gambarAkun(); pesan('Daftar akun dimuat ulang.'); }
+  catch(e){ pesan('Gagal memuat daftar akun: ' + (e && e.message || e)); }
+  finally{ b.disabled = false; }
+});
+el('btnBatalAkun').addEventListener('click', tutupKartuAkun);
+el('btnSimpanAkun').addEventListener('click', simpanAkun);
+el('lapisAkun').addEventListener('click', e=>{ if(e.target === el('lapisAkun')) tutupKartuAkun(); });
+document.addEventListener('keydown', e=>{
+  if(e.key === 'Escape' && el('lapisAkun').classList.contains('buka')) tutupKartuAkun();
+});
 
 kmMulai();      // konsol masuk: jam, panggung 3D, tombol pembuka kartu
 srvPeriksa();   // lalu tanya server: ada, dan sesinya masih hidup?
@@ -3515,6 +3964,7 @@ function gambarSemua(){
     : 'Kartu bergembok = di luar wewenang akun ini.';
   gambarCincin(); gambarUbin(); gambarTrouble(); gambarDinas();
   gambarPilihUnit(); gambarUnit();
+  pasangTabAkun(); gambarAkun();
   el('modulBaris').innerHTML = MODUL.map(m=>`<div class="modul ${m.jalan?'jalan':''}">
     <div class="st">${esc(m.st)}</div><h4>${esc(m.nama)}</h4><p>${esc(m.ket)}</p></div>`).join('');
 }

@@ -80,6 +80,31 @@ tombol untuk mengisi slot yang keterangannya sudah ditulis.
 **Tiga jalan masuk ke E-Logbook.** Dari kartu masuk, ikon buku di kepala
 halaman, dan layar unit.
 
+**Kelola Akun — akun E-Logbook diurus dari depan.** Tab baru di dashboard, hanya
+muncul untuk administrator yang masuk lewat server. Isinya daftar seluruh akun
+beserta peran dan unitnya, dengan tombol untuk menambah akun, mengganti nama
+tampilan, peran, dan unit logbook, mengganti password, menonaktifkan, dan
+menghapus.
+
+Yang penting soal batasnya: layar ini **tidak menyimpan akun sendiri, tidak
+membuka basis data E-Logbook, dan tidak menyunting satu pun berkasnya.**
+Semuanya lewat fungsi administrator yang memang sudah ada di API E-Logbook —
+`listUsers`, `addUser`, `setUserNama`, `setUserRole`, `setUserUnit`,
+`setUserAktif`, `setUserPassword`, `deleteUser` — dipanggil ke `/api/*` pada asal
+yang sama, persis seperti data lainnya. Kalau tab ini dibuang besok, tidak ada
+jejaknya yang tertinggal di sana.
+
+Penjagaannya tetap milik server. Tab ini disembunyikan dari yang bukan
+administrator, tapi itu cuma kenyamanan: E-Logbook menolak seluruh fungsi di atas
+dengan 403 untuk peran lain. Aturan yang ditegakkan server ditiru di layar ini
+supaya salahnya ketahuan sebelum permintaannya berangkat — teknisi wajib punya
+minimal satu unit, password minimal 6 karakter, administrator aktif terakhir
+tidak boleh diturunkan atau dinonaktifkan, akun sendiri tidak bisa diturunkan
+sendiri, dan hanya akun nonaktif yang boleh dihapus. Tombol hapus baru hidup
+setelah usernamenya diketik ulang persis.
+
+Dengan ini pengelolaan akun tidak perlu lagi dibuka dari dalam E-Logbook.
+
 ## Susunan berkas
 
 ```
@@ -89,7 +114,7 @@ jalankan.cmd                      — klik dua kali di Windows
 .env.example                      — PORT, ELOGBOOK_ASAL, ELOGBOOK_MATI, ELOGBOOK_TAUTAN
 README.md                         — cara jalan, susunan, alasan tiap keputusan
 public/
-  index.html         3.237 baris  — seluruh dashboard, satu berkas (189 KB)
+  index.html         3.965 baris  — seluruh dashboard, satu berkas (211 KB)
   foto/daftar.json                — keterangan galeri, ditulis server
   foto/<unit>/                    — berkas fotonya
   vendor/                  1 MB   — three.js + 18 woff2
@@ -113,14 +138,45 @@ tidak ada angka karangan yang menyamar jadi data nyata.
 
 ## Yang belum selesai
 
-**Foto Radtel belum masuk.** Empat slot sudah disiapkan lengkap dengan
-keterangannya, tapi `public/foto/radtel/` masih kosong. Berkasnya perlu diunggah
-lewat tab Galeri.
+**Foto Radtel sudah masuk — tiga dari empat.** `radtel-01`, `radtel-02`, dan
+`radtel-04` sudah ada di `public/foto/radtel/`. Slot ketiga, "foto bersama tim
+teknik dan vendor di ruang teknik", dicabut dari `daftar.json` karena berkasnya
+tidak pernah terunggah; kalau fotonya ketemu, tinggal diunggah lewat tab Galeri
+dan entrinya lahir kembali sendiri.
 
-**Login E-Logbook belum diuji ujung ke ujung.** `POST /api/login` sudah terbukti
-sampai ke E-Logbook dan jawabannya diteruskan apa adanya, tapi jalur
-`Set-Cookie` dan `getAllData` belum dicoba dengan akun sungguhan — belum ada
-kredensial untuk mengujinya. Perlu sekali percobaan masuk untuk memastikan.
+`radtel-02` dikecilkan dari 4032&times;3024 (6,5 MB) jadi 1440&times;1920
+(328 KB) sebelum dicommit — sekali masuk riwayat git, ukuran aslinya menetap di
+sana selamanya walau fotonya nanti diganti. Pikselnya diputar mengikuti tag
+orientasi EXIF-nya lebih dulu, karena proses pengecilannya membuang EXIF dan
+tanpa itu fotonya akan tampil rebah 90&deg; di peramban. Berlaku juga untuk
+unggahan berikutnya: **foto langsung dari kamera ponsel sebaiknya dikecilkan
+dulu sebelum masuk galeri.**
+
+**Login E-Logbook: jalur cookienya sudah terbukti, satu langkah terakhir belum.**
+Yang sudah diperiksa langsung terhadap kedua server yang jalan:
+
+| Yang diuji | Hasil |
+| --- | --- |
+| `GET /api/me` lewat `:3100` tanpa sesi | 401 `{"error":"Belum login."}` — jawaban E-Logbook, bukan halaman 404 |
+| `POST /api/login` lewat `:3100` dengan badan JSON | 401 `{"error":"Username atau password salah."}` — badan permintaan sampai utuh |
+| Kepala `Set-Cookie` lewat penerusan | **sama persis** dengan yang keluar langsung dari `:3000`, termasuk `HttpOnly` dan `SameSite=Lax` |
+
+Cookie diuji lewat `POST /api/logout`, yang memasang cookie kedaluwarsa tanpa
+perlu login — jadi jalur `Set-Cookie` terbukti tanpa menyentuh sesi siapa pun.
+
+Yang **belum** dicoba: masuk dengan akun sungguhan lalu menarik `getAllData` dan
+`listUsers` dengan cookie itu. Butuh sekali percobaan masuk oleh pemilik akun;
+tinggal buka <http://localhost:3100>, pilih SERVER E-LOGBOOK, dan masuk.
+
+**Penahan tebak-password E-Logbook terhitung satu untuk semua pemakai Avenger.**
+E-Logbook membatasi 8 login gagal per alamat IP per 5 menit, dan alamat itu
+diambil dari soket (`req.ip`) tanpa `trust proxy`. Karena seluruh permintaan
+Avenger datang dari satu proses, bagi E-Logbook semuanya berasal dari
+`127.0.0.1` — 8 kali salah password oleh siapa pun lewat dashboard akan menahan
+**semua** orang yang masuk lewat dashboard selama 5 menit. Yang masuk langsung ke
+`:3000` tidak terpengaruh. Ini bawaan dari cara penerusannya dan tidak bisa
+diperbaiki dari sisi Avenger saja: `X-Forwarded-For` pun akan diabaikan selama
+E-Logbook belum memasang `trust proxy`.
 
 **Endpoint galeri belum meminta login.** `POST /galeri/:unit` dan
 `DELETE /galeri/:unit/:berkas` adalah satu-satunya bagian aplikasi ini yang
@@ -131,7 +187,7 @@ berlaku untuk berkas yang memang terdaftar. Tetap saja: **sebelum server ini
 dibuka ke jaringan kantor, kedua endpoint itu wajib diberi pemeriksaan sesi** —
 siapa pun yang bisa menjangkau portnya bisa menaruh dan menghapus foto.
 
-**`public/index.html` masih satu berkas 3.237 baris.** Untuk jangka panjang
+**`public/index.html` masih satu berkas 3.965 baris.** Untuk jangka panjang
 sebaiknya dipecah ke `css/` dan `js/` bernomor seperti gaya E-Logbook. Dibiarkan
 utuh dulu supaya tidak ada risiko rusak sebelum bentuknya mantap.
 
