@@ -124,9 +124,9 @@ jalankan.cmd                      — klik dua kali di Windows
 .env.example                      — PORT, ELOGBOOK_ASAL, ELOGBOOK_MATI, ELOGBOOK_TAUTAN
 README.md                         — cara jalan, susunan, alasan tiap keputusan
 public/
-  index.html         3.965 baris  — seluruh dashboard, satu berkas (211 KB)
-  foto/daftar.json                — keterangan galeri, ditulis server
-  foto/<unit>/                    — berkas fotonya
+  index.html         4.030 baris  — seluruh dashboard, satu berkas (215 KB)
+  foto/daftar.json                — keterangan galeri, ditulis server (di luar git)
+  foto/<unit>/                    — berkas fotonya (di luar git)
   vendor/                  1 MB   — three.js + 18 woff2
 docs/RINGKASAN.md                 — berkas ini
 ```
@@ -148,19 +148,23 @@ tidak ada angka karangan yang menyamar jadi data nyata.
 
 ## Yang belum selesai
 
-**Foto Radtel sudah masuk — tiga dari empat.** `radtel-01`, `radtel-02`, dan
-`radtel-04` sudah ada di `public/foto/radtel/`. Slot ketiga, "foto bersama tim
-teknik dan vendor di ruang teknik", dicabut dari `daftar.json` karena berkasnya
-tidak pernah terunggah; kalau fotonya ketemu, tinggal diunggah lewat tab Galeri
-dan entrinya lahir kembali sendiri.
+**Foto Radtel ada di komputer, sengaja tidak ikut git.** `radtel-01`,
+`radtel-02`, dan `radtel-04` ada di `public/foto/radtel/`; slot ketiga dicabut
+dari `daftar.json` karena berkasnya tidak pernah terunggah.
 
-`radtel-02` dikecilkan dari 4032&times;3024 (6,5 MB) jadi 1440&times;1920
-(328 KB) sebelum dicommit — sekali masuk riwayat git, ukuran aslinya menetap di
-sana selamanya walau fotonya nanti diganti. Pikselnya diputar mengikuti tag
-orientasi EXIF-nya lebih dulu, karena proses pengecilannya membuang EXIF dan
-tanpa itu fotonya akan tampil rebah 90&deg; di peramban. Berlaku juga untuk
-unggahan berikutnya: **foto langsung dari kamera ponsel sebaiknya dikecilkan
-dulu sebelum masuk galeri.**
+Folder foto dan `daftar.json` keduanya masuk `.gitignore` sejak repositori ini
+didorong ke GitHub, dan repositori itu **publik**. Isi galeri adalah wajah
+pegawai di dalam ruang terbatas — ruang kontrol, CWP dengan layar situasi
+menyala, ruang playback. Yang sekali terdorong ke repositori publik bisa
+di-clone dan terindeks, dan menghapusnya belakangan tidak menariknya kembali.
+**Hasil clone karena itu datang dengan galeri kosong**; foto dipindah dengan
+menyalin foldernya langsung, bukan lewat git.
+
+`radtel-02` tetap dikecilkan dari 4032&times;3024 (6,5 MB) jadi 1440&times;1920
+(328 KB). Pikselnya diputar mengikuti tag orientasi EXIF-nya lebih dulu, karena
+proses pengecilannya membuang EXIF dan tanpa itu fotonya tampil rebah 90&deg; di
+peramban. Berlaku untuk unggahan berikutnya: **foto langsung dari kamera ponsel
+sebaiknya dikecilkan dulu sebelum masuk galeri.**
 
 **Login E-Logbook: jalur cookienya sudah terbukti, satu langkah terakhir belum.**
 Yang sudah diperiksa langsung terhadap kedua server yang jalan:
@@ -197,7 +201,7 @@ berlaku untuk berkas yang memang terdaftar. Tetap saja: **sebelum server ini
 dibuka ke jaringan kantor, kedua endpoint itu wajib diberi pemeriksaan sesi** —
 siapa pun yang bisa menjangkau portnya bisa menaruh dan menghapus foto.
 
-**`public/index.html` masih satu berkas 3.965 baris.** Untuk jangka panjang
+**`public/index.html` masih satu berkas 4.030 baris.** Untuk jangka panjang
 sebaiknya dipecah ke `css/` dan `js/` bernomor seperti gaya E-Logbook. Dibiarkan
 utuh dulu supaya tidak ada risiko rusak sebelum bentuknya mantap.
 

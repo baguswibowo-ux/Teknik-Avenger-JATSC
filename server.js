@@ -122,8 +122,11 @@ for (const jalur of JALUR_TERUS) {
    GALERI FOTO — satu-satunya bagian yang menulis ke disk
 
    Foto tersimpan di public/foto/<unit>/, keterangannya di
-   public/foto/daftar.json. Keduanya bersebelahan dan ikut masuk git, jadi
-   memindahkan proyek ini tidak pernah memisahkan foto dari keterangannya.
+   public/foto/daftar.json. Keduanya bersebelahan supaya tidak pernah terpisah,
+   tapi keduanya DI LUAR git (lihat .gitignore): repositori proyek ini publik,
+   sementara isi galeri adalah wajah pegawai di dalam ruang terbatas. Hasil
+   clone karena itu datang dengan galeri kosong, dan daftar.json dibuat sendiri
+   saat foto pertama diunggah.
 
    Modul galeri belum ada di E-Logbook, jadi ini benar-benar milik aplikasi
    ini — bukan sesuatu yang nanti diambil dari sana.

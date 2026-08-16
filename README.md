@@ -154,9 +154,17 @@ Klik foto untuk membukanya besar; `Esc` atau klik di luar untuk menutup. Tombol
 **Hapus** muncul di pojok ubin saat disentuh tetikus — berkasnya ikut terhapus
 dari server, jadi ia bertanya dulu.
 
-Foto dan `daftar.json` bersebelahan di folder yang sama dan keduanya ikut masuk
-git, jadi memindahkan proyek ini tidak pernah memisahkan foto dari
-keterangannya.
+**Foto tidak ikut masuk git, dan itu disengaja.** `public/foto/<unit>/` dan
+`public/foto/daftar.json` keduanya ada di `.gitignore`. Repositori proyek ini
+publik, sementara isi galeri adalah wajah pegawai di dalam ruang terbatas —
+ruang kontrol, CWP, ruang playback. Sekali sesuatu terdorong ke repositori
+publik, ia bisa di-clone dan terindeks, dan menghapusnya belakangan tidak
+menariknya kembali.
+
+Akibatnya yang perlu diketahui: **hasil clone datang dengan galeri kosong.**
+Server membuat `daftar.json` sendiri saat pertama ada foto diunggah, jadi tidak
+ada yang perlu disiapkan — tapi foto di satu komputer tidak menyeberang ke
+komputer lain lewat git. Kalau memang perlu dipindah, salin foldernya langsung.
 
 ### Catatan keamanan
 
