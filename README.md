@@ -27,6 +27,7 @@ berubah.
 server.js            Express: menyajikan public/ dan meneruskan /api/* ke E-Logbook
 public/
   index.html         seluruh dashboard — satu berkas, 3.100+ baris
+  foto/<unit>/       foto dokumentasi kegiatan, tampil di tab Galeri
   vendor/
     three.min.js     panggung 3D layar masuk (three 0.147.0)
     font/            Space Grotesk, IBM Plex Sans, IBM Plex Mono (subset latin)
@@ -69,6 +70,31 @@ jatuh ke **data contoh** — semuanya karangan, dan pita di puncak layar menulis
 Peralatan, sparepart, jadwal dinas, dan sejarah peralatan **masih data contoh**
 sekalipun sudah tersambung — modulnya memang belum ada di E-Logbook. Layarnya
 menandai ini terang-terangan di tiap tempat yang terpengaruh.
+
+## Menambah foto galeri
+
+Tab **Galeri** di dashboard unit menampilkan foto dokumentasi kegiatan. Ini foto
+sungguhan, bukan ilustrasi — dan bukan pula lewat E-Logbook, karena modul galeri
+belum ada di sana.
+
+Dua langkah:
+
+1. Taruh berkasnya di `public/foto/<kode unit>/`, mis.
+   `public/foto/radtel/radtel-01-pengarahan-ruang-teknik.jpg`
+2. Tambah satu baris pada blok `FOTO` di `public/index.html` (cari
+   `GALERI FOTO`):
+
+   ```js
+   { berkas:'radtel-05-kalibrasi.jpg', tgl:'2026-08-16',
+     ket:'Kalibrasi pemancar setelah penggantian modul.' },
+   ```
+
+Urutannya bebas — daftar boleh ditulis lebih dulu, berkasnya menyusul. Foto yang
+berkasnya belum ada **tidak merusak apa pun**: ubinnya tetap muncul dengan tanda
+`BERKAS BELUM ADA` beserta nama berkas yang ditunggu, jadi yang belum masuk
+tidak terlupakan. `tgl` boleh dikosongkan.
+
+Klik foto untuk membukanya besar; tekan `Esc` atau klik di luar untuk menutup.
 
 ## Setelan
 

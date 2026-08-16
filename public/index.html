@@ -691,6 +691,36 @@ tbody tr:hover{background:var(--kaca);}
 .alat-kartu .kaki{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:9px;
   padding-top:9px;border-top:1px solid var(--line);}
 
+/* GALERI — foto kegiatan unit.
+   Bingkainya aspect-ratio, bukan tinggi tetap: foto datang dari kamera dan HP
+   dengan rasio bermacam-macam, dan tinggi tetap membuat barisnya bergerigi.
+   object-fit:cover memotong ke tengah, jadi ubinnya rata tanpa foto penyok. */
+.foto-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;}
+.foto-kartu{border:1px solid var(--line);border-radius:13px;background:var(--panel);overflow:hidden;
+  cursor:zoom-in;box-shadow:var(--bayang);transition:transform .25s cubic-bezier(.2,.7,.3,1),border-color .2s;}
+.foto-kartu:hover{transform:translateY(-4px);border-color:var(--accent);}
+.foto-kartu .bing{position:relative;aspect-ratio:4/3;background:var(--panel-2);overflow:hidden;
+  border-bottom:1px solid var(--line);}
+.foto-kartu img{display:block;width:100%;height:100%;object-fit:cover;}
+/* Ditampilkan lewat .hilang saat berkasnya belum ada — lihat onerror di gambarGaleri(). */
+.foto-kartu .hilang{position:absolute;inset:0;display:none;place-items:center;text-align:center;
+  padding:14px;font-family:var(--font-mono);font-size:10px;line-height:1.6;color:var(--muted);
+  background:repeating-linear-gradient(45deg,transparent 0 8px,var(--kaca) 8px 16px);}
+.foto-kartu.kosong{cursor:default;}
+.foto-kartu.kosong .hilang{display:grid;}
+.foto-kartu.kosong img{visibility:hidden;}
+.foto-kartu .isi{padding:10px 13px 12px;}
+.foto-kartu .ket{font-size:12.5px;line-height:1.45;}
+.foto-kartu .meta{font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-top:5px;}
+
+.foto-besar{position:fixed;inset:0;z-index:200;display:none;place-items:center;padding:28px;
+  background:rgba(0,0,0,.86);backdrop-filter:blur(3px);cursor:zoom-out;}
+.foto-besar.buka{display:grid;}
+.foto-besar img{max-width:100%;max-height:82vh;border-radius:10px;box-shadow:0 24px 60px rgba(0,0,0,.6);}
+.foto-besar .kap{margin-top:14px;text-align:center;color:#dbe6ef;font-size:13px;line-height:1.5;
+  max-width:620px;}
+.foto-besar .kap span{display:block;font-family:var(--font-mono);font-size:10.5px;opacity:.62;margin-top:5px;}
+
 .riwayat{position:relative;padding-left:26px;}
 .riwayat::before{content:"";position:absolute;left:7px;top:6px;bottom:6px;width:2px;
   background:linear-gradient(var(--accent),var(--line));}
@@ -1113,6 +1143,16 @@ td select.brk-kat{background:var(--panel-2);color:var(--text);border:1px solid v
 
 <div id="pesan"></div>
 
+<!-- Lapis foto besar. Di luar #app supaya tidak ikut transform layar unit:
+     ancestor ber-transform membuat position:fixed diukur dari ancestor itu,
+     bukan dari viewport, dan lapisannya akan meleset dari layar. -->
+<div class="foto-besar" id="fotoBesar" role="dialog" aria-modal="true" aria-label="Foto diperbesar">
+  <div>
+    <img alt="">
+    <div class="kap"></div>
+  </div>
+</div>
+
 <script>
 /* =======================================================================
    DATA CONTOH — semua isinya karangan.
@@ -1307,6 +1347,33 @@ const SPEK = {
    lama — jadi menyimpan rujukannya saja sudah cukup untuk kembali ke contoh
    tanpa memuat ulang halaman. */
 const CONTOH = { UNIT, TROUBLE, LOGBOOK };
+
+/* =======================================================================
+   GALERI FOTO — dokumentasi kegiatan per unit
+
+   BUKAN data contoh: berkasnya foto sungguhan di public/foto/<unit>/, dan
+   itu sebabnya blok ini berada di luar CONTOH. Tidak ikut diganti saat
+   halaman tersambung ke server — E-Logbook belum punya modul galeri.
+
+   Menambah foto = taruh berkasnya di public/foto/<unit>/ lalu tambah satu
+   baris di sini. Foto yang berkasnya belum ada tidak merusak apa pun:
+   ubinnya tetap tampil dengan tanda "berkas belum ada" (lihat onerror di
+   gambarGaleri), jadi daftarnya boleh ditulis lebih dulu.
+
+   `tgl` boleh dikosongkan kalau tanggalnya belum pasti.
+   ======================================================================= */
+const FOTO = {
+  radtel: [
+    { berkas:'radtel-01-pengarahan-ruang-teknik.jpg', tgl:'',
+      ket:'Pengarahan di ruang teknik bersama tim vendor.' },
+    { berkas:'radtel-02-pengujian-cwp.jpg', tgl:'',
+      ket:'Pengujian di controller working position — layar situasi dan panel VCCS.' },
+    { berkas:'radtel-03-tim-ruang-teknik.jpg', tgl:'',
+      ket:'Foto bersama tim teknik dan vendor di ruang teknik.' },
+    { berkas:'radtel-04-tim-ruang-kontrol.jpg', tgl:'',
+      ket:'Foto bersama di ruang kontrol.' }
+  ]
+};
 
 const MODUL = [
   { st:'Sudah jalan', jalan:true, nama:'E-Logbook Fasilitas', ket:'Logbook, Daily Check, Isu, Monitoring, DS Test, LTK, TTD QR, Rekap. Delapan unit, dipakai harian.' },
@@ -2738,6 +2805,7 @@ function gambarUnit(){
   const logUnit = LOGBOOK[unitDibuka];
   const log = (logUnit && logUnit.length) ? logUnit : (SRV.aktif ? [] : LOGBOOK_UMUM);
   const radkom = unitDibuka === 'radkom';
+  const foto = FOTO[unitDibuka] || [];
 
   const tab = (id,teks,lencana)=>`<button data-sub="${id}" class="${subtabAktif===id?'aktif':''}">
     ${teks}${lencana?` <span class="mono" style="opacity:.75">(${lencana})</span>`:''}</button>`;
@@ -2760,6 +2828,7 @@ function gambarUnit(){
       ${tab('sparepart','Sparepart',part.length)}
       ${tab('dinas','Jadwal Dinas')}
       ${tab('logbook','E-Logbook')}
+      ${tab('galeri','Galeri',foto.length)}
       ${tab('dokumen','Dokumen',(BERKAS[unitDibuka] || []).length)}
     </div>
 
@@ -2847,6 +2916,31 @@ function gambarUnit(){
         Perbedaan ini sudah berlaku di E-Logbook yang sekarang; dashboard hanya mengikutinya.</div>
     </div>
 
+    <!-- GALERI -->
+    <div class="subisi ${subtabAktif==='galeri'?'aktif':''}" id="s-galeri">
+      <div class="panel"><div class="kepala"><h3>Galeri ${esc(u.nama)}</h3>
+        <span class="ket">${foto.length} foto dokumentasi</span></div>
+        ${foto.length ? `<div class="badan"><div class="foto-grid" id="fotoGrid">${foto.map((f,i)=>`
+          <figure class="foto-kartu" data-foto="${i}">
+            <div class="bing">
+              <img src="/foto/${esc(unitDibuka)}/${esc(f.berkas)}" alt="${esc(f.ket)}" loading="lazy">
+              <div class="hilang">BERKAS BELUM ADA<br>${esc(f.berkas)}</div>
+            </div>
+            <figcaption class="isi">
+              <div class="ket">${esc(f.ket)}</div>
+              <div class="meta">${f.tgl ? tglIndo(f.tgl) + ' · ' : ''}${esc(f.berkas)}</div>
+            </figcaption>
+          </figure>`).join('')}</div></div>`
+          : `<div class="badan" style="color:var(--muted);font-size:12.5px">Belum ada foto untuk unit ini.</div>`}
+      </div>
+      <div class="catatan">
+        <b>Foto sungguhan, bukan ilustrasi.</b> Berkasnya disajikan langsung dari
+        <span class="mono">public/foto/${esc(unitDibuka)}/</span> — tidak lewat E-Logbook, karena
+        modul galeri belum ada di sana. Menambah foto: taruh berkasnya di folder itu, lalu tambah
+        satu baris pada blok <span class="mono">FOTO</span> di berkas ini.
+      </div>
+    </div>
+
     <!-- DOKUMEN -->
     <div class="subisi ${subtabAktif==='dokumen'?'aktif':''}" id="s-dokumen">
       <div class="panel">
@@ -2902,8 +2996,52 @@ function gambarUnit(){
     });
   });
   gambarRinciAlat();
+  gambarGaleri(foto);
   brkPasang();
 }
+
+/**
+ * Galeri: menandai foto yang berkasnya belum ada, dan membuka yang ada.
+ *
+ * Dipasang di sini, bukan sebagai atribut onerror di markup, supaya nama
+ * berkasnya tidak perlu lolos dua lapis kutip. Ubin yang gagal dimuat tidak
+ * disembunyikan — justru ditandai: daftar foto boleh ditulis sebelum berkasnya
+ * masuk, dan yang belum masuk harus kelihatan supaya tidak terlupakan.
+ */
+function gambarGaleri(foto){
+  const grid = el('fotoGrid'); if(!grid) return;
+
+  grid.querySelectorAll('.foto-kartu').forEach(kartu=>{
+    const img = kartu.querySelector('img');
+    const tandai = ()=>kartu.classList.add('kosong');
+    // Gambar yang gagal sebelum baris ini jalan tidak pernah memicu onerror
+    // lagi — complete && naturalWidth 0 menangkap keadaan itu.
+    if(img.complete && !img.naturalWidth) tandai();
+    img.addEventListener('error', tandai);
+
+    kartu.addEventListener('click', ()=>{
+      if(kartu.classList.contains('kosong')) return;
+      const f = foto[Number(kartu.dataset.foto)];
+      bukaFotoBesar(img.src, f);
+    });
+  });
+}
+
+function bukaFotoBesar(sumber, f){
+  const kotak = el('fotoBesar');
+  kotak.querySelector('img').src = sumber;
+  kotak.querySelector('.kap').innerHTML =
+    `${esc(f.ket)}<span>${f.tgl ? tglIndo(f.tgl) + ' · ' : ''}${esc(f.berkas)}</span>`;
+  kotak.classList.add('buka');
+}
+
+const tutupFotoBesar = ()=>el('fotoBesar').classList.remove('buka');
+
+// Dipasang sekali di sini, bukan di gambarGaleri(): gambarUnit() mengganti
+// innerHTML tiap kali unit berpindah, dan pemasangan berulang akan menumpuk
+// pendengar yang sama pada elemen yang tidak pernah ikut diganti.
+el('fotoBesar').addEventListener('click', tutupFotoBesar);
+document.addEventListener('keydown', e=>{ if(e.key === 'Escape') tutupFotoBesar(); });
 
 function gambarRinciAlat(){
   const kotak = el('rinciAlat'); if(!kotak) return;
