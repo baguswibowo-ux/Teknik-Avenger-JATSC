@@ -1,0 +1,17 @@
+{
+  "name": "teknik-jatsc-avenger",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Dashboard Fasilitas Teknik JATSC (Avenger) — aplikasi mandiri; data yang sudah jadi diambil dari E-Logbook lewat proxy",
+  "type": "module",
+  "engines": {
+    "node": ">=20.6.0"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0"
+  }
+}

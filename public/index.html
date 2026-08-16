@@ -1,0 +1,3125 @@
+<!DOCTYPE html>
+<html lang="id" data-tema="gelap">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0e13">
+<meta name="color-scheme" content="dark light">
+<title>Dashboard Fasilitas Teknik — JATSC</title>
+<!-- Font ikut dibawa di vendor/font/ (subset latin + latin-ext saja), bukan
+     dari fonts.googleapis.com: build ini harus utuh di jaringan tertutup. -->
+<link href="/vendor/font/font.css" rel="stylesheet">
+<!-- Panggung 3D di layar masuk. Salinannya ikut dibawa di vendor/, bukan
+     ditarik dari unpkg: jaringan kantor tertutup, dan build ini harus jalan
+     penuh tanpa internet. Tetap tidak dijadikan syarat — kalau berkasnya
+     hilang, panggungnya dilewatkan dan layar masuknya tetap bisa dipakai. -->
+<script src="/vendor/three.min.js" defer></script>
+
+<!--
+  DASHBOARD FASILITAS TEKNIK JATSC — halaman utama aplikasi ini.
+
+  Asalnya prototipe `public/contoh/dashboard-3d.html` di E-LogBook-Server.
+  Sejak dipindah ke sini ia bukan lagi tumpangan di proyek itu: E-Logbook tetap
+  di tempatnya, tetap jalan sendiri, dan tidak ada satu berkas pun miliknya yang
+  disunting dari sini. Yang diambil hanya API-nya.
+
+  DUA SUMBER DATA, dipilih di kartu masuk:
+    · DATA CONTOH      — blok DATA di bawah, semuanya karangan
+    · SERVER E-LOGBOOK — daftar unit, isu (jadi papan trouble), dan catatan
+                         logbook diambil lewat API server yang sudah ada
+  Panggilannya tetap ke /api/* pada asal yang sama; server.js di akar proyek
+  yang meneruskannya ke E-Logbook (bawaan http://127.0.0.1:3000). Kalau server
+  itu mati, pemeriksaannya gagal dan pilihan servernya padam sendiri — yang
+  tampil data contoh. Peralatan, sparepart, jadwal dinas, dan sejarah peralatan
+  tetap contoh walau sudah tersambung — modulnya memang belum ada di E-Logbook,
+  dan itu ditandai di layar. Rinciannya di blok JEMBATAN E-LOGBOOK, dekat kaki
+  berkas.
+
+  Alur yang dicontohkan:
+    1. Layar masuk           — konsol CNS/ATM dengan bandara 3D, akun contoh
+    2. Dashboard umum        — sama untuk semua akun: trouble dan dinas SEMUA unit
+    3. Dashboard unit        — baru di sini peran akun menentukan apa yang terbuka
+
+  Layar masuknya diambil dari proyek Claude Design "Animasi Bandara Soekarno
+  Hatta 3D" (`CNS Tower Dashboard.dc.html` + `cns-scene.js`), menggantikan layar
+  masuk lama yang berupa siluet menara dari SVG dan CSS. Semua kelas dan id
+  miliknya berawalan `km` supaya tidak bertabrakan dengan dashboard di bawahnya
+  — `.kartu`, `.judul`, `.status`, `#jamUtc`, dan `#pesan` sudah terpakai di sana.
+
+  three.js satu-satunya pustaka luar di berkas ini, dan salinannya ikut dibawa
+  di public/vendor/ — tidak ada permintaan ke internet sama sekali. Tetap bukan
+  syarat: kalau berkasnya hilang, panggung 3D-nya dilewatkan dan kartu masuknya
+  tetap jalan di atas kisi radar yang digambar CSS.
+
+  Gambar peralatannya ilustrasi, bukan foto asli. Tiap ilustrasi menempati
+  bingkai berukuran sama dengan slot foto nanti, jadi mengganti gambar dengan
+  foto sungguhan tidak mengubah tata letak sedikit pun.
+-->
+<style>
+:root{
+  --bg:#0a0e13; --panel:#111820; --panel-2:#161f2a; --line:#223040;
+  --text:#dbe6ef; --muted:#7c8ba0; --accent:#29b6f6; --accent-dim:#134a63;
+  --accent-teks:#04222f;
+  --ok:#2ecc71; --warn:#ffb300; --fail:#e5484d;
+  --konsol-1:#0d141b; --konsol-2:#0a0e13;
+  --garis-pindai:rgba(41,182,246,0.035);
+  --zebra:rgba(255,255,255,0.015);
+  --bayang:0 10px 30px rgba(0,0,0,0.45);
+  --kaca:rgba(255,255,255,0.04);
+  --font-display:'Space Grotesk',sans-serif;
+  --font-body:'IBM Plex Sans',sans-serif;
+  --font-mono:'IBM Plex Mono',ui-monospace,monospace;
+}
+html[data-tema="terang"]{
+  --bg:#eef2f6; --panel:#ffffff; --panel-2:#f4f7fa; --line:#ccd6e0;
+  --text:#16202b; --muted:#5b6b7d; --accent:#0277bd; --accent-dim:#b9dcf0;
+  --accent-teks:#ffffff;
+  --ok:#1b8a4b; --warn:#a86500; --fail:#c62828;
+  --konsol-1:#ffffff; --konsol-2:#e7eef4;
+  --garis-pindai:rgba(2,119,189,0.045);
+  --zebra:rgba(0,0,0,0.022);
+  --bayang:0 10px 30px rgba(22,32,43,0.16);
+  --kaca:rgba(22,32,43,0.04);
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-body);
+     -webkit-font-smoothing:antialiased;}
+h1,h2,h3,h4{font-family:var(--font-display);margin:0;font-weight:600;letter-spacing:-.01em;}
+::-webkit-scrollbar{height:8px;width:8px;}
+::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px;}
+button{font:inherit;}
+
+/* =====================================================================
+   1. LAYAR MASUK — konsol CNS/ATM dengan bandara 3D
+
+   Diambil dari proyek Claude Design "Animasi Bandara Soekarno Hatta 3D"
+   (`CNS Tower Dashboard.dc.html` + `cns-scene.js`). Menggantikan layar masuk
+   lama yang berupa pemandangan siluet CSS.
+
+   Semua kelas dan id di bagian ini berawalan `km` (konsol masuk). Dashboard di
+   bawahnya sudah memakai nama sepolos `.kartu`, `.judul`, `.status`, `#jamUtc`,
+   dan `#pesan` — tanpa awalan, layar masuk dan aplikasinya akan saling merusak.
+
+   Paletnya berdiri sendiri, tidak ikut token di atas: konsol ini tetap gelap
+   walaupun dashboardnya sedang mode terang. Ruang kontrol tidak pernah putih,
+   dan layar masuk cuma satu tarikan napas sebelum aplikasinya terbuka.
+   ===================================================================== */
+:root{
+  --km-bg:#06090d; --km-panel:#080d12; --km-panel-2:#0b1219; --km-panel-3:#0a1017;
+  --km-line:#17232c; --km-line-2:#16222b; --km-line-3:#1a2731;
+  --km-teks:#cfdae4; --km-terang:#eaf2f8; --km-terang-2:#dfe8f0; --km-terang-3:#d7e3ec;
+  --km-redup:#8496a5; --km-redup-2:#7b8d9c; --km-redup-3:#6d8090; --km-redup-4:#5f7382;
+  --km-sian:#3fd6c8; --km-sian-garis:#1f4e46; --km-sian-latar:#0a1a19;
+  --km-kuning:#f0b429;
+}
+
+#layarMasuk{position:fixed;inset:0;z-index:100;overflow:hidden;
+  background:var(--km-bg);color:var(--km-teks);
+  font-family:'IBM Plex Sans',system-ui,sans-serif;
+  transition:opacity .6s,visibility .6s;}
+#layarMasuk.pergi{opacity:0;visibility:hidden;pointer-events:none;}
+
+/* minmax(0,1fr), bukan kolom auto: kepala konsol isinya deretan mono yang tidak
+   boleh patah, dan kolom auto ikut selebar isi terpanjang itu — di HP seluruh
+   konsol jadi lebih lebar dari layar dan kartu masuknya terpotong di kanan.
+   min-width:0 pada ketiga barisnya menahan hal yang sama satu tingkat di bawah. */
+.km-konsol{display:grid;grid-template-rows:64px 1fr 40px;grid-template-columns:minmax(0,1fr);
+  height:100%;overflow:hidden;}
+.km-kepala,.km-badan,.km-kaki{min-width:0;}
+
+/* ---------- kepala ---------- */
+.km-kepala{display:flex;align-items:center;justify-content:space-between;gap:16px;
+  padding:0 22px;border-bottom:1px solid var(--km-line);
+  background:linear-gradient(180deg,#0b1218,#080d12);}
+.km-merek{display:flex;align-items:center;gap:16px;min-width:0;flex:1 1 auto;}
+.km-tanda{width:30px;height:30px;flex:none;border:1.5px solid var(--km-sian);display:grid;place-items:center;}
+.km-tanda i{width:10px;height:10px;background:var(--km-sian);border-radius:50%;}
+.km-merek-teks{display:flex;flex-direction:column;gap:3px;min-width:0;}
+.km-merek-teks b{font:600 14px/1 'IBM Plex Sans',sans-serif;letter-spacing:.18em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.km-merek-teks span{font:400 10px/1 'IBM Plex Mono',monospace;letter-spacing:.2em;
+  color:var(--km-redup-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.km-kepala-kanan{display:flex;align-items:center;gap:22px;flex:none;}
+.km-metrik{display:flex;gap:18px;}
+.km-metrik>div{display:flex;flex-direction:column;gap:4px;align-items:flex-end;}
+.km-metrik .km-pisah{width:1px;padding:0;gap:0;background:var(--km-line-3);}
+.km-metrik span{font:400 9px/1 'IBM Plex Mono',monospace;letter-spacing:.2em;color:var(--km-redup-4);}
+.km-metrik b{font:600 13px/1 'IBM Plex Mono',monospace;color:var(--km-terang);}
+.km-metrik b.km-sian{color:var(--km-sian);}
+.km-status{display:flex;align-items:center;gap:8px;padding:6px 12px;
+  border:1px solid var(--km-sian-garis);background:var(--km-sian-latar);}
+.km-status i{width:7px;height:7px;border-radius:50%;background:var(--km-sian);animation:km-blip 1.6s infinite;}
+.km-status span{font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.18em;color:var(--km-sian);}
+@keyframes km-blip{0%,100%{opacity:1;}50%{opacity:.25;}}
+.km-cap{padding:6px 10px;border:1px solid #5a4415;background:#1c1408;
+  font:600 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:.2em;color:var(--km-kuning);}
+
+/* ---------- badan: rel kiri · panggung · rel kanan ---------- */
+/* max-width/margin/padding dinolkan lagi: badan konsol ini elemen <main>, dan
+   dashboard di bawah punya `main{max-width:1500px;margin:0 auto;padding:22px}`
+   untuk isinya sendiri. Tanpa penawar ini, aturan itu ikut kena — kolom
+   tengahnya menyusut jadi nol dan kartu masuknya jadi selebar satu huruf. */
+.km-badan{position:relative;display:grid;grid-template-columns:236px 1fr 268px;min-height:0;
+  max-width:none;margin:0;padding:0;}
+.km-rel{background:var(--km-panel);padding:18px 16px;display:flex;flex-direction:column;
+  gap:22px;overflow:auto;min-height:0;}
+.km-kiri{border-right:1px solid var(--km-line);}
+.km-kanan{border-left:1px solid var(--km-line);}
+.km-blok{display:flex;flex-direction:column;gap:10px;}
+.km-judul{font:500 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:.22em;color:var(--km-redup-4);}
+
+.km-sub{display:flex;flex-direction:column;gap:7px;padding:11px 12px;
+  background:var(--km-panel-2);border:1px solid var(--km-line-2);border-left:2px solid var(--km-sian);}
+.km-sub-atas{display:flex;justify-content:space-between;align-items:baseline;gap:8px;}
+.km-sub-atas b{font:600 11px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;color:var(--km-terang-2);}
+.km-sub-atas span{font:500 9px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;color:var(--km-sian);}
+.km-sub p{margin:0;font:400 10.5px/1.5 'IBM Plex Sans',sans-serif;color:var(--km-redup-2);}
+.km-bar{height:3px;background:#132029;}
+.km-bar i{display:block;height:3px;background:var(--km-sian);}
+
+.km-legenda{display:flex;align-items:center;gap:9px;
+  font:400 10.5px/1.4 'IBM Plex Sans',sans-serif;color:var(--km-redup);}
+.km-legenda .km-garis{width:16px;height:2px;flex:none;background:var(--km-sian);}
+.km-legenda .km-garis.km-kuning-bg{background:var(--km-kuning);}
+.km-legenda .km-bulat{width:9px;height:9px;flex:none;border:1.5px solid var(--km-sian);border-radius:50%;}
+
+/* Blok sesi. Di berkas desain aslinya ini tombol yang membalik status login;
+   di sini ia mengikuti akun contoh yang sedang terisi di kartu masuk, jadi
+   sebelum menekan Masuk pun sudah terlihat akun mana yang akan dipakai. */
+.km-sesi-blok{margin-top:auto;display:flex;flex-direction:column;gap:9px;}
+.km-sesi{display:flex;align-items:center;gap:11px;padding:10px 11px;width:100%;
+  background:var(--km-panel-2);border:1px solid var(--km-line-2);cursor:pointer;
+  text-align:left;font-family:'IBM Plex Mono',monospace;transition:.16s;}
+.km-sesi:hover{border-color:var(--km-sian-garis);background:#0c161c;}
+.km-sesi .km-av{width:28px;height:28px;flex:none;border-radius:50%;border:1.5px solid var(--km-redup-4);
+  display:grid;place-items:center;font:600 10px/1 'IBM Plex Mono',monospace;color:var(--km-redup-4);}
+.km-sesi.km-siap .km-av{border-color:var(--km-sian);color:var(--km-sian);}
+.km-sesi.km-siap svg{stroke:var(--km-sian);}
+.km-sesi .km-sesi-teks{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1;}
+.km-sesi .km-nm{font:600 10.5px/1 'IBM Plex Mono',monospace;letter-spacing:.12em;color:var(--km-terang-3);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.km-sesi .km-pr{font:400 9px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;color:var(--km-redup-3);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.km-sesi svg{flex:none;stroke:var(--km-redup-4);}
+.km-sesi-ket{font:400 9.5px/1.5 'IBM Plex Mono',monospace;letter-spacing:.1em;color:var(--km-redup-4);}
+
+.km-traffic{padding:13px;background:var(--km-panel-2);border:1px solid var(--km-sian-garis);}
+.km-traffic-atas{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:9px;}
+.km-traffic-atas b{font:600 13px/1 'IBM Plex Mono',monospace;letter-spacing:.12em;color:var(--km-terang);}
+.km-traffic-atas span{font:500 9.5px/1 'IBM Plex Mono',monospace;color:var(--km-kuning);}
+.km-fase{font:400 10.5px/1.5 'IBM Plex Mono',monospace;letter-spacing:.08em;
+  color:var(--km-sian);margin-bottom:11px;min-height:16px;}
+.km-angka{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
+.km-angka>div{display:flex;flex-direction:column;gap:4px;}
+.km-angka span{font:400 9px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;color:var(--km-redup-4);}
+.km-angka b{font:600 15px/1 'IBM Plex Mono',monospace;color:var(--km-terang-2);}
+
+.km-lalu{display:flex;justify-content:space-between;align-items:center;gap:10px;
+  padding:9px 12px;background:var(--km-panel-3);border:1px solid var(--km-line-2);}
+.km-lalu-kiri{display:flex;flex-direction:column;gap:3px;min-width:0;}
+.km-lalu b{font:600 11px/1 'IBM Plex Mono',monospace;letter-spacing:.12em;color:#c9d6e1;}
+.km-lalu span{font:400 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;color:var(--km-redup-3);}
+.km-lalu em{font:500 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#8ea0af;
+  font-style:normal;white-space:nowrap;}
+
+.km-rantai{display:flex;gap:11px;align-items:flex-start;}
+.km-rantai i{margin-top:5px;width:6px;height:6px;flex:none;background:var(--km-kuning);}
+.km-rantai div{display:flex;flex-direction:column;gap:3px;}
+.km-rantai b{font:600 10.5px/1.3 'IBM Plex Mono',monospace;letter-spacing:.12em;color:#c9d6e1;}
+.km-rantai span{font:400 10.5px/1.5 'IBM Plex Sans',sans-serif;color:var(--km-redup-2);text-wrap:pretty;}
+
+/* ---------- panggung 3D ---------- */
+.km-panggung{position:relative;min-width:0;min-height:0;overflow:hidden;background:var(--km-panel);}
+/* Kisi radar tergambar di bawah kanvas. Kalau three.js tidak sampai, yang
+   tersisa tetap terlihat seperti layar radar, bukan kotak hitam kosong. */
+.km-panggung::before{content:"";position:absolute;inset:0;opacity:.5;
+  background:
+    radial-gradient(circle at 50% 58%, rgba(63,214,200,.07), transparent 62%),
+    repeating-linear-gradient(0deg,  rgba(27,43,54,.55) 0 1px, transparent 1px 46px),
+    repeating-linear-gradient(90deg, rgba(27,43,54,.55) 0 1px, transparent 1px 46px);}
+.km-scene{position:absolute;inset:0;}
+.km-scene canvas{display:block;width:100%;height:100%;cursor:grab;}
+.km-scene.km-geser canvas{cursor:grabbing;}
+.km-lapis{position:absolute;inset:0;pointer-events:none;overflow:hidden;}
+.km-chip{position:absolute;transform:translate(-50%,-100%);pointer-events:auto;cursor:pointer;
+  background:rgba(9,15,21,.82);border:1px solid rgba(63,214,200,.4);color:var(--km-terang-3);
+  padding:4px 9px;font:500 10.5px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;
+  white-space:nowrap;display:flex;gap:7px;align-items:center;
+  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);}
+.km-chip i{width:5px;height:5px;background:var(--km-sian);border-radius:50%;display:inline-block;}
+.km-chip em{color:var(--km-kuning);font-style:normal;}
+.km-label-pesawat{position:absolute;transform:translate(14px,-50%);pointer-events:none;
+  font:500 10px/1.45 'IBM Plex Mono',monospace;letter-spacing:.1em;color:var(--km-sian);
+  background:rgba(8,14,19,.72);border-left:2px solid var(--km-sian);padding:4px 8px;white-space:pre;}
+.km-detail{position:absolute;left:18px;bottom:18px;width:min(320px,46%);padding:16px 18px;
+  background:rgba(10,17,23,.9);border:1px solid rgba(63,214,200,.35);
+  border-left:3px solid var(--km-sian);backdrop-filter:blur(6px);
+  -webkit-backdrop-filter:blur(6px);pointer-events:auto;display:none;}
+.km-detail .km-kode{font:600 10px/1 'IBM Plex Mono',monospace;letter-spacing:.22em;color:var(--km-kuning);}
+.km-detail h4{font:600 17px/1.3 'IBM Plex Sans',sans-serif;letter-spacing:.06em;margin:8px 0;color:var(--km-terang);}
+.km-detail p{margin:0;font:400 12.5px/1.65 'IBM Plex Sans',sans-serif;color:#93a4b3;text-wrap:pretty;}
+.km-petunjuk{position:absolute;top:14px;left:14px;padding:8px 12px;background:rgba(8,13,18,.72);
+  border:1px solid var(--km-line);font:400 9.5px/1.6 'IBM Plex Mono',monospace;
+  letter-spacing:.12em;color:var(--km-redup-3);pointer-events:none;}
+
+/* ---------- kartu masuk ---------- */
+/* Kartunya sengaja tidak ikut muncul di awal: yang pertama terlihat cuma
+   panggungnya. Kartu baru datang kalau blok SESI di rel kiri ditekan (atau
+   tombol MASUK di panggung, untuk layar sempit yang relnya sudah dilepas),
+   dan pergi lagi dengan Esc atau tombol tutup — supaya animasi bandaranya
+   tidak tertutupi apa pun selama belum ada yang mau masuk.
+
+   Lapis pembungkusnya tembus klik supaya panggung di belakang tetap bisa
+   diputar; hanya kartunya yang menangkap tetikus. align-items:flex-start plus
+   margin blok auto, bukan align-items:center — begitu kartunya lebih tinggi
+   dari panggung, margin auto luruh jadi nol dan kartu tetap utuh dari atas. */
+.km-lapis-masuk{position:absolute;inset:0;z-index:3;display:flex;
+  align-items:flex-start;justify-content:flex-end;padding:26px;overflow:auto;pointer-events:none;
+  opacity:0;visibility:hidden;transition:opacity .22s ease,visibility .22s;}
+.km-lapis-masuk.km-buka{opacity:1;visibility:visible;}
+.km-kartu{pointer-events:auto;flex:none;width:360px;max-width:100%;position:relative;
+  margin-top:auto;margin-bottom:auto;padding:22px 22px 20px;
+  background:rgba(10,17,23,.92);border:1px solid rgba(63,214,200,.35);
+  border-left:3px solid var(--km-sian);backdrop-filter:blur(6px);
+  -webkit-backdrop-filter:blur(6px);box-shadow:0 24px 60px rgba(0,0,0,.55);
+  transform:translateY(-10px);transition:transform .22s ease;}
+.km-lapis-masuk.km-buka .km-kartu{transform:none;}
+.km-tutup{position:absolute;top:9px;right:9px;width:26px;height:26px;display:grid;place-items:center;
+  background:transparent;border:1px solid var(--km-line-3);color:var(--km-redup-3);cursor:pointer;
+  font:400 15px/1 'IBM Plex Mono',monospace;transition:.16s;}
+.km-tutup:hover{border-color:var(--km-sian);color:var(--km-sian);}
+
+/* Pemicu cadangan di pojok panggung. Rel kiri — tempat blok SESI berada —
+   dilepas di layar sempit, jadi tanpa tombol ini tidak ada lagi jalan membuka
+   kartu masuk di sana. Di layar lebar ia tidak dipasang sama sekali. */
+.km-picu{position:absolute;right:16px;bottom:16px;z-index:4;display:none;
+  align-items:center;gap:8px;background:rgba(9,15,21,.86);border:1px solid var(--km-sian-garis);
+  color:var(--km-sian);padding:10px 15px;cursor:pointer;
+  font:600 10.5px/1 'IBM Plex Mono',monospace;letter-spacing:.18em;
+  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);}
+.km-picu:hover{border-color:var(--km-sian);}
+.km-kartu .km-eyebrow{font:600 10px/1 'IBM Plex Mono',monospace;letter-spacing:.22em;color:var(--km-kuning);}
+.km-kartu h2{font:600 17px/1.3 'IBM Plex Sans',sans-serif;letter-spacing:.06em;
+  margin:9px 0 0;color:var(--km-terang);}
+.km-kartu .km-sub-teks{margin:7px 0 0;font:400 11.5px/1.6 'IBM Plex Sans',sans-serif;
+  color:#93a4b3;text-wrap:pretty;}
+.km-kolom{margin-top:13px;}
+.km-kolom label{display:block;font:400 9px/1 'IBM Plex Mono',monospace;letter-spacing:.2em;
+  color:var(--km-redup-4);margin-bottom:6px;text-transform:uppercase;}
+.km-kolom input{width:100%;background:rgba(255,255,255,.045);border:1px solid var(--km-line-3);
+  color:var(--km-terang);font-family:'IBM Plex Mono',monospace;font-size:12.5px;
+  padding:10px 11px;outline:0;transition:border-color .15s,box-shadow .15s;}
+.km-kolom input::placeholder{color:#54677a;}
+.km-kolom input:focus{border-color:var(--km-sian);box-shadow:0 0 0 2px rgba(63,214,200,.16);}
+.km-tombol-masuk{width:100%;margin-top:18px;background:var(--km-sian);color:#04231f;
+  border:1px solid var(--km-sian);padding:11px;cursor:pointer;
+  font:600 11px/1 'IBM Plex Mono',monospace;letter-spacing:.2em;
+  text-transform:uppercase;transition:.16s;}
+.km-tombol-masuk:hover{background:#5ce4d7;border-color:#5ce4d7;}
+
+/* Pemilih sumber data. Kartu ini bisa memakai dua sumber: server E-Logbook
+   yang sungguhan (kalau halaman ini dibuka dari server itu) atau data contoh
+   yang menyatu di berkas ini. Pilihannya dibuat terlihat, bukan disembunyikan
+   di balik tebakan — orang harus tahu angka yang sedang ia lihat itu nyata
+   atau karangan. */
+.km-sumber{margin-top:14px;}
+.km-sumber-tombol{display:flex;gap:0;border:1px solid var(--km-line-3);}
+.km-sumber-tombol button{flex:1;background:transparent;border:0;color:var(--km-redup-3);
+  padding:9px 6px;cursor:pointer;font:600 9.5px/1.3 'IBM Plex Mono',monospace;
+  letter-spacing:.14em;transition:.16s;}
+.km-sumber-tombol button+button{border-left:1px solid var(--km-line-3);}
+.km-sumber-tombol button:hover:not(:disabled){color:var(--km-terang-3);}
+.km-sumber-tombol button.km-pilih{background:var(--km-sian-latar);color:var(--km-sian);
+  box-shadow:inset 0 -2px 0 var(--km-sian);}
+.km-sumber-tombol button:disabled{opacity:.4;cursor:not-allowed;}
+.km-sumber-ket{display:flex;align-items:flex-start;gap:7px;margin-top:9px;
+  font:400 10px/1.5 'IBM Plex Mono',monospace;letter-spacing:.04em;color:var(--km-redup-3);}
+.km-sumber-ket i{margin-top:4px;width:6px;height:6px;flex:none;border-radius:50%;
+  background:var(--km-redup-4);}
+.km-sumber-ket.km-baik i{background:var(--km-sian);}
+.km-sumber-ket.km-awas i{background:var(--km-kuning);}
+.km-sumber-ket.km-sibuk i{animation:km-kedip 1s steps(2,end) infinite;}
+@keyframes km-kedip{50%{opacity:.25;}}
+
+.km-akun{margin-top:16px;padding-top:14px;border-top:1px solid var(--km-line-3);}
+.km-akun.km-samar{opacity:.42;}
+.km-akun .km-jdl{font:400 9px/1 'IBM Plex Mono',monospace;letter-spacing:.2em;
+  color:var(--km-redup-4);text-transform:uppercase;margin-bottom:9px;}
+.km-akun .km-baris{display:flex;flex-wrap:wrap;gap:6px;}
+.km-akun button{background:rgba(255,255,255,.05);border:1px solid var(--km-line-3);
+  color:var(--km-terang-3);padding:5px 9px;cursor:pointer;
+  font:400 11px/1 'IBM Plex Mono',monospace;letter-spacing:.06em;transition:.16s;}
+.km-akun button:hover{border-color:var(--km-sian);color:var(--km-sian);}
+.km-akun .km-ket{font:400 10.5px/1.55 'IBM Plex Sans',sans-serif;color:var(--km-redup-4);margin-top:10px;}
+
+/* ---------- kaki: pita berjalan ---------- */
+.km-kaki{display:flex;align-items:center;border-top:1px solid var(--km-line);
+  background:var(--km-panel);overflow:hidden;}
+.km-pita{display:flex;width:max-content;animation:km-pita 42s linear infinite;}
+.km-pita>div{display:flex;align-items:center;gap:26px;padding:0 13px;}
+.km-pita span{display:flex;align-items:center;gap:8px;white-space:nowrap;
+  font:400 10px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;color:var(--km-redup-2);}
+.km-pita span i{width:5px;height:5px;border-radius:50%;background:var(--km-sian);flex:none;}
+@keyframes km-pita{from{transform:translateX(0);}to{transform:translateX(-50%);}}
+
+/* ---------- layar sempit ---------- */
+/* Rel kanan lalu rel kiri dilepas duluan; panggung dan kartu masuk yang
+   terakhir menyerah, karena tanpa kartu itu layar ini tidak ada gunanya. */
+@media (max-width:1180px){ .km-badan{grid-template-columns:236px 1fr;} .km-kanan{display:none;} }
+@media (max-width:900px){
+  .km-badan{grid-template-columns:1fr;}
+  .km-kiri{display:none;}
+  .km-lapis-masuk{justify-content:center;}
+  .km-detail{display:none !important;}
+  .km-picu{display:flex;}      /* rel kiri hilang — pemicu pindah ke panggung */
+}
+@media (max-width:720px){
+  .km-kepala{padding:0 14px;gap:10px;}
+  .km-metrik>div:not(:last-child),.km-metrik .km-pisah{display:none;}
+  .km-status span{display:none;}
+  .km-status{padding:6px 8px;}
+  .km-petunjuk{display:none;}
+}
+/* Di HP yang dilepas "SISTEM NORMAL", bukan cap PROTOTIPE. */
+@media (max-width:560px){
+  .km-konsol{grid-template-rows:58px 1fr 34px;}
+  .km-kepala{gap:8px;}
+  .km-merek-teks b{font-size:12px;letter-spacing:.12em;}
+  .km-merek-teks span{display:none;}
+  .km-status{display:none;}
+  .km-lapis-masuk{padding:16px;}
+  .km-kartu{padding:18px 16px 16px;}
+}
+/* Layar pendek: kepala dan kaki dilepas. Barisnya ikut jadi satu — keduanya
+   display:none keluar dari grid, jadi kalau templatnya tetap tiga baris, badan
+   konsol jatuh ke baris pertama yang tingginya nol dan seluruh layar lenyap. */
+@media (max-height:520px){
+  .km-konsol{grid-template-rows:1fr;}
+  .km-kepala,.km-kaki{display:none;}
+}
+@media (prefers-reduced-motion:reduce){ .km-status i,.km-pita{animation:none;} }
+
+/* =====================================================================
+   2. KERANGKA APLIKASI
+   ===================================================================== */
+#app{display:none;}
+#app.tampil{display:block;}
+
+.pita{position:sticky;top:0;z-index:60;display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+  padding:7px 16px;background:repeating-linear-gradient(135deg,#ffb30022 0 12px,transparent 12px 24px),var(--panel-2);
+  border-bottom:1px solid var(--line);font-family:var(--font-mono);font-size:11.5px;color:var(--warn);}
+.pita b{color:var(--text);font-family:var(--font-display);letter-spacing:.04em;}
+
+header.konsol{position:relative;overflow:hidden;border-bottom:1px solid var(--line);
+  background:linear-gradient(150deg,var(--konsol-1),var(--konsol-2));}
+header.konsol::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,var(--garis-pindai) 0 1px,transparent 1px 3px);}
+.konsol-isi{position:relative;z-index:1;display:flex;gap:16px;align-items:center;flex-wrap:wrap;
+  padding:14px 22px;max-width:1500px;margin:0 auto;}
+.logo{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;flex:none;
+  background:linear-gradient(160deg,var(--accent),var(--accent-dim));color:var(--accent-teks);
+  box-shadow:0 6px 18px rgba(41,182,246,.28);}
+.brand{flex:1;min-width:190px;}
+.brand .eyebrow{font-family:var(--font-mono);font-size:10px;letter-spacing:.16em;color:var(--muted);text-transform:uppercase;}
+.brand h1{font-size:19px;margin-top:2px;}
+.jam{display:flex;gap:13px;align-items:center;}
+.jam .blok{text-align:right;}
+.jam .nilai{font-family:var(--font-mono);font-size:18px;font-weight:600;color:var(--accent);line-height:1.1;}
+.jam .label{font-family:var(--font-mono);font-size:9px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;}
+.tombol-ikon{background:var(--panel);border:1px solid var(--line);color:var(--text);border-radius:9px;
+  width:34px;height:34px;display:grid;place-items:center;cursor:pointer;transition:.16s;}
+.tombol-ikon:hover{border-color:var(--accent);color:var(--accent);}
+
+.kartu-akun{display:flex;align-items:center;gap:9px;border:1px solid var(--line);border-radius:10px;
+  padding:5px 10px 5px 6px;background:var(--panel);}
+.kartu-akun .av{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;flex:none;
+  background:var(--accent-dim);color:var(--accent);font-family:var(--font-mono);font-size:11px;font-weight:600;}
+.kartu-akun .nm{font-size:12.5px;font-weight:500;line-height:1.2;}
+.kartu-akun .pr{font-family:var(--font-mono);font-size:9.5px;color:var(--muted);letter-spacing:.05em;}
+
+nav.rel{position:sticky;top:33px;z-index:50;background:var(--panel);border-bottom:1px solid var(--line);}
+.rel-isi{display:flex;gap:2px;overflow-x:auto;max-width:1500px;margin:0 auto;padding:0 14px;}
+.rel button{background:none;border:0;border-bottom:2px solid transparent;color:var(--muted);cursor:pointer;
+  font-family:var(--font-display);font-size:13px;font-weight:500;padding:13px 15px;white-space:nowrap;transition:.16s;}
+.rel button:hover{color:var(--text);}
+.rel button.aktif{color:var(--accent);border-bottom-color:var(--accent);}
+.rel .lencana{font-family:var(--font-mono);font-size:10px;background:var(--fail);color:#fff;
+  border-radius:20px;padding:1px 6px;margin-left:6px;vertical-align:1px;}
+
+main{max-width:1500px;margin:0 auto;padding:22px 22px 70px;}
+section.layar{display:none;animation:masuk .3s ease;}
+section.layar.aktif{display:block;}
+@keyframes masuk{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+
+.judul-seksi{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin:0 0 4px;}
+.judul-seksi h2{font-size:17px;}
+.judul-seksi .ket{color:var(--muted);font-size:12.5px;}
+.pemisah{height:1px;background:var(--line);margin:14px 0 20px;}
+
+/* =====================================================================
+   3. CINCIN PERALATAN 3D — berputar sendiri
+   ===================================================================== */
+.orbit{position:relative;height:340px;margin:6px -22px 0;overflow-x:clip;
+  perspective:1150px;perspective-origin:50% 44%;
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 13%,#000 87%,transparent);
+          mask-image:linear-gradient(90deg,transparent,#000 13%,#000 87%,transparent);}
+.cincin{position:absolute;left:50%;top:24px;width:0;height:0;transform-style:preserve-3d;
+  animation:putarCincin 36s linear infinite;}
+@keyframes putarCincin{to{transform:rotateY(-360deg);}}
+.orbit:hover .cincin,.orbit.jeda .cincin{animation-play-state:paused;}
+
+.kartu-orbit{position:absolute;left:-115px;top:0;width:230px;cursor:pointer;
+  border:1px solid var(--line);border-radius:15px;background:var(--panel);overflow:hidden;
+  backface-visibility:hidden;box-shadow:0 18px 40px rgba(0,0,0,.5);
+  animation:sorot 36s linear infinite;}
+.orbit:hover .kartu-orbit,.orbit.jeda .kartu-orbit{animation-play-state:paused;}
+/* Kartu di sisi jauh diredupkan sampai hampir hilang. Digabung dengan
+   backface-visibility, pergantiannya tidak pernah terlihat "meloncat". */
+@keyframes sorot{
+  0%  {filter:brightness(1)   saturate(1);}
+  22% {filter:brightness(.62) saturate(.75);}
+  50% {filter:brightness(.3)  saturate(.5);}
+  78% {filter:brightness(.62) saturate(.75);}
+  100%{filter:brightness(1)   saturate(1);}
+}
+.kartu-orbit:hover{border-color:var(--accent);}
+.kartu-orbit.terkunci{cursor:not-allowed;}
+
+.bingkai{position:relative;height:132px;overflow:hidden;border-bottom:1px solid var(--line);}
+.bingkai .adegan{display:block;width:100%;height:100%;}
+.bingkai .lampu{position:absolute;right:9px;top:9px;width:9px;height:9px;border-radius:50%;z-index:2;}
+.lampu.hijau{background:var(--ok);box-shadow:0 0 12px var(--ok);}
+.lampu.kuning{background:var(--warn);box-shadow:0 0 12px var(--warn);animation:denyut 2s infinite;}
+.lampu.merah{background:var(--fail);box-shadow:0 0 12px var(--fail);animation:denyut 1.1s infinite;}
+@keyframes denyut{50%{opacity:.28;}}
+.bingkai .gembok{position:absolute;inset:0;display:grid;place-items:center;z-index:2;
+  background:rgba(4,7,11,.62);color:#cfe2ef;}
+.bingkai .tanda-ilus{position:absolute;left:8px;bottom:7px;z-index:2;font-family:var(--font-mono);
+  font-size:8.5px;letter-spacing:.1em;color:rgba(255,255,255,.62);
+  background:rgba(0,0,0,.4);border-radius:4px;padding:2px 6px;}
+.kartu-orbit .isi{padding:11px 13px 13px;}
+.kartu-orbit .nama{font-family:var(--font-display);font-size:13.5px;font-weight:600;line-height:1.25;}
+.kartu-orbit .alat{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.4;min-height:31px;}
+.kartu-orbit .kaki{display:flex;gap:6px;align-items:center;margin-top:9px;padding-top:9px;border-top:1px solid var(--line);}
+.cip{font-family:var(--font-mono);font-size:10px;padding:2px 7px;border-radius:20px;border:1px solid var(--line);color:var(--muted);}
+.cip.bahaya{color:var(--fail);border-color:var(--fail);}
+.cip.awas{color:var(--warn);border-color:var(--warn);}
+.cip.aman{color:var(--ok);border-color:var(--ok);}
+
+.kendali-orbit{display:flex;justify-content:center;gap:9px;align-items:center;margin-top:2px;}
+.kendali-orbit .ket{font-family:var(--font-mono);font-size:10.5px;color:var(--muted);}
+
+/* =====================================================================
+   4. UBIN, PANEL, TABEL
+   ===================================================================== */
+.ubin-baris{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-top:22px;}
+.ubin{position:relative;border:1px solid var(--line);border-radius:13px;padding:15px 16px;background:var(--panel);
+  transition:transform .22s,box-shadow .22s;box-shadow:0 4px 0 -1px var(--panel-2),0 8px 0 -2px var(--line),var(--bayang);}
+.ubin:hover{transform:translateY(-4px);box-shadow:0 8px 0 -1px var(--panel-2),0 14px 0 -2px var(--line),0 22px 34px rgba(0,0,0,.42);}
+.ubin .label{font-family:var(--font-mono);font-size:10px;letter-spacing:.13em;color:var(--muted);text-transform:uppercase;}
+.ubin .angka{font-family:var(--font-display);font-size:32px;font-weight:700;line-height:1.05;margin-top:8px;}
+.ubin .sub{font-size:11.5px;color:var(--muted);margin-top:3px;}
+.ubin.merah .angka{color:var(--fail);} .ubin.kuning .angka{color:var(--warn);}
+.ubin.hijau .angka{color:var(--ok);}   .ubin.biru .angka{color:var(--accent);}
+
+.grid2{display:grid;grid-template-columns:1.55fr 1fr;gap:16px;align-items:start;}
+.panel{border:1px solid var(--line);border-radius:13px;background:var(--panel);overflow:hidden;box-shadow:var(--bayang);}
+.panel > .kepala{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:12px 15px;border-bottom:1px solid var(--line);background:var(--panel-2);}
+.panel > .kepala h3{font-size:13.5px;}
+.panel > .kepala .ket{font-family:var(--font-mono);font-size:10.5px;color:var(--muted);}
+.panel .badan{padding:14px 15px;}
+
+table{width:100%;border-collapse:collapse;font-size:12.5px;}
+th{font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);
+  text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);white-space:nowrap;position:sticky;top:0;background:var(--panel-2);}
+td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top;}
+tbody tr:nth-child(even){background:var(--zebra);}
+tbody tr:hover{background:var(--kaca);}
+.mono{font-family:var(--font-mono);font-size:11.5px;}
+.gulir{max-height:400px;overflow:auto;}
+
+.tag{font-family:var(--font-mono);font-size:10px;padding:2px 8px;border-radius:20px;display:inline-block;white-space:nowrap;}
+.tag.open{background:rgba(229,72,77,.14);color:var(--fail);border:1px solid rgba(229,72,77,.4);}
+.tag.proses{background:rgba(255,179,0,.14);color:var(--warn);border:1px solid rgba(255,179,0,.4);}
+.tag.closed{background:rgba(46,204,113,.14);color:var(--ok);border:1px solid rgba(46,204,113,.4);}
+
+.umur{display:flex;align-items:center;gap:7px;}
+.umur .batang{height:5px;border-radius:3px;background:var(--line);width:60px;overflow:hidden;flex:none;}
+.umur .batang i{display:block;height:100%;border-radius:3px;}
+
+/* =====================================================================
+   PITA BERJALAN — daftar yang menggeser dirinya sendiri ke atas
+   Isinya dicetak dua kali; setelah bergeser tepat setengah tinggi jalur,
+   yang terlihat adalah salinan kedua pada posisi yang sama persis dengan
+   awal, jadi perulangannya tidak pernah tampak meloncat.
+   ===================================================================== */
+.tiker{position:relative;height:404px;overflow:hidden;}
+.tiker::before,.tiker::after{content:"";position:absolute;left:0;right:0;height:44px;z-index:3;pointer-events:none;}
+.tiker::before{top:0;background:linear-gradient(var(--panel),transparent);}
+.tiker::after{bottom:0;background:linear-gradient(transparent,var(--panel));}
+/* Jaraknya dipasang sebagai margin-bottom tiap kartu, bukan gap + padding
+   tegak pada jalur. Dengan gap, jarak antara salinan pertama dan kedua ikut
+   terhitung sekali saja, sementara padding atas-bawah terhitung penuh — geser
+   50% jadi meleset belasan piksel dan sambungannya terlihat tersentak.
+   Dengan margin per kartu, tinggi tiap satuan sama rata dan 50% tepat. */
+/* Tanpa will-change dengan sengaja. Jalur dinas tingginya bisa 3.400 px, dan
+   will-change:transform memaksa peramban menyiapkan tekstur selebar panel dan
+   setinggi itu terus-menerus. Animasi transform sudah mendapat lapisan
+   komposit sendiri tanpa perlu diminta. */
+.jalur{display:flex;flex-direction:column;padding:0 13px;
+  animation:naik 30s linear infinite;}
+.jalur > *{margin-bottom:9px;}
+@keyframes naik{to{transform:translateY(-50%);}}
+.tiker:hover .jalur,.tiker.jeda .jalur{animation-play-state:paused;}
+.tiker-kaki{display:flex;justify-content:space-between;align-items:center;gap:10px;
+  padding:8px 13px;border-top:1px solid var(--line);background:var(--panel-2);}
+.tiker-kaki .ket{font-family:var(--font-mono);font-size:10px;color:var(--muted);}
+
+/* ---------- Baris trouble di dalam pita ---------- */
+.trouble-baris{position:relative;flex:none;border:1px solid var(--line);border-radius:11px;
+  background:var(--panel-2);padding:10px 12px 10px 15px;cursor:pointer;
+  transition:transform .3s cubic-bezier(.2,.7,.3,1),border-color .2s,box-shadow .3s;
+  transform-style:preserve-3d;}
+.trouble-baris .pita-status{position:absolute;left:0;top:9px;bottom:9px;width:3px;border-radius:0 3px 3px 0;}
+.trouble-baris.open .pita-status{background:var(--fail);}
+.trouble-baris.proses .pita-status{background:var(--warn);}
+.trouble-baris:hover{border-color:var(--accent);box-shadow:0 14px 26px rgba(0,0,0,.4);
+  transform:perspective(800px) rotateX(3.5deg) translateZ(16px);}
+.trouble-baris .atas{display:flex;justify-content:space-between;align-items:center;gap:8px;}
+.trouble-baris .unit{font-family:var(--font-display);font-size:12.5px;font-weight:600;color:var(--accent);}
+.trouble-baris .ket-isi{font-size:12px;line-height:1.45;margin-top:5px;}
+.trouble-baris .bawah{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:7px;}
+.trouble-baris .jejak{font-family:var(--font-mono);font-size:10px;color:var(--muted);}
+.lencana-umur{font-family:var(--font-mono);font-size:10.5px;font-weight:600;border-radius:20px;
+  padding:2px 9px;border:1px solid currentColor;white-space:nowrap;}
+
+/* ---------- Kartu personel 3D ---------- */
+.kartu-orang{position:relative;flex:none;display:flex;align-items:center;gap:11px;
+  border:1px solid var(--line);border-radius:12px;background:var(--panel-2);padding:10px 13px;
+  overflow:hidden;transform-style:preserve-3d;
+  transition:transform .35s cubic-bezier(.2,.7,.3,1),border-color .2s,box-shadow .35s;}
+.kartu-orang::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--w);}
+/* Kilau yang menyapu saat kartunya dimiringkan — memberi kesan permukaan
+   yang memantul, bukan kotak datar yang sekadar diputar. */
+.kartu-orang::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:0;
+  background:linear-gradient(105deg,transparent 34%,rgba(255,255,255,.13) 48%,transparent 62%);
+  transform:translateX(-60%);transition:opacity .35s,transform .55s;}
+.kartu-orang:hover{border-color:var(--w);box-shadow:0 18px 34px rgba(0,0,0,.45);
+  transform:perspective(760px) rotateX(6deg) rotateY(-7deg) translateZ(24px);}
+.kartu-orang:hover::after{opacity:1;transform:translateX(60%);}
+.av3d{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;flex:none;
+  font-family:var(--font-mono);font-size:12.5px;font-weight:600;color:var(--w);
+  background:var(--panel);border:1px solid var(--line);
+  transform:translateZ(30px);box-shadow:0 6px 14px rgba(0,0,0,.4);}
+.kartu-orang .teks{flex:1;min-width:0;transform:translateZ(15px);}
+.kartu-orang .nm{font-size:13px;font-weight:500;line-height:1.25;display:block;}
+.kartu-orang .pr{font-family:var(--font-mono);font-size:10px;color:var(--muted);}
+.kartu-orang .kanan{text-align:right;flex:none;transform:translateZ(9px);}
+.kartu-orang .jam-kecil{font-family:var(--font-mono);font-size:10px;color:var(--muted);display:block;}
+.nyala{font-family:var(--font-mono);font-size:8.5px;letter-spacing:.09em;color:var(--ok);
+  border:1px solid var(--ok);border-radius:20px;padding:1px 6px;display:inline-block;margin-top:3px;}
+.nyala.diam{color:var(--muted);border-color:var(--line);}
+
+/* ---------- Dinas ---------- */
+.dinas-baris{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;}
+.dinas-kartu{position:relative;border:1px solid var(--line);border-radius:13px;background:var(--panel);
+  padding:14px 15px;overflow:hidden;transition:transform .25s;box-shadow:var(--bayang);}
+.dinas-kartu:hover{transform:translateY(-3px);}
+.dinas-kartu .pita-sisi{position:absolute;left:0;top:0;bottom:0;width:4px;}
+.dinas-kartu .kode{font-family:var(--font-display);font-size:25px;font-weight:700;line-height:1;}
+.dinas-kartu .jam-shift{font-family:var(--font-mono);font-size:10.5px;color:var(--muted);margin-top:4px;letter-spacing:.06em;}
+.orang{display:flex;align-items:center;gap:9px;margin-top:10px;}
+.avatar{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;flex:none;
+  font-family:var(--font-mono);font-size:10.5px;font-weight:600;background:var(--panel-2);border:1px solid var(--line);}
+.orang .nm{font-size:12.5px;line-height:1.25;}
+.orang .pr{font-family:var(--font-mono);font-size:10px;color:var(--muted);}
+.sedang-dinas{position:absolute;right:12px;top:12px;font-family:var(--font-mono);font-size:9px;letter-spacing:.1em;
+  color:var(--ok);border:1px solid var(--ok);border-radius:20px;padding:2px 7px;}
+
+.pita-jam{position:relative;height:34px;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--panel-2);}
+.pita-jam .blok-shift{position:absolute;top:0;bottom:0;display:grid;place-items:center;
+  font-family:var(--font-mono);font-size:10px;border-right:1px solid var(--bg);}
+.pita-jam .sekarang{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--accent);box-shadow:0 0 10px var(--accent);z-index:2;}
+.skala-jam{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:9.5px;color:var(--muted);margin-top:4px;}
+.matriks td,.matriks th{padding:6px 8px;text-align:center;}
+.matriks td:first-child,.matriks th:first-child{text-align:left;white-space:nowrap;}
+.sel-shift{font-family:var(--font-mono);font-size:10.5px;font-weight:600;border-radius:5px;padding:3px 0;display:block;}
+.s-P,.s-Pagi{background:rgba(41,182,246,.16);color:var(--accent);}
+.s-S,.s-Siang{background:rgba(255,179,0,.16);color:var(--warn);}
+.s-M,.s-Malam{background:rgba(124,139,160,.2);color:var(--text);}
+.s-PS{background:rgba(46,204,113,.16);color:var(--ok);}
+.s-L{color:var(--muted);opacity:.5;}
+
+/* ---------- Sparepart ---------- */
+.stok-bar{height:6px;background:var(--line);border-radius:4px;overflow:hidden;width:84px;margin-top:5px;}
+.stok-bar i{display:block;height:100%;}
+.rak-kode{font-family:var(--font-mono);font-size:10.5px;color:var(--muted);border:1px solid var(--line);
+  border-radius:5px;padding:1px 6px;}
+
+/* =====================================================================
+   5. DASHBOARD UNIT
+   ===================================================================== */
+.kepala-unit{display:flex;gap:16px;align-items:center;flex-wrap:wrap;border:1px solid var(--line);
+  border-radius:14px;padding:14px 16px;background:linear-gradient(145deg,var(--panel-2),var(--panel));
+  box-shadow:var(--bayang);}
+.kepala-unit .ikon-unit{width:96px;height:60px;border-radius:10px;overflow:hidden;flex:none;border:1px solid var(--line);}
+.kepala-unit .ikon-unit svg{display:block;width:100%;height:100%;}
+.kepala-unit h2{font-size:19px;}
+.kepala-unit .sub{font-size:12.5px;color:var(--muted);margin-top:3px;}
+
+.subtab{display:flex;gap:6px;overflow-x:auto;margin:18px 0 16px;padding-bottom:2px;}
+.subtab button{background:var(--panel);border:1px solid var(--line);color:var(--muted);border-radius:9px;
+  padding:8px 14px;cursor:pointer;font-family:var(--font-display);font-size:12.5px;font-weight:500;
+  white-space:nowrap;transition:.16s;}
+.subtab button:hover{color:var(--text);border-color:var(--muted);}
+.subtab button.aktif{background:var(--accent);border-color:var(--accent);color:var(--accent-teks);}
+.subisi{display:none;} .subisi.aktif{display:block;animation:masuk .25s ease;}
+
+/* Kartu peralatan — miring sedikit saat disentuh kursor, tanpa JS per bingkai */
+.alat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(228px,1fr));gap:14px;perspective:1000px;}
+.alat-kartu{border:1px solid var(--line);border-radius:13px;background:var(--panel);overflow:hidden;cursor:pointer;
+  transition:transform .3s cubic-bezier(.2,.7,.3,1),border-color .2s,box-shadow .3s;box-shadow:var(--bayang);
+  transform-style:preserve-3d;}
+.alat-kartu:hover{transform:rotateX(5deg) rotateY(-5deg) translateY(-5px) scale(1.02);
+  border-color:var(--accent);box-shadow:0 22px 40px rgba(0,0,0,.45);}
+.alat-kartu.terpilih{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),var(--bayang);}
+.alat-kartu .bingkai{height:104px;}
+.alat-kartu .isi{padding:11px 13px 12px;}
+.alat-kartu .nm{font-family:var(--font-display);font-size:13px;font-weight:600;line-height:1.3;}
+.alat-kartu .tp{font-family:var(--font-mono);font-size:10.5px;color:var(--muted);margin-top:3px;}
+.alat-kartu .kaki{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:9px;
+  padding-top:9px;border-top:1px solid var(--line);}
+
+.riwayat{position:relative;padding-left:26px;}
+.riwayat::before{content:"";position:absolute;left:7px;top:6px;bottom:6px;width:2px;
+  background:linear-gradient(var(--accent),var(--line));}
+.riwayat .butir{position:relative;padding:0 0 18px;}
+.riwayat .butir::before{content:"";position:absolute;left:-23px;top:4px;width:11px;height:11px;border-radius:50%;
+  background:var(--panel);border:2px solid var(--accent);}
+.riwayat .butir.merah::before{border-color:var(--fail);}
+.riwayat .butir.kuning::before{border-color:var(--warn);}
+.riwayat .tgl{font-family:var(--font-mono);font-size:10.5px;color:var(--muted);letter-spacing:.06em;}
+.riwayat .kepala-butir{font-family:var(--font-display);font-size:13px;font-weight:600;margin-top:2px;}
+.riwayat .rinci{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5;}
+
+.spek{display:grid;grid-template-columns:repeat(auto-fit,minmax(126px,1fr));gap:10px;}
+.spek div{border:1px solid var(--line);border-radius:9px;padding:9px 11px;background:var(--panel-2);}
+.spek .k{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.11em;color:var(--muted);text-transform:uppercase;}
+.spek .v{font-size:13px;margin-top:3px;font-weight:500;}
+
+/* ---------- Dokumen unit ----------
+   Satu-satunya bagian halaman ini yang menerima masukan dari pemakai.
+   Kotak jatuhnya <label>, bukan <div>+JS: menekannya membuka pemilih berkas
+   tanpa satu baris skrip pun, jadi papan tik dan pembaca layar mendapat
+   perilaku yang sama dengan tetikus. */
+.jatuh{display:block;border:1.5px dashed var(--line);border-radius:12px;padding:22px 18px;text-align:center;
+  background:var(--panel-2);cursor:pointer;transition:.18s;}
+.jatuh:hover{border-color:var(--accent);}
+.jatuh.siap{border-color:var(--accent);background:var(--accent-dim);border-style:solid;}
+.jatuh .ajak{font-family:var(--font-display);font-size:13.5px;font-weight:600;}
+.jatuh .ket2{font-size:11.5px;color:var(--muted);margin-top:5px;line-height:1.6;}
+.jatuh input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;}
+
+.brk-atur{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-bottom:14px;}
+.brk-atur label{display:block;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.11em;
+  text-transform:uppercase;color:var(--muted);margin-bottom:5px;}
+.brk-atur select{width:100%;background:var(--panel-2);color:var(--text);border:1px solid var(--line);
+  border-radius:8px;padding:8px 10px;font-family:var(--font-body);font-size:12.5px;}
+.brk-atur select:focus{outline:none;border-color:var(--accent);}
+
+.brk-rupa{width:44px;height:44px;border-radius:8px;border:1px solid var(--line);overflow:hidden;flex:none;
+  display:grid;place-items:center;background:var(--panel-2);}
+.brk-rupa img{width:100%;height:100%;object-fit:cover;display:block;}
+.brk-rupa span{font-family:var(--font-mono);font-size:9px;letter-spacing:.06em;color:var(--muted);}
+.brk-nama{display:flex;gap:10px;align-items:center;}
+.brk-nama > span:last-child{min-width:0;}
+.brk-nama .n{display:block;font-size:12.5px;font-weight:500;word-break:break-word;}
+.brk-nama .j{display:block;font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-top:2px;}
+td select.brk-kat{background:var(--panel-2);color:var(--text);border:1px solid var(--line);border-radius:6px;
+  padding:4px 6px;font-family:var(--font-mono);font-size:10.5px;}
+.brk-buang{background:none;border:1px solid var(--line);color:var(--muted);border-radius:7px;
+  padding:4px 9px;cursor:pointer;font-family:var(--font-mono);font-size:10.5px;transition:.16s;}
+.brk-buang:hover{border-color:var(--fail);color:var(--fail);}
+
+.modul-baris{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;}
+.modul{border:1px solid var(--line);border-radius:12px;padding:13px 14px;background:var(--panel);}
+.modul.jalan{border-color:var(--accent);background:linear-gradient(160deg,rgba(41,182,246,.09),var(--panel));}
+.modul .st{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);}
+.modul.jalan .st{color:var(--accent);}
+.modul h4{font-size:13.5px;margin-top:5px;}
+.modul p{font-size:11.5px;color:var(--muted);margin:5px 0 0;line-height:1.5;}
+
+.btn{background:var(--accent);color:var(--accent-teks);border:0;border-radius:9px;padding:9px 15px;cursor:pointer;
+  font-family:var(--font-display);font-size:12.5px;font-weight:600;text-decoration:none;display:inline-block;transition:.18s;}
+.btn:hover{filter:brightness(1.12);transform:translateY(-1px);}
+.btn.garis{background:none;border:1px solid var(--line);color:var(--text);}
+.btn.garis:hover{border-color:var(--accent);color:var(--accent);}
+.btn.kecil{padding:6px 11px;font-size:11.5px;}
+
+.catatan{border-left:3px solid var(--accent);background:var(--kaca);border-radius:0 9px 9px 0;
+  padding:11px 14px;font-size:12px;color:var(--muted);line-height:1.6;margin-top:16px;}
+.catatan b{color:var(--text);}
+
+#pesan{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);z-index:120;
+  background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--warn);border-radius:10px;
+  padding:11px 16px;font-size:12.5px;box-shadow:var(--bayang);opacity:0;transition:.25s;pointer-events:none;}
+#pesan.tampil{opacity:1;transform:translateX(-50%) translateY(0);}
+
+@media (max-width:1000px){ .grid2{grid-template-columns:1fr;} }
+@media (max-width:620px){
+  .konsol-isi{padding:12px 14px;} main{padding:16px 14px 60px;}
+  .orbit{height:300px;} .jam .blok:first-child{display:none;}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.001s!important;animation-iteration-count:1!important;transition-duration:.01s!important;}
+  /* Aturan di atas akan melompatkan pita ke akhir animasinya — separuh isinya
+     hilang di atas layar. Untuk pita, animasinya dimatikan sama sekali dan
+     daftarnya dikembalikan menjadi daftar biasa yang bisa digulir sendiri. */
+  .jalur{animation:none!important;transform:none!important;}
+  .tiker{overflow-y:auto;}
+}
+</style>
+</head>
+<body>
+
+<!-- ===================================================================
+     LAYAR MASUK
+     =================================================================== -->
+<div id="layarMasuk">
+ <div class="km-konsol">
+
+  <header class="km-kepala">
+    <div class="km-merek">
+      <div class="km-tanda"><i></i></div>
+      <div class="km-merek-teks">
+        <b>CNS / ATM OPERATIONS</b>
+        <span>BANDARA INTERNASIONAL SOEKARNO&ndash;HATTA &middot; WIII / CGK</span>
+      </div>
+    </div>
+    <div class="km-kepala-kanan">
+      <div class="km-metrik">
+        <div><span>RUNWAY IN USE</span><b>25L / 25R</b></div>
+        <div class="km-pisah"></div>
+        <div><span>QNH</span><b>1010 hPa</b></div>
+        <div class="km-pisah"></div>
+        <div><span>UTC</span><b class="km-sian" id="kmJam">00:00:00</b></div>
+      </div>
+      <div class="km-status"><i></i><span>SISTEM NORMAL</span></div>
+      <div class="km-cap">PROTOTIPE</div>
+    </div>
+  </header>
+
+  <main class="km-badan">
+
+    <aside class="km-rel km-kiri">
+      <div class="km-blok">
+        <div class="km-judul">SUBSISTEM</div>
+        <div class="km-sub">
+          <div class="km-sub-atas"><b>COMMUNICATION</b><span>ON LINE</span></div>
+          <p>VHF A/G main + standby, VCCS tower, recorder</p>
+          <div class="km-bar"><i style="width:96%"></i></div>
+        </div>
+        <div class="km-sub">
+          <div class="km-sub-atas"><b>NAVIGATION</b><span>ON LINE</span></div>
+          <p>DVOR/DME, ILS LOC + GP, monitor kategori CAT I</p>
+          <div class="km-bar"><i style="width:92%"></i></div>
+        </div>
+        <div class="km-sub">
+          <div class="km-sub-atas"><b>SURVEILLANCE</b><span>ON LINE</span></div>
+          <p>PSR/SSR Mode S, ADS-B 1090 ES, MLAT</p>
+          <div class="km-bar"><i style="width:88%"></i></div>
+        </div>
+        <div class="km-sub">
+          <div class="km-sub-atas"><b>DATA PROCESSING</b><span>ON LINE</span></div>
+          <p>RDP &middot; FDP &middot; multi-sensor tracker &middot; AMHS</p>
+          <div class="km-bar"><i style="width:94%"></i></div>
+        </div>
+      </div>
+
+      <div class="km-blok">
+        <div class="km-judul">LEGENDA</div>
+        <div class="km-legenda"><span class="km-garis"></span>Aliran data ke ruang processing</div>
+        <div class="km-legenda"><span class="km-garis km-kuning-bg"></span>Panduan ILS / pendekatan</div>
+        <div class="km-legenda"><span class="km-bulat"></span>Track surveillance aktif</div>
+      </div>
+
+      <div class="km-sesi-blok">
+        <div class="km-judul">SESI</div>
+        <button type="button" class="km-sesi" id="kmSesi">
+          <span class="km-av" id="kmSesiInisial">&mdash;</span>
+          <span class="km-sesi-teks">
+            <span class="km-nm" id="kmSesiNama">BELUM LOGIN</span>
+            <span class="km-pr" id="kmSesiPeran">KLIK UNTUK MASUK</span>
+          </span>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+               stroke-width="1.8" stroke-linecap="square" aria-hidden="true">
+            <path d="M10 4H5v16h5"></path><path d="M14 8l4 4-4 4"></path><path d="M18 12H9"></path>
+          </svg>
+        </button>
+        <div class="km-sesi-ket" id="kmSesiKet">AKSES TERBATAS &middot; READ ONLY</div>
+      </div>
+    </aside>
+
+    <section class="km-panggung">
+      <div class="km-scene" id="kmScene"></div>
+      <div class="km-lapis" id="kmLapis"></div>
+      <div class="km-detail" id="kmDetail"><div class="km-kode"></div><h4></h4><p></p></div>
+      <div class="km-petunjuk">DRAG UNTUK ROTASI &middot; SCROLL UNTUK ZOOM &middot; KLIK LABEL UNTUK DETAIL</div>
+
+      <button type="button" class="km-picu" id="kmPicuMasuk">MASUK</button>
+
+      <div class="km-lapis-masuk" id="kmLapisMasuk">
+        <div class="km-kartu">
+          <button type="button" class="km-tutup" id="kmTutupMasuk"
+                  aria-label="Tutup kartu masuk">&times;</button>
+          <div class="km-eyebrow">PERUM LPPNPI &middot; CABANG JATSC</div>
+          <h2>Dashboard Fasilitas Teknik</h2>
+          <p class="km-sub-teks">Masuk dengan akun teknisi Anda. Setelah masuk, semua akun
+            melihat trouble dan jadwal dinas seluruh unit. Isi per unit terbuka sesuai peran akun.</p>
+
+          <div class="km-sumber">
+            <div class="km-jdl" style="font:400 9px/1 'IBM Plex Mono',monospace;letter-spacing:.2em;
+              color:var(--km-redup-4);margin-bottom:7px;">SUMBER DATA</div>
+            <div class="km-sumber-tombol">
+              <button type="button" id="btnSumberServer" disabled>SERVER E-LOGBOOK</button>
+              <button type="button" id="btnSumberContoh" class="km-pilih">DATA CONTOH</button>
+            </div>
+            <div class="km-sumber-ket km-sibuk" id="ketSumber"><i></i><span>Memeriksa sambungan ke server…</span></div>
+          </div>
+
+          <div class="km-kolom"><label for="iUser">Username</label>
+            <input type="text" id="iUser" autocomplete="off" spellcheck="false" placeholder="mis. radtel"></div>
+          <div class="km-kolom"><label for="iPass">Password</label>
+            <input type="password" id="iPass" autocomplete="off" placeholder="prototipe — tidak diperiksa"></div>
+          <button class="km-tombol-masuk" id="btnMasuk">Masuk</button>
+
+          <div class="km-akun" id="kotakAkunContoh">
+            <div class="km-jdl">Akun contoh — klik untuk mengisi</div>
+            <div class="km-baris" id="akunContoh"></div>
+            <div class="km-ket" id="ketAkunContoh">Ini prototipe: sandinya tidak diperiksa dan tidak ada data
+              sungguhan di baliknya. Pemeriksaan akun yang asli tetap milik server E-Logbook.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="km-rel km-kanan">
+      <div class="km-blok">
+        <div class="km-judul">TRAFFIC DIPANTAU</div>
+        <div class="km-traffic">
+          <div class="km-traffic-atas"><b>GIA 652</b><span>A333</span></div>
+          <div class="km-fase" id="kmFase">INISIALISASI SURVEILLANCE</div>
+          <div class="km-angka">
+            <div><span>GND SPEED</span><b id="kmGs">0 kt</b></div>
+            <div><span>ALTITUDE</span><b id="kmAlt">0 ft</b></div>
+          </div>
+        </div>
+        <div class="km-lalu"><div class="km-lalu-kiri"><b>SJY 214</b><span>B738 &middot; SSR + ADS-B</span></div><em>TAXI</em></div>
+        <div class="km-lalu"><div class="km-lalu-kiri"><b>BTK 6501</b><span>A320 &middot; ADS-B</span></div><em>ENROUTE</em></div>
+        <div class="km-lalu"><div class="km-lalu-kiri"><b>GIA 411</b><span>B77W &middot; PSR + SSR</span></div><em>HOLD</em></div>
+      </div>
+
+      <div class="km-blok">
+        <div class="km-judul">RANTAI DATA</div>
+        <div class="km-rantai"><i></i><div><b>SENSOR</b>
+          <span>PSR/SSR dan ADS-B menangkap posisi, identitas, dan level pesawat.</span></div></div>
+        <div class="km-rantai"><i></i><div><b>RDP / FDP</b>
+          <span>Data radar difusikan dengan rencana penerbangan menjadi satu track berlabel.</span></div></div>
+        <div class="km-rantai"><i></i><div><b>DISPLAY</b>
+          <span>Track dan label disajikan ke controller working position di tower dan APP.</span></div></div>
+        <div class="km-rantai"><i></i><div><b>RECORDING</b>
+          <span>Suara dan data direkam untuk investigasi serta evaluasi kinerja.</span></div></div>
+      </div>
+    </aside>
+  </main>
+
+  <footer class="km-kaki">
+    <div class="km-pita">
+      <div>
+        <span><i></i>DVOR CGK &middot; MONITOR NORMAL</span>
+        <span><i></i>ILS RWY 25L &middot; CAT I SERVICEABLE</span>
+        <span><i></i>PSR/SSR &middot; 4.0 s SCAN &middot; PD 0.98</span>
+        <span><i></i>ADS-B &middot; 1090 MHz ES &middot; UPDATE 1 s</span>
+        <span><i></i>AFTN / AMHS &middot; QUEUE 0</span>
+        <span><i></i>UPS &amp; GENSET &middot; STANDBY READY</span>
+      </div>
+      <div aria-hidden="true">
+        <span><i></i>DVOR CGK &middot; MONITOR NORMAL</span>
+        <span><i></i>ILS RWY 25L &middot; CAT I SERVICEABLE</span>
+        <span><i></i>PSR/SSR &middot; 4.0 s SCAN &middot; PD 0.98</span>
+        <span><i></i>ADS-B &middot; 1090 MHz ES &middot; UPDATE 1 s</span>
+        <span><i></i>AFTN / AMHS &middot; QUEUE 0</span>
+        <span><i></i>UPS &amp; GENSET &middot; STANDBY READY</span>
+      </div>
+    </div>
+  </footer>
+ </div>
+</div>
+
+
+<!-- ===================================================================
+     APLIKASI
+     =================================================================== -->
+<div id="app">
+
+<div class="pita">
+  <b id="pitaCap">PROTOTIPE</b>
+  <span id="pitaKet">Contoh tampilan — belum tersambung ke server. Semua angka di halaman ini data karangan.</span>
+</div>
+
+<header class="konsol">
+  <div class="konsol-isi">
+    <div class="logo">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round">
+        <path d="M12 21V9"/><path d="M7 21h10"/><circle cx="12" cy="6" r="2.6"/>
+        <path d="M5.5 9.5a9 9 0 0 1 0-7"/><path d="M18.5 2.5a9 9 0 0 1 0 7"/>
+      </svg>
+    </div>
+    <div class="brand">
+      <div class="eyebrow">Perum LPPNPI · Cabang JATSC</div>
+      <h1>Dashboard Fasilitas Teknik</h1>
+    </div>
+    <div class="jam">
+      <div class="blok"><div class="nilai" id="jamUtc">--:--:--</div><div class="label">UTC</div></div>
+      <div class="blok"><div class="nilai" id="jamWib">--:--:--</div><div class="label" id="tglWib">WIB</div></div>
+      <div class="kartu-akun"><span class="av" id="avAkun">--</span>
+        <span><span class="nm" id="nmAkun">—</span><br><span class="pr" id="prAkun">—</span></span></div>
+      <button class="tombol-ikon" id="tombolTema" title="Ganti mode terang/gelap">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      </button>
+      <button class="tombol-ikon" id="tombolKeluar" title="Keluar">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M15 17l5-5-5-5"/><path d="M20 12H9"/><path d="M12 20H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h6"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<nav class="rel"><div class="rel-isi" id="rel">
+  <button data-layar="beranda" class="aktif">Beranda</button>
+  <button data-layar="trouble">Trouble Semua Unit<span class="lencana" id="lencanaTrouble">0</span></button>
+  <button data-layar="dinas">Dinas Hari Ini</button>
+  <button data-layar="unit">Database Unit</button>
+  <button data-layar="modul">Peta Modul</button>
+</div></nav>
+
+<main>
+
+<!-- ============ BERANDA ============ -->
+<section class="layar aktif" id="l-beranda">
+  <div class="judul-seksi">
+    <h2>Peralatan Teknik New JATSC</h2>
+    <span class="ket" id="ketBeranda"></span>
+  </div>
+
+  <div class="orbit" id="orbit"><div class="cincin" id="cincin"></div></div>
+  <div class="kendali-orbit">
+    <button class="btn garis kecil" id="btnJeda">Jeda putaran</button>
+    <span class="ket">Arahkan kursor ke kartu untuk menahan putaran · klik untuk membuka unit</span>
+  </div>
+
+  <div class="ubin-baris" id="ubin"></div>
+
+  <div class="grid2" style="margin-top:22px">
+    <div class="panel">
+      <div class="kepala"><h3>Trouble Belum Selesai — Semua Unit</h3>
+        <span class="ket">terlihat oleh semua akun</span></div>
+      <div class="tiker" id="tikerTrouble"></div>
+      <div class="tiker-kaki">
+        <span class="ket">berjalan sendiri · berhenti saat disentuh kursor · klik untuk membuka unitnya</span>
+        <button class="btn garis kecil" data-jeda="tikerTrouble">Jeda</button>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="kepala"><h3>Berdinas Hari Ini</h3><span class="ket" id="ketTanggal"></span></div>
+      <div class="tiker" id="tikerDinas"></div>
+      <div class="tiker-kaki">
+        <span class="ket">seluruh unit · yang sedang bertugas jam ini di atas</span>
+        <button class="btn garis kecil" data-jeda="tikerDinas">Jeda</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="catatan">
+    <b>Batas yang dicontohkan di sini.</b> Sampai baris ini, semua akun melihat hal yang sama —
+    trouble dan dinas seluruh unit, supaya siapa pun yang masuk dinas tahu apa yang sedang
+    menggantung di unit sebelah. Yang membedakan peran baru terasa di
+    <b>Database Unit</b>: unit yang tidak boleh dibuka akun ini bergembok di cincin atas.
+  </div>
+</section>
+
+<!-- ============ TROUBLE ============ -->
+<section class="layar" id="l-trouble">
+  <div class="judul-seksi"><h2>Trouble Belum Selesai</h2>
+    <span class="ket">Sumbernya tab <b>Isu</b> di E-Logbook — status Open dan Proses saja, seluruh unit.</span></div>
+  <div class="pemisah"></div>
+  <div class="ubin-baris" id="ubinTrouble" style="margin-top:0"></div>
+  <div class="panel" style="margin-top:18px">
+    <div class="kepala"><h3>Daftar Trouble</h3><span class="ket">Diurutkan dari yang paling lama menggantung</span></div>
+    <div class="gulir" style="max-height:none"><table id="tblTrouble"></table></div>
+  </div>
+  <div class="catatan">
+    <b>Yang baru di sini.</b> Kolom <i>umur</i> dan pengurutan dari yang paling tua tidak ada di tab Isu.
+    Lewat 14 hari ditandai merah supaya kelihatan tanpa perlu dibaca satu per satu.
+  </div>
+</section>
+
+<!-- ============ DINAS ============ -->
+<section class="layar" id="l-dinas">
+  <div class="judul-seksi"><h2>Dinas Hari Ini — Semua Unit</h2><span class="ket" id="ketTanggal2"></span></div>
+  <div class="pemisah"></div>
+  <div id="dinasPenuh"></div>
+  <div class="panel" style="margin-top:20px">
+    <div class="kepala"><h3>Cakupan 24 Jam</h3><span class="ket">Garis biru = jam sekarang</span></div>
+    <div class="badan"><div class="pita-jam" id="pitaJam"></div><div class="skala-jam" id="skalaJam"></div></div>
+  </div>
+  <div class="catatan">
+    <b>Sumber datanya.</b> Menu baru <b>Jadwal Dinas</b>: admin unit menempel jadwal bulanan sekali,
+    lalu kotak ini terisi sendiri tiap hari. Kode dinasnya mengikuti unit masing-masing — Radkom
+    memakai <span class="mono">P / S / PS / M</span>, unit lain <span class="mono">Pagi / Siang / Malam / PS</span>.
+    Matriks jadwal per unit ada di dalam Database Unit.
+  </div>
+</section>
+
+<!-- ============ DATABASE UNIT ============ -->
+<section class="layar" id="l-unit">
+  <div class="judul-seksi"><h2>Database Unit</h2><span class="ket" id="ketAkses"></span></div>
+  <div class="pemisah"></div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px" id="pilihUnit"></div>
+  <div id="isiUnit"></div>
+</section>
+
+<!-- ============ MODUL ============ -->
+<section class="layar" id="l-modul">
+  <div class="judul-seksi"><h2>Peta Modul</h2>
+    <span class="ket">Posisi E-Logbook yang sekarang di dalam rencana dashboard.</span></div>
+  <div class="pemisah"></div>
+  <div class="modul-baris" id="modulBaris"></div>
+  <div class="catatan">
+    <b>Urutan yang saya sarankan.</b> Jadwal Dinas lebih dulu — paling kecil, dan langsung membuat
+    beranda hidup. Lalu Sparepart, karena datanya berdiri sendiri. Sejarah Peralatan paling akhir:
+    hasilnya baru bagus kalau logbook, isu, dan LTK sudah punya kolom penanda peralatan.
+  </div>
+  <div style="margin-top:20px;display:flex;gap:10px;flex-wrap:wrap">
+    <a class="btn" href="/">Buka E-Logbook yang sekarang</a>
+    <button class="btn garis" onclick="pindahLayar('beranda')">Kembali ke beranda</button>
+  </div>
+</section>
+
+</main>
+</div><!-- /#app -->
+
+<div id="pesan"></div>
+
+<script>
+/* =======================================================================
+   DATA CONTOH — semua isinya karangan.
+   Nama unit, peralatan, dan daftar dinas disalin dari db.js supaya bentuknya
+   tidak meleset.
+
+   UNIT, TROUBLE, dan LOGBOOK memakai `let`, bukan `const`: ketiganya diganti
+   isi sungguhan begitu halaman ini disambungkan ke server E-Logbook (lihat
+   blok JEMBATAN E-LOGBOOK di bawah). Yang lain — peralatan, sparepart, jadwal
+   dinas, sejarah — tetap contoh, karena modulnya memang belum ada di server.
+   ======================================================================= */
+
+let UNIT = [
+  { kode:'radtel', nama:'Radtel', alat:'Radio Komunikasi, VSCS Garex, Recording Neptuno',
+    adegan:'menara', dinas:['Pagi','Siang','Malam','PS'] },
+  { kode:'radkom', nama:'Radkom', alat:'Radio Komunikasi VHF/HF A/G',
+    adegan:'antena', dinas:['P','S','PS','M'] },
+  { kode:'ppabn', nama:'Pendaratan Presisi & Navigasi', alat:'ILS, DVOR/DME, NDB',
+    adegan:'ils', dinas:['Pagi','Siang','Malam','PS'] },
+  { kode:'pengamatan', nama:'Pengamatan', alat:'Radar Pengamatan',
+    adegan:'radar', dinas:['Pagi','Siang','Malam','PS'] },
+  { kode:'amhsadps', nama:'AMHS-ADPS', alat:'AMHS dan ADPS',
+    adegan:'server', dinas:['Pagi','Siang','Malam','PS'] },
+  { kode:'fdpsrdps', nama:'FDPS-RDPS', alat:'FDPS dan RDPS',
+    adegan:'kontrol', dinas:['Pagi','Siang','Malam','PS'] },
+  { kode:'listrikmekanik', nama:'Listrik dan Mekanik', alat:'Kelistrikan dan Mekanikal',
+    adegan:'genset', dinas:['Pagi','Siang','Malam','PS'] },
+  { kode:'gedungkeamanan', nama:'Gedung dan Keamanan', alat:'Gedung dan Sistem Keamanan',
+    adegan:'gedung', dinas:['Pagi','Siang','Malam','PS'] }
+];
+
+/* Akun contoh. Peran 'admin' dan 'pejabat' membuka semua unit — sama seperti
+   SEMUA_UNIT di db.js. Teknisi hanya membuka unit yang ditugaskan padanya. */
+const AKUN = [
+  { user:'radtel',  nama:'B. Santoso',  peran:'Teknisi Radtel',  unit:['radtel'] },
+  { user:'radkom',  nama:'A. Rahman',   peran:'Teknisi Radkom',  unit:['radkom'] },
+  { user:'listrik', nama:'D. Prasetyo', peran:'Teknisi Listrik', unit:['listrikmekanik'] },
+  { user:'admin',   nama:'H. Setiawan', peran:'Admin Faskompen', unit:'semua' },
+  { user:'pejabat', nama:'M. Fauzi',    peran:'Manager Teknik',  unit:'semua' }
+];
+
+/* Peralatan per unit — inilah yang membuat isi tiap unit berbeda. */
+const PERALATAN = {
+  radtel:[
+    { id:'grx', nama:'VSCS Garex 300', tipe:'Garex 300 · 12 CWP', lokasi:'R. Equipment Lt.2', status:'Warning', adegan:'kontrol' },
+    { id:'npt', nama:'Recording Neptuno', tipe:'Neptuno R2 · 64 kanal', lokasi:'R. Equipment Lt.2', status:'Normal', adegan:'server' },
+    { id:'vhfg',nama:'Radio VHF Ground', tipe:'Park Air T6 · 8 unit', lokasi:'Shelter TX', status:'Normal', adegan:'antena' },
+    { id:'hfs', nama:'HF SSB Transceiver', tipe:'Codan 2110 · 2 unit', lokasi:'R. Radio', status:'Normal', adegan:'antena' }
+  ],
+  radkom:[
+    { id:'tx', nama:'Transmitter VHF A/G', tipe:'R&S Series4200 · 12 kanal', lokasi:'Shelter TX', status:'Down', adegan:'antena' },
+    { id:'rx', nama:'Receiver VHF A/G', tipe:'R&S Series4200 · 12 kanal', lokasi:'Shelter RX', status:'Normal', adegan:'antena' },
+    { id:'hf', nama:'HF Transceiver A/G', tipe:'Rockwell HF-2050', lokasi:'R. Radio', status:'Normal', adegan:'menara' },
+    { id:'ant',nama:'Antenna System', tipe:'Dipole array · 14 titik', lokasi:'Tower antena', status:'Warning', adegan:'antena' },
+    { id:'rcu',nama:'Remote Control Unit', tipe:'RCMS v4', lokasi:'R. Equipment', status:'Normal', adegan:'kontrol' }
+  ],
+  ppabn:[
+    { id:'ils', nama:'ILS RWY 25L', tipe:'Thales 420 · LLZ/GP/MM', lokasi:'Sisi runway 25L', status:'Normal', adegan:'ils' },
+    { id:'dvor',nama:'DVOR/DME', tipe:'Selex 1150A', lokasi:'Shelter DVOR', status:'Warning', adegan:'radar' },
+    { id:'ndb', nama:'NDB', tipe:'Nautel ND-2000', lokasi:'Area NDB', status:'Normal', adegan:'antena' }
+  ],
+  pengamatan:[
+    { id:'psr', nama:'Primary Surveillance Radar', tipe:'Thales STAR-2000', lokasi:'Tower radar', status:'Warning', adegan:'radar' },
+    { id:'ssr', nama:'SSR Mode-S', tipe:'Thales RSM-970S', lokasi:'Tower radar', status:'Normal', adegan:'radar' },
+    { id:'ads', nama:'ADS-B Station', tipe:'Comsoft R400', lokasi:'R. Otomasi', status:'Normal', adegan:'server' }
+  ],
+  amhsadps:[
+    { id:'amhs',nama:'AMHS Server', tipe:'Comsoft AIDA-NG · redundan', lokasi:'R. Otomasi', status:'Down', adegan:'server' },
+    { id:'adps',nama:'ADPS Server', tipe:'ADPS v3 · 2 node', lokasi:'R. Otomasi', status:'Normal', adegan:'server' },
+    { id:'sw',  nama:'Message Switch', tipe:'MSW-400', lokasi:'R. Otomasi', status:'Normal', adegan:'server' }
+  ],
+  fdpsrdps:[
+    { id:'fdps',nama:'FDPS Server', tipe:'Indra iTEC · 2 node', lokasi:'R. Otomasi', status:'Warning', adegan:'server' },
+    { id:'rdps',nama:'RDPS Server', tipe:'Indra iTEC · 2 node', lokasi:'R. Otomasi', status:'Normal', adegan:'server' },
+    { id:'cwp', nama:'CWP Display', tipe:'Barco 2K · 18 posisi', lokasi:'R. ACC', status:'Normal', adegan:'kontrol' }
+  ],
+  listrikmekanik:[
+    { id:'gen', nama:'Genset 500 kVA', tipe:'Cummins C500 · 2 unit', lokasi:'R. Genset', status:'Normal', adegan:'genset' },
+    { id:'ups', nama:'UPS 200 kVA', tipe:'Schneider Galaxy VS', lokasi:'R. UPS', status:'Normal', adegan:'genset' },
+    { id:'acp', nama:'AC Presisi', tipe:'Stulz CyberAir · 4 unit', lokasi:'R. Equipment', status:'Down', adegan:'genset' },
+    { id:'ats', nama:'Panel ATS/AMF', tipe:'Deep Sea 8610', lokasi:'R. Panel', status:'Normal', adegan:'genset' }
+  ],
+  gedungkeamanan:[
+    { id:'cctv',nama:'Sistem CCTV', tipe:'Hikvision · 64 kamera', lokasi:'Seluruh gedung', status:'Down', adegan:'gedung' },
+    { id:'acc', nama:'Access Control', tipe:'HID · 22 pintu', lokasi:'Seluruh gedung', status:'Normal', adegan:'gedung' },
+    { id:'fire',nama:'Fire Alarm System', tipe:'Notifier NFS2-3030', lokasi:'Seluruh gedung', status:'Normal', adegan:'gedung' }
+  ]
+};
+
+let TROUBLE = [
+  { unit:'radkom', alat:'tx', jenis:'Transmitter VHF', ket:'TX VHF 118.75 MHz daya pancar turun ±40%, cadangan dipakai', lokasi:'Shelter TX', status:'Proses', tgl:'2026-07-24', pic:'A. Rahman' },
+  { unit:'listrikmekanik', alat:'acp', jenis:'AC Presisi', ket:'AC presisi ruang equipment #2 bocor, suhu naik 3°C', lokasi:'R. Equipment', status:'Open', tgl:'2026-07-31', pic:'D. Prasetyo' },
+  { unit:'radtel', alat:'grx', jenis:'VSCS Garex 300', ket:'Headset jack CWP-07 kontak longgar, suara putus-putus', lokasi:'Tower CWP-07', status:'Proses', tgl:'2026-08-04', pic:'B. Santoso' },
+  { unit:'ppabn', alat:'dvor', jenis:'DVOR/DME', ket:'Monitor DME idle time melebihi ambang saat pagi', lokasi:'Shelter DVOR', status:'Open', tgl:'2026-08-07', pic:'E. Kurnia' },
+  { unit:'pengamatan', alat:'psr', jenis:'Radar PSR', ket:'Plot extractor sesekali kehilangan sinkron, log dikumpulkan', lokasi:'R. Radar', status:'Proses', tgl:'2026-08-09', pic:'F. Hidayat' },
+  { unit:'amhsadps', alat:'amhs', jenis:'AMHS', ket:'Antrean pesan menumpuk ke satu tujuan, menunggu balasan', lokasi:'R. Otomasi', status:'Open', tgl:'2026-08-11', pic:'C. Wijaya' },
+  { unit:'gedungkeamanan', alat:'cctv', jenis:'CCTV', ket:'Kamera koridor lantai 3 mati, kabel diduga terjepit', lokasi:'Koridor Lt.3', status:'Open', tgl:'2026-08-12', pic:'G. Nugroho' },
+  { unit:'fdpsrdps', alat:'fdps', jenis:'FDPS', ket:'Cetak strip lambat pada jam sibuk, indikasi antrean printer', lokasi:'R. Otomasi', status:'Proses', tgl:'2026-08-13', pic:'C. Wijaya' },
+  { unit:'radkom', alat:'ant', jenis:'Antenna System', ket:'VSWR antena dipole #9 naik ke 1.9 saat hujan', lokasi:'Tower antena', status:'Open', tgl:'2026-08-06', pic:'A. Rahman' }
+];
+
+/* Dinas hari ini per unit — tiap unit punya orang dan kode dinasnya sendiri. */
+const DINAS = {
+  radtel:[ {k:'Pagi',o:[{n:'B. Santoso',p:'Teknisi'}]}, {k:'Siang',o:[{n:'R. Alfian',p:'Teknisi'}]},
+           {k:'Malam',o:[{n:'S. Handoko',p:'Teknisi'}]}, {k:'PS',o:[{n:'G. Nugroho',p:'Penanggung Jawab'}]} ],
+  radkom:[ {k:'P',o:[{n:'A. Rahman',p:'Teknisi'}]}, {k:'S',o:[{n:'T. Wibisono',p:'Teknisi'}]},
+           {k:'M',o:[{n:'Y. Saputra',p:'Teknisi'}]}, {k:'PS',o:[{n:'M. Fauzi',p:'Manager Teknik'}]} ],
+  ppabn:[ {k:'Pagi',o:[{n:'E. Kurnia',p:'Teknisi'}]}, {k:'Siang',o:[{n:'N. Aprilia',p:'Teknisi'}]},
+          {k:'Malam',o:[{n:'W. Gunawan',p:'Teknisi'}]}, {k:'PS',o:[]} ],
+  pengamatan:[ {k:'Pagi',o:[{n:'F. Hidayat',p:'Teknisi'}]}, {k:'Siang',o:[{n:'L. Ramadhan',p:'Teknisi'}]},
+               {k:'Malam',o:[{n:'P. Adiputra',p:'Teknisi'}]}, {k:'PS',o:[]} ],
+  amhsadps:[ {k:'Pagi',o:[{n:'C. Wijaya',p:'Teknisi'}]}, {k:'Siang',o:[{n:'K. Mahendra',p:'Teknisi'}]},
+             {k:'Malam',o:[]}, {k:'PS',o:[{n:'H. Setiawan',p:'Admin'}]} ],
+  fdpsrdps:[ {k:'Pagi',o:[{n:'C. Wijaya',p:'Teknisi'}]}, {k:'Siang',o:[{n:'V. Anggara',p:'Teknisi'}]},
+             {k:'Malam',o:[]}, {k:'PS',o:[]} ],
+  listrikmekanik:[ {k:'Pagi',o:[{n:'D. Prasetyo',p:'Teknisi'}]}, {k:'Siang',o:[{n:'I. Kurniawan',p:'Teknisi'}]},
+                   {k:'Malam',o:[{n:'Z. Firmansyah',p:'Teknisi'}]}, {k:'PS',o:[]} ],
+  gedungkeamanan:[ {k:'Pagi',o:[{n:'G. Nugroho',p:'Teknisi'}]}, {k:'Siang',o:[{n:'U. Salim',p:'Teknisi'}]},
+                   {k:'Malam',o:[{n:'O. Pratama',p:'Teknisi'}]}, {k:'PS',o:[]} ]
+};
+const JAM_SHIFT = { 'Pagi':[7,14], 'Siang':[14,21], 'Malam':[21,31], 'PS':[7,16], 'P':[7,14], 'S':[14,21], 'M':[21,31] };
+const WARNA_SHIFT = { 'Pagi':'var(--accent)','P':'var(--accent)', 'Siang':'var(--warn)','S':'var(--warn)',
+                      'Malam':'var(--muted)','M':'var(--muted)', 'PS':'var(--ok)' };
+
+const PART = [
+  { nama:'Power Amplifier VHF 50W', pn:'PA-50-VHF-R3', unit:'radkom', rak:'A-01', stok:2, min:2, satuan:'pcs', pakai:'2026-06-18' },
+  { nama:'Modul Catu Daya Garex', pn:'GRX-PSU-300', unit:'radtel', rak:'A-04', stok:1, min:2, satuan:'pcs', pakai:'2026-07-02' },
+  { nama:'Panel Jack Headset CWP', pn:'GRX-JCK-07', unit:'radtel', rak:'A-05', stok:0, min:2, satuan:'pcs', pakai:'2026-08-04' },
+  { nama:'Headset Operator CWP', pn:'HS-CWP-02', unit:'radtel', rak:'A-06', stok:5, min:3, satuan:'pcs', pakai:'2026-08-04' },
+  { nama:'Hard Disk Recording 4TB', pn:'NPT-HDD-4T', unit:'radtel', rak:'A-07', stok:3, min:2, satuan:'pcs', pakai:'2026-05-09' },
+  { nama:'Kabel Coax RG-214 (rol)', pn:'RG214-100M', unit:'radkom', rak:'B-02', stok:3, min:1, satuan:'rol', pakai:'2026-05-27' },
+  { nama:'Konektor N-Type', pn:'CON-N-50', unit:'radkom', rak:'B-03', stok:12, min:8, satuan:'pcs', pakai:'2026-07-14' },
+  { nama:'Baterai UPS 12V 100Ah', pn:'UPS-BAT-12100', unit:'listrikmekanik', rak:'C-01', stok:8, min:6, satuan:'pcs', pakai:'2026-07-19' },
+  { nama:'Filter Udara AC Presisi', pn:'ACP-FLT-24', unit:'listrikmekanik', rak:'C-03', stok:0, min:4, satuan:'pcs', pakai:'2026-07-30' },
+  { nama:'Oli Mesin Genset (drum)', pn:'OIL-15W40-D', unit:'listrikmekanik', rak:'C-05', stok:2, min:1, satuan:'drum', pakai:'2026-07-05' },
+  { nama:'Hard Disk Server 2TB', pn:'HDD-ENT-2T', unit:'amhsadps', rak:'D-02', stok:4, min:2, satuan:'pcs', pakai:'2026-04-11' },
+  { nama:'Kartu Extractor Radar', pn:'RDR-EXT-C4', unit:'pengamatan', rak:'D-05', stok:1, min:1, satuan:'pcs', pakai:'2026-02-14' },
+  { nama:'Modul Receiver DME', pn:'DME-RX-M2', unit:'ppabn', rak:'B-05', stok:1, min:1, satuan:'pcs', pakai:'2026-03-22' },
+  { nama:'Lampu Obstruction LED', pn:'OBS-LED-R', unit:'gedungkeamanan', rak:'E-01', stok:2, min:4, satuan:'pcs', pakai:'2026-06-05' },
+  { nama:'Kamera CCTV Dome', pn:'CCTV-DM-4M', unit:'gedungkeamanan', rak:'E-02', stok:3, min:2, satuan:'pcs', pakai:'2026-08-12' },
+  { nama:'Modul I/O FDPS', pn:'FDP-IO-12', unit:'fdpsrdps', rak:'D-08', stok:2, min:2, satuan:'pcs', pakai:'2026-06-30' }
+];
+
+/* Cuplikan logbook per unit — bentuk barisnya mengikuti unit masing-masing.
+   Radkom membawa jam selesai dan frekuensi, unit lain tidak. */
+let LOGBOOK = {
+  radtel:[
+    { tgl:'2026-08-13', jam:'02:15', dinas:'Malam', uraian:'Pemeriksaan harian VSCS Garex, seluruh CWP normal kecuali CWP-07', pj:'S. Handoko' },
+    { tgl:'2026-08-13', jam:'09:40', dinas:'Pagi', uraian:'Penggantian headset operator CWP-03, uji suara dua arah normal', pj:'B. Santoso' },
+    { tgl:'2026-08-12', jam:'14:20', dinas:'Siang', uraian:'Backup rekaman Neptuno periode 01–10 Agustus ke media eksternal', pj:'R. Alfian' },
+    { tgl:'2026-08-12', jam:'07:05', dinas:'Pagi', uraian:'Serah terima dinas, tidak ada gangguan menonjol semalam', pj:'B. Santoso' }
+  ],
+  radkom:[
+    { tgl:'2026-08-13', jam:'03:10', selesai:'03:45', frek:'118.750', dinas:'M', uraian:'Pengukuran daya pancar TX-1, hasil 32W dari 55W nominal', pj:'Y. Saputra' },
+    { tgl:'2026-08-13', jam:'08:30', selesai:'09:15', frek:'126.400', dinas:'P', uraian:'Uji jangkauan bersama ATC, laporan pilot jelas di 60 NM', pj:'A. Rahman' },
+    { tgl:'2026-08-12', jam:'15:05', selesai:'15:30', frek:'121.500', dinas:'S', uraian:'Pengecekan kanal darurat, modulasi normal', pj:'T. Wibisono' },
+    { tgl:'2026-08-12', jam:'06:50', selesai:'07:10', frek:'—', dinas:'P', uraian:'Pemeriksaan VSWR seluruh antena dipole, satu titik di atas ambang', pj:'A. Rahman' }
+  ]
+};
+const LOGBOOK_UMUM = [
+  { tgl:'2026-08-13', jam:'08:20', dinas:'Pagi', uraian:'Pemeriksaan harian peralatan, hasil terlampir pada formulir daily check', pj:'—' },
+  { tgl:'2026-08-12', jam:'14:10', dinas:'Siang', uraian:'Serah terima dinas berjalan normal', pj:'—' }
+];
+
+const SEJARAH = {
+  tx:[
+    { tgl:'2026-07-24', warna:'merah', judul:'Daya pancar TX 118.75 turun', rinci:'Turun ±40%. Dialihkan ke transmitter cadangan dalam 6 menit. PA menunggu sparepart.' },
+    { tgl:'2026-03-12', warna:'', judul:'Kalibrasi tahunan', rinci:'Pengukuran daya, frekuensi, dan modulasi seluruh kanal A/G. Semua dalam batas.' },
+    { tgl:'2025-11-08', warna:'kuning', judul:'Penggantian antena VHF #3', rinci:'VSWR naik di atas 1.8 saat hujan. Antena dan konektor N diganti.' },
+    { tgl:'2019-06-02', warna:'', judul:'Instalasi awal', rinci:'Pemasangan dan commissioning bersama vendor, termasuk uji jangkauan udara.' }
+  ],
+  grx:[
+    { tgl:'2026-08-04', warna:'kuning', judul:'Jack headset CWP-07 longgar', rinci:'Suara putus-putus saat kabel bergerak. Menunggu panel jack pengganti.' },
+    { tgl:'2026-01-20', warna:'', judul:'Kalibrasi dan uji fungsi tahunan', rinci:'Uji seluruh posisi CWP, interkom, dan perekaman. Tidak ada temuan.' },
+    { tgl:'2024-09-15', warna:'', judul:'Upgrade firmware server VSCS', rinci:'Naik ke rilis 3.4.2 untuk memperbaiki gangguan sinkron perekaman.' },
+    { tgl:'2021-04-27', warna:'', judul:'Instalasi awal', rinci:'Pemasangan 12 posisi CWP di tower dan ACC beserta recording Neptuno.' }
+  ],
+  acp:[
+    { tgl:'2026-07-31', warna:'merah', judul:'AC presisi R. Equipment bocor', rinci:'Kebocoran refrigeran, suhu ruang naik 3°C. AC cadangan menanggung beban.' },
+    { tgl:'2026-04-18', warna:'', judul:'Pembersihan dan ganti filter', rinci:'Filter keempat unit diganti, evaporator dibersihkan.' },
+    { tgl:'2020-02-11', warna:'', judul:'Instalasi awal', rinci:'Pemasangan empat unit AC presisi ruang equipment.' }
+  ]
+};
+const SPEK = {
+  tx:{ 'Merk / Tipe':'R&S Series4200', 'Serial':'RS-4200-JKT-11', 'Tahun Pasang':'2019', 'Umur':'7 tahun', 'Kalibrasi Berikut':'12 Mar 2027' },
+  grx:{ 'Merk / Tipe':'Garex 300 VSCS', 'Serial':'GRX-300-JTS-04', 'Tahun Pasang':'2021', 'Umur':'5 tahun', 'Kalibrasi Berikut':'20 Jan 2027' },
+  acp:{ 'Merk / Tipe':'Stulz CyberAir 3', 'Serial':'STZ-CA3-08', 'Tahun Pasang':'2020', 'Umur':'6 tahun', 'Servis Berikut':'18 Okt 2026' }
+};
+
+/* Pegangan ke data contoh yang asli. Sambungan ke server menimpa UNIT,
+   TROUBLE, dan LOGBOOK dengan objek baru — tidak pernah mengubah isi yang
+   lama — jadi menyimpan rujukannya saja sudah cukup untuk kembali ke contoh
+   tanpa memuat ulang halaman. */
+const CONTOH = { UNIT, TROUBLE, LOGBOOK };
+
+const MODUL = [
+  { st:'Sudah jalan', jalan:true, nama:'E-Logbook Fasilitas', ket:'Logbook, Daily Check, Isu, Monitoring, DS Test, LTK, TTD QR, Rekap. Delapan unit, dipakai harian.' },
+  { st:'Rencana', nama:'Jadwal Dinas', ket:'Input jadwal bulanan per unit. Yang mengisi kotak "berdinas hari ini".' },
+  { st:'Rencana', nama:'Sparepart', ket:'Persediaan, batas minimum, dan pemakaian yang tersambung ke logbook.' },
+  { st:'Rencana', nama:'Sejarah Peralatan', ket:'Satu garis waktu per peralatan, dirangkai dari logbook, isu, dan LTK.' },
+  { st:'Rencana', nama:'Galeri Foto Peralatan', ket:'Foto tiap fasilitas beserta lokasinya, dipakai sebagai wajah beranda.' },
+  { st:'Rencana', nama:'Dokumen Peralatan', ket:'Manual, sertifikat kalibrasi, dan berita acara yang menempel pada peralatannya. Alurnya sudah bisa dicoba di tab Dokumen.' }
+];
+
+/* =======================================================================
+   ILUSTRASI PERALATAN
+   Bukan foto: gambar vektor yang dibangkitkan di sini. Tiap adegan memakai
+   bingkai dan rasio yang sama dengan slot foto nanti, jadi menukarnya dengan
+   <img src="foto-peralatan/…"> tidak menggeser tata letak sama sekali.
+   ======================================================================= */
+let nomorAdegan = 0;
+/* Langit tiap adegan. Subjeknya digambar nyaris hitam, jadi langitnya harus
+   cukup terang — kalau tidak, siluetnya menyatu dengan latar dan kartunya
+   hanya terlihat seperti kotak gelap, terutama saat diredupkan di sisi jauh
+   cincin. Adegan dalam ruangan (server, kontrol) memang gelap; di sana yang
+   memberi bentuk adalah lampu indikator dan layarnya. */
+const LANGIT = {
+  menara:['#16283d','#31536f','#cd7f4e'], antena:['#152740','#33546e','#9c6d5c'],
+  ils:['#1a2c40','#38566e','#d08a52'],    radar:['#152742','#2e4c68','#7d92a8'],
+  server:['#0a1119','#101a26','#16232f'], kontrol:['#0b131c','#12202c','#1a2c3a'],
+  genset:['#1d2732','#2c3a49','#3d4d5f'], gedung:['#101c2c','#26405a','#587090']
+};
+
+/** Pesawat — dipakai di adegan langit dan di layar masuk. */
+function pesawatSvg(warna){
+  return `<g fill="${warna}">
+    <path d="M4 9 C4 6.4 8 5.2 22 5.2 L58 5.2 C68 5.2 76 6.6 80 9 C76 11.4 68 12.8 58 12.8 L22 12.8 C8 12.8 4 11.6 4 9 Z"/>
+    <path d="M36 9 L20 20 L29 20 L46 10.6 Z"/><path d="M36 9 L22 -2 L31 -2 L47 7.4 Z"/>
+    <path d="M9 9 L1 1 L7 1 L20 7.6 Z"/><path d="M9 9 L1 17 L7 17 L20 10.4 Z"/></g>`;
+}
+
+function adegan(jenis, opsi){
+  const id = 'a' + (++nomorAdegan);
+  const [l1,l2,l3] = LANGIT[jenis] || LANGIT.menara;
+  const gelap = `url(#s${id})`;
+  const isi = {
+    /* Menara ATC dengan kabin miring, suar merah, dan pesawat lewat */
+    menara:`
+      <path d="M0 118 L60 108 L120 116 L190 106 L240 114 L240 140 L0 140 Z" fill="#0c1219" opacity=".85"/>
+      <g fill="${gelap}">
+        <path d="M104 140 L110 76 L146 76 L152 140 Z"/>
+        <path d="M100 76 L107 58 L149 58 L156 76 Z"/>
+        <rect x="126" y="26" width="4" height="32"/>
+        <path d="M118 26 h20 v3 h-20 z"/>
+      </g>
+      <path d="M109 74 L114 61 L142 61 L147 74 Z" fill="#ffd08a" opacity=".55"/>
+      <circle class="kedip" cx="128" cy="23" r="3" fill="#ff5f5f"/>
+      <g transform="translate(24,34) scale(.42)">${pesawatSvg('#0a0f16')}</g>`,
+    /* Tiang antena kisi dengan dipole */
+    antena:`
+      <path d="M0 122 L70 114 L150 120 L240 112 L240 140 L0 140 Z" fill="#0c1219" opacity=".85"/>
+      <g stroke="${gelap}" stroke-width="2.6" fill="none" stroke-linecap="round">
+        <path d="M104 140 L118 28 M148 140 L134 28"/>
+        <path d="M107 116 L145 106 M107 106 L145 116 M110 92 L142 84 M110 84 L142 92
+                 M113 70 L139 64 M113 64 L139 70 M116 50 L136 46 M116 46 L136 50"/>
+        <path d="M118 34 h16"/>
+      </g>
+      <g stroke="${gelap}" stroke-width="2.2" stroke-linecap="round">
+        <path d="M118 44 L96 40 M134 44 L156 40 M118 62 L94 58 M134 62 L158 58"/>
+        <path d="M96 34 v12 M156 34 v12 M94 52 v12 M158 52 v12"/>
+      </g>
+      <path d="M126 28 L126 16" stroke="${gelap}" stroke-width="2.6"/>
+      <circle class="kedip" cx="126" cy="14" r="2.8" fill="#ff5f5f"/>`,
+    /* Deret antena localizer di tepi runway, lampu pendekat menyala */
+    ils:`
+      <path d="M0 104 L240 96 L240 140 L0 140 Z" fill="#1d2b1e" opacity=".8"/>
+      <path d="M62 140 L104 100 L140 100 L196 140 Z" fill="#0e141a" opacity=".9"/>
+      <path d="M116 140 L122 100 L126 100 L136 140 Z" fill="#e8eef4" opacity=".22"/>
+      <g fill="${gelap}">
+        <rect x="34" y="88" width="172" height="3"/>
+        ${Array.from({length:13},(_,i)=>`<rect x="${38+i*13}" y="72" width="2.6" height="17"/>`).join('')}
+        ${Array.from({length:13},(_,i)=>`<rect x="${34+i*13}" y="70" width="11" height="2.4"/>`).join('')}
+      </g>
+      <g fill="#ffe9b5">${Array.from({length:5},(_,i)=>
+        `<circle class="kedip" cx="${104+i*8}" cy="${132-i*7}" r="1.7" style="animation-delay:${i*.16}s"/>`).join('')}</g>
+      <g transform="translate(150,26) scale(.34)">${pesawatSvg('#0a0f16')}</g>`,
+    /* Radome di atas menara kisi, sapuan radar berputar di dalamnya */
+    radar:`
+      <path d="M0 120 L80 112 L160 118 L240 110 L240 140 L0 140 Z" fill="#0c1219" opacity=".85"/>
+      <g stroke="${gelap}" stroke-width="2.8" fill="none">
+        <path d="M100 140 L112 74 M152 140 L140 74"/>
+        <path d="M104 118 L148 108 M104 108 L148 118 M108 92 L144 84 M108 84 L144 92"/>
+      </g>
+      <circle cx="126" cy="52" r="26" fill="${gelap}"/>
+      <circle cx="126" cy="52" r="26" fill="none" stroke="#4d6f8a" stroke-width="1.2" opacity=".5"/>
+      <g clip-path="circle(24px at 126px 52px)">
+        <g class="sapuan" style="transform-origin:126px 52px">
+          <path d="M126 52 L126 26 A26 26 0 0 1 148 40 Z" fill="#5ff2c8" opacity=".3"/>
+        </g>
+      </g>
+      <path d="M112 74 h28 v4 h-28 z" fill="${gelap}"/>`,
+    /* Ruang server: dua rak dengan deret LED yang berkedip tak serempak */
+    server:`
+      <rect width="240" height="140" fill="#080d13"/>
+      <path d="M0 108 L240 92 L240 140 L0 140 Z" fill="#0d151d"/>
+      <g fill="#111c26" stroke="#1c2c3a" stroke-width="1">
+        <rect x="30" y="26" width="56" height="92" rx="3"/>
+        <rect x="98" y="20" width="60" height="100" rx="3"/>
+        <rect x="170" y="30" width="46" height="86" rx="3"/>
+      </g>
+      ${[[38,34,6],[106,28,7],[178,38,6]].map(([x,y,n],r)=>
+        Array.from({length:n},(_,i)=>
+          `<g><rect x="${x}" y="${y+i*12}" width="${r===1?44:34}" height="7" rx="1.5" fill="#16232f"/>
+             <circle class="kedip" cx="${x+3}" cy="${y+3.5+i*12}" r="1.5" fill="#4ade80" style="animation-delay:${(i*.31+r*.7).toFixed(2)}s"/>
+             <circle class="kedip" cx="${x+7}" cy="${y+3.5+i*12}" r="1.5" fill="#38bdf8" style="animation-delay:${(i*.47+r*.4).toFixed(2)}s"/></g>`
+        ).join('')).join('')}
+      <rect width="240" height="140" fill="url(#k${id})"/>`,
+    /* Ruang kontrol: konsol melengkung dengan layar menyala */
+    kontrol:`
+      <rect width="240" height="140" fill="#08101a"/>
+      <g fill="#0f1d29" stroke="#1d3040" stroke-width="1">
+        <path d="M18 92 Q120 74 222 92 L222 140 L18 140 Z"/>
+      </g>
+      ${Array.from({length:5},(_,i)=>{
+        const x = 26 + i*42, y = 44 + Math.abs(i-2)*4;
+        return `<g><rect x="${x}" y="${y}" width="34" height="24" rx="2.5" fill="#0d2233" stroke="#24455c"/>
+          <rect x="${x+2}" y="${y+2}" width="30" height="20" fill="#123449" opacity=".9"/>
+          <path d="M${x+4} ${y+18} l6 -7 l5 4 l7 -9 l6 6" stroke="#3ad4b0" stroke-width="1.1" fill="none" opacity=".85"/>
+          <circle class="kedip" cx="${x+29}" cy="${y+5}" r="1.4" fill="#ffb300" style="animation-delay:${(i*.53).toFixed(2)}s"/>
+          <rect x="${x+6}" y="${y+26}" width="22" height="3" rx="1.5" fill="#16283a"/></g>`;
+      }).join('')}
+      <rect width="240" height="140" fill="url(#k${id})"/>`,
+    /* Rumah genset: blok mesin, cerobong, pipa, garis peringatan */
+    genset:`
+      <path d="M0 112 L240 104 L240 140 L0 140 Z" fill="#161d24"/>
+      <g fill="${gelap}">
+        <rect x="34" y="58" width="118" height="54" rx="4"/>
+        <rect x="152" y="72" width="30" height="40" rx="3"/>
+        <rect x="60" y="30" width="11" height="28"/><path d="M55 26 h21 v5 h-21 z"/>
+        <rect x="182" y="80" width="26" height="32" rx="3"/>
+      </g>
+      <g fill="#2b3742"><rect x="44" y="68" width="98" height="8" rx="2"/>
+        <rect x="44" y="82" width="60" height="6" rx="2"/></g>
+      <g stroke="#ffb300" stroke-width="4" opacity=".55">
+        <path d="M34 108 h118" stroke-dasharray="8 8"/></g>
+      <circle class="kedip" cx="146" cy="64" r="2.6" fill="#4ade80"/>
+      <g stroke="#3a4855" stroke-width="3" fill="none"><path d="M152 90 h30 M152 100 h30"/></g>`,
+    /* Gedung JATSC: siluet bertingkat dengan jendela menyala dan tiang CCTV */
+    gedung:`
+      <path d="M0 124 L240 116 L240 140 L0 140 Z" fill="#0c1219"/>
+      <g fill="${gelap}">
+        <path d="M52 140 L52 52 L112 38 L112 140 Z"/>
+        <path d="M112 140 L112 62 L172 52 L172 140 Z"/>
+        <rect x="172" y="76" width="34" height="64"/>
+        <rect x="78" y="18" width="4" height="22"/>
+      </g>
+      <g fill="#ffd9a0" opacity=".62">
+        ${Array.from({length:20},(_,i)=>{
+          const c=i%4, r=Math.floor(i/4);
+          return `<rect x="${60+c*13}" y="${62+r*13}" width="8" height="8" opacity="${(0.3+((i*7)%10)/12).toFixed(2)}"/>`;
+        }).join('')}
+        ${Array.from({length:12},(_,i)=>{
+          const c=i%3, r=Math.floor(i/3);
+          return `<rect x="${122+c*15}" y="${76+r*14}" width="9" height="9" opacity="${(0.25+((i*5)%10)/12).toFixed(2)}"/>`;
+        }).join('')}
+      </g>
+      <circle class="kedip" cx="80" cy="16" r="2.6" fill="#ff5f5f"/>
+      <g stroke="${gelap}" stroke-width="2.6" fill="none"><path d="M216 140 L216 84"/></g>
+      <path d="M208 80 h16 l-3 7 h-10 z" fill="${gelap}"/>
+      <circle class="kedip-cepat" cx="212" cy="83" r="1.5" fill="#4ade80"/>`
+  }[jenis] || '';
+
+  return `<svg class="adegan" viewBox="0 0 240 140" preserveAspectRatio="xMidYMid slice"
+    role="img" aria-label="Ilustrasi ${jenis}">
+    <defs>
+      <linearGradient id="l${id}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="${l1}"/><stop offset=".58" stop-color="${l2}"/><stop offset="1" stop-color="${l3}"/>
+      </linearGradient>
+      <linearGradient id="s${id}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#0b1016"/><stop offset="1" stop-color="#04070a"/>
+      </linearGradient>
+      <radialGradient id="k${id}" cx=".5" cy=".42" r=".78">
+        <stop offset="0" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".62"/>
+      </radialGradient>
+    </defs>
+    <rect width="240" height="140" fill="url(#l${id})"/>
+    ${['server','kontrol'].includes(jenis) ? '' :
+      `<circle cx="196" cy="46" r="17" fill="#ffcf8d" opacity=".28"/>
+       <circle cx="196" cy="46" r="9" fill="#ffe3b6" opacity=".5"/>`}
+    ${isi}
+  </svg>`;
+}
+
+/* =======================================================================
+   PANGGUNG LAYAR MASUK — bandara 3D, diterjemahkan dari cns-scene.js di
+   proyek Claude Design "Animasi Bandara Soekarno Hatta 3D".
+
+   Menggantikan bangunPemandangan() lama yang menggambar siluet menara dengan
+   SVG dan CSS. Yang berubah dari berkas desain aslinya: di sana ia custom
+   element yang hidup selama komponen terpasang; di sini gambarnya DIJEDA
+   begitu layar masuk pergi, dan jalan lagi kalau pemakai keluar dari
+   dashboard. Tanpa itu WebGL terus menggambar di balik aplikasi seumur
+   halaman dibuka, dan kipas laptop yang menjelaskannya.
+   ======================================================================= */
+const KM_FASILITAS = [
+  { id:'adc',  nama:'ADC TOWER',       kode:'TWR', pos:[-34,46,44],
+    ket:'Aerodrome Control Tower. Pengendalian pergerakan pesawat di runway, taxiway dan udara sekitar bandara secara visual. Kabin dilengkapi Voice Communication Control System (VCCS) dan display data penerbangan.' },
+  { id:'vhf',  nama:'VHF A/G',         kode:'COM', pos:[-14,30,56],
+    ket:'Antena VHF Air/Ground 118–137 MHz. Kanal komunikasi suara antara pemandu lalu lintas udara dan pilot. Redundan main/standby dengan remote control & monitoring.' },
+  { id:'dvor', nama:'DVOR / DME',      kode:'NAV', pos:[4,12,-74],
+    ket:'Doppler VHF Omnidirectional Range + Distance Measuring Equipment. Memberi informasi azimuth dan jarak (slant range) ke pesawat sebagai acuan navigasi en-route dan approach.' },
+  { id:'loc',  nama:'ILS LOCALIZER',   kode:'NAV', pos:[-152,9,0],
+    ket:'Localizer array ILS. Memancarkan sinyal panduan lateral terhadap garis tengah runway untuk precision approach CAT I/II.' },
+  { id:'gs',   nama:'ILS GLIDE PATH',  kode:'NAV', pos:[104,16,20],
+    ket:'Glide Path antenna. Panduan sudut turun nominal 3° terhadap threshold runway, dipasangkan dengan localizer dan marker/DME.' },
+  { id:'psr',  nama:'PSR / SSR',       kode:'SUR', pos:[64,34,62],
+    ket:'Primary Surveillance Radar & Secondary Surveillance Radar Mode S. PSR mendeteksi echo primer, SSR menginterogasi transponder untuk identitas, altitude dan data Mode S.' },
+  { id:'ads',  nama:'ADS-B STATION',   kode:'SUR', pos:[-84,24,60],
+    ket:'Automatic Dependent Surveillance – Broadcast. Menerima posisi GNSS yang dipancarkan pesawat pada 1090 MHz ES, update rate ~1 detik.' },
+  { id:'dp',   nama:'DATA PROCESSING', kode:'ATM', pos:[-64,20,96],
+    ket:'Ruang Automation / Data Processing: Radar Data Processing (RDP), Flight Data Processing (FDP), multi-sensor tracker, recording & AFTN/AMHS message handling. Output disajikan ke ATC console.' }
+];
+const KM_SIMPUL = [-64,6,96];
+const KM_W = { bg:0x080d12, tanah:0x0d151c, kisi:0x1b2b36, runway:0x171d23,
+               logam:0x8f9aa6, sian:0x3fd6c8, kuning:0xf0b429, kaca:0x7fe3ff, putih:0xdfe7ee };
+const kmDiam = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+let kmPanggung = null;
+
+function kmBangunPanggung(){
+  const T = window.THREE;
+  const wadah = document.getElementById('kmScene');
+  const lapis = document.getElementById('kmLapis');
+  const detail = document.getElementById('kmDetail');
+  const w = wadah.clientWidth || 1200, h = wadah.clientHeight || 700;
+
+  const renderer = new T.WebGLRenderer({ antialias:true, alpha:false });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
+  renderer.setSize(w, h);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = T.PCFSoftShadowMap;
+  wadah.appendChild(renderer.domElement);
+
+  const scene = new T.Scene();
+  scene.background = new T.Color(KM_W.bg);
+  scene.fog = new T.Fog(KM_W.bg, 380, 900);
+  const camera = new T.PerspectiveCamera(38, w/h, 1, 3000);
+
+  /* ---- orbit ---- */
+  const bidik = new T.Vector3(-6, 12, 10);
+  /* Kamera desainnya dipatok 330 dengan pitch rendah, untuk panggung selebar
+     layar desktop. Di HP bingkainya tinggi-sempit dan bandara ini melebar, jadi
+     sudut rendah cuma menghasilkan langit hitam. Yang menolong bukan mundur —
+     kabut mulai di 380 dan semuanya jadi kelabu — melainkan menunduk. */
+  const sempitAwal = w < 700;
+  let jarak = 320, yaw = 0.85, pitch = sempitAwal ? 0.72 : 0.42, otomatis = !kmDiam;
+  if(!sempitAwal) jarak = 330;
+  const pasangKamera = () => {
+    pitch = Math.max(0.08, Math.min(1.15, pitch));
+    jarak = Math.max(120, Math.min(760, jarak));
+    camera.position.set(
+      bidik.x + jarak*Math.cos(pitch)*Math.sin(yaw),
+      bidik.y + jarak*Math.sin(pitch),
+      bidik.z + jarak*Math.cos(pitch)*Math.cos(yaw));
+    camera.lookAt(bidik);
+  };
+  let seret = null;
+  const kanvas = renderer.domElement;
+  kanvas.addEventListener('pointerdown', e=>{
+    seret = { x:e.clientX, y:e.clientY }; otomatis = false;
+    wadah.classList.add('km-geser'); kanvas.setPointerCapture(e.pointerId);
+  });
+  kanvas.addEventListener('pointermove', e=>{
+    if(!seret) return;
+    yaw   -= (e.clientX - seret.x) * 0.005;
+    pitch += (e.clientY - seret.y) * 0.004;
+    seret = { x:e.clientX, y:e.clientY };
+    pasangKamera(); if(kmDiam) gambarSekali();
+  });
+  const lepas = () => { seret = null; wadah.classList.remove('km-geser'); };
+  kanvas.addEventListener('pointerup', lepas);
+  kanvas.addEventListener('pointercancel', lepas);
+  kanvas.addEventListener('wheel', e=>{
+    e.preventDefault(); otomatis = false;
+    jarak *= 1 + Math.sign(e.deltaY)*0.08;
+    pasangKamera(); if(kmDiam) gambarSekali();
+  }, { passive:false });
+
+  /* ---- cahaya ---- */
+  scene.add(new T.HemisphereLight(0x2a4356, 0x05080b, 0.85));
+  const surya = new T.DirectionalLight(0xbcd4e6, 1.15);
+  surya.position.set(-160, 220, 180);
+  surya.castShadow = true;
+  surya.shadow.mapSize.set(2048, 2048);
+  const sc = surya.shadow.camera;
+  sc.left = -300; sc.right = 300; sc.top = 300; sc.bottom = -300; sc.far = 800;
+  scene.add(surya);
+  const isian = new T.DirectionalLight(0x2f6f80, 0.45);
+  isian.position.set(200, 90, -160); scene.add(isian);
+
+  const bahan = (c, o) => new T.MeshStandardMaterial(Object.assign({ color:c, roughness:0.72, metalness:0.15 }, o||{}));
+  const nyala = (c, o) => new T.MeshBasicMaterial({ color:c, transparent:true, opacity: o==null ? 0.85 : o });
+
+  /* ---- tanah, kisi, runway, taxiway ---- */
+  const tanah = new T.Mesh(new T.PlaneGeometry(1800,1800), bahan(KM_W.tanah,{roughness:0.95,metalness:0}));
+  tanah.rotation.x = -Math.PI/2; tanah.receiveShadow = true; scene.add(tanah);
+  const kisi = new T.GridHelper(1600, 64, KM_W.kisi, 0x121c24);
+  kisi.position.y = 0.05; kisi.material.transparent = true; kisi.material.opacity = 0.4; scene.add(kisi);
+
+  const runway = new T.Mesh(new T.PlaneGeometry(360,26), bahan(KM_W.runway,{roughness:0.9,metalness:0}));
+  runway.rotation.x = -Math.PI/2; runway.position.set(0,0.12,0); runway.receiveShadow = true; scene.add(runway);
+  const bahu = new T.Mesh(new T.PlaneGeometry(360,34), bahan(0x121a21,{roughness:1,metalness:0}));
+  bahu.rotation.x = -Math.PI/2; bahu.position.set(0,0.08,0); scene.add(bahu);
+  for(let x=-168; x<=168; x+=24){
+    const d = new T.Mesh(new T.PlaneGeometry(12,1.1), nyala(KM_W.putih,0.5));
+    d.rotation.x = -Math.PI/2; d.position.set(x,0.2,0); scene.add(d);
+  }
+  for(const sisi of [-1,1]){
+    const tepi = new T.Mesh(new T.PlaneGeometry(360,0.8), nyala(0x9fb4c4,0.35));
+    tepi.rotation.x = -Math.PI/2; tepi.position.set(0,0.2,sisi*12.4); scene.add(tepi);
+  }
+  const taxi = new T.Mesh(new T.PlaneGeometry(300,14), bahan(0x151d24,{roughness:0.95,metalness:0}));
+  taxi.rotation.x = -Math.PI/2; taxi.position.set(-10,0.1,34); scene.add(taxi);
+  for(let x=-150; x<=140; x+=10){
+    const d = new T.Mesh(new T.PlaneGeometry(6,0.6), nyala(KM_W.kuning,0.4));
+    d.rotation.x = -Math.PI/2; d.position.set(x-10,0.18,34); scene.add(d);
+  }
+  const lampuRunway = [];
+  for(let i=0; i<22; i++){
+    const s = new T.Mesh(new T.SphereGeometry(0.9,8,8), nyala(i<8 ? KM_W.kuning : 0xffffff, 0.9));
+    s.position.set(140 + i*14, 1.2, 0); scene.add(s); lampuRunway.push(s);
+  }
+  for(const sisi of [-1,1]){
+    for(let i=0; i<8; i++){
+      const s = new T.Mesh(new T.SphereGeometry(0.8,8,8), nyala(0x66ff99,0.9));
+      s.position.set(132, 1.2, sisi*(2 + i*1.6)); scene.add(s);
+    }
+  }
+
+  /* ---- menara ADC ---- */
+  const menara = new T.Group(); menara.position.set(-34,0,44);
+  const kakiM = new T.Mesh(new T.BoxGeometry(26,7,20), bahan(0x232b33));
+  kakiM.position.y = 3.5; kakiM.castShadow = true; kakiM.receiveShadow = true; menara.add(kakiM);
+  const batang = new T.Mesh(new T.CylinderGeometry(4.6,6.6,34,16), bahan(0x3d464f,{roughness:0.6}));
+  batang.position.y = 24; batang.castShadow = true; menara.add(batang);
+  for(let i=0; i<5; i++){
+    const r = new T.Mesh(new T.TorusGeometry(5.3 - i*0.35, 0.28, 8, 24), bahan(0x596570,{metalness:0.5}));
+    r.rotation.x = Math.PI/2; r.position.y = 12 + i*6; menara.add(r);
+  }
+  const dek = new T.Mesh(new T.CylinderGeometry(11,9,2.4,16), bahan(0x2b333c));
+  dek.position.y = 41; dek.castShadow = true; menara.add(dek);
+  const kabin = new T.Mesh(new T.CylinderGeometry(10.2,11.4,9,16),
+    new T.MeshPhysicalMaterial({ color:KM_W.kaca, transparent:true, opacity:0.35,
+      roughness:0.08, metalness:0.1, emissive:0x1d6f80, emissiveIntensity:0.6 }));
+  kabin.position.y = 46.6; menara.add(kabin);
+  const atapM = new T.Mesh(new T.CylinderGeometry(12.4,11.6,1.8,16), bahan(0x1e262e));
+  atapM.position.y = 51.8; atapM.castShadow = true; menara.add(atapM);
+  const lampuKabin = new T.PointLight(0x8ff0ff, 0.9, 90); lampuKabin.position.y = 46; menara.add(lampuKabin);
+  const tiangM = new T.Mesh(new T.CylinderGeometry(0.5,0.7,16,8), bahan(KM_W.logam,{metalness:0.6}));
+  tiangM.position.y = 60; menara.add(tiangM);
+  const suar = new T.Mesh(new T.SphereGeometry(1.5,12,12), nyala(KM_W.kuning,1));
+  suar.position.y = 69; menara.add(suar);
+  scene.add(menara);
+
+  /* ---- tiang VHF A/G ---- */
+  const vhf = new T.Group(); vhf.position.set(-14,0,56);
+  const vTiang = new T.Mesh(new T.CylinderGeometry(0.55,0.8,30,8), bahan(KM_W.logam,{metalness:0.55}));
+  vTiang.position.y = 15; vTiang.castShadow = true; vhf.add(vTiang);
+  for(let i=0; i<4; i++){
+    const lengan = new T.Mesh(new T.BoxGeometry(7,0.3,0.3), bahan(0xa7b3bf,{metalness:0.6}));
+    lengan.position.y = 12 + i*5; lengan.rotation.y = i*0.8; vhf.add(lengan);
+    const dipol = new T.Mesh(new T.CylinderGeometry(0.22,0.22,4.5,6), bahan(0xc3ccd6,{metalness:0.6}));
+    dipol.position.set(3.2*Math.cos(i*0.8), 12 + i*5, -3.2*Math.sin(i*0.8)); vhf.add(dipol);
+  }
+  scene.add(vhf);
+
+  /* ---- DVOR / DME ---- */
+  const dvor = new T.Group(); dvor.position.set(4,0,-74);
+  const piring = new T.Mesh(new T.CylinderGeometry(15,15,0.9,32), bahan(0x39424b,{metalness:0.4}));
+  piring.position.y = 7; piring.castShadow = true; dvor.add(piring);
+  for(let i=0; i<8; i++){
+    const k = new T.Mesh(new T.CylinderGeometry(0.4,0.4,7,6), bahan(0x4c565f));
+    k.position.set(11*Math.cos(i*Math.PI/4), 3.5, 11*Math.sin(i*Math.PI/4)); dvor.add(k);
+  }
+  for(let i=0; i<24; i++){
+    const sisi = new T.Mesh(new T.BoxGeometry(1.6,2.2,0.6), bahan(0x6d7986,{metalness:0.5}));
+    const a = i*Math.PI/12;
+    sisi.position.set(14*Math.cos(a), 8.6, 14*Math.sin(a)); sisi.rotation.y = -a; dvor.add(sisi);
+  }
+  const radome = new T.Mesh(new T.ConeGeometry(4.6,8,20), bahan(0xe4e9ee,{roughness:0.5}));
+  radome.position.y = 12; radome.castShadow = true; dvor.add(radome);
+  const dmeRumah = new T.Mesh(new T.BoxGeometry(9,4.5,7), bahan(0x2f373f));
+  dmeRumah.position.set(22,2.3,6); dmeRumah.castShadow = true; dvor.add(dmeRumah);
+  const dmeAntena = new T.Mesh(new T.CylinderGeometry(0.9,0.9,9,10), bahan(0xc9d2da,{metalness:0.5}));
+  dmeAntena.position.set(22,9,6); dvor.add(dmeAntena);
+  scene.add(dvor);
+
+  /* ---- ILS localizer ---- */
+  const loc = new T.Group(); loc.position.set(-152,0,0);
+  for(let i=-6; i<=6; i++){
+    const p = new T.Mesh(new T.CylinderGeometry(0.35,0.35,6,6), bahan(0x545e68));
+    p.position.set(0,3,i*3.4); loc.add(p);
+    const d = new T.Mesh(new T.BoxGeometry(0.5,1.4,2.6), bahan(0xd6dee6,{metalness:0.4}));
+    d.position.set(0,6.6,i*3.4); d.castShadow = true; loc.add(d);
+  }
+  const locBar = new T.Mesh(new T.BoxGeometry(0.4,0.4,44), bahan(0x8b96a2,{metalness:0.6}));
+  locBar.position.y = 7.6; loc.add(locBar);
+  scene.add(loc);
+
+  /* ---- ILS glide path ---- */
+  const gp = new T.Group(); gp.position.set(104,0,20);
+  const gpTiang = new T.Mesh(new T.CylinderGeometry(0.6,0.9,14,8), bahan(KM_W.logam,{metalness:0.5}));
+  gpTiang.position.y = 7; gpTiang.castShadow = true; gp.add(gpTiang);
+  for(let i=0; i<3; i++){
+    const d = new T.Mesh(new T.BoxGeometry(2.6,1.2,0.5), bahan(0xdfe6ec,{metalness:0.4}));
+    d.position.set(1.6, 4 + i*4.4, 0); gp.add(d);
+  }
+  const gpRumah = new T.Mesh(new T.BoxGeometry(7,4,6), bahan(0x2f373f));
+  gpRumah.position.set(-8,2,3); gpRumah.castShadow = true; gp.add(gpRumah);
+  scene.add(gp);
+
+  /* ---- PSR / SSR ---- */
+  const radar = new T.Group(); radar.position.set(64,0,62);
+  const rKaki = new T.Mesh(new T.BoxGeometry(14,10,14), bahan(0x252d35));
+  rKaki.position.y = 5; rKaki.castShadow = true; radar.add(rKaki);
+  const rMenara = new T.Mesh(new T.CylinderGeometry(2.4,3.6,20,12), bahan(0x3f4851));
+  rMenara.position.y = 20; rMenara.castShadow = true; radar.add(rMenara);
+  const rKepala = new T.Group(); rKepala.position.y = 31;
+  rKepala.add(new T.Mesh(new T.CylinderGeometry(3.2,3.6,4,12), bahan(0x555f69,{metalness:0.5})));
+  const psrPiring = new T.Mesh(new T.BoxGeometry(2,9,26), bahan(0xb9c3cd,{metalness:0.6,roughness:0.45}));
+  psrPiring.position.set(0,5,0); psrPiring.castShadow = true; rKepala.add(psrPiring);
+  const ssrBatang = new T.Mesh(new T.BoxGeometry(1.2,1.6,22), bahan(0xe2e8ee,{metalness:0.5}));
+  ssrBatang.position.set(0,10.4,0); rKepala.add(ssrBatang);
+  radar.add(rKepala);
+  const sapuan = new T.Mesh(new T.CircleGeometry(150,40,0,0.5),
+    new T.MeshBasicMaterial({ color:KM_W.sian, transparent:true, opacity:0.1, side:T.DoubleSide, depthWrite:false }));
+  sapuan.rotation.x = -Math.PI/2; sapuan.position.y = 0.35; radar.add(sapuan);
+  for(const r of [50,100,150]){
+    const cincin = new T.Mesh(new T.RingGeometry(r-0.5, r, 96),
+      new T.MeshBasicMaterial({ color:KM_W.sian, transparent:true, opacity:0.12, side:T.DoubleSide, depthWrite:false }));
+    cincin.rotation.x = -Math.PI/2; cincin.position.y = 0.3; radar.add(cincin);
+  }
+  scene.add(radar);
+
+  /* ---- stasiun ADS-B ---- */
+  const ads = new T.Group(); ads.position.set(-84,0,60);
+  const aTiang = new T.Mesh(new T.CylinderGeometry(0.45,0.7,22,8), bahan(KM_W.logam,{metalness:0.55}));
+  aTiang.position.y = 11; aTiang.castShadow = true; ads.add(aTiang);
+  const aAntena = new T.Mesh(new T.CylinderGeometry(0.9,0.9,7,10), bahan(0xf1f5f8,{roughness:0.5}));
+  aAntena.position.y = 24; ads.add(aAntena);
+  const aRumah = new T.Mesh(new T.BoxGeometry(6,3.6,5), bahan(0x2c343c));
+  aRumah.position.set(6,1.8,2); aRumah.castShadow = true; ads.add(aRumah);
+  const panelSurya = new T.Mesh(new T.BoxGeometry(7,0.3,4), bahan(0x16324a,{metalness:0.6,roughness:0.3}));
+  panelSurya.position.set(6,4,2); panelSurya.rotation.z = 0.18; ads.add(panelSurya);
+  scene.add(ads);
+
+  /* ---- gedung data processing ---- */
+  const dp = new T.Group(); dp.position.set(-64,0,96);
+  const badanDp = new T.Mesh(new T.BoxGeometry(52,15,30), bahan(0x222a32));
+  badanDp.position.y = 7.5; badanDp.castShadow = true; badanDp.receiveShadow = true; dp.add(badanDp);
+  const atapDp = new T.Mesh(new T.BoxGeometry(55,1.4,33), bahan(0x1a2128));
+  atapDp.position.y = 15.6; dp.add(atapDp);
+  for(let i=0; i<9; i++){
+    for(let r=0; r<2; r++){
+      const jendela = new T.Mesh(new T.PlaneGeometry(3.6,3), nyala(0x63e0ff,0.55));
+      jendela.position.set(-22 + i*5.5, 5 + r*6, 15.1); dp.add(jendela);
+    }
+  }
+  const pendingin = new T.Mesh(new T.BoxGeometry(10,3,8), bahan(0x39424b));
+  pendingin.position.set(16,17.5,0); dp.add(pendingin);
+  const lampuDp = new T.PointLight(0x4fd0ff, 0.7, 70);
+  lampuDp.position.set(0,12,20); dp.add(lampuDp);
+  scene.add(dp);
+
+  /* ---- tautan data: tiap fasilitas mengalir ke ruang processing ---- */
+  const tautan = [];
+  const simpul = new T.Vector3(KM_SIMPUL[0], KM_SIMPUL[1], KM_SIMPUL[2]);
+  KM_FASILITAS.filter(f => f.id !== 'dp').forEach((f,i)=>{
+    const dari = new T.Vector3(f.pos[0], Math.max(6, f.pos[1]*0.5), f.pos[2]);
+    const tengah = dari.clone().add(simpul).multiplyScalar(0.5);
+    tengah.y += dari.distanceTo(simpul)*0.18 + 10;
+    const lengkung = new T.QuadraticBezierCurve3(dari, tengah, simpul);
+    scene.add(new T.Line(new T.BufferGeometry().setFromPoints(lengkung.getPoints(48)),
+      new T.LineBasicMaterial({ color:KM_W.sian, transparent:true, opacity:0.18 })));
+    const denyut = [];
+    for(let p=0; p<3; p++){
+      const s = new T.Mesh(new T.SphereGeometry(1.15,8,8), nyala(KM_W.sian,0.95));
+      scene.add(s); denyut.push({ mesh:s, geser:p/3 + i*0.11 });
+    }
+    tautan.push({ lengkung, denyut });
+  });
+
+  /* ---- berkas ILS ---- */
+  const berkasIls = new T.Mesh(new T.ConeGeometry(26,300,4,1,true),
+    new T.MeshBasicMaterial({ color:KM_W.kuning, transparent:true, opacity:0.06, side:T.DoubleSide, depthWrite:false }));
+  berkasIls.rotation.z = -Math.PI/2; berkasIls.rotation.y = Math.PI/4;
+  berkasIls.position.set(0,26,0); scene.add(berkasIls);
+
+  /* ---- pesawat ---- */
+  function buatPesawat(skala, warna){
+    const g = new T.Group();
+    const kulit = bahan(0xeef2f6, { roughness:0.45, metalness:0.2 });
+    const badanP = new T.Mesh(new T.CapsuleGeometry(2.3,22,8,16), kulit);
+    badanP.rotation.z = Math.PI/2; badanP.castShadow = true; g.add(badanP);
+    const hidung = new T.Mesh(new T.ConeGeometry(2.3,5,16), kulit);
+    hidung.rotation.z = -Math.PI/2; hidung.position.x = -15.5; g.add(hidung);
+    const garis = new T.Mesh(new T.BoxGeometry(24,1.1,0.2), nyala(warna,0.9));
+    garis.position.set(0,0.6,2.35); g.add(garis);
+    const garis2 = garis.clone(); garis2.position.z = -2.35; g.add(garis2);
+    const sayap = new T.Mesh(new T.BoxGeometry(6.5,0.7,34), bahan(0xdde4ea,{roughness:0.5}));
+    sayap.position.set(1,-0.4,0); sayap.castShadow = true; g.add(sayap);
+    const ujungKi = new T.Mesh(new T.BoxGeometry(3,2.4,0.7), bahan(0xdde4ea));
+    ujungKi.position.set(2.4,0.6,17); g.add(ujungKi);
+    const ujungKa = ujungKi.clone(); ujungKa.position.z = -17; g.add(ujungKa);
+    for(const z of [-9,9]){
+      const mesin = new T.Mesh(new T.CylinderGeometry(1.7,1.5,5.5,14), bahan(0xb9c2cb,{metalness:0.5}));
+      mesin.rotation.z = Math.PI/2; mesin.position.set(-1.5,-2.1,z); mesin.castShadow = true; g.add(mesin);
+    }
+    const sirip = new T.Mesh(new T.BoxGeometry(6,9,0.6), bahan(warna,{roughness:0.5}));
+    sirip.position.set(12.5,5.2,0); sirip.castShadow = true; g.add(sirip);
+    const stabil = new T.Mesh(new T.BoxGeometry(4.2,0.5,14), bahan(0xdde4ea));
+    stabil.position.set(13,0.6,0); g.add(stabil);
+    const navKi = new T.Mesh(new T.SphereGeometry(0.6,8,8), nyala(0xff4d4d,1));
+    navKi.position.set(2.4,0.6,18.4); g.add(navKi);
+    const navKa = new T.Mesh(new T.SphereGeometry(0.6,8,8), nyala(0x4dff87,1));
+    navKa.position.set(2.4,0.6,-18.4); g.add(navKa);
+    const kilat = new T.Mesh(new T.SphereGeometry(0.7,8,8), nyala(0xffffff,1));
+    kilat.position.set(15.5,5.2,0); g.add(kilat);
+    g.scale.setScalar(skala);
+    g.userData = { kilat };
+    return g;
+  }
+  const datang  = buatPesawat(1,    0x2f6fb5); scene.add(datang);
+  const taxiing = buatPesawat(0.85, 0xc23a3a); taxiing.rotation.y = Math.PI; scene.add(taxiing);
+  const lintas  = buatPesawat(1.1,  0x2c7a5b); scene.add(lintas);
+
+  const cincinTrack = new T.Mesh(new T.RingGeometry(6,7,40),
+    new T.MeshBasicMaterial({ color:KM_W.sian, transparent:true, opacity:0.5, side:T.DoubleSide, depthWrite:false }));
+  cincinTrack.rotation.x = -Math.PI/2; cincinTrack.position.y = 0.5; scene.add(cincinTrack);
+
+  /* ---- label fasilitas ---- */
+  const labelEl = {};
+  const pilihFasilitas = (f) => {
+    detail.style.display = 'block';
+    detail.querySelector('.km-kode').textContent = f.kode;
+    detail.querySelector('h4').textContent = f.nama;
+    detail.querySelector('p').textContent = f.ket;
+  };
+  KM_FASILITAS.forEach(f=>{
+    const chip = document.createElement('button');
+    chip.type = 'button'; chip.className = 'km-chip';
+    chip.innerHTML = '<i></i>' + f.nama + '<em>' + f.kode + '</em>';
+    chip.addEventListener('click', ()=>pilihFasilitas(f));
+    lapis.appendChild(chip);
+    labelEl[f.id] = { el:chip, v:new T.Vector3(f.pos[0], f.pos[1], f.pos[2]) };
+  });
+  pilihFasilitas(KM_FASILITAS[0]);
+
+  const labelPesawat = document.createElement('div');
+  labelPesawat.className = 'km-label-pesawat';
+  lapis.appendChild(labelPesawat);
+
+  /* ---- gerak ---- */
+  const jam = new T.Clock();
+  let waktu = 0, kirimTerakhir = -1;
+  const v = new T.Vector3();
+  const proyeksi = (vek, node, sela) => {
+    v.copy(vek).project(camera);
+    const nx = v.x*0.5 + 0.5, ny = -v.y*0.5 + 0.5;
+    const m = sela == null ? 0.02 : sela;
+    const tampak = v.z < 1 && nx > m && nx < 1-m && ny > m && ny < 1-m;
+    node.style.opacity = tampak ? '1' : '0';
+    node.style.visibility = tampak ? 'visible' : 'hidden';
+    node.style.left = (nx*100) + '%';
+    node.style.top  = (ny*100) + '%';
+    return tampak;
+  };
+  pasangKamera();
+
+  /* Satu putaran = satu kedatangan penuh: final approach, touchdown, lalu
+     vacating ke apron. Angka di rel kanan diambil dari perhitungan yang sama,
+     jadi yang terbaca di panel memang yang sedang terlihat di panggung. */
+  function majuAdegan(dt){
+    waktu += dt;
+    if(otomatis){ yaw += dt*0.035; pasangKamera(); }
+
+    rKepala.rotation.y += dt*1.2;
+    sapuan.rotation.z  -= dt*1.2;
+    suar.material.opacity = 0.35 + 0.65*Math.abs(Math.sin(waktu*2.4));
+    lampuKabin.intensity  = 0.75 + 0.2*Math.sin(waktu*1.3);
+    lampuRunway.forEach((s,i)=>{ s.material.opacity = 0.35 + 0.65*Math.max(0, Math.sin(waktu*3 - i*0.45)); });
+
+    tautan.forEach(({lengkung,denyut})=>{
+      denyut.forEach(p=>{
+        const u = (waktu*0.18 + p.geser) % 1;
+        p.mesh.position.copy(lengkung.getPoint(u));
+        p.mesh.material.opacity = 0.25 + 0.75*Math.sin(u*Math.PI);
+      });
+    });
+
+    const putaran = 26, t = (waktu % putaran)/putaran;
+    let ax, ay, fase, gsNilai;
+    if(t < 0.62){
+      const u = t/0.62;
+      ax = 460 - u*370; ay = 3 + (1-u)*(1-u)*88;
+      fase = 'FINAL APPROACH · ILS RWY 25L'; gsNilai = 152 - u*12;
+    } else if(t < 0.72){
+      const u = (t-0.62)/0.1;
+      ax = 90 - u*90; ay = 3 - u*0.6;
+      fase = 'TOUCHDOWN · ROLLOUT'; gsNilai = 140 - u*60;
+    } else {
+      const u = (t-0.72)/0.28;
+      ax = 0 - u*150; ay = 2.4;
+      fase = 'VACATING · TWY TO APRON'; gsNilai = 80 - u*68;
+    }
+    datang.position.set(ax, ay + 2.4, 0);
+    datang.rotation.z = t < 0.62 ? 0.045 : 0;
+    datang.userData.kilat.material.opacity = (waktu*3) % 1 < 0.12 ? 1 : 0.05;
+    cincinTrack.position.set(ax, 0.5, 0);
+    cincinTrack.scale.setScalar(1 + 0.25*Math.sin(waktu*3));
+
+    const tt = (waktu % 40)/40;
+    taxiing.position.set(-140 + tt*250, 2.2, 34);
+    taxiing.rotation.y = Math.PI;
+    taxiing.userData.kilat.material.opacity = 0.15;
+
+    const et = (waktu % 34)/34;
+    lintas.position.set(-320 + et*660, 175, -240 + et*90);
+    lintas.rotation.y = Math.PI + 0.22;
+    lintas.userData.kilat.material.opacity = (waktu*2.6) % 1 < 0.1 ? 1 : 0.05;
+
+    const ketinggian = Math.round(ay*34 + 45);
+    labelPesawat.textContent = 'GIA 652 · A333\n' + fase +
+      '\nGS ' + Math.round(gsNilai) + ' kt   ALT ' + ketinggian + ' ft';
+    if(waktu - kirimTerakhir > 0.5){
+      kirimTerakhir = waktu;
+      document.getElementById('kmFase').textContent = fase;
+      document.getElementById('kmGs').textContent = Math.round(gsNilai) + ' kt';
+      document.getElementById('kmAlt').textContent = ketinggian + ' ft';
+    }
+  }
+
+  /* Label ditata setelah kamera bergerak: yang bertumpuk digeser ke atas, dan
+     di panggung sempit semuanya disembunyikan — di lebar itu label lebih banyak
+     menutupi bandara daripada menjelaskannya. */
+  function tataLabel(){
+    const sempit = wadah.clientWidth < 600;
+    const sudah = [];
+    for(const id in labelEl){
+      const L = labelEl[id];
+      if(sempit){ L.el.style.visibility = 'hidden'; L.el.style.opacity = '0'; continue; }
+      if(!proyeksi(L.v, L.el, 0.06)) continue;
+      const px = parseFloat(L.el.style.left) * wadah.clientWidth / 100;
+      const py = parseFloat(L.el.style.top)  * wadah.clientHeight / 100;
+      let geser = 0;
+      for(const p of sudah){
+        if(Math.abs(p.x - px) < 130 && Math.abs(p.y - (py + geser)) < 24) geser -= 24;
+      }
+      sudah.push({ x:px, y:py + geser });
+      L.el.style.transform = 'translate(-50%,-100%) translateY(' + geser + 'px)';
+    }
+    v.copy(datang.position); v.y += 12;
+    proyeksi(v, labelPesawat);
+  }
+
+  function gambarSekali(){ tataLabel(); renderer.render(scene, camera); }
+
+  let raf = 0, jalan = false;
+  const gerak = () => {
+    raf = requestAnimationFrame(gerak);
+    majuAdegan(Math.min(jam.getDelta(), 0.05));
+    tataLabel();
+    renderer.render(scene, camera);
+  };
+
+  new ResizeObserver(()=>{
+    const lw = wadah.clientWidth, lh = wadah.clientHeight;
+    if(!lw || !lh) return;
+    camera.aspect = lw/lh; camera.updateProjectionMatrix();
+    renderer.setSize(lw, lh);
+    if(!jalan) gambarSekali();
+  }).observe(wadah);
+
+  return {
+    jalankan(){
+      if(jalan) return;
+      jalan = true;
+      if(kmDiam){ jalan = false; majuAdegan(0); gambarSekali(); return; }
+      jam.getDelta();          // buang selisih waktu selama dijeda
+      gerak();
+    },
+    jeda(){ jalan = false; cancelAnimationFrame(raf); }
+  };
+}
+
+/* Blok SESI di rel kiri mengikuti kolom username, jadi sebelum menekan Masuk
+   pun sudah terlihat akun mana yang akan dipakai dan perannya apa. Dalam mode
+   server yang ditampilkan sesi E-Logbook yang sebenarnya, bukan akun contoh —
+   dua daftar akun yang berbeda tidak boleh tercampur di satu tempat. */
+function kmSegarkanSesi(){
+  const u = el('iUser').value.trim().toLowerCase();
+  let a = null, sumber = '';
+  if(SRV.mode === 'server'){
+    if(SRV.sesi && SRV.sesi.username.toLowerCase() === u){
+      a = { nama: SRV.sesi.nama || SRV.sesi.username,
+            peran: PERAN_SERVER[SRV.sesi.role] || SRV.sesi.role || 'Pengguna' };
+      sumber = 'SESI SERVER AKTIF';
+    }
+  }else{
+    const c = AKUN.find(x=>x.user === u);
+    if(c){ a = { nama: c.nama || c.user, peran: c.peran }; sumber = 'SIAP MASUK · TEKAN MASUK'; }
+  }
+  el('kmSesi').classList.toggle('km-siap', !!a);
+  el('kmSesiInisial').textContent = a ? inisial(a.nama) : '—';
+  el('kmSesiNama').textContent    = a ? a.nama.toUpperCase() : 'BELUM LOGIN';
+  el('kmSesiPeran').textContent   = a ? a.peran.toUpperCase() : 'KLIK UNTUK MASUK';
+  el('kmSesiKet').textContent     = a ? sumber : 'AKSES TERBATAS · READ ONLY';
+}
+
+/* Buka/tutup kartu masuk. Selama tertutup panggung 3D-nya tidak tertutupi
+   apa-apa, dan itu keadaan awalnya. */
+function kmSetMasuk(buka){
+  el('kmLapisMasuk').classList.toggle('km-buka', buka);
+  if(buka) el('iUser').focus();
+  else document.activeElement?.blur?.();   // fokus tidak boleh tertinggal di kartu yang sudah tak terlihat
+}
+
+function kmMulai(){
+  const jam = () => {
+    const n = new Date(), p = (x)=>String(x).padStart(2,'0');
+    el('kmJam').textContent = p(n.getUTCHours())+':'+p(n.getUTCMinutes())+':'+p(n.getUTCSeconds());
+  };
+  jam(); setInterval(jam, 1000);
+
+  el('kmSesi').addEventListener('click', ()=>kmSetMasuk(true));
+  el('kmPicuMasuk').addEventListener('click', ()=>kmSetMasuk(true));
+  el('kmTutupMasuk').addEventListener('click', ()=>kmSetMasuk(false));
+  /* Esc menutup kartu, tapi hanya selama layar masuk yang di depan — kalau
+     dashboardnya sudah terbuka, Esc di sana bukan urusan layar ini. */
+  document.addEventListener('keydown', e=>{
+    if(e.key === 'Escape' && !el('layarMasuk').classList.contains('pergi')) kmSetMasuk(false);
+  });
+  el('iUser').addEventListener('input', kmSegarkanSesi);
+  kmSegarkanSesi();
+
+  /* Panggung dijeda begitu layar masuk pergi dan jalan lagi kalau pemakai
+     keluar dari dashboard. MutationObserver, bukan tambalan di masuk() dan
+     tombolKeluar — supaya kedua fungsi itu tidak perlu tahu soal panggung. */
+  const layar = el('layarMasuk');
+  new MutationObserver(()=>{
+    if(!kmPanggung) return;
+    if(layar.classList.contains('pergi')) kmPanggung.jeda();
+    else kmPanggung.jalankan();
+  }).observe(layar, { attributes:true, attributeFilter:['class'] });
+
+  /* three.js datang dari CDN. Kalau dalam 8 detik belum ada, panggungnya
+     dilewatkan — kisi radar di CSS yang tersisa, kartu masuk tetap jalan. */
+  (function tunggu(sisa){
+    if(window.THREE){
+      try{ kmPanggung = kmBangunPanggung(); kmPanggung.jalankan(); }
+      catch(e){ console.error('Panggung layar masuk gagal dibangun:', e); }
+      return;
+    }
+    if(sisa <= 0){ console.warn('three.js tidak sampai — panggung 3D dilewatkan.'); return; }
+    setTimeout(()=>tunggu(sisa - 120), 120);
+  })(8000);
+}
+
+/* =======================================================================
+   BANTU
+   ======================================================================= */
+/* Tanggal acuan umur trouble. Dipatok supaya data contoh selalu terbaca
+   masuk akal; diganti tanggal hari ini begitu datanya datang dari server. */
+let HARI_INI = new Date('2026-08-14T00:00:00');
+const el  = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const umurHari = (iso) => Math.max(0, Math.round((HARI_INI - new Date(iso+'T00:00:00'))/86400000));
+const infoUnit = (k) => UNIT.find(u=>u.kode===k) || {};
+const namaUnit = (k) => infoUnit(k).nama || k;
+const inisial  = (n) => n.split(/[\s.]+/).filter(Boolean).map(x=>x[0]).slice(0,2).join('').toUpperCase();
+const tglIndo  = (iso) => { const b=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  const d=new Date(iso+'T00:00:00'); return d.getDate()+' '+b[d.getMonth()]+' '+d.getFullYear(); };
+
+let akun = null;          // akun yang sedang masuk
+let unitDibuka = null;    // unit yang sedang dibuka di layar Database Unit
+let subtabAktif = 'peralatan';
+let alatDipilih = null;
+
+const bolehBuka = (kode) => !!akun && (akun.unit === 'semua' || akun.unit.includes(kode));
+const unitBoleh = () => UNIT.filter(u=>bolehBuka(u.kode));
+
+/* Jadwal dinas masih data contoh, sementara daftar unitnya bisa datang dari
+   server. Unit yang belum punya jadwal contoh digambar sebagai kotak shift
+   kosong menurut kode dinas unit itu — bukan menggagalkan seluruh layar. */
+const dinasUnit = (kode) => DINAS[kode] || (infoUnit(kode).dinas || []).map(k=>({ k, o:[] }));
+
+function pesan(teks){
+  const p = el('pesan'); p.textContent = teks; p.classList.add('tampil');
+  clearTimeout(pesan._t); pesan._t = setTimeout(()=>p.classList.remove('tampil'), 2600);
+}
+
+/* =======================================================================
+   LAYAR MASUK
+   ======================================================================= */
+/* kmMulai() dan srvPeriksa() dipanggil di kaki berkas, bukan di sini:
+   keduanya membaca SRV, dan SRV baru lahir di blok JEMBATAN di bawah. */
+
+el('akunContoh').innerHTML = AKUN.map(a=>
+  `<button data-user="${a.user}" title="${esc(a.peran)}">${esc(a.user)}</button>`).join('');
+el('akunContoh').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  // Akun contoh hanya berlaku di data contoh. Menekan salah satunya sekalian
+  // memindahkan sumbernya ke sana — kalau tidak, orang mengisi akun contoh,
+  // menekan Masuk dalam mode server, lalu ditolak tanpa tahu sebabnya.
+  pilihSumber('contoh');
+  el('iUser').value = b.dataset.user; el('iPass').value = 'contoh';
+});
+el('btnMasuk').addEventListener('click', masuk);
+el('iPass').addEventListener('keydown', e=>{ if(e.key === 'Enter') masuk(); });
+el('iUser').addEventListener('keydown', e=>{ if(e.key === 'Enter') masuk(); });
+
+async function masuk(){
+  if(SRV.mode === 'server') await masukServer();
+  else masukContoh();
+}
+
+function masukContoh(){
+  const u = el('iUser').value.trim().toLowerCase();
+  const a = AKUN.find(x=>x.user === u);
+  if(!a){ pesan('Akun tidak dikenal. Pakai salah satu akun contoh di bawah.'); return; }
+  pakaiContoh();
+  akun = a;
+  bukaDashboard();
+}
+
+function bukaDashboard(){
+  el('layarMasuk').classList.add('pergi');
+  el('app').classList.add('tampil');
+  gambarSemua();
+}
+
+el('tombolKeluar').addEventListener('click', ()=>{
+  akun = null; unitDibuka = null;
+  el('app').classList.remove('tampil');
+  el('layarMasuk').classList.remove('pergi');
+  el('iPass').value = '';
+  kmSetMasuk(true);         // yang baru keluar biasanya mau masuk lagi
+  // Sesi E-Logbook-nya sengaja tidak diputus di sini — lihat catatan di blok
+  // JEMBATAN E-LOGBOOK. Kartu masuknya digambar ulang supaya baris status,
+  // tombol, dan blok SESI tidak tertinggal di keadaan sebelum keluar.
+  pilihSumber(SRV.mode);
+  pindahLayar('beranda');
+});
+
+/* =======================================================================
+   JEMBATAN E-LOGBOOK — mengambil yang sudah jadi di sana
+
+   Halaman ini tetap berdiri sendiri: tidak ada satu berkas pun milik
+   E-Logbook yang dimuat, dan tidak ada berkas E-Logbook yang disunting.
+   Yang dipakai cuma API-nya, dipanggil ke /api/* pada asal yang sama —
+   server.js di akar proyek yang meneruskannya ke E-Logbook. Bagi browser
+   semuanya satu asal, jadi tidak ada urusan CORS dan cookie sesinya ikut.
+   Dibuka lewat file:// atau server statis lain (tanpa penerusan itu),
+   pemeriksaannya gagal dan kartu masuknya jatuh ke data contoh sendiri.
+
+   Tiga hal yang datang dari server: daftar unit, isu (jadi papan trouble),
+   dan catatan logbook. Peralatan, sparepart, jadwal dinas, dan sejarah
+   peralatan tetap contoh — modulnya memang belum ada di sana, dan itu
+   ditandai terang-terangan di layar supaya tidak ada yang mengira angkanya
+   nyata.
+
+   Keluar dari prototipe TIDAK memutus sesi E-Logbook. Cookie sesinya milik
+   aplikasi yang sungguhan; memanggil /api/logout dari sini akan menendang
+   pemakainya keluar dari tab E-Logbook yang mungkin sedang ia pakai.
+   ======================================================================= */
+
+const SRV = {
+  ada:   false,   // server E-Logbook menjawab di alamat yang sama
+  sesi:  null,    // { username, nama, role } kalau cookie sesinya masih hidup
+  mode:  'contoh',// sumber data yang sedang dipilih: 'contoh' | 'server'
+  aktif: false,   // data yang sedang tampil benar-benar dari server
+  unit:  [],      // kode unit yang berhasil diambil
+  jam:   null     // kapan data itu diambil
+};
+
+const PERAN_SERVER = { admin:'Administrator', pejabat:'Pejabat / Manager', teknisi:'Teknisi' };
+const ADEGAN_UNIT = Object.fromEntries(CONTOH.UNIT.map(u=>[u.kode, u.adegan]));
+
+/** Ambil bagian tanggal dari apa pun bentuk kiriman server ('2026-08-14', ISO penuh). */
+const isoTgl = (x) => { const m = String(x||'').match(/\d{4}-\d{2}-\d{2}/); return m ? m[0] : ''; };
+const isoHariIni = () => new Date(Date.now() - new Date().getTimezoneOffset()*60000)
+  .toISOString().slice(0,10);
+
+/** fetch dengan batas waktu — server yang menggantung tidak boleh membekukan kartu masuk. */
+async function srvFetch(jalur, opsi = {}, ms = 8000){
+  const henti = new AbortController();
+  const jam = setTimeout(()=>henti.abort(), ms);
+  try{ return await fetch(jalur, { credentials:'same-origin', signal:henti.signal, ...opsi }); }
+  finally{ clearTimeout(jam); }
+}
+
+/** Panggil API E-Logbook. Bentuknya sama persis dengan gsRun di aplikasinya:
+    POST /api/<fn> dengan body { args:[...] }. */
+async function srvApi(fn, ...args){
+  const r = await srvFetch('/api/'+fn, {
+    method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ args })
+  }, 20000);
+  const data = await r.json().catch(()=>null);
+  if(!r.ok) throw new Error((data && data.error) || ('server menjawab '+r.status));
+  return data ? data.result : null;
+}
+
+/** Sekali di awal: apakah ada server E-Logbook di alamat ini, dan apakah
+    sesinya masih hidup. 401 tetap berarti "servernya ada" — cuma belum masuk. */
+async function srvPeriksa(){
+  try{
+    const r = await srvFetch('/api/me', {}, 5000);
+    const j = await r.json().catch(()=>null);
+    // Halaman 404 milik server statis lain juga menjawab, tapi bukan JSON —
+    // itu sebabnya jawabannya harus benar-benar terbaca sebelum diakui.
+    SRV.ada  = (r.status === 200 || r.status === 401) && !!j;
+    SRV.sesi = (r.status === 200 && j && j.user) ? j.user : null;
+  }catch(e){
+    SRV.ada = false; SRV.sesi = null;
+  }
+  el('btnSumberServer').disabled = !SRV.ada;
+  pilihSumber(SRV.ada ? 'server' : 'contoh');
+}
+
+function pilihSumber(mode){
+  if(mode === 'server' && !SRV.ada) mode = 'contoh';
+  SRV.mode = mode;
+  const server = mode === 'server';
+  el('btnSumberServer').classList.toggle('km-pilih', server);
+  el('btnSumberContoh').classList.toggle('km-pilih', !server);
+  el('kotakAkunContoh').classList.toggle('km-samar', server);
+  el('iUser').placeholder = server ? 'username E-Logbook Anda' : 'mis. radtel';
+  el('iPass').placeholder = server
+    ? (SRV.sesi ? 'kosongkan — sesi Anda masih aktif' : 'password akun E-Logbook')
+    : 'prototipe — tidak diperiksa';
+  el('ketAkunContoh').textContent = server
+    ? 'Akun contoh di atas hanya berlaku untuk data contoh. Menekan salah satunya memindahkan sumber data ke sana.'
+    : 'Ini prototipe: sandinya tidak diperiksa dan tidak ada data sungguhan di baliknya. Pemeriksaan akun yang asli tetap milik server E-Logbook.';
+  el('btnMasuk').textContent = server && SRV.sesi
+    ? 'Lanjutkan sebagai ' + (SRV.sesi.nama || SRV.sesi.username)
+    : 'Masuk';
+  if(server && SRV.sesi && !el('iUser').value) el('iUser').value = SRV.sesi.username;
+  srvKet();
+  kmSegarkanSesi();
+}
+
+/** Baris status di bawah pemilih sumber. */
+function srvKet(teks, rupa){
+  const k = el('ketSumber');
+  if(!teks){
+    if(!SRV.ada){
+      teks = 'Server E-Logbook tidak terjawab. Pastikan servernya jalan (npm start di E-LogBook-Server) untuk memakai data nyata.';
+      rupa = 'km-awas';
+    }else if(SRV.mode === 'contoh'){
+      teks = 'Server terjawab, tapi yang dipakai data contoh. Semua angka di layar karangan.';
+      rupa = '';
+    }else if(SRV.sesi){
+      teks = 'Sesi E-Logbook aktif sebagai ' + (SRV.sesi.nama || SRV.sesi.username) +
+             '. Tekan lanjut tanpa mengisi password.';
+      rupa = 'km-baik';
+    }else{
+      teks = 'Server terjawab. Masuk dengan akun E-Logbook Anda untuk memakai data nyata.';
+      rupa = 'km-baik';
+    }
+  }
+  k.className = 'km-sumber-ket ' + (rupa || '');
+  k.querySelector('span').textContent = teks;
+}
+
+el('btnSumberServer').addEventListener('click', ()=>pilihSumber('server'));
+el('btnSumberContoh').addEventListener('click', ()=>pilihSumber('contoh'));
+
+async function masukServer(){
+  const u = el('iUser').value.trim();
+  const p = el('iPass').value;
+  const btn = el('btnMasuk');
+  const teksAsli = btn.textContent;
+  btn.disabled = true;
+  try{
+    // Sesi yang sudah hidup dipakai apa adanya — password tidak diminta dua
+    // kali hanya karena halamannya berbeda.
+    const pakaiSesi = !!SRV.sesi && !p && (!u || u.toLowerCase() === SRV.sesi.username.toLowerCase());
+    if(!pakaiSesi){
+      if(!u || !p){ pesan('Isi username dan password akun E-Logbook Anda.'); return; }
+      btn.textContent = 'Memeriksa...';
+      srvKet('Memeriksa akun ke server...', 'km-sibuk');
+      const r = await srvFetch('/api/login', {
+        method:'POST', headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({ username:u, password:p })
+      });
+      const j = await r.json().catch(()=>({}));
+      if(!r.ok){ pesan(j.error || 'Gagal masuk ke server E-Logbook.'); srvKet(); return; }
+      SRV.sesi = j.user;
+    }
+
+    btn.textContent = 'Mengambil data...';
+    srvKet('Mengambil data dari server...', 'km-sibuk');
+    await srvMuat();
+    el('iPass').value = '';
+    bukaDashboard();
+  }catch(e){
+    console.error('Sambungan ke E-Logbook gagal:', e);
+    pesan('Gagal mengambil data dari server: ' + (e && e.message || e));
+    srvKet('Gagal mengambil data: ' + (e && e.message || e), 'km-awas');
+  }finally{
+    btn.disabled = false;
+    btn.textContent = teksAsli;
+  }
+}
+
+/**
+ * Ambil data seluruh unit yang boleh dibuka akun ini.
+ *
+ * getAllData menjawab satu unit per panggilan — itu bentuk API-nya, dan
+ * dashboard ini butuh lintas unit. Panggilan pertama dikirim tanpa unit:
+ * jawabannya membawa daftar unit yang boleh dibuka, jadi tidak perlu menebak
+ * satu pun kode unit dari sisi ini. Sisanya diambil satu per satu, dan unit
+ * yang gagal cukup dilewati — satu unit bermasalah tidak boleh menggagalkan
+ * seluruh layar.
+ */
+async function srvMuat(){
+  const awal = await srvApi('getAllData', '');
+  const paket = { [awal.unit]: awal };
+  for(const u of (awal.unitSaya || [])){
+    if(paket[u.kode]) continue;
+    try{ paket[u.kode] = await srvApi('getAllData', u.kode); }
+    catch(e){ console.warn('Unit ' + u.kode + ' dilewati:', e && e.message || e); }
+  }
+  srvPasang(awal.unitSaya || [], paket);
+}
+
+/** Terjemahkan jawaban server ke bentuk yang dipakai layar ini. */
+function srvPasang(unitSaya, paket){
+  // Data nyata harus diukur dari hari yang nyata pula; tanggal patokan data
+  // contoh akan membuat umur trouble meleset berbulan-bulan.
+  HARI_INI = new Date(new Date().toDateString());
+
+  // Daftar unit contoh dipertahankan sebagai kerangka — di dalamnya ada
+  // ilustrasi tiap unit, dan unit yang TIDAK boleh dibuka akun ini pun tetap
+  // perlu terlihat (bergembok), persis seperti di aplikasinya.
+  const peta = Object.fromEntries(unitSaya.map(u=>[u.kode, u]));
+  UNIT = CONTOH.UNIT.map(u=>{
+    const s = peta[u.kode];
+    return s ? { ...u, nama:s.nama || u.nama, alat:s.peralatan || u.alat,
+                 dinas:(Array.isArray(s.dinas) && s.dinas.length) ? s.dinas : u.dinas } : u;
+  });
+  // Unit baru di server yang belum dikenal berkas ini tetap ikut tampil.
+  unitSaya.filter(s=>!CONTOH.UNIT.some(u=>u.kode === s.kode)).forEach(s=>UNIT.push({
+    kode:s.kode, nama:s.nama || s.kode, alat:s.peralatan || '—',
+    adegan: ADEGAN_UNIT[s.kode] || 'server',
+    dinas:(Array.isArray(s.dinas) && s.dinas.length) ? s.dinas : ['Pagi','Siang','Malam','PS']
+  }));
+
+  const STATUS = new Set(['Open','Proses','Closed']);
+  TROUBLE = [];
+  LOGBOOK = {};
+  Object.entries(paket).forEach(([kode, d])=>{
+    // Isu yang sudah ditutup bukan lagi trouble — papan ini tentang yang
+    // masih menggantung.
+    (d.issues || []).forEach(i=>{
+      const status = STATUS.has(i.Status) ? i.Status : 'Open';
+      if(status === 'Closed') return;
+      TROUBLE.push({
+        unit: kode,
+        alat: '',                       // isu di server belum menunjuk peralatan tertentu
+        jenis: i.Jenis || '—',
+        ket:   i.Keterangan || '—',
+        lokasi:i.Lokasi || '—',
+        status,
+        tgl:   isoTgl(i.TanggalReport) || isoTgl(i.DibuatPada) || isoHariIni(),
+        pic:   i.DilaporkanOleh || i.DiinputOleh || '—'
+      });
+    });
+    LOGBOOK[kode] = (d.entries || []).slice(0, 6).map(e=>({
+      tgl:     isoTgl(e.Tanggal) || isoTgl(e.DibuatPada) || isoHariIni(),
+      jam:     e.Jam || '—',
+      selesai: e.JamSelesai || '',
+      frek:    e.Frek || '',
+      dinas:   e.Dinas || '—',
+      uraian:  e.Uraian || '—',
+      pj:      e.PJNama || e.TeknisiNama || e.DiinputOleh || '—'
+    }));
+  });
+
+  const kodeBoleh = unitSaya.map(u=>u.kode);
+  akun = {
+    user:  SRV.sesi.username,
+    nama:  SRV.sesi.nama || SRV.sesi.username,
+    peran: PERAN_SERVER[SRV.sesi.role] || SRV.sesi.role || 'Pengguna',
+    unit:  UNIT.every(u=>kodeBoleh.includes(u.kode)) ? 'semua' : kodeBoleh
+  };
+
+  SRV.aktif = true;
+  SRV.unit  = kodeBoleh;
+  SRV.jam   = new Date();
+  gambarKetSumber();
+}
+
+/** Kembali ke data contoh — dipakai saat masuk lewat akun contoh. */
+function pakaiContoh(){
+  UNIT = CONTOH.UNIT; TROUBLE = CONTOH.TROUBLE; LOGBOOK = CONTOH.LOGBOOK;
+  HARI_INI = new Date('2026-08-14T00:00:00');
+  SRV.aktif = false; SRV.unit = []; SRV.jam = null;
+  gambarKetSumber();
+}
+
+/** Pita di puncak dashboard: satu kalimat tentang data yang sedang dilihat. */
+function gambarKetSumber(){
+  const jam = SRV.jam ? SRV.jam.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}) : '';
+  el('pitaCap').textContent = SRV.aktif ? 'TERSAMBUNG' : 'PROTOTIPE';
+  el('pitaKet').textContent = SRV.aktif
+    ? `Unit, trouble, dan logbook diambil dari server E-Logbook pukul ${jam} `
+      + `(${SRV.unit.length} unit). Peralatan, sparepart, jadwal dinas, dan sejarah masih data contoh.`
+    : 'Contoh tampilan — belum tersambung ke server. Semua angka di halaman ini data karangan.';
+}
+
+/** Catatan penanda di layar unit, hanya saat datanya nyata. */
+const catatanContoh = (teks) => SRV.aktif
+  ? `<div class="catatan"><b>Masih data contoh.</b> ${teks}</div>` : '';
+
+kmMulai();      // konsol masuk: jam, panggung 3D, tombol pembuka kartu
+srvPeriksa();   // lalu tanya server: ada, dan sesinya masih hidup?
+
+/* =======================================================================
+   JAM DAN NAVIGASI
+   ======================================================================= */
+function jalanJam(){
+  const n = new Date(), p = (x)=>String(x).padStart(2,'0');
+  el('jamUtc').textContent = p(n.getUTCHours())+':'+p(n.getUTCMinutes())+':'+p(n.getUTCSeconds());
+  const w = new Date(n.getTime() + (7*60 + n.getTimezoneOffset())*60000);
+  el('jamWib').textContent = p(w.getHours())+':'+p(w.getMinutes())+':'+p(w.getSeconds());
+  el('tglWib').textContent = w.toLocaleDateString('id-ID',{weekday:'short',day:'numeric',month:'short'});
+}
+setInterval(jalanJam, 1000); jalanJam();
+
+function pindahLayar(nama){
+  document.querySelectorAll('.layar').forEach(s=>s.classList.toggle('aktif', s.id === 'l'+'-'+nama));
+  document.querySelectorAll('#rel button').forEach(b=>b.classList.toggle('aktif', b.dataset.layar === nama));
+  // Cincin baru bisa diukur setelah berandanya benar-benar tampil.
+  if(nama === 'beranda') aturCincin();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+el('rel').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(b) pindahLayar(b.dataset.layar);
+});
+el('tombolTema').addEventListener('click', ()=>{
+  const h = document.documentElement;
+  h.dataset.tema = h.dataset.tema === 'terang' ? 'gelap' : 'terang';
+});
+el('btnJeda').addEventListener('click', ()=>{
+  const o = el('orbit'); o.classList.toggle('jeda');
+  el('btnJeda').textContent = o.classList.contains('jeda') ? 'Jalankan putaran' : 'Jeda putaran';
+});
+
+/* =======================================================================
+   CINCIN PERALATAN — putarannya animasi CSS, JS hanya menaruh kartunya
+   ======================================================================= */
+function gambarCincin(){
+  const n = UNIT.length, langkah = 360/n, durasi = 36;
+  el('cincin').innerHTML = UNIT.map((u,i)=>{
+    const t = TROUBLE.filter(x=>x.unit === u.kode);
+    const open = t.filter(x=>x.status === 'Open').length;
+    const lampu = open ? 'merah' : t.length ? 'kuning' : 'hijau';
+    const cip = open ? `<span class="cip bahaya">${open} open</span>`
+              : t.length ? `<span class="cip awas">${t.length} proses</span>`
+              : `<span class="cip aman">normal</span>`;
+    const minim = PART.filter(p=>p.unit === u.kode && p.stok < p.min).length;
+    const buka = bolehBuka(u.kode);
+    // Kartu i berada tepat di depan pada detik ke i*(durasi/n); geser fasa
+    // sorotnya ke sana supaya redup-terangnya cocok dengan posisi sebenarnya.
+    const fasa = (i*durasi/n - durasi).toFixed(2);
+    return `<article class="kartu-orbit ${buka?'':'terkunci'}" data-unit="${u.kode}"
+              style="animation-delay:${fasa}s">
+      <div class="bingkai">
+        <span class="lampu ${lampu}"></span>
+        ${adegan(u.adegan)}
+        ${buka ? '' : `<span class="gembok" title="Akun ini tidak berhak membuka unit tersebut">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></span>`}
+        <span class="tanda-ilus">ILUSTRASI · SLOT FOTO</span>
+      </div>
+      <div class="isi">
+        <div class="nama">${esc(u.nama)}</div>
+        <div class="alat">${esc(u.alat)}</div>
+        <div class="kaki">${cip}${minim?`<span class="cip awas">${minim} part minim</span>`:''}</div>
+      </div>
+    </article>`;
+  }).join('');
+
+  aturCincin();
+  el('cincin').querySelectorAll('.kartu-orbit').forEach(k=>{
+    k.addEventListener('click', ()=>{
+      const kode = k.dataset.unit;
+      if(!bolehBuka(kode)){ pesan('Akun '+akun.user+' tidak berhak membuka unit '+namaUnit(kode)+'.'); return; }
+      bukaUnit(kode);
+    });
+  });
+}
+
+/* Jari-jari cincin mengikuti lebar layar. Terlalu besar di layar sempit dan
+   kartunya keluar dari bingkai; terlalu kecil dan kartunya saling tindih. */
+function aturCincin(){
+  const lebar = el('orbit').clientWidth;
+  // Lebar 0 berarti beranda sedang tidak tampil. Mengukur di keadaan itu
+  // menghasilkan jari-jari asal-asalan yang tidak pernah dibetulkan lagi saat
+  // beranda dibuka kembali — jadi lebih baik ditunda sampai ada yang bisa diukur.
+  if(!lebar) return;
+  const jari = Math.max(210, Math.min(360, lebar * 0.34));
+  const langkah = 360/UNIT.length;
+  el('cincin').querySelectorAll('.kartu-orbit').forEach((k,i)=>{
+    k.style.transform = `rotateY(${i*langkah}deg) translateZ(${jari}px)`;
+  });
+}
+addEventListener('resize', aturCincin);
+
+/* =======================================================================
+   UBIN DAN TABEL UMUM
+   ======================================================================= */
+const ubin = (w,label,angka,sub)=>`<div class="ubin ${w}">
+  <span class="label">${label}</span><div class="angka">${angka}</div><div class="sub">${sub}</div></div>`;
+
+function gambarUbin(){
+  const open = TROUBLE.filter(t=>t.status === 'Open').length;
+  const proses = TROUBLE.filter(t=>t.status === 'Proses').length;
+  const tua = TROUBLE.filter(t=>umurHari(t.tgl) > 14).length;
+  const minim = PART.filter(p=>p.stok < p.min).length;
+  const orang = UNIT.reduce((n,u)=>n + dinasUnit(u.kode).reduce((m,x)=>m+x.o.length,0), 0);
+
+  el('ubin').innerHTML =
+    ubin('merah','Trouble Open',open,'belum ditangani') +
+    ubin('kuning','Sedang Proses',proses,'sudah ada penanganan') +
+    ubin('kuning','Lewat 14 Hari',tua,'menggantung terlalu lama') +
+    ubin('biru','Personel Dinas',orang,'di seluruh unit hari ini') +
+    ubin(minim?'merah':'hijau','Sparepart Minim',minim,'stok di bawah batas');
+
+  el('ubinTrouble').innerHTML =
+    ubin('merah','Open',open,'belum ditangani') +
+    ubin('kuning','Proses',proses,'sudah dikerjakan') +
+    ubin('kuning','Lewat 14 Hari',tua,'perlu didorong') +
+    ubin('biru','Unit Terdampak',new Set(TROUBLE.map(t=>t.unit)).size,'dari '+UNIT.length+' unit');
+
+  el('lencanaTrouble').textContent = open + proses;
+}
+
+function barisTrouble(t, tanpaUnit){
+  const h = umurHari(t.tgl);
+  const warna = h>14 ? 'var(--fail)' : h>7 ? 'var(--warn)' : 'var(--accent)';
+  return `<tr>
+    ${tanpaUnit ? '' : `<td><span class="mono" style="color:var(--accent)">${esc(namaUnit(t.unit))}</span><br>
+        <span class="mono" style="color:var(--muted);font-size:10.5px">${esc(t.jenis)}</span></td>`}
+    <td>${esc(t.ket)}<br><span class="mono" style="color:var(--muted);font-size:10.5px">${esc(t.lokasi)} · ${esc(t.pic)}</span></td>
+    <td><span class="tag ${t.status.toLowerCase()}">${esc(t.status)}</span></td>
+    <td><div class="umur"><span class="batang"><i style="width:${Math.min(100,h/21*100)}%;background:${warna}"></i></span>
+        <span class="mono" style="color:${warna}">${h} hr</span></div>
+        <span class="mono" style="color:var(--muted);font-size:10px">${tglIndo(t.tgl)}</span></td>
+  </tr>`;
+}
+const KEPALA_TROUBLE = `<thead><tr><th>Unit / Peralatan</th><th>Uraian</th><th>Status</th><th>Umur</th></tr></thead>`;
+
+function gambarTrouble(){
+  const urut = [...TROUBLE].sort((a,b)=>umurHari(b.tgl)-umurHari(a.tgl));
+  el('tblTrouble').innerHTML = KEPALA_TROUBLE + `<tbody>${urut.map(t=>barisTrouble(t)).join('')}</tbody>`;
+
+  // Versi beranda bukan tabel melainkan pita berjalan. Tabel tidak bisa
+  // digandakan mulus untuk perulangan — barisnya terikat pada satu <tbody>,
+  // dan tinggi barisnya ikut menyesuaikan isi kolom, jadi titik sambungnya
+  // tidak pernah pas. Daftar kartu bisa.
+  const kartu = urut.map(t=>{
+    const h = umurHari(t.tgl);
+    const w = h>14 ? 'var(--fail)' : h>7 ? 'var(--warn)' : 'var(--accent)';
+    return `<article class="trouble-baris ${t.status.toLowerCase()}" data-unit="${t.unit}"
+              title="Buka database unit ${esc(namaUnit(t.unit))}">
+      <span class="pita-status"></span>
+      <div class="atas">
+        <span class="unit">${esc(namaUnit(t.unit))} · ${esc(t.jenis)}</span>
+        <span class="tag ${t.status.toLowerCase()}">${esc(t.status)}</span>
+      </div>
+      <div class="ket-isi">${esc(t.ket)}</div>
+      <div class="bawah">
+        <span class="jejak">${esc(t.lokasi)} · ${esc(t.pic)} · sejak ${tglIndo(t.tgl)}</span>
+        <span class="lencana-umur" style="color:${w}">${h} hari</span>
+      </div>
+    </article>`;
+  }).join('');
+
+  isiTiker('tikerTrouble', kartu, urut.length * 2.7);
+}
+
+/* Pendengar dipasang sekali di sini, bukan di dalam gambarTrouble. Kotak
+   pitanya tidak ikut diganti saat isinya digambar ulang, jadi memasangnya di
+   sana akan menumpuk satu pendengar tiap kali ada yang masuk kembali. */
+el('tikerTrouble').addEventListener('click', e=>{
+  const b = e.target.closest('.trouble-baris'); if(!b) return;
+  const kode = b.dataset.unit;
+  if(!bolehBuka(kode)){ pesan('Akun '+akun.user+' tidak berhak membuka unit '+namaUnit(kode)+'.'); return; }
+  bukaUnit(kode);
+});
+
+// Tombol jeda tiap pita
+document.querySelectorAll('[data-jeda]').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    const kotak = el(b.dataset.jeda);
+    kotak.classList.toggle('jeda');
+    b.textContent = kotak.classList.contains('jeda') ? 'Jalankan' : 'Jeda';
+  });
+});
+
+/** Isi satu pita dengan daftarnya dicetak dua kali, lalu samakan lama satu
+    putaran dengan banyaknya isi supaya kecepatannya tetap sama di mana pun. */
+function isiTiker(idKotak, isi, detik){
+  el(idKotak).innerHTML = `<div class="jalur" style="animation-duration:${detik.toFixed(1)}s"
+    >${isi}${isi}</div>`;
+}
+
+/* =======================================================================
+   DINAS
+   ======================================================================= */
+function kartuShift(s, kodeUnit){
+  const [m,sel] = JAM_SHIFT[s.k] || [0,0];
+  const warna = WARNA_SHIFT[s.k] || 'var(--muted)';
+  const j = new Date().getHours();
+  const sedang = (j >= m && j < sel) || (sel > 24 && j < sel-24);
+  return `<div class="dinas-kartu">
+    <span class="pita-sisi" style="background:${warna}"></span>
+    ${sedang && s.o.length ? '<span class="sedang-dinas">SEDANG DINAS</span>' : ''}
+    <div class="kode" style="color:${warna}">${esc(s.k)}</div>
+    <div class="jam-shift">${String(m).padStart(2,'0')}:00 – ${String(sel%24).padStart(2,'0')}:00 WIB</div>
+    ${s.o.length ? s.o.map(o=>`<div class="orang">
+        <span class="avatar" style="color:${warna}">${inisial(o.n)}</span>
+        <span><span class="nm">${esc(o.n)}</span><br><span class="pr">${esc(o.p)}</span></span>
+      </div>`).join('')
+      : `<div class="orang"><span class="avatar">—</span><span class="pr">tidak ada personel</span></div>`}
+  </div>`;
+}
+
+function gambarDinas(){
+  const tgl = HARI_INI.toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  el('ketTanggal').textContent = tgl;
+  el('ketTanggal2').textContent = tgl + ' — seluruh unit, terlihat oleh semua akun.';
+
+  // Pita beranda memuat seluruh personel yang berdinas hari ini, lintas unit,
+  // dengan yang sedang bertugas jam ini didahulukan. Sempat hanya menampilkan
+  // yang sedang bertugas — dan pada jam pergantian panelnya kosong melompong.
+  const j = new Date().getHours();
+  const semua = [];
+  UNIT.forEach(u=>dinasUnit(u.kode).forEach(s=>{
+    const [m,sel] = JAM_SHIFT[s.k] || [0,0];
+    const sedang = (j >= m && j < sel) || (sel > 24 && j < sel-24);
+    s.o.forEach(o=>semua.push({...o, unit:u.kode, k:s.k, m, sel, sedang}));
+  }));
+  semua.sort((a,b)=>(b.sedang - a.sedang) || (a.m - b.m));
+
+  const kartuOrang = semua.map(o=>{
+    const w = WARNA_SHIFT[o.k] || 'var(--muted)';
+    return `<article class="kartu-orang" style="--w:${w}">
+      <span class="av3d">${inisial(o.n)}</span>
+      <span class="teks"><span class="nm">${esc(o.n)}</span>
+        <span class="pr">${esc(namaUnit(o.unit))} · ${esc(o.p)}</span></span>
+      <span class="kanan">
+        <span class="jam-kecil">dinas ${esc(o.k)} · ${String(o.m).padStart(2,'0')}:00–${String(o.sel%24).padStart(2,'0')}:00</span>
+        <span class="nyala ${o.sedang?'':'diam'}">${o.sedang?'SEDANG DINAS':'BELUM/SUDAH'}</span>
+      </span>
+    </article>`;
+  }).join('');
+  isiTiker('tikerDinas', kartuOrang, semua.length * 2.1);
+
+  // Penuh: dikelompokkan per unit
+  el('dinasPenuh').innerHTML = UNIT.map(u=>`
+    <div style="margin-bottom:20px">
+      <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:10px">
+        <h3 style="font-size:14px">${esc(u.nama)}</h3>
+        <span class="mono" style="font-size:10.5px;color:var(--muted)">kode dinas: ${u.dinas.join(' · ')}</span>
+      </div>
+      <div class="dinas-baris">${dinasUnit(u.kode).map(s=>kartuShift(s,u.kode)).join('')}</div>
+    </div>`).join('');
+
+  const blok = ['Pagi','Siang','Malam','PS'].map(k=>{
+    const [m,sel] = JAM_SHIFT[k];
+    const kiri = m/24*100, lebar = (sel-m)/24*100;
+    return `<span class="blok-shift" style="left:${kiri}%;width:${Math.min(lebar,100-kiri)}%;
+      background:${WARNA_SHIFT[k]};opacity:.22;color:var(--text)">${k}</span>`;
+  }).join('');
+  const n = new Date();
+  el('pitaJam').innerHTML = blok +
+    `<span class="sekarang" style="left:${((n.getHours()*60+n.getMinutes())/1440*100).toFixed(2)}%"></span>`;
+  el('skalaJam').innerHTML = [0,4,8,12,16,20,24].map(h=>`<span>${String(h%24).padStart(2,'0')}:00</span>`).join('');
+}
+
+/* =======================================================================
+   DATABASE UNIT — isinya berbeda per unit, aksesnya berbeda per peran
+   ======================================================================= */
+function gambarPilihUnit(){
+  const boleh = unitBoleh();
+  el('ketAkses').textContent = akun.unit === 'semua'
+    ? `Peran ${akun.peran} — seluruh ${UNIT.length} unit terbuka.`
+    : `Peran ${akun.peran} — ${boleh.length} unit terbuka untuk akun ini.`;
+  el('pilihUnit').innerHTML = UNIT.map(u=>{
+    const buka = bolehBuka(u.kode);
+    return `<button class="btn ${u.kode===unitDibuka?'':'garis'}" data-unit="${u.kode}"
+      ${buka?'':'disabled style="opacity:.42;cursor:not-allowed"'} >
+      ${buka?'':'🔒 '}${esc(u.nama)}</button>`;
+  }).join('');
+  el('pilihUnit').querySelectorAll('button[data-unit]').forEach(b=>{
+    if(!b.disabled) b.addEventListener('click', ()=>bukaUnit(b.dataset.unit));
+  });
+}
+
+function bukaUnit(kode){
+  unitDibuka = kode; subtabAktif = 'peralatan';
+  alatDipilih = (PERALATAN[kode] || [])[0] ? PERALATAN[kode][0].id : null;
+  gambarPilihUnit(); gambarUnit(); pindahLayar('unit');
+}
+
+function gambarUnit(){
+  if(!unitDibuka){
+    const boleh = unitBoleh();
+    el('isiUnit').innerHTML = `<div class="panel"><div class="badan" style="color:var(--muted);font-size:13px;line-height:1.7">
+      Pilih unit di atas untuk membuka databasenya. Akun <b style="color:var(--text)">${esc(akun.user)}</b>
+      berhak atas ${boleh.length === UNIT.length ? 'seluruh unit' : boleh.map(u=>esc(u.nama)).join(', ')}.
+      </div></div>`;
+    return;
+  }
+  const u = infoUnit(unitDibuka);
+  const alat = PERALATAN[unitDibuka] || [];
+  const trouble = TROUBLE.filter(t=>t.unit === unitDibuka).sort((a,b)=>umurHari(b.tgl)-umurHari(a.tgl));
+  const part = PART.filter(p=>p.unit === unitDibuka);
+  // Saat tersambung, unit yang memang belum punya catatan harus terlihat
+  // kosong — bukan diisi cuplikan contoh yang menyamar jadi data nyata.
+  const logUnit = LOGBOOK[unitDibuka];
+  const log = (logUnit && logUnit.length) ? logUnit : (SRV.aktif ? [] : LOGBOOK_UMUM);
+  const radkom = unitDibuka === 'radkom';
+
+  const tab = (id,teks,lencana)=>`<button data-sub="${id}" class="${subtabAktif===id?'aktif':''}">
+    ${teks}${lencana?` <span class="mono" style="opacity:.75">(${lencana})</span>`:''}</button>`;
+
+  el('isiUnit').innerHTML = `
+    <div class="kepala-unit">
+      <div class="ikon-unit">${adegan(u.adegan)}</div>
+      <div style="flex:1;min-width:200px">
+        <h2>${esc(u.nama)}</h2>
+        <div class="sub">${esc(u.alat)}</div>
+        <div class="mono" style="font-size:10.5px;color:var(--muted);margin-top:5px">
+          kode dinas ${u.dinas.join(' · ')} · ${alat.length} peralatan terdaftar</div>
+      </div>
+      <a class="btn" href="/">Buka E-Logbook unit ini</a>
+    </div>
+
+    <div class="subtab" id="subtab">
+      ${tab('peralatan','Peralatan',alat.length)}
+      ${tab('trouble','Trouble',trouble.length)}
+      ${tab('sparepart','Sparepart',part.length)}
+      ${tab('dinas','Jadwal Dinas')}
+      ${tab('logbook','E-Logbook')}
+      ${tab('dokumen','Dokumen',(BERKAS[unitDibuka] || []).length)}
+    </div>
+
+    <!-- PERALATAN -->
+    <div class="subisi ${subtabAktif==='peralatan'?'aktif':''}" id="s-peralatan">
+      <div class="alat-grid">${alat.map(a=>{
+        const t = trouble.filter(x=>x.alat === a.id).length;
+        const w = a.status==='Down'?'merah':a.status==='Warning'?'kuning':'hijau';
+        return `<article class="alat-kartu ${a.id===alatDipilih?'terpilih':''}" data-alat="${a.id}">
+          <div class="bingkai"><span class="lampu ${w}"></span>${adegan(a.adegan)}
+            <span class="tanda-ilus">ILUSTRASI</span></div>
+          <div class="isi">
+            <div class="nm">${esc(a.nama)}</div>
+            <div class="tp">${esc(a.tipe)}</div>
+            <div class="kaki">
+              <span class="cip ${w==='merah'?'bahaya':w==='kuning'?'awas':'aman'}">${esc(a.status)}</span>
+              <span class="mono" style="font-size:10px;color:var(--muted)">${esc(a.lokasi)}</span>
+            </div>
+          </div></article>`;
+      }).join('')}</div>
+      <div id="rinciAlat" style="margin-top:18px"></div>
+      ${catatanContoh('Daftar peralatan beserta sejarah dan identitasnya belum ada di E-Logbook, '
+        + 'jadi bagian ini tetap contoh walau trouble dan logbook di sebelahnya sudah nyata.')}
+    </div>
+
+    <!-- TROUBLE -->
+    <div class="subisi ${subtabAktif==='trouble'?'aktif':''}" id="s-trouble">
+      <div class="panel"><div class="kepala"><h3>Trouble ${esc(u.nama)}</h3>
+        <span class="ket">${trouble.length} catatan belum selesai</span></div>
+        ${trouble.length ? `<table>${KEPALA_TROUBLE.replace('<th>Unit / Peralatan</th>','')}
+          <tbody>${trouble.map(t=>barisTrouble(t,true)).join('')}</tbody></table>`
+          : `<div class="badan" style="color:var(--muted);font-size:12.5px">Tidak ada trouble terbuka di unit ini.</div>`}
+      </div></div>
+
+    <!-- SPAREPART -->
+    <div class="subisi ${subtabAktif==='sparepart'?'aktif':''}" id="s-sparepart">
+      <div class="panel"><div class="kepala"><h3>Sparepart ${esc(u.nama)}</h3>
+        <span class="ket">${part.filter(p=>p.stok<p.min).length} di bawah minimum</span></div>
+        ${part.length ? `<table><thead><tr><th>Sparepart</th><th>Part Number</th><th>Rak</th>
+          <th>Stok / Min</th><th>Dipakai Terakhir</th></tr></thead><tbody>${
+          [...part].sort((a,b)=>(a.stok/Math.max(a.min,1))-(b.stok/Math.max(b.min,1))).map(p=>{
+            const w = p.stok===0?'var(--fail)':p.stok<p.min?'var(--warn)':'var(--ok)';
+            return `<tr><td>${esc(p.nama)}</td><td><span class="mono">${esc(p.pn)}</span></td>
+              <td><span class="rak-kode">${esc(p.rak)}</span></td>
+              <td><span class="mono" style="color:${w};font-weight:600">${p.stok}</span>
+                  <span class="mono" style="color:var(--muted)"> / ${p.min} ${esc(p.satuan)}</span>
+                  <span class="stok-bar"><i style="width:${Math.min(100,p.stok/Math.max(p.min,1)*100)}%;background:${w}"></i></span></td>
+              <td><span class="mono" style="color:var(--muted)">${tglIndo(p.pakai)}</span></td></tr>`;
+          }).join('')}</tbody></table>`
+          : `<div class="badan" style="color:var(--muted);font-size:12.5px">Belum ada sparepart terdaftar untuk unit ini.</div>`}
+      </div>
+      ${catatanContoh('Modul Sparepart belum ada di E-Logbook — stok di tabel ini karangan.')}
+    </div>
+
+    <!-- DINAS -->
+    <div class="subisi ${subtabAktif==='dinas'?'aktif':''}" id="s-dinas">
+      <div class="dinas-baris">${dinasUnit(unitDibuka).map(s=>kartuShift(s,unitDibuka)).join('')}</div>
+      <div class="catatan"><b>Kode dinas unit ini:</b> ${u.dinas.join(' · ')}.
+        ${radkom ? 'Radkom memakai P/S/PS/M, berbeda dari unit lain — bentuk ini diambil dari daftar unit di db.js, bukan disamaratakan.'
+                 : 'Sama seperti sebagian besar unit lain.'}</div>
+      ${catatanContoh('Kode dinasnya nyata (ikut daftar unit dari server), tetapi nama '
+        + 'orang yang berdinas masih karangan — modul Jadwal Dinas belum ada di E-Logbook.')}
+    </div>
+
+    <!-- LOGBOOK -->
+    <div class="subisi ${subtabAktif==='logbook'?'aktif':''}" id="s-logbook">
+      <div class="panel"><div class="kepala"><h3>Cuplikan Logbook — ${esc(u.nama)}</h3>
+        <span class="ket">${log.length ? log.length + ' baris terakhir' : 'belum ada catatan'}</span></div>
+        ${log.length ? '' : `<div class="badan" style="color:var(--muted);font-size:12.5px">
+          Belum ada catatan logbook untuk unit ini di server.</div>`}
+        <table${log.length?'':' hidden'}><thead><tr><th>Tanggal</th><th>Jam</th>${radkom?'<th>Selesai</th><th>Frek</th>':''}
+          <th>Dinas</th><th>${radkom?'Catatan / Tindakan':'Uraian Pekerjaan / Kejadian'}</th>
+          <th>${radkom?'Manager Teknik':'Penanggung Jawab'}</th></tr></thead>
+        <tbody>${log.map(r=>`<tr>
+          <td><span class="mono">${tglIndo(r.tgl)}</span></td>
+          <td><span class="mono">${esc(r.jam)}</span></td>
+          ${radkom?`<td><span class="mono">${esc(r.selesai||'—')}</span></td>
+                    <td><span class="mono">${esc(r.frek||'—')}</span></td>`:''}
+          <td><span class="sel-shift s-${esc(r.dinas)}" style="padding:2px 8px;display:inline-block">${esc(r.dinas)}</span></td>
+          <td>${esc(r.uraian)}</td><td>${esc(r.pj)}</td></tr>`).join('')}</tbody></table>
+      </div>
+      <div class="catatan"><b>Bentuk barisnya mengikuti unit.</b>
+        ${radkom ? 'Radkom membawa jam selesai dan frekuensi; unit lain tidak punya kedua kolom itu.'
+                 : 'Unit ini tidak memakai kolom jam selesai dan frekuensi — itu khusus Radkom.'}
+        Perbedaan ini sudah berlaku di E-Logbook yang sekarang; dashboard hanya mengikutinya.</div>
+    </div>
+
+    <!-- DOKUMEN -->
+    <div class="subisi ${subtabAktif==='dokumen'?'aktif':''}" id="s-dokumen">
+      <div class="panel">
+        <div class="kepala"><h3>Dokumen ${esc(u.nama)}</h3>
+          <span class="ket">manual, sertifikat kalibrasi, berita acara, foto</span></div>
+        <div class="badan">
+          <div class="brk-atur">
+            <div><label for="brkAlat">Kaitkan ke peralatan</label>
+              <select id="brkAlat">
+                <option value="">— tidak dikaitkan —</option>
+                ${alat.map(a=>`<option value="${esc(a.id)}"${a.id===alatDipilih?' selected':''}>${esc(a.nama)}</option>`).join('')}
+              </select></div>
+            <div><label for="brkKat">Kategori</label>
+              <select id="brkKat">
+                <option value="">Tebak dari nama berkas</option>
+                ${BRK_KATEGORI.map(k=>`<option>${k}</option>`).join('')}
+              </select></div>
+          </div>
+          <label class="jatuh" id="brkJatuh">
+            <input type="file" id="brkInput" multiple>
+            <div class="ajak">Tarik berkas ke sini, atau tekan untuk memilih</div>
+            <div class="ket2">Boleh beberapa sekaligus · paling besar ${brkUkuran(BRK_BATAS)} per berkas<br>
+              Dua kotak di atas berlaku untuk berkas yang ditambahkan berikutnya.</div>
+          </label>
+        </div>
+        <div id="daftarBerkas"></div>
+      </div>
+      <div class="catatan">
+        <b>Berkasnya tidak dikirim ke mana pun.</b> Daftar ini hidup di memori tab peramban saja —
+        menyegarkan halaman mengosongkannya, dan tidak ada satu byte pun yang sampai ke server
+        E-Logbook. Yang diuji di sini bentuk alurnya: apa yang ditanyakan saat berkas masuk,
+        dan seperti apa daftarnya setelah terisi. Tempat penyimpanan dan hak buka berkas
+        adalah keputusan berikutnya, bukan bagian prototipe ini.
+      </div>
+    </div>`;
+
+  el('subtab').addEventListener('click', e=>{
+    const b = e.target.closest('button'); if(!b) return;
+    subtabAktif = b.dataset.sub;
+    el('subtab').querySelectorAll('button').forEach(x=>x.classList.toggle('aktif', x === b));
+    document.querySelectorAll('#isiUnit .subisi').forEach(s=>
+      s.classList.toggle('aktif', s.id === 's-'+subtabAktif));
+  });
+  el('isiUnit').querySelectorAll('.alat-kartu').forEach(k=>{
+    k.addEventListener('click', ()=>{
+      alatDipilih = k.dataset.alat;
+      el('isiUnit').querySelectorAll('.alat-kartu').forEach(x=>
+        x.classList.toggle('terpilih', x === k));
+      // Peralatan yang dipilih di sini ikut jadi kaitan berkas berikutnya,
+      // supaya menambah foto alat tidak perlu memilih alatnya dua kali.
+      if(el('brkAlat')) el('brkAlat').value = alatDipilih;
+      gambarRinciAlat();
+    });
+  });
+  gambarRinciAlat();
+  brkPasang();
+}
+
+function gambarRinciAlat(){
+  const kotak = el('rinciAlat'); if(!kotak) return;
+  const alat = (PERALATAN[unitDibuka] || []).find(a=>a.id === alatDipilih);
+  if(!alat){ kotak.innerHTML = ''; return; }
+  const riwayat = SEJARAH[alat.id];
+  const spek = SPEK[alat.id];
+  kotak.innerHTML = `<div class="grid2">
+    <div class="panel"><div class="kepala"><h3>Sejarah — ${esc(alat.nama)}</h3>
+      <span class="ket">terbaru di atas</span></div>
+      <div class="badan">${riwayat ? `<div class="riwayat">${riwayat.map(b=>`
+        <div class="butir ${b.warna}"><div class="tgl">${tglIndo(b.tgl)}</div>
+          <div class="kepala-butir">${esc(b.judul)}</div>
+          <div class="rinci">${esc(b.rinci)}</div></div>`).join('')}</div>`
+        : `<div style="color:var(--muted);font-size:12.5px;line-height:1.7">
+             Riwayat peralatan ini belum diisi pada contoh. Di aplikasi sungguhan isinya dirangkai
+             dari baris logbook, isu, dan LTK yang sudah menyebut peralatan ini.</div>`}
+      </div></div>
+    <div class="panel"><div class="kepala"><h3>Identitas</h3></div>
+      <div class="badan"><div class="spek">
+        ${(spek ? Object.entries(spek) : [['Tipe',alat.tipe],['Lokasi',alat.lokasi],['Status',alat.status]])
+          .map(([k,v])=>`<div><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div></div>`).join('')}
+      </div></div></div>
+  </div>`;
+}
+
+/* =======================================================================
+   DOKUMEN UNIT — satu-satunya tempat halaman ini menerima masukan
+
+   Berkasnya TIDAK diunggah ke mana pun. Yang disimpan cuma object URL di
+   memori tab ini, jadi begitu halaman disegarkan seluruh daftarnya hilang.
+   Disengaja: yang perlu dilihat lebih dulu adalah bentuk alurnya — apa yang
+   ditanyakan waktu berkas masuk, dan seperti apa daftarnya setelah terisi —
+   sebelum ada keputusan berkasnya mau ditaruh di mana dan siapa yang boleh
+   membukanya. Prototipe ini tetap tidak menyentuh satu berkas pun milik
+   E-Logbook, termasuk servernya.
+   ======================================================================= */
+const BERKAS = {};                       // kode unit -> array berkas, terbaru di atas
+const BRK_BATAS = 25 * 1024 * 1024;      // 25 MB; object URL hidup di memori tab
+let brkNomor = 0;
+
+const BRK_KATEGORI = ['Manual','Sertifikat','Berita Acara','Foto','Lainnya'];
+
+const brkUkuran = (b) => b < 1024 ? b + ' B'
+  : b < 1048576 ? (b/1024).toFixed(b < 10240 ? 1 : 0) + ' KB'
+  : (b/1048576).toFixed(b < 10485760 ? 1 : 0) + ' MB';
+
+const brkEkstensi = (nama) => {
+  const t = nama.lastIndexOf('.');
+  return t > 0 ? nama.slice(t+1).toUpperCase().slice(0,4) : 'BIN';
+};
+
+/* MIME Office panjangnya 70 karakter lebih. Dicetak apa adanya, satu baris
+   .docx melebarkan kolom Berkas sampai menghimpit lima kolom sisanya. */
+const BRK_JENIS = {
+  'application/pdf':'Dokumen PDF', 'application/zip':'Arsip ZIP',
+  'application/msword':'Dokumen Word', 'application/vnd.ms-excel':'Lembar Excel',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document':'Dokumen Word',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':'Lembar Excel',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation':'Salindia PowerPoint',
+  'text/plain':'Teks', 'text/csv':'Tabel CSV'
+};
+const brkJenis = (jenis) => {
+  if(!jenis) return 'jenis tidak dikenal';
+  if(BRK_JENIS[jenis]) return BRK_JENIS[jenis];
+  if(jenis.startsWith('image/')) return 'Gambar ' + jenis.slice(6).toUpperCase();
+  if(jenis.startsWith('video/')) return 'Video ' + jenis.slice(6).toUpperCase();
+  const sub = jenis.split('/')[1] || jenis;
+  return sub.length > 22 ? sub.slice(0,21) + '…' : sub;
+};
+
+/* Tebakan kategori dari nama berkas. Sengaja hanya tebakan: hasilnya selalu
+   bisa diganti lewat kolom Kategori di barisnya, karena penamaan berkas di
+   tiap unit tidak seragam. */
+function brkTebakKategori(nama, jenis){
+  if(jenis.startsWith('image/')) return 'Foto';
+  const n = nama.toLowerCase();
+  if(/manual|handbook|panduan|sop|instruction/.test(n))       return 'Manual';
+  if(/sertifik|certificate|kalibrasi|calib/.test(n))          return 'Sertifikat';
+  if(/berita.?acara|\bba[-_ ]|laporan|report/.test(n))         return 'Berita Acara';
+  return 'Lainnya';
+}
+
+const brkDaftar = () => BERKAS[unitDibuka] || (BERKAS[unitDibuka] = []);
+
+function brkTambah(daftarFile){
+  if(!unitDibuka || !daftarFile || !daftarFile.length) return;
+  const kotak  = brkDaftar();
+  const pAlat  = el('brkAlat');
+  const pKat   = el('brkKat');
+  const alat   = pAlat && pAlat.value ? pAlat.value : '';
+  const paksa  = pKat && pKat.value ? pKat.value : '';
+  let masuk = 0; const gemuk = [];
+
+  for(const f of daftarFile){
+    if(f.size > BRK_BATAS){ gemuk.push(f.name); continue; }
+    kotak.unshift({
+      id: 'brk' + (++brkNomor),
+      nama: f.name,
+      jenis: f.type || '',
+      ukuran: f.size,
+      waktu: new Date(),
+      oleh: akun ? akun.user : '—',
+      kategori: paksa || brkTebakKategori(f.name, f.type || ''),
+      alat,
+      url: URL.createObjectURL(f)
+    });
+    masuk++;
+  }
+
+  gambarBerkas(); brkLencana();
+  if(gemuk.length) pesan(`${gemuk.length} berkas dilewati — lebih dari ${brkUkuran(BRK_BATAS)}.`);
+  else if(masuk)   pesan(`${masuk} berkas masuk ke daftar ${namaUnit(unitDibuka)}.`);
+}
+
+function brkBuang(id){
+  const kotak = brkDaftar();
+  const i = kotak.findIndex(b => b.id === id); if(i < 0) return;
+  URL.revokeObjectURL(kotak[i].url);        // tanpa ini berkasnya menetap di memori
+  const [b] = kotak.splice(i, 1);
+  gambarBerkas(); brkLencana();
+  pesan(`"${b.nama}" dikeluarkan dari daftar.`);
+}
+
+/** Angka di label subtab. Dipatch langsung supaya menambah berkas tidak perlu
+    membangun ulang seluruh layar unit dan memantulkan subtab yang sedang buka. */
+function brkLencana(){
+  const tab = document.querySelector('#subtab button[data-sub="dokumen"]'); if(!tab) return;
+  const n = (BERKAS[unitDibuka] || []).length;
+  tab.innerHTML = 'Dokumen' + (n ? ` <span class="mono" style="opacity:.75">(${n})</span>` : '');
+}
+
+function gambarBerkas(){
+  const kotak = el('daftarBerkas'); if(!kotak) return;
+  const isi = BERKAS[unitDibuka] || [];
+  if(!isi.length){
+    kotak.innerHTML = `<div class="badan" style="color:var(--muted);font-size:12.5px;line-height:1.7">
+      Belum ada berkas di unit ini. Tarik berkas ke kotak di atas, atau tekan kotaknya
+      untuk memilih dari komputer.</div>`;
+    return;
+  }
+  const alatUnit = PERALATAN[unitDibuka] || [];
+  // Pembungkus yang bisa digulir: enam kolom tidak muat di lebar HP, dan .panel
+  // memotong apa pun yang lewat. Tanpa ini kolom Keluarkan hilang di layar kecil.
+  kotak.innerHTML = `<div class="gulir" style="max-height:none">
+    <table><thead><tr><th>Berkas</th><th>Kategori</th><th>Peralatan</th>
+      <th>Ukuran</th><th>Ditambahkan</th><th></th></tr></thead><tbody>${isi.map(b=>{
+    const nmAlat = (alatUnit.find(a => a.id === b.alat) || {}).nama;
+    const jam = b.waktu.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});
+    return `<tr>
+      <td><div class="brk-nama">
+        <span class="brk-rupa">${b.jenis.startsWith('image/')
+          ? `<img src="${b.url}" alt="">` : `<span>${esc(brkEkstensi(b.nama))}</span>`}</span>
+        <span><span class="n">${esc(b.nama)}</span>
+          <span class="j">${esc(brkJenis(b.jenis))}</span></span>
+      </div></td>
+      <td><select class="brk-kat" data-kat="${b.id}">${BRK_KATEGORI.map(k=>
+        `<option${k===b.kategori?' selected':''}>${k}</option>`).join('')}</select></td>
+      <td>${nmAlat ? esc(nmAlat)
+        : '<span class="mono" style="color:var(--muted)">—</span>'}</td>
+      <td><span class="mono">${brkUkuran(b.ukuran)}</span></td>
+      <td><span class="mono" style="color:var(--muted)">${jam} · ${esc(b.oleh)}</span></td>
+      <td><div style="display:flex;gap:6px;justify-content:flex-end">
+        <a class="btn garis kecil" href="${b.url}" target="_blank" rel="noopener">Buka</a>
+        <button class="brk-buang" data-buang="${b.id}">Keluarkan</button>
+      </div></td></tr>`;
+  }).join('')}</tbody></table></div>`;
+
+  kotak.querySelectorAll('[data-buang]').forEach(t =>
+    t.addEventListener('click', () => brkBuang(t.dataset.buang)));
+  kotak.querySelectorAll('[data-kat]').forEach(s =>
+    s.addEventListener('change', () => {
+      const b = (BERKAS[unitDibuka] || []).find(x => x.id === s.dataset.kat);
+      if(b) b.kategori = s.value;
+    }));
+}
+
+/** Dipanggil sekali tiap gambarUnit(), setelah innerHTML-nya diganti. */
+function brkPasang(){
+  const jatuh = el('brkJatuh'); if(!jatuh) return;
+  el('brkInput').addEventListener('change', e => {
+    brkTambah(e.target.files);
+    e.target.value = '';        // supaya berkas yang sama bisa dipilih dua kali
+  });
+  ['dragenter','dragover'].forEach(n => jatuh.addEventListener(n, e => {
+    e.preventDefault(); jatuh.classList.add('siap');
+  }));
+  ['dragleave','dragend'].forEach(n => jatuh.addEventListener(n, () => jatuh.classList.remove('siap')));
+  jatuh.addEventListener('drop', e => {
+    e.preventDefault(); jatuh.classList.remove('siap');
+    brkTambah(e.dataTransfer.files);
+  });
+  gambarBerkas();
+}
+
+/* Berkas yang meleset dari kotak jatuh akan dibuka peramban sebagai halaman
+   baru, dan seluruh sesi prototipe ini hilang tanpa peringatan. Dua baris ini
+   menahannya: di luar kotak jatuh, berkas yang dilepas tidak terjadi apa-apa. */
+window.addEventListener('dragover', e => e.preventDefault());
+window.addEventListener('drop',     e => e.preventDefault());
+
+/* =======================================================================
+   MULAI
+   ======================================================================= */
+function gambarSemua(){
+  el('avAkun').textContent = inisial(akun.nama);
+  el('nmAkun').textContent = akun.nama;
+  el('prAkun').textContent = akun.peran;
+  el('ketBeranda').textContent = akun.unit === 'semua'
+    ? 'Semua unit terbuka untuk akun ini.'
+    : 'Kartu bergembok = di luar wewenang akun ini.';
+  gambarCincin(); gambarUbin(); gambarTrouble(); gambarDinas();
+  gambarPilihUnit(); gambarUnit();
+  el('modulBaris').innerHTML = MODUL.map(m=>`<div class="modul ${m.jalan?'jalan':''}">
+    <div class="st">${esc(m.st)}</div><h4>${esc(m.nama)}</h4><p>${esc(m.ket)}</p></div>`).join('');
+}
+</script>
+</body>
+</html>

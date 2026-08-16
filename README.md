@@ -1,0 +1,96 @@
+# Dashboard Fasilitas Teknik JATSC — "Avenger"
+
+Dashboard fasilitas teknik untuk New JATSC. Aplikasi ini **berdiri sendiri**:
+punya server sendiri, halaman sendiri, dan tidak menumpang di proyek mana pun.
+
+Data yang **sudah jadi** di E-Logbook — daftar unit, isu, catatan logbook —
+tidak ditulis ulang di sini. Diambil dari servernya yang sudah jalan.
+
+## Menjalankan
+
+```bash
+npm install
+npm start
+```
+
+Lalu buka <http://localhost:3100>.
+
+Di Windows bisa juga klik dua kali `jalankan.cmd` — ia memasang dependensi kalau
+belum ada, lalu menyalakan servernya.
+
+Untuk mengembangkan, `npm run dev` menyalakan ulang server tiap berkasnya
+berubah.
+
+## Susunan berkas
+
+```
+server.js            Express: menyajikan public/ dan meneruskan /api/* ke E-Logbook
+public/
+  index.html         seluruh dashboard — satu berkas, 3.100+ baris
+  vendor/
+    three.min.js     panggung 3D layar masuk (three 0.147.0)
+    font/            Space Grotesk, IBM Plex Sans, IBM Plex Mono (subset latin)
+docs/                catatan proyek
+```
+
+Tidak ada satu pun permintaan ke internet. three.js dan fontnya ikut dibawa di
+`public/vendor/`, jadi build ini utuh di jaringan kantor yang tertutup.
+
+## Sambungan ke E-Logbook
+
+E-Logbook tetap di tempatnya:
+
+```
+D:\Airnav\2025\JATSC\New JATSC\2026\Faskompen\E-LogBook-Server
+```
+
+Berkasnya **tidak pernah disunting dari proyek ini** — statusnya sumber data dan
+tempat uji coba. Jalankan `npm start` di sana (port 3000) sebelum menyalakan
+dashboard ini kalau mau memakai data nyata.
+
+### Kenapa lewat penerusan, bukan panggilan langsung
+
+Dashboard disajikan dari `localhost:3100`, E-Logbook hidup di `localhost:3000`.
+Bagi browser itu dua asal berbeda: fetch lintas asal ditolak dan cookie sesinya
+tidak ikut terkirim. Karena diteruskan lewat `server.js`, bagi browser semuanya
+tetap satu asal — blok "Jembatan E-Logbook" di `public/index.html` jalan apa
+adanya, tanpa satu baris pun diubah dari bentuk aslinya.
+
+Jalur yang diteruskan: `/api/*` dan `/uploads/*`.
+
+### Kalau E-Logbook mati
+
+Pemeriksaan `/api/me` gagal, pilihan sumber "server" padam sendiri, dan halaman
+jatuh ke **data contoh** — semuanya karangan, dan pita di puncak layar menulis
+`PROTOTIPE` supaya tidak ada yang mengira angkanya nyata.
+
+### Yang belum nyata walau sudah tersambung
+
+Peralatan, sparepart, jadwal dinas, dan sejarah peralatan **masih data contoh**
+sekalipun sudah tersambung — modulnya memang belum ada di E-Logbook. Layarnya
+menandai ini terang-terangan di tiap tempat yang terpengaruh.
+
+## Setelan
+
+Lewat environment variable, atau salin `.env.example` jadi `.env`:
+
+| Nama            | Bawaan                  | Guna                                        |
+| --------------- | ----------------------- | ------------------------------------------- |
+| `PORT`          | `3100`                  | port aplikasi ini                           |
+| `HOST`          | `0.0.0.0`               | alamat bind                                 |
+| `ELOGBOOK_ASAL` | `http://127.0.0.1:3000` | alamat server E-Logbook                     |
+| `ELOGBOOK_MATI` | —                       | set `1` untuk memutus penerusan             |
+
+`GET /_info` menjawab setelan yang sedang dipakai — berguna untuk memastikan
+servernya menunjuk ke E-Logbook yang benar.
+
+## Asal-usul
+
+Halaman ini lahir sebagai prototipe `public/contoh/dashboard-3d.html` di dalam
+E-LogBook-Server. Salinan aslinya sengaja **tidak dihapus** dari sana: masih
+dipakai untuk uji coba dan sebagai pembanding. Sejak dipindah ke sini, yang
+dikembangkan adalah salinan di proyek ini.
+
+Layar masuknya berasal dari proyek Claude Design "Animasi Bandara Soekarno Hatta
+3D". Semua kelas dan id miliknya berawalan `km` supaya tidak bertabrakan dengan
+dashboard di bawahnya.
