@@ -36,6 +36,14 @@ const HOST  = process.env.HOST || '0.0.0.0';
 const ASAL  = (process.env.ELOGBOOK_ASAL || 'http://127.0.0.1:3000').replace(/\/+$/, '');
 const TERUS = process.env.ELOGBOOK_MATI !== '1';
 
+/* Di lingkungan tanpa penyimpanan tetap — Vercel dan sejenisnya — berkas
+   aplikasi bersifat baca-saja dan yang tertulis ke /tmp hilang begitu fungsinya
+   selesai. Galeri karena itu dimatikan di sana, dengan jawaban yang menjelaskan
+   sebabnya, bukan 500 dari fs.writeFile yang tidak berarti apa-apa bagi pemakai.
+
+   Bisa dipaksa lewat GALERI_MATI=1 untuk mencobanya di komputer sendiri. */
+const GALERI = process.env.GALERI_MATI !== '1' && !process.env.VERCEL;
+
 const app = express();
 app.disable('x-powered-by');
 
@@ -178,7 +186,16 @@ async function tulisDaftar(daftar) {
 
 const badanGaleri = express.json({ limit: '60mb' });
 
-app.post('/galeri/:unit', badanGaleri, async (req, res) => {
+/** Satu penjaga untuk kedua endpoint yang menulis. */
+function galeriHidup(_req, res, next) {
+  if (GALERI) return next();
+  res.status(503).json({
+    error: 'Galeri dimatikan di lingkungan ini: penyimpanannya tidak permanen, '
+         + 'jadi foto yang diunggah akan hilang dengan sendirinya.'
+  });
+}
+
+app.post('/galeri/:unit', galeriHidup, badanGaleri, async (req, res) => {
   const unit = String(req.params.unit || '').toLowerCase();
   if (!unitSah(unit)) return res.status(400).json({ error: 'Kode unit tidak sah.' });
 
@@ -222,7 +239,7 @@ app.post('/galeri/:unit', badanGaleri, async (req, res) => {
   }
 });
 
-app.delete('/galeri/:unit/:berkas', async (req, res) => {
+app.delete('/galeri/:unit/:berkas', galeriHidup, async (req, res) => {
   const unit = String(req.params.unit || '').toLowerCase();
   const nama = berkasSah(req.params.berkas);
   if (!unitSah(unit) || !nama) return res.status(400).json({ error: 'Permintaan tidak sah.' });
@@ -262,7 +279,15 @@ app.get('/_info', (_req, res) => {
     // null: halaman merangkainya dari hostname yang sedang ia pakai, dan
     // ELOGBOOK_TAUTAN dipakai hanya kalau alamatnya memang lain sendiri.
     tautanElogbook: process.env.ELOGBOOK_TAUTAN || null,
-    portElogbook: TERUS ? Number(new URL(ASAL).port || 80) : null
+    portElogbook: TERUS ? Number(new URL(ASAL).port || 80) : null,
+    // Dua kemampuan yang tidak selalu ada, supaya halaman tidak menawarkan
+    // tombol yang pasti gagal. Menebaknya dari sisi peramban tidak mungkin:
+    // gagalnya baru ketahuan setelah tombolnya terlanjur ditekan.
+    galeriBisaTulis: GALERI,
+    // Tanpa penerusan, alamat E-Logbook tidak bisa dirangkai dari hostname yang
+    // sedang dipakai — di cloud, hostname:3000 menunjuk entah ke mana. Hanya
+    // ELOGBOOK_TAUTAN yang berlaku di situ.
+    elogbookTerjangkau: TERUS || !!process.env.ELOGBOOK_TAUTAN
   });
 });
 
@@ -272,9 +297,21 @@ app.use(express.static(path.join(ROOT, 'public'), { extensions: ['html'] }));
    START
    ===================================================================== */
 
-app.listen(PORT, HOST, () => {
-  console.log(`Dashboard Fasilitas Teknik JATSC — http://localhost:${PORT}`);
-  console.log(TERUS
-    ? `Data E-Logbook diteruskan ke ${ASAL}`
-    : 'Penerusan E-Logbook dimatikan — halaman memakai data contoh.');
-});
+/* Dijalankan sendiri (npm start) → menyalakan server sungguhan.
+   Diimpor (api/index.js di Vercel) → hanya menyerahkan app-nya, karena di sana
+   tidak ada proses yang menyala terus: tiap permintaan memanggil fungsi, dan
+   listen() di dalamnya hanya akan menahan port yang tidak pernah dipakai. */
+const dijalankanLangsung = process.argv[1]
+  && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (dijalankanLangsung) {
+  app.listen(PORT, HOST, () => {
+    console.log(`Dashboard Fasilitas Teknik JATSC — http://localhost:${PORT}`);
+    console.log(TERUS
+      ? `Data E-Logbook diteruskan ke ${ASAL}`
+      : 'Penerusan E-Logbook dimatikan — halaman memakai data contoh.');
+    if (!GALERI) console.log('Galeri dimatikan — penyimpanan tidak permanen.');
+  });
+}
+
+export default app;

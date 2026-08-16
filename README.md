@@ -187,9 +187,45 @@ Lewat environment variable, atau salin `.env.example` jadi `.env`:
 | `ELOGBOOK_ASAL` | `http://127.0.0.1:3000` | alamat server E-Logbook                     |
 | `ELOGBOOK_MATI` | —                       | set `1` untuk memutus penerusan             |
 | `ELOGBOOK_TAUTAN` | —                     | alamat E-Logbook untuk tombol "Buka E-Logbook", kalau bukan hostname yang sama |
+| `GALERI_MATI`   | —                       | set `1` untuk mematikan unggah dan hapus foto |
+
+`GALERI_MATI` menyala sendiri kalau `VERCEL` terdeteksi — di sana berkas
+aplikasi baca-saja dan yang tertulis ke `/tmp` hilang begitu fungsinya selesai.
 
 `GET /_info` menjawab setelan yang sedang dipakai — berguna untuk memastikan
-servernya menunjuk ke E-Logbook yang benar.
+servernya menunjuk ke E-Logbook yang benar. Dua kolomnya, `galeriBisaTulis` dan
+`elogbookTerjangkau`, dipakai halaman untuk tidak menawarkan tombol yang pasti
+gagal: keduanya tidak bisa ditebak dari sisi peramban, gagalnya baru ketahuan
+setelah tombolnya terlanjur ditekan.
+
+## Deploy ke Vercel
+
+Yang naik ke Vercel adalah **etalase**: seluruh isinya data contoh. Bukan pilihan
+gaya — E-Logbook hidup di jaringan kantor yang tertutup, dan dari Vercel
+`127.0.0.1:3000` menunjuk ke kontainer Vercel itu sendiri. Selama E-Logbook belum
+diganti Supabase sebagai sumber data, versi yang ter-deploy tidak akan pernah
+punya data nyata.
+
+Berkas yang mengurus itu:
+
+- `api/index.js` — satu baris, menyerahkan app Express ke Vercel. Vercel
+  memanggil fungsi tiap permintaan, bukan menyalakan server; `server.js` karena
+  itu hanya memanggil `listen()` kalau dijalankan langsung.
+- `vercel.json` — `/api/*`, `/galeri/*`, dan `/_info` diarahkan ke fungsinya.
+  Sisanya berkas statis dari `public/`, disajikan Vercel langsung.
+
+Setel `ELOGBOOK_MATI=1` di environment variable proyek Vercel-nya. Tanpa itu tiap
+panggilan data menunggu 30 detik sampai batas waktu penerusan habis, baru gagal.
+Galeri mati dengan sendirinya di sana lewat deteksi `VERCEL`.
+
+Halaman menyesuaikan diri tanpa perlu diberi tahu: sumber "Server E-Logbook"
+padam sendiri, tujuan **E-Logbook** di kartu masuk ikut padam karena tidak ada
+alamat yang masuk akal untuk dituju, kotak unggah foto diganti keterangan, dan
+tombol hapus tidak digambar. Yang tersisa berjalan penuh dengan data contoh.
+
+**Belum pernah benar-benar di-deploy.** Kedua keadaan di atas diuji dengan
+menjalankan `GALERI_MATI=1 ELOGBOOK_MATI=1 npm start` di komputer sendiri, bukan
+di Vercel.
 
 ## Asal-usul
 

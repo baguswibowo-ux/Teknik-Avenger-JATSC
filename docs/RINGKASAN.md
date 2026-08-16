@@ -118,20 +118,22 @@ Dengan ini pengelolaan akun tidak perlu lagi dibuka dari dalam E-Logbook.
 ## Susunan berkas
 
 ```
-server.js              235 baris  — statis + penerusan + endpoint galeri
+server.js              317 baris  — statis + penerusan + endpoint galeri
+api/index.js                      — pintu masuk Vercel, satu baris berarti
+vercel.json                       — /api, /galeri, /_info ke fungsi; sisanya statis
 package.json                      — express, npm start / npm run dev
 jalankan.cmd                      — klik dua kali di Windows
-.env.example                      — PORT, ELOGBOOK_ASAL, ELOGBOOK_MATI, ELOGBOOK_TAUTAN
+.env.example                      — PORT, ELOGBOOK_ASAL/MATI/TAUTAN, GALERI_MATI
 README.md                         — cara jalan, susunan, alasan tiap keputusan
 public/
-  index.html         4.030 baris  — seluruh dashboard, satu berkas (215 KB)
+  index.html         4.075 baris  — seluruh dashboard, satu berkas (216 KB)
   foto/daftar.json                — keterangan galeri, ditulis server (di luar git)
   foto/<unit>/                    — berkas fotonya (di luar git)
   vendor/                  1 MB   — three.js + 18 woff2
 docs/RINGKASAN.md                 — berkas ini
 ```
 
-29 berkas terlacak git.
+31 berkas terlacak git.
 
 ## Yang masih data contoh
 
@@ -145,6 +147,36 @@ modulnya memang belum ada di sana:
 
 Layarnya menandai ini terang-terangan di tiap tempat yang terpengaruh, jadi
 tidak ada angka karangan yang menyamar jadi data nyata.
+
+## Siap di-deploy ke Vercel, sebagai etalase
+
+Repositori sudah publik di
+<https://github.com/baguswibowo-ux/Teknik-Avenger-JATSC> (cabang `utama`), dan
+aplikasinya sudah dibentuk supaya bisa berdiri di Vercel: `api/index.js`
+menyerahkan app Express-nya, `vercel.json` mengarahkan `/api`, `/galeri`, dan
+`/_info` ke fungsi itu, dan `server.js` hanya memanggil `listen()` kalau
+dijalankan langsung.
+
+Yang naik ke sana **seluruhnya data contoh**, dan itu bukan pilihan gaya.
+E-Logbook hidup di jaringan kantor yang tertutup; dari Vercel, `127.0.0.1:3000`
+adalah kontainer Vercel itu sendiri. Tiga hal di inti aplikasi bertabrakan
+dengan cloud: penerusan `/api/*` tidak punya tujuan, galeri menulis ke disk yang
+di sana baca-saja, dan `app.listen()` tidak pernah dipanggil. Yang ketiga sudah
+dibereskan; dua yang pertama baru bisa hilang kalau Supabase menggantikan
+E-Logbook sebagai sumber data.
+
+Halaman menyesuaikan diri sendiri, tanpa cabang khusus deploy: sumber "Server
+E-Logbook" padam, tujuan **E-Logbook** di kartu masuk ikut padam karena tidak ada
+alamat yang masuk akal untuk dituju, kotak unggah foto diganti keterangan, dan
+tombol hapus tidak digambar. `/_info` yang memberi tahu lewat `galeriBisaTulis`
+dan `elogbookTerjangkau` — keduanya tidak bisa ditebak dari peramban.
+
+**Belum pernah benar-benar di-deploy.** Yang diuji baru menjalankan
+`GALERI_MATI=1 ELOGBOOK_MATI=1 npm start` di komputer sendiri: `/_info` menjawab
+kedua kolomnya `false`, unggah dan hapus dijawab 503 dengan alasannya, `/api/me`
+dijawab 503, halaman tetap 200 dan jatuh ke data contoh, kotak unggah hilang dan
+tombol hapus tidak ada. Perilaku Vercel yang sebenarnya — rewrite, penyajian
+statis dari `public/`, batas ukuran fungsi — belum tersentuh.
 
 ## Yang belum selesai
 
@@ -201,7 +233,7 @@ berlaku untuk berkas yang memang terdaftar. Tetap saja: **sebelum server ini
 dibuka ke jaringan kantor, kedua endpoint itu wajib diberi pemeriksaan sesi** —
 siapa pun yang bisa menjangkau portnya bisa menaruh dan menghapus foto.
 
-**`public/index.html` masih satu berkas 4.030 baris.** Untuk jangka panjang
+**`public/index.html` masih satu berkas 4.075 baris.** Untuk jangka panjang
 sebaiknya dipecah ke `css/` dan `js/` bernomor seperti gaya E-Logbook. Dibiarkan
 utuh dulu supaya tidak ada risiko rusak sebelum bentuknya mantap.
 

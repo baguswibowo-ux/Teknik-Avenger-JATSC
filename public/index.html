@@ -2300,6 +2300,21 @@ function pilihTujuan(mode){
   if(!elog) el('iUser').focus();
 }
 
+/* Kalau tidak ada E-Logbook yang bisa dijangkau — dashboard ini berdiri sendiri
+   di cloud, misalnya — alamatnya tidak bisa dirangkai dari hostname yang sedang
+   dipakai: di sana hostname:3000 menunjuk entah ke mana. Tujuannya dimatikan,
+   bukan dibiarkan mengantar orang ke alamat mati. */
+function pasangTujuanElogbook(){
+  const b = el('btnTujuanElog');
+  b.disabled = !KEMAMPUAN.elogbook;
+  b.title = KEMAMPUAN.elogbook ? '' : 'Tidak ada server E-Logbook yang terjangkau dari sini';
+  if(!KEMAMPUAN.elogbook && !el('kmBagianElog').hidden) pilihTujuan('dashboard');
+  // /_info datang setelah srvPeriksa() sempat menulis baris statusnya, jadi
+  // barisnya digambar ulang di sini — kalau tidak, saran "jalankan servernya"
+  // tertinggal di layar yang memang tidak punya server untuk dijalankan.
+  if(!SRV.ada) srvKet();
+}
+
 function kmMulai(){
   const jam = () => {
     const n = new Date(), p = (x)=>String(x).padStart(2,'0');
@@ -2532,7 +2547,12 @@ function srvKet(teks, rupa){
   const k = el('ketSumber');
   if(!teks){
     if(!SRV.ada){
-      teks = 'Server E-Logbook tidak terjawab. Pastikan servernya jalan (npm start di E-LogBook-Server) untuk memakai data nyata.';
+      // Dua sebab yang berbeda, dan saran "jalankan servernya" hanya masuk akal
+      // untuk salah satunya. Salinan yang berdiri sendiri di luar kantor memang
+      // tidak punya E-Logbook di belakangnya — di sana itu bukan kerusakan.
+      teks = KEMAMPUAN.elogbook
+        ? 'Server E-Logbook tidak terjawab. Pastikan servernya jalan (npm start di E-LogBook-Server) untuk memakai data nyata.'
+        : 'Salinan ini berdiri sendiri, tanpa E-Logbook di belakangnya. Seluruh isinya data contoh.';
       rupa = 'km-awas';
     }else if(SRV.mode === 'contoh'){
       teks = 'Server terjawab, tapi yang dipakai data contoh. Semua angka di layar karangan.';
@@ -3060,12 +3080,21 @@ muatTautanElogbook();
    ======================================================================= */
 let TAUTAN_ELOGBOOK = '';
 
+/* Kemampuan yang tidak selalu ada, dijawab server lewat /_info. Keduanya tidak
+   bisa ditebak dari sisi peramban — gagalnya baru ketahuan setelah tombolnya
+   terlanjur ditekan, dan itu terlambat. Bawaannya "ada", supaya server lama
+   yang belum menjawab kedua kolom ini tetap berperilaku seperti sebelumnya. */
+const KEMAMPUAN = { galeriTulis:true, elogbook:true };
+
 async function muatTautanElogbook(){
   let port = 3000;
   try{
     const r = await fetch('/_info', { cache:'no-store' });
     if(r.ok){
       const j = await r.json();
+      if(typeof j.galeriBisaTulis === 'boolean')    KEMAMPUAN.galeriTulis = j.galeriBisaTulis;
+      if(typeof j.elogbookTerjangkau === 'boolean') KEMAMPUAN.elogbook    = j.elogbookTerjangkau;
+      pasangTujuanElogbook();
       if(j.tautanElogbook){ pasangTautanElogbook(j.tautanElogbook); return; }
       if(j.portElogbook) port = j.portElogbook;
     }
@@ -3524,17 +3553,20 @@ function gambarUnit(){
           <figure class="foto-kartu" data-foto="${i}">
             <div class="bing">
               <img src="/foto/${esc(unitDibuka)}/${esc(f.berkas)}" alt="${esc(f.ket)}" loading="lazy">
-              <div class="hilang">BERKAS BELUM ADA<br>${esc(f.berkas)}<br><b>TEKAN UNTUK MEMILIH</b></div>
+              <div class="hilang">BERKAS BELUM ADA<br>${esc(f.berkas)}${
+                KEMAMPUAN.galeriTulis ? '<br><b>TEKAN UNTUK MEMILIH</b>' : ''}</div>
             </div>
             <figcaption class="isi">
               <div class="ket">${esc(f.ket)}</div>
               <div class="meta">${f.tgl ? tglIndo(f.tgl) + ' · ' : ''}${esc(f.berkas)}</div>
-              <button class="buang" data-buang="${esc(f.berkas)}" title="Hapus foto ini">Hapus</button>
+              ${KEMAMPUAN.galeriTulis
+                ? `<button class="buang" data-buang="${esc(f.berkas)}" title="Hapus foto ini">Hapus</button>` : ''}
             </figcaption>
           </figure>`).join('')}</div></div>`
           : `<div class="badan" style="color:var(--muted);font-size:12.5px">Belum ada foto untuk unit ini.</div>`}
       </div>
 
+      ${KEMAMPUAN.galeriTulis ? `
       <div class="panel"><div class="kepala"><h3>Tambah foto</h3>
         <span class="ket">tersimpan permanen di server ini</span></div>
         <div class="badan">
@@ -3552,7 +3584,14 @@ function gambarUnit(){
           </label>
           <div id="galKabar" class="gal-kabar"></div>
         </div>
-      </div>
+      </div>` : `
+      <!-- Kotak unggah tidak ditawarkan kalau penyimpanannya tidak permanen.
+           Menawarkannya lalu gagal di tengah unggahan jauh lebih menjengkelkan
+           daripada mengatakannya di depan. -->
+      <div class="catatan"><b>Unggah foto tidak tersedia di sini.</b>
+        Salinan ini berjalan tanpa penyimpanan tetap, jadi foto yang diunggah akan
+        hilang dengan sendirinya. Galeri hanya bisa diisi dari server yang berjalan
+        di kantor.</div>`}
 
       <div class="catatan">
         <b>Foto sungguhan, bukan ilustrasi.</b> Berkasnya tersimpan di
@@ -3654,11 +3693,17 @@ function gambarGaleri(foto){
       // Ubin yang berkasnya belum ada berperan sebagai tombol: ia mengisi
       // slot itu, jadi nama berkas dan keterangannya sudah ditentukan dan
       // yang diminta dari pemakai cuma gambarnya.
-      if(kartu.classList.contains('kosong')) return isiSlotFoto(unit, f, kartu);
+      // Slot kosong berperan sebagai tombol unggah — tapi hanya kalau memang
+      // ada tempat menyimpannya. Kalau tidak, ubin itu sekadar keterangan
+      // bahwa berkasnya tidak ikut.
+      if(kartu.classList.contains('kosong')){
+        return KEMAMPUAN.galeriTulis ? isiSlotFoto(unit, f, kartu) : undefined;
+      }
       bukaFotoBesar(img.src, f);
     });
 
-    kartu.querySelector('.buang').addEventListener('click', async ()=>{
+    // Tombolnya tidak digambar sama sekali kalau galeri tidak bisa ditulis.
+    kartu.querySelector('.buang')?.addEventListener('click', async ()=>{
       if(!confirm(`Hapus foto "${f.ket || f.berkas}"?\n\nBerkasnya ikut terhapus dari server.`)) return;
       kartu.classList.add('sibuk');
       try{
