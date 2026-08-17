@@ -9,6 +9,10 @@ Thumbs.db
 # setelan lokal Claude Code, bukan bagian proyek
 .claude/
 
+# Jejak Supabase CLI: berisi ref proyek yang hidup, id organisasi, dan alamat
+# pooler lengkap dengan nama pengguna basis data. Repositori ini publik.
+**/supabase/.temp/
+
 # Galeri foto: wajah pegawai di ruang terbatas, dan repositori ini publik.
 # Fotonya tinggal di komputer masing-masing; hasil clone datang dengan galeri
 # kosong dan daftar.json dibuat sendiri oleh server saat foto pertama diunggah.
