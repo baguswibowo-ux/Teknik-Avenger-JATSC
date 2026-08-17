@@ -344,7 +344,13 @@ git commit -m "Kegiatan mingguan boleh lebih dari satu hari"
   k, batal, tanggal)` dengan parameter keempat `tanggal` berbentuk `YYYY-MM-DD`
   (diabaikan untuk jenis selain mingguan).
 
-- [ ] **Langkah 1: Terima tanggal kejadian di server**
+- [x] **Langkah 1: Terima tanggal kejadian di server**
+
+Dikerjakan dengan satu perubahan dari cuplikan di bawah: daftar hari diambil
+lewat `hariDaftar(keg)` yang baru, bukan `keg.hari` apa adanya. Sisi peramban
+menormalkan hari yang kosong atau tidak sah menjadi `[1]`; kalau server tidak
+ikut menormalkan, kegiatan mingguan tanpa `hari` tergambar hari Senin di layar
+tapi ditolak servernya saat dicentang.
 
 Di `server.js`, di dalam `app.post('/berkala/selesai', ...)`, ganti baris
 `const periode = periodeSekarang(keg.jenis);` dengan:
@@ -382,7 +388,7 @@ Di `server.js`, di dalam `app.post('/berkala/selesai', ...)`, ganti baris
   }
 ```
 
-- [ ] **Langkah 2: Periksa sintaksnya**
+- [x] **Langkah 2: Periksa sintaksnya**
 
 ```bash
 node --check server.js
@@ -390,7 +396,7 @@ node --check server.js
 
 Diharapkan: tidak ada keluaran.
 
-- [ ] **Langkah 3: Kunci bertanggal di sisi peramban**
+- [x] **Langkah 3: Kunci bertanggal di sisi peramban**
 
 Di `public/index.html`, tepat di bawah `bklKunci`, tambahkan:
 
@@ -409,7 +415,7 @@ const bklKunciTgl = (unit, k, tanggal) => k.jenis === 'mingguan'
 const bklSudahTgl = (unit, k, tanggal) => BKL.selesai[bklKunciTgl(unit, k, tanggal)] || null;
 ```
 
-- [ ] **Langkah 4: Kirim tanggalnya saat menandai**
+- [x] **Langkah 4: Kirim tanggalnya saat menandai**
 
 Ganti tanda tangan dan isi `bklTandai`:
 
@@ -436,7 +442,7 @@ async function bklTandai(unit, k, batal, tanggal){
 }
 ```
 
-- [ ] **Langkah 5: Hitung jatuh tempo per kejadian**
+- [x] **Langkah 5: Hitung jatuh tempo per kejadian**
 
 Ganti isi perulangan di `bklJatuhTempo`:
 
@@ -451,7 +457,14 @@ Ganti isi perulangan di `bklJatuhTempo`:
     });
 ```
 
-- [ ] **Langkah 6: Kartu menampilkan tiap kejadian**
+- [x] **Langkah 6: Kartu menampilkan tiap kejadian**
+
+Dikerjakan dengan dua tambahan di luar cuplikan: nama hari hanya disebut kalau
+kejadiannya lebih dari satu — pada kegiatan bulanan "Rabu ·" tidak menambah apa
+pun — dan tanggal pengerjaan tetap ditampilkan pada baris yang sudah beres,
+seperti sebelumnya. Tiga pembantu yang jadi tidak terpakai lagi dibuang:
+`bklKunci`, `bklSudah`, dan `bklSisa`. Ketiganya mengunci model lama satu tanda
+per periode; membiarkannya hidup mengundang orang memakainya kembali.
 
 Di `bklIsi`, ganti blok `const kartu = daftar.map(k=>{ ... })` bagian kakinya:
 alih-alih satu status dan satu tombol, gambar satu baris per kejadian.
@@ -491,7 +504,7 @@ alih-alih satu status dan satu tombol, gambar satu baris per kejadian.
   }).join('');
 ```
 
-- [ ] **Langkah 7: Teruskan tanggalnya dari tombol**
+- [x] **Langkah 7: Teruskan tanggalnya dari tombol**
 
 Di `bklPasang`, ganti pemanggilan `bklTandai` di penangan `[data-bkl-tandai]`:
 
@@ -499,7 +512,7 @@ Di `bklPasang`, ganti pemanggilan `bklTandai` di penangan `[data-bkl-tandai]`:
         await bklTandai(unit, k, !!b.dataset.batal, b.dataset.tanggal);
 ```
 
-- [ ] **Langkah 8: Periksa di peramban**
+- [x] **Langkah 8: Periksa di peramban**
 
 Muat ulang `http://localhost:3100`, buka Kegiatan Berkala pada unit yang tadi
 diisi. Diharapkan: kegiatan mingguan tiga hari menampilkan tiga baris — Senin,
@@ -514,6 +527,28 @@ curl -s -X POST http://localhost:3100/berkala/selesai -H 'Content-Type: applicat
 
 Diharapkan: pesan galat tentang minggu yang sedang berjalan (atau 401 kalau
 dipanggil tanpa cookie sesi — jalankan dari konsol peramban supaya cookie ikut).
+
+**Yang sudah diperiksa dan yang belum.** Masuk dengan akun sungguhan tidak
+dilakukan, jadi pemeriksaannya lewat dua jalan lain.
+
+Di peramban, dengan dashboard dinyalakan sendiri di port lain: `bklKejadian`
+untuk kegiatan Senin/Rabu/Sabtu menjawab tiga tanggal yang benar; menandai satu
+kejadian tidak menyentuh dua lainnya; kegiatan bulanan tetap berkunci periode
+(`radtel|k2|2026-08`), bukan tanggal; kegiatan mingguan tanpa `hari` jatuh ke
+Senin. `bklIsi` untuk satu unit berisi kegiatan mingguan tiga hari dan satu
+kegiatan bulanan menggambar empat baris — "Senin · Sudah dikerjakan · …
+Batalkan tanda", "Rabu · 2 hari lagi", "Sabtu · 5 hari lagi", dan satu baris
+bulanan tanpa nama hari — masing-masing dengan `data-tanggal` sendiri. Tidak
+ada galat di konsol maupun di log server.
+
+`hariDaftar` dan `pekanIso` diuji terpisah, teksnya diambil apa adanya dari
+`server.js`: sepuluh perkara lolos, termasuk hari berupa teks, hari di luar
+1..7, dan 1 Januari 2027 yang masih terhitung pekan 53 tahun 2026.
+
+Yang belum terbukti: penjagaan di dalam rute `/berkala/selesai` itu sendiri —
+penolakan tanggal yang bukan hari terjadwal dan yang di luar minggu berjalan.
+Tanpa sesi, permintaannya berhenti di 401 sebelum sampai ke sana. Perlu sekali
+coba dengan akun sungguhan.
 
 - [ ] **Langkah 9: Commit**
 

@@ -6309,8 +6309,18 @@ function periodeKini(jenis, d = new Date()){
   }
 }
 
-const bklKunci = (unit, k) => `${unit}|${k.id}|${periodeKini(k.jenis)}`;
-const bklSudah = (unit, k) => BKL.selesai[bklKunci(unit, k)] || null;
+/** Tanggal sebagai 'YYYY-MM-DD' menurut jam setempat — bukan toISOString(),
+    yang menggeser tanggal ke UTC dan membuat kejadian sebelum jam 07.00 WIB
+    tercatat sebagai hari sebelumnya. */
+const bklTgl = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${
+  String(d.getDate()).padStart(2,'0')}`;
+
+/** Kunci selesai untuk satu kejadian. Mingguan berkunci tanggal, sisanya tetap
+    berkunci periode — bentuknya harus sama persis dengan server.js. */
+const bklKunciTgl = (unit, k, tanggal) => k.jenis === 'mingguan'
+  ? `${unit}|${k.id}|${tanggal}`
+  : `${unit}|${k.id}|${periodeKini(k.jenis)}`;
+const bklSudahTgl = (unit, k, tanggal) => BKL.selesai[bklKunciTgl(unit, k, tanggal)] || null;
 
 const bklDaftar = (unit) => BKL.kegiatan[unit] || [];
 
@@ -6410,12 +6420,6 @@ function bklKapan(k){
   }
 }
 
-/** Selisih hari dari hari ini ke jatuh temponya. Negatif = sudah lewat. */
-function bklSisa(k){
-  const kini = new Date(); kini.setHours(0,0,0,0);
-  return Math.round((bklJatuh(k) - kini) / 86400000);
-}
-
 /* ---------- Ambil dan simpan ---------- */
 
 function bklLokalMuat(){
@@ -6464,8 +6468,8 @@ async function bklSimpanUnit(unit, kegiatan){
   if(kegiatan.length) BKL.kegiatan[unit] = kegiatan; else delete BKL.kegiatan[unit];
 }
 
-async function bklTandai(unit, k, batal){
-  const kunci = bklKunci(unit, k);
+async function bklTandai(unit, k, batal, tanggal){
+  const kunci = bklKunciTgl(unit, k, tanggal);
   if(!SRV.aktif){
     if(batal) delete BKL.selesai[kunci];
     else BKL.selesai[kunci] = {
@@ -6477,7 +6481,7 @@ async function bklTandai(unit, k, batal){
   }
   const r = await srvFetch('/berkala/selesai', {
     method:'POST', headers:{ 'Content-Type':'application/json' },
-    body: JSON.stringify({ unit, id:k.id, batal: !!batal })
+    body: JSON.stringify({ unit, id:k.id, batal: !!batal, tanggal })
   }, 10000);
   const j = await r.json().catch(()=>null);
   if(!r.ok) throw new Error((j && j.error) || ('server menjawab ' + r.status));
@@ -6501,8 +6505,12 @@ function bklJatuhTempo(hanyaUnit){
     if(hanyaUnit && unit !== hanyaUnit) return;
     if(!hanyaUnit && !bolehBuka(unit)) return;
     (daftar || []).forEach(k=>{
-      if(bklSudah(unit, k)) return;
-      keluar.push({ unit, k, sisa: bklSisa(k) });
+      const kini = new Date(); kini.setHours(0,0,0,0);
+      bklKejadian(k).forEach(j=>{
+        const tanggal = bklTgl(j);
+        if(bklSudahTgl(unit, k, tanggal)) return;
+        keluar.push({ unit, k, tanggal, sisa: Math.round((j - kini) / 86400000) });
+      });
     });
   });
   return keluar.sort((a,b)=>a.sisa - b.sisa);
@@ -6606,9 +6614,22 @@ function bklIsi(unit){
   }
 
   const kartu = daftar.map(k=>{
-    const sudah = bklSudah(unit, k);
-    const sisa = bklSisa(k);
-    const rupa = sudah ? 'aman' : sisa < 0 ? 'bahaya' : sisa <= 1 ? 'awas' : '';
+    const kini = new Date(); kini.setHours(0,0,0,0);
+    const kejadian = bklKejadian(k).map(j=>({
+      tanggal: bklTgl(j),
+      hari: j.getDay() || 7,
+      sisa: Math.round((j - kini) / 86400000),
+      sudah: bklSudahTgl(unit, k, bklTgl(j))
+    }));
+    // Warna kartunya diambil dari kejadian paling mendesak yang belum beres:
+    // satu hari yang sudah lewat tetap harus terlihat merah walau dua hari
+    // lain di pekan yang sama sudah dicentang.
+    const belum = kejadian.filter(x=>!x.sudah).sort((a,b)=>a.sisa - b.sisa)[0];
+    const rupa = !belum ? 'aman' : belum.sisa < 0 ? 'bahaya' : belum.sisa <= 1 ? 'awas' : '';
+    // Nama harinya disebut hanya kalau kejadiannya lebih dari satu. Pada
+    // kegiatan bulanan yang memang cuma jatuh sekali, "Rabu ·" tidak
+    // menambah apa pun selain panjang baris.
+    const banyak = kejadian.length > 1;
     return `<article class="bkl-kartu ${rupa}">
       <div class="bkl-atas">
         <span class="cip ${bklRupaJenis(k.jenis)}">${esc(bklJenisNama(k.jenis).toUpperCase())}</span>
@@ -6616,19 +6637,21 @@ function bklIsi(unit){
       </div>
       <h4>${esc(k.nama)}</h4>
       ${k.ket ? `<p>${esc(k.ket)}</p>` : ''}
-      <div class="bkl-kaki">
-        ${sudah
-          ? `<span class="bkl-status aman">${T('Sudah dikerjakan','Done')} · ${esc(sudah.nama || sudah.oleh)}
-              <span class="mono">${new Date(sudah.jam).toLocaleDateString(LOKAL(),{day:'numeric',month:'short'})}</span></span>`
-          : `<span class="bkl-status ${sisa < 0 ? 'bahaya' : sisa <= 1 ? 'awas' : ''}">${
-              sisa < 0 ? T(`Lewat ${-sisa} hari`, `${-sisa} days overdue`)
-              : sisa === 0 ? T('Jatuh tempo hari ini','Due today')
-              : T(`${sisa} hari lagi`, `in ${sisa} days`)}</span>`}
-        <button class="btn ${sudah ? 'garis ' : ''}kecil" data-bkl-tandai="${esc(k.id)}"
-          data-batal="${sudah ? '1' : ''}">${sudah
+      ${kejadian.map(x=>{
+        const hari = banyak ? esc(hariNama(x.hari)) + ' · ' : '';
+        return `<div class="bkl-kaki">
+        ${x.sudah
+          ? `<span class="bkl-status aman">${hari}${T('Sudah dikerjakan','Done')} · ${esc(x.sudah.nama || x.sudah.oleh)}
+              <span class="mono">${new Date(x.sudah.jam).toLocaleDateString(LOKAL(),{day:'numeric',month:'short'})}</span></span>`
+          : `<span class="bkl-status ${x.sisa < 0 ? 'bahaya' : x.sisa <= 1 ? 'awas' : ''}">${hari}${
+              x.sisa < 0 ? T(`Lewat ${-x.sisa} hari`, `${-x.sisa} days overdue`)
+              : x.sisa === 0 ? T('Jatuh tempo hari ini','Due today')
+              : T(`${x.sisa} hari lagi`, `in ${x.sisa} days`)}</span>`}
+        <button class="btn ${x.sudah ? 'garis ' : ''}kecil" data-bkl-tandai="${esc(k.id)}"
+          data-tanggal="${esc(x.tanggal)}" data-batal="${x.sudah ? '1' : ''}">${x.sudah
             ? T('Batalkan tanda','Undo')
             : T('Tandai selesai','Mark done')}</button>
-      </div>
+      </div>`;}).join('')}
     </article>`;
   }).join('');
 
@@ -6771,7 +6794,7 @@ function bklPasang(unit){
       if(!k) return;
       b.disabled = true;
       try{
-        await bklTandai(unit, k, !!b.dataset.batal);
+        await bklTandai(unit, k, !!b.dataset.batal, b.dataset.tanggal);
         bklGambar(); gambarUbin(); gambarPerhatian(); gambarLonceng();
       }catch(e){
         pesan(T('Gagal mencatat: ','Could not record it: ') + (e && e.message || e));

@@ -884,6 +884,16 @@ function pekanIso(d) {
   return `${t.getUTCFullYear()}-W${String(nomor).padStart(2, '0')}`;
 }
 
+/** Hari-hari sepekan kegiatan ini jatuh, 1 = Senin sampai 7 = Minggu.
+    Bentuknya harus sama persis dengan bklHariDaftar() di public/index.html:
+    kalau layar menggambar satu baris hari Senin untuk kegiatan yang harinya
+    belum diisi, server harus menerima tanda selesai untuk hari itu juga. */
+function hariDaftar(keg) {
+  const m = Array.isArray(keg.hari) ? keg.hari : (keg.hari == null ? [] : [keg.hari]);
+  const d = [...new Set(m.map(Number).filter((h) => Number.isInteger(h) && h >= 1 && h <= 7))];
+  return d.length ? d.sort((a, b) => a - b) : [1];
+}
+
 function periodeSekarang(jenis, d = new Date()) {
   const tahun = d.getFullYear();
   const bulan = d.getMonth();                 // 0..11
@@ -1040,7 +1050,35 @@ app.post('/berkala/selesai', badanDinas, async (req, res) => {
     return res.status(403).json({ error: 'Akun Anda tidak memegang unit ini.' });
   }
 
-  const periode = periodeSekarang(keg.jenis);
+  /* Kegiatan mingguan sekarang bisa jatuh beberapa hari dalam sepekan, jadi
+     satu tanda per pekan tidak cukup lagi: mencentang hari Senin akan membuat
+     Rabu dan Sabtu ikut tampak beres. Untuk jenis ini yang jadi kunci adalah
+     TANGGAL kejadiannya.
+
+     Tanggalnya datang dari peramban, dan karena itu diperiksa di sini: harus
+     salah satu hari yang memang dijadwalkan, dan harus di minggu yang sedang
+     berjalan. Tanpa syarat kedua, satu permintaan bisa menandai selesai
+     pekerjaan bulan depan. */
+  let periode;
+  if (keg.jenis === 'mingguan') {
+    const tgl = String(req.body?.tanggal || '').slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(tgl)) {
+      return res.status(400).json({ error: 'Tanggal kejadian tidak sah.' });
+    }
+    const d = new Date(tgl + 'T00:00:00');
+    if (isNaN(d)) return res.status(400).json({ error: 'Tanggal kejadian tidak sah.' });
+    if (!hariDaftar(keg).includes(d.getDay() || 7)) {
+      return res.status(400).json({ error: 'Kegiatan ini tidak dijadwalkan pada hari itu.' });
+    }
+    if (pekanIso(d) !== pekanIso(new Date())) {
+      return res.status(400).json({
+        error: 'Hanya kejadian di minggu yang sedang berjalan yang bisa ditandai.'
+      });
+    }
+    periode = tgl;
+  } else {
+    periode = periodeSekarang(keg.jenis);
+  }
   const kunci = `${unit}|${id}|${periode}`;
 
   try {
