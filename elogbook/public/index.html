@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<!-- Tanpa ini halaman dibuka di HP selebar desktop lalu diperkecil, dan tulisannya
+     jadi tidak terbaca. viewport-fit=cover supaya aman di layar berponi. -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta id="metaTema" name="theme-color" content="#0a0e13">
+<meta name="color-scheme" content="dark light">
+<base target="_top">
+<title>E-Logbook — New JATSC</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- Gaya tampilan dipecah per bagian di folder css/. Urutan link di bawah ini
+     sama dengan urutan aslinya waktu masih satu blok <style>, jadi aturan yang
+     belakangan tetap menimpa yang duluan. Daftar isinya di PETA-BERKAS.md. -->
+<link rel="stylesheet" href="css/01-token-tema.css">
+<link rel="stylesheet" href="css/02-kepala-tab.css">
+<link rel="stylesheet" href="css/03-tombol-formulir.css">
+<link rel="stylesheet" href="css/04-catatan.css">
+<link rel="stylesheet" href="css/05-tabel.css">
+<link rel="stylesheet" href="css/06-peran-lampiran.css">
+<link rel="stylesheet" href="css/07-modal-toast.css">
+<link rel="stylesheet" href="css/08-layar-kecil.css">
+<link rel="stylesheet" href="css/09-cetak.css">
+<link rel="stylesheet" href="css/10-login-identitas.css">
+</head>
+<body>
+
+<!-- ===== LAYAR LOGIN ===== -->
+<div id="loginBg">
+  <div id="loginBox">
+    <div class="brand-eyebrow">Perum LPPNPI &middot; Cabang JATSC</div>
+    <h3 data-t="loginJudul">E-Logbook Fasilitas</h3>
+    <div class="login-sub" data-t="loginSub">Masuk dengan akun teknisi Anda.</div>
+    <div class="field"><label data-t="username">Username</label><input type="text" id="loginUser" autocomplete="username" autocapitalize="off" spellcheck="false"></div>
+    <div class="field"><label data-t="password">Password</label><input type="password" id="loginPass" autocomplete="current-password"></div>
+    <button class="btn" id="loginBtn" onclick="doLogin()" data-t="masuk">Masuk</button>
+    <div id="loginErr"></div>
+    <div class="login-alt">
+      <span data-t="belumPunyaAkun">Belum punya akun?</span>
+      <button type="button" onclick="bukaDaftar()" data-t="buatAkunBaru">Buat akun</button>
+    </div>
+  </div>
+
+  <div id="daftarBox" style="display:none;">
+    <div class="brand-eyebrow">Perum LPPNPI &middot; Cabang JATSC</div>
+    <h3 data-t="daftarJudul">Buat Akun</h3>
+    <div class="login-sub" data-t="daftarSub">Setelah dibuat, akun menunggu konfirmasi administrator sebelum bisa dipakai.</div>
+    <div class="field"><label data-t="namaLengkap">Nama Lengkap</label><input type="text" id="dfNama" data-t-ph="phNamaLengkap" placeholder="cth. Budi Santoso"></div>
+    <div class="field"><label data-t="username">Username</label><input type="text" id="dfUsername" autocapitalize="off" spellcheck="false" data-t-ph="phUsername" placeholder="cth. budi.santoso"></div>
+    <div class="field"><label data-t="password">Password</label><input type="password" id="dfPassword" autocomplete="new-password" data-t-ph="phMin6" placeholder="minimal 6 karakter"></div>
+    <div class="field"><label data-t="ulangiPassword">Ulangi Password</label><input type="password" id="dfPassword2" autocomplete="new-password"></div>
+    <button class="btn" id="dfBtn" onclick="doDaftar()" data-t="kirimPendaftaran">Kirim Pendaftaran</button>
+    <div id="daftarErr"></div>
+    <div class="login-alt">
+      <span data-t="sudahPunyaAkun">Sudah punya akun?</span>
+      <button type="button" onclick="bukaLogin()" data-t="kembaliMasuk">Masuk</button>
+    </div>
+  </div>
+</div>
+
+<div class="console">
+  <div class="console-top">
+    <div>
+      <div class="brand-eyebrow">Perum LPPNPI &middot; Cabang JATSC</div>
+      <div class="brand-title" data-t="brandJudul">E-Logbook Fasilitas Komunikasi Penerbangan</div>
+      <div class="brand-sub">VCS GAREX 300 &amp; RECORDING NEPTUNO — MER NEW JATSC</div>
+    </div>
+    <div class="clock-box">
+      <div class="clock-time" id="clockTime">--:--:--</div>
+      <div class="clock-date" id="clockDate">-- UTC</div>
+    </div>
+  </div>
+  <div class="meta-strip">
+    <div class="meta-item"><span data-t="metaPenyelenggara">Penyelenggara Pelayanan</span>Perum LPPNPI Cabang JATSC</div>
+    <div class="meta-item"><span data-t="metaKelompok">Kelompok Fasilitas</span><b id="metaKelompokIsi" style="font-weight:400;">Fasilitas Komunikasi Penerbangan (Radkom &amp; Radtel)</b></div>
+    <div class="meta-item"><span data-t="metaPeralatan">Nama Peralatan</span><b id="metaPeralatanIsi" style="font-weight:400;">Radio Komunikasi, VSCS Garex, Recording Neptuno</b></div>
+  </div>
+  <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+    <div class="unit-chip" id="unitChip" style="display:none;">
+      <label for="unitPilih" data-t="unitLabel">Unit</label>
+      <select id="unitPilih" onchange="pindahUnit(this.value)"></select>
+    </div>
+    <div class="sync-badge" id="syncBadge"><span class="sync-dot"></span> menghubungkan ke server...</div>
+    <div class="pojok-kanan">
+      <div class="pengaturan-chip">
+        <!-- Jalan pulang. Dashboard Fasilitas Teknik memang punya tombol ke
+             sini, tapi sebaliknya tidak ada — yang sudah masuk ke E-Logbook
+             hanya bisa kembali lewat tombol back peramban atau mengetik
+             alamatnya sendiri. Alamatnya dirangkai dari hostname yang sedang
+             dipakai, cara yang sama dengan dashboard merangkai alamat ke
+             sini: 127.0.0.1 salah begitu halaman ini dibuka dari komputer
+             lain di jaringan. -->
+        <a id="tautanDashboard" href="#" data-t-title="kembaliDashboardKet"
+           ><span aria-hidden="true">←</span> <span data-t="kembaliDashboard">Dashboard Fasilitas Teknik</span></a>
+        <select id="pilihOrientasi" onchange="gantiOrientasi(this.value)" title="Orientasi kertas saat mencetak">
+          <option value="auto">⇅ Otomatis</option>
+          <option value="portrait">▯ Portrait</option>
+          <option value="landscape">▭ Landscape</option>
+        </select>
+        <button id="tombolTema" onclick="gantiTema()" title="Ganti mode gelap / terang">🌙</button>
+        <button id="tombolBahasa" onclick="gantiBahasa()" title="Ganti bahasa / change language">ID</button>
+        <button id="inboxBtn" class="hanya-ttd-susulan" onclick="openInboxModal()" title="Kotak masuk TTD" style="position:relative;">
+          🔔<span id="inboxCount" class="inbox-count" style="display:none;">0</span>
+        </button>
+      </div>
+      <div class="user-chip" id="userChip" style="display:none;">
+        <span><span data-t="masukSebagai">masuk sebagai</span> <b id="userChipNama">-</b></span>
+        <button onclick="openTtdSayaModal()" data-t="ttdSayaTombol">✍ TTD Saya</button>
+        <button onclick="doLogout()" data-t="keluar">Keluar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<nav class="tabs">
+  <button class="tab-btn active" data-tab="logbook" data-t="tabLogbook">📋 LOGBOOK FASILITAS</button>
+  <button class="tab-btn" data-tab="dailycheck" data-t="tabDailyCheck">🖥 DAILY CHECK GAREX 300</button>
+  <button class="tab-btn" data-tab="issues" data-t="tabIsu">⚠ ISU / UPDATE ISSUE</button>
+  <button class="tab-btn" data-tab="monitoring" data-t="tabMonitoring">📶 MONITORING FREKUENSI</button>
+  <button class="tab-btn" data-tab="dstest" data-t="tabDsTest">☎ DS TEST</button>
+  <button class="tab-btn" data-tab="ltk" data-t="tabLtk">🛠 LTK</button>
+  <button class="tab-btn" data-tab="rekap" data-t="tabRekap">📊 REKAP &amp; MATRIK</button>
+  <!-- KELOLA AKUN sudah tidak di sini. Pengelolaan akun diurus dari Dashboard
+       Fasilitas Teknik (Avenger, port 3100), tab "Kelola Akun". Satu pintu, bukan
+       dua yang bisa saling berbeda. API administratornya tetap hidup di server
+       ini — listUsers, addUser, setUserNama, setUserRole, setUserUnit,
+       setUserAktif, setUserPassword, deleteUser — karena dashboard itu yang
+       memanggilnya, dan penjagaan 403 per peran ditegakkan di situ. -->
+</nav>
+
+<main>
+  <!-- ===== TAB 1: LOGBOOK ===== -->
+  <section class="view active" id="view-logbook">
+    <div class="section-head">
+      <div><h2 data-t="logbookJudul">Buku Catatan Fasilitas</h2><p data-t="logbookSub">Setiap catatan tersimpan langsung ke database server.</p></div>
+      <button class="btn btn-tambah" onclick="openEntryModal()" data-t="tambahCatatan">+ Tambah Catatan</button>
+    </div>
+
+    <div class="card">
+      <div class="print-bar">
+        <div class="field"><label data-t="dariTanggal">Cetak dari tanggal</label><input type="date" id="prFrom" onchange="renderEntries()"></div>
+        <div class="field"><label data-t="sampaiTanggal">Sampai tanggal</label><input type="date" id="prTo" onchange="renderEntries()"></div>
+        <div class="field"><label data-t="dinasShift">Dinas / Shift</label><select id="prDinas" onchange="renderEntries()"><option value="" data-t="semua">Semua</option><option>Pagi</option><option>Siang</option><option>Malam</option><option>PS</option></select></div>
+        <div class="field"><label data-t="lokasiGedung">Lokasi</label><select id="prLokasi" onchange="renderEntries()"><option value="" data-t="semua">Semua</option></select></div>
+        <button class="btn ghost" onclick="resetFilterEntries()" data-t="resetCari">↺ Tampilkan Semua</button>
+        <button class="btn ghost" onclick="lihatLogbook()" data-t="lihatSaja">👁 Lihat Saja</button>
+        <button class="btn" onclick="printLogbook()" data-t="cetakLogbook">🖨 Cetak Logbook</button>
+      </div>
+      <div class="subtle-note" data-t-html="noteCetakLogbook">Kosongkan tanggal untuk mencetak seluruh catatan yang termuat. Untuk cetak <b>satu hari saja</b>, isi tanggal "dari" dan "sampai" dengan tanggal yang sama; tambahkan filter Dinas untuk cetak per shift. Filter yang sama juga langsung memilah daftar di bawah — pakai ini untuk mencari catatan yang mau dihapus.</div>
+    </div>
+
+    <div id="entryList"></div>
+  </section>
+
+  <!-- ===== TAB 2: DAILY CHECK ===== -->
+  <section class="view" id="view-dailycheck">
+    <div class="section-head">
+      <div><h2 data-t="dcJudul">Daily Check VCS Garex 300 — Unit Radtel</h2><p data-t="dcSub">Klik status untuk mengubah kondisi: Normal → Alarm → Gangguan.</p></div>
+    </div>
+    <div class="card">
+      <div class="grid3">
+        <div class="field" id="dcSuhuWrap"><label data-t="suhuMer">Suhu MER (°C)</label><input type="text" id="dcSuhu" data-t-ph="phSuhu" placeholder="cth. 22°C"></div>
+        <div class="field"><label data-t="dinasShift">Dinas / Shift</label><select id="dcDinas"><option>Pagi</option><option>Siang</option><option>Malam</option><option>PS</option></select></div>
+        <div class="field">
+          <label data-t="hariTanggal">Hari / Tanggal</label>
+          <input type="date" id="dcTanggal" onchange="perbaruiHariDc()">
+          <div class="hari-dc" id="dcHariTeks"></div>
+        </div>
+      </div>
+      <div class="legend" id="dcLegendGarex">
+        <span><i class="dot" style="background:var(--ok)"></i> <span data-t="lgNormal">Normal</span></span>
+        <span><i class="dot" style="background:var(--warn)"></i> <span data-t="lgAlarm">Alarm / Perlu Pantau</span></span>
+        <span><i class="dot" style="background:var(--fail)"></i> <span data-t="lgGangguan">Gangguan</span></span>
+      </div>
+      <div class="legend" id="dcLegendRadkom" style="display:none;">
+        <span><i class="dot" style="background:var(--ok)"></i> <span data-t="lgOk">OK</span></span>
+        <span><i class="dot" style="background:var(--fail)"></i> <span data-t="lgNotOk">NOT OK</span></span>
+        <span style="color:var(--muted);" data-t="lgKlikUbah">Klik kotak status untuk mengubahnya.</span>
+      </div>
+      <div class="dc-table-wrap" id="dcGarexWrap">
+        <table class="dc" id="dcTable">
+          <thead><tr><th data-t="kolItem">Item</th><th>Net A</th><th>Net B</th><th>App A</th><th>App B</th><th>Eqp</th><th>Item</th><th>Net A</th><th>Net B</th><th>App A</th><th>App B</th><th>Eqp</th></tr></thead>
+          <tbody id="dcBody"></tbody>
+        </table>
+      </div>
+      <div id="dcRadkomWrap" style="display:none;"></div>
+      <div class="field" style="margin-top:14px;"><label data-t="remark">Remark / Catatan Tambahan</label><textarea id="dcRemark" data-t-ph="phRemark" placeholder="cth. VR3 partial failure of element, masih dalam remote expert Madrid..."></textarea></div>
+      <div class="grid2" style="margin-top:8px;">
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <label style="font-family:var(--font-mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);" data-t="namaTeknisiPelaksana">Nama Teknisi Pelaksana</label>
+            <button class="btn ghost" style="padding:5px 10px;" onclick="addTeknisi()" data-t="tambahNama">+ Nama</button>
+          </div>
+          <div id="teknisiList" style="margin-top:8px;"></div>
+          <div class="field" style="margin-top:6px;"><label data-t="ttdTeknisi">TTD Teknisi</label><div class="sig-wrap"><canvas id="sigDcTeknisi"></canvas><div class="sig-toolbar"><span class="sig-hint" data-t="ttdHintTeknisi">tanda tangan teknisi</span><button class="sig-clear" onclick="clearSig('sigDcTeknisi')" data-t="bersihkan">bersihkan</button></div></div></div>
+        </div>
+        <div>
+          <div class="field"><label data-t="mengetahuiManager">Mengetahui — Manager Teknik</label><input type="text" id="dcManagerNama" list="pejabatDatalist" data-t-ph="phNamaManager" placeholder="Nama manager teknik"></div>
+          <div class="field" style="margin-top:6px;"><label data-t="kirimTtdKe">Kirim TTD ke akun</label><select id="dcManagerAkun"><option value="" data-t="kirimTtdOtomatis">Otomatis (dari nama di atas)</option></select></div>
+        </div>
+      </div>
+      <div class="modal-footer" style="margin-top:6px;">
+        <button class="btn ghost" onclick="resetDcForm()" data-t="resetForm">Reset Form</button>
+        <button class="btn ghost" onclick="printCurrentDailyCheck()" data-t="cetakFormIni">🖨 Cetak Form Ini</button>
+        <button class="btn btn-tambah" id="dcSaveBtn" onclick="saveDailyCheck()" data-t="simpanDc">💾 Simpan Daily Check</button>
+      </div>
+    </div>
+    <div class="section-head" style="margin-top:22px;"><h2 style="font-size:15px;" data-t="riwayatDc">Riwayat Daily Check</h2></div>
+    <div class="card">
+      <div class="print-bar">
+        <div class="field"><label data-t="dariTanggalSingkat">Dari tanggal</label><input type="date" id="cariDcDari" onchange="renderDcHistory()"></div>
+        <div class="field"><label data-t="sampaiTanggal">Sampai tanggal</label><input type="date" id="cariDcSampai" onchange="renderDcHistory()"></div>
+        <button class="btn ghost" onclick="resetCariDc()" data-t="resetCari">↺ Tampilkan Semua</button>
+      </div>
+      <div class="subtle-note" data-t="noteCariDc">Isi rentang tanggal untuk memilah riwayat yang mau dihapus.</div>
+    </div>
+    <div id="dcHistory"></div>
+  </section>
+
+  <!-- ===== TAB 3: ISSUES ===== -->
+  <section class="view" id="view-issues">
+    <div class="section-head">
+      <div><h2 data-t="isuJudul">Update Issue — GAREX 300 &amp; Neptuno</h2><p data-t="isuSub">Daftar isu terbuka yang masih dalam proses penanganan.</p></div>
+      <button class="btn btn-tambah" onclick="openIssueModal()" data-t="tambahIsu">+ Tambah Isu</button>
+    </div>
+    <div class="card">
+      <div class="print-bar">
+        <div class="field"><label data-t="reportDari">Report dari tanggal</label><input type="date" id="prIsuFrom"></div>
+        <div class="field"><label data-t="sampaiTanggal">Sampai tanggal</label><input type="date" id="prIsuTo"></div>
+        <div class="field"><label>Status</label><select id="prIsuStatus"><option value="" data-t="semua">Semua</option><option>Open</option><option>Proses</option><option>Closed</option></select></div>
+        <button class="btn ghost" onclick="lihatIssues()" data-t="lihatSaja">👁 Lihat Saja</button>
+        <button class="btn" onclick="printIssues()" data-t="cetakIsu">🖨 Cetak Daftar Isu</button>
+      </div>
+      <div class="subtle-note" data-t-html="noteCetakIsu">Kosongkan tanggal untuk mencetak seluruh isu. Foto dan dokumen lampiran ikut tercetak di halaman setelah tabel, dipisah antara bukti saat kejadian dan bukti saat selesai.</div>
+    </div>
+    <div class="subtle-note hanya-teknisi" style="margin-bottom:12px;" data-t-html="noteIsuTeknisi">
+      Isu yang sudah dilaporkan hanya bisa diubah atau dihapus oleh administrator. Kalau ada koreksi, sampaikan ke administrator.
+    </div>
+    <div class="card" style="overflow-x:auto;">
+      <table class="issues" id="issuesTable">
+        <thead><tr><th style="width:40px;" data-t="kolNo">No</th><th data-t="jenisIssue">Jenis Issue</th><th data-t="keterangan">Keterangan</th><th style="width:130px;" data-t="lokasi">Lokasi</th><th style="width:132px;" data-t="kolTglReport">Tgl Report</th><th style="width:110px;" data-t="status">Status</th><th style="width:132px;" data-t="kolTglClosed">Tgl Closed</th><th style="width:140px;" data-t="dilaporkanOleh">Dilaporkan Oleh</th><th style="width:96px;" data-t="kolBukti">Bukti</th><th style="width:104px;"></th></tr></thead>
+        <tbody id="issuesBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ===== TAB: MONITORING FREKUENSI ===== -->
+  <section class="view" id="view-monitoring">
+    <div class="section-head">
+      <div><h2 data-t="monJudul">Form Monitoring Frekuensi</h2><p data-t="monSub">Hasil pengamatan frekuensi bersama personil operasi.</p></div>
+      <button class="btn btn-tambah" onclick="openMonModal()" data-t="tambahMon">+ Form Baru</button>
+    </div>
+    <div class="card">
+      <div class="print-bar">
+        <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariMonTanggal" onchange="renderMonList()"></div>
+        <button class="btn ghost" onclick="resetCariMon()" data-t="resetCari">↺ Tampilkan Semua</button>
+      </div>
+      <div class="subtle-note" data-t="noteCariMon">Isi tanggal untuk menampilkan form monitoring pada hari itu saja.</div>
+    </div>
+    <div id="monList"></div>
+  </section>
+
+  <!-- ===== TAB: DS TEST ===== -->
+  <section class="view" id="view-dstest">
+    <div class="section-head">
+      <div><h2 data-t="dsJudul">DS Test</h2><p data-t="dsSub">Uji sambungan direct speech ke seluruh site domestik.</p></div>
+      <button class="btn btn-tambah" onclick="openDsModal()" data-t="tambahDs">+ Form Baru</button>
+    </div>
+    <div class="card">
+      <div class="print-bar">
+        <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariDsTanggal" onchange="renderDsList()"></div>
+        <button class="btn ghost" onclick="resetCariDs()" data-t="resetCari">↺ Tampilkan Semua</button>
+      </div>
+      <div class="subtle-note" data-t="noteCariDs">Isi tanggal untuk menampilkan hasil DS Test pada hari itu saja.</div>
+    </div>
+    <div id="dsList"></div>
+  </section>
+
+  <!-- ===== TAB: LTK ===== -->
+  <section class="view" id="view-ltk">
+    <div class="section-head">
+      <div><h2 data-t="ltkJudul">LTK — Laporan Terjadinya Kerusakan</h2><p data-t="ltkSub">Laporan kerusakan dan kegiatan perbaikan fasilitas telekomunikasi penerbangan.</p></div>
+      <button class="btn btn-tambah" onclick="openLtkModal()" data-t="tambahLtk">+ Buat LTK</button>
+    </div>
+    <div class="card">
+      <div class="print-bar">
+        <div class="field" style="flex:2;min-width:200px;"><label data-t="cariKata">Cari peralatan / modul</label><input type="text" id="cariLtkKata" data-t-ph="phCariLtk" placeholder="cth. processor, transmitter, VHF" oninput="renderLtkList()"></div>
+        <div class="field"><label data-t="dariTanggalSingkat">Dari tanggal</label><input type="date" id="cariLtkDari" onchange="renderLtkList()"></div>
+        <div class="field"><label data-t="sampaiTanggal">Sampai tanggal</label><input type="date" id="cariLtkSampai" onchange="renderLtkList()"></div>
+        <div class="field"><label data-t="status">Status</label><select id="cariLtkStatus" onchange="renderLtkList()"><option value="" data-t="semua">Semua</option><option value="belum" data-t="ltkBelumSelesai">belum selesai</option><option value="selesai" data-t="ltkSelesai">selesai</option></select></div>
+        <button class="btn ghost" onclick="resetCariLtk()" data-t="resetCari">↺ Tampilkan Semua</button>
+      </div>
+      <div class="subtle-note" data-t="noteCariLtk">Pencarian kata memeriksa nama peralatan, bagian/modul yang rusak, dan analisa kerusakan. Rentang tanggal memakai Tanggal Pelaporan.</div>
+    </div>
+    <div id="ltkList"></div>
+  </section>
+
+  <!-- ===== TAB: REKAP & MATRIK ===== -->
+  <section class="view" id="view-rekap">
+    <div class="section-head">
+      <div><h2 data-t="rekapJudul">Rekap &amp; Matrik</h2><p data-t="rekapSub">Kejadian yang sudah pernah dialami unit ini — apa saja, kapan pertama kali, dan siapa yang sudah pernah menanganinya.</p></div>
+      <button class="btn ghost" onclick="cetakRekap()" data-t="cetakRekap">🖨 Cetak Rekap</button>
+    </div>
+    <div class="card">
+      <div class="print-bar">
+        <div class="field"><label data-t="periodeLabel">Periode</label><select id="rekapMode" onchange="gantiModeRekap()">
+          <option value="pekan" data-t="perMinggu">Per minggu</option>
+          <option value="bulan" data-t="perBulan">Per bulan</option>
+        </select></div>
+        <div class="field"><label data-t="dariTanggalSingkat">Dari tanggal</label><input type="date" id="rekapDari" onchange="muatRekap()"></div>
+        <div class="field"><label data-t="sampaiTanggal">Sampai tanggal</label><input type="date" id="rekapSampai" onchange="muatRekap()"></div>
+        <button class="btn ghost" onclick="rentangRekapCepat(1)" data-t="bulanIni">Bulan ini</button>
+        <button class="btn ghost" onclick="rentangRekapCepat(3)" data-t="tigaBulan">3 bulan</button>
+        <button class="btn ghost" onclick="rentangRekapCepat(12)" data-t="setahun">1 tahun</button>
+      </div>
+      <div class="subtle-note" data-t="noteRekap">Disusun dari catatan Logbook, LTK, dan Isu pada rentang ini — dihitung ulang di server, bukan hanya dari 200 catatan terakhir yang tampil di layar. Daily check dan monitoring tidak ikut: isinya pemeriksaan terjadwal, bukan kejadian yang dialami.</div>
+    </div>
+    <div id="rekapIsi"><div class="empty" data-t="rekapMemuat">Memuat rekap…</div></div>
+  </section>
+
+</main>
+
+<!-- MODAL TAMBAH CATATAN -->
+<div class="modal-bg" id="entryModalBg">
+  <div class="modal">
+    <h3 data-t="modalCatatan">Tambah Catatan Logbook</h3>
+    <div class="grid3">
+      <div class="field"><label data-t="tanggal">Tanggal</label><input type="date" id="feTanggal"></div>
+      <div class="field"><label id="feJamLabel" data-t="jamUtc">Jam (UTC)</label><input type="time" id="feJam"></div>
+      <div class="field" id="feJamSelesaiWrap" style="display:none;"><label data-t="jamSelesaiUtc">Jam Selesai (UTC)</label><input type="time" id="feJamSelesai"></div>
+    </div>
+    <div class="grid3">
+      <div class="field"><label data-t="dinasShift">Dinas / Shift</label><select id="feDinas"></select></div>
+      <div class="field"><label data-t="lokasiGedung">Lokasi</label><select id="feLokasi"></select></div>
+      <div class="field" id="feFrekWrap" style="display:none;"><label data-t="frek">Frekuensi</label><input type="text" id="feFrek" data-t-ph="phFrek" placeholder="cth. 132.900 MHz"></div>
+    </div>
+    <div class="field"><label id="feUraianLabel">Uraian Pekerjaan / Kejadian</label><textarea id="feUraian" data-t-ph="phUraian" placeholder="cth. Pengecekan peralatan VCS Garex melalui TMCS, ditemukan CWP03 alarm..."></textarea></div>
+    <div class="field">
+      <label data-t-html="labelLampiran">Lampiran — Hasil Scan / Foto <span style="text-transform:none;letter-spacing:0;">(opsional)</span></label>
+      <input type="file" id="feLampiran" multiple accept="image/jpeg,image/png,image/webp,application/pdf" onchange="pilihLampiran(this, 'feLampiran')">
+      <div class="lampiran-hint" id="feLampiranHint" data-t="hintLampiranPanjang">Maksimal 6 berkas, 8 MB per berkas. JPG, PNG, WEBP, atau PDF. Foto berukuran besar dikecilkan otomatis sebelum dikirim.</div>
+      <div id="feLampiranList"></div>
+    </div>
+    <div class="grid2">
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <label style="font-family:var(--font-mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);" data-t="namaTeknisiPelaksana">Nama Teknisi Pelaksana</label>
+          <button class="btn ghost" style="padding:5px 10px;" onclick="addFeTeknisi()" data-t="tambahNama">+ Nama</button>
+        </div>
+        <div id="feTeknisiList" style="margin-top:8px;"></div>
+        <div class="field" style="margin-top:6px;"><label data-t="ttdTeknisi">TTD Teknisi</label><div class="sig-wrap"><canvas id="sigFeTeknisi"></canvas><div class="sig-toolbar"><span class="sig-hint" data-t="ttdHintTeknisi">tanda tangan teknisi</span><button class="sig-clear" onclick="clearSig('sigFeTeknisi')" data-t="bersihkan">bersihkan</button></div></div></div>
+      </div>
+      <div>
+        <div class="field"><label id="fePjLabel" data-t="pjNama">Penanggung Jawab (nama)</label><input type="text" id="fePjNama" list="pejabatDatalist" data-t-ph="phNamaPj" placeholder="Nama penanggung jawab"></div>
+        <div class="field" style="margin-top:6px;"><label data-t="kirimTtdKe">Kirim TTD ke akun</label><select id="fePjAkun"><option value="" data-t="kirimTtdOtomatis">Otomatis (dari nama di atas)</option></select></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn ghost" onclick="closeEntryModal()" data-t="batal">Batal</button>
+      <button class="btn" id="feSaveBtn" onclick="saveEntry()" data-t="simpanCatatan">💾 Simpan Catatan</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL TAMBAH ISU -->
+<div class="modal-bg" id="issueModalBg">
+  <div class="modal" style="max-width:560px;">
+    <h3 data-t="modalIsu">Tambah Isu</h3>
+    <div class="field"><label data-t="jenisIssue">Jenis Issue</label><input type="text" id="isJenis" data-t-ph="phJenisIsu" placeholder="cth. VR 3 partial failure of element"></div>
+    <div class="field"><label data-t="keterangan">Keterangan</label><textarea id="isKeterangan" data-t-ph="phKeteranganIsu" placeholder="cth. Masih dalam penanganan remote expert Madrid, menunggu penggantian modul."></textarea></div>
+    <div class="grid2">
+      <div class="field"><label data-t="lokasi">Lokasi</label><input type="text" id="isLokasi" data-t-ph="phLokasi" placeholder="cth. MER Lantai 2"></div>
+      <div class="field"><label data-t="tanggalReport">Tanggal Report</label><input type="date" id="isTanggalReport"></div>
+    </div>
+    <div class="field"><label data-t="dilaporkanOleh">Dilaporkan Oleh</label><input type="text" id="isDilaporkanOleh" data-t-ph="phPelapor" placeholder="Nama yang menemukan / melaporkan"></div>
+    <div class="field">
+      <label data-t-html="labelBuktiOpen">Foto / Dokumen Saat Kejadian <span style="text-transform:none;letter-spacing:0;">(opsional)</span></label>
+      <input type="file" id="isLampiranOpen" multiple accept="image/jpeg,image/png,image/webp,application/pdf" onchange="pilihLampiran(this, 'isLampiranOpen')">
+      <div class="lampiran-hint" id="isLampiranOpenHint" data-t="hintLampiran">Maksimal 6 berkas, 8 MB per berkas. JPG, PNG, WEBP, atau PDF.</div>
+      <div id="isLampiranOpenList"></div>
+    </div>
+    <div class="field hanya-admin"><label>Status</label><select id="isStatus" onchange="toggleLampiranClosed()"><option>Open</option><option>Proses</option><option>Closed</option></select></div>
+    <div class="field hanya-admin" id="isLampiranClosedWrap" style="display:none;">
+      <label data-t-html="labelBuktiClosed">Foto / Dokumen Saat Selesai <span style="text-transform:none;letter-spacing:0;">(opsional)</span></label>
+      <input type="file" id="isLampiranClosed" multiple accept="image/jpeg,image/png,image/webp,application/pdf" onchange="pilihLampiran(this, 'isLampiranClosed')">
+      <div class="lampiran-hint" id="isLampiranClosedHint" data-t="hintLampiran">Maksimal 6 berkas, 8 MB per berkas. JPG, PNG, WEBP, atau PDF.</div>
+      <div id="isLampiranClosedList"></div>
+    </div>
+    <div class="subtle-note hanya-teknisi" data-t-html="noteIsuBaru">Isu baru selalu tercatat berstatus <b>Open</b>. Hanya administrator yang bisa mengubahnya menjadi Proses atau Closed, dan melampirkan bukti saat isu ditutup.</div>
+    <div class="modal-footer">
+      <button class="btn ghost" onclick="closeIssueModal()" data-t="batal">Batal</button>
+      <button class="btn" id="isSaveBtn" onclick="saveIssue()" data-t="simpanIsu">💾 Simpan Isu</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DETAIL BERSAMA (Monitoring & LTK) -->
+<div class="modal-bg" id="formDetailBg">
+  <div class="modal" style="max-width:860px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <h3 style="margin:0;" id="formDetailJudul">Detail</h3>
+      <button class="icon-btn" style="font-size:18px;" onclick="closeFormDetail()">✕</button>
+    </div>
+    <div id="formDetailBody"></div>
+    <div class="modal-footer">
+      <button class="btn ghost" onclick="closeFormDetail()" data-t="tutup">Tutup</button>
+      <button class="btn" id="formDetailPrintBtn" data-t="cetak">🖨 Cetak</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL FORM MONITORING FREKUENSI -->
+<div class="modal-bg" id="monModalBg">
+  <div class="modal" style="max-width:960px;">
+    <h3 data-t="monModal">Form Monitoring Frekuensi</h3>
+    <div class="field" style="max-width:260px;"><label data-t="tanggal">Tanggal</label><input type="date" id="monTanggal"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:6px 0;">
+      <label style="font-family:var(--font-mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);" data-t="barisPengamatan">Baris Pengamatan</label>
+      <button class="btn ghost" style="padding:5px 10px;" onclick="tambahBarisMon()" data-t="tambahBaris">+ Baris</button>
+    </div>
+    <div class="dc-table-wrap">
+      <table class="dc mon" id="monTable">
+        <thead><tr>
+          <th style="width:30px;">No</th><th>Sector</th><th>Frequency</th><th>Time</th><th>Flight</th>
+          <th>Level</th><th>Bearing</th><th>Range</th><th>Radio Site</th><th>Readibility</th><th>Note</th><th style="width:30px;"></th>
+        </tr></thead>
+        <tbody id="monBody"></tbody>
+      </table>
+    </div>
+    <div class="grid2" style="margin-top:14px;">
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <label style="font-family:var(--font-mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);" data-t="namaTeknisiPelaksana">Nama Teknisi Pelaksana</label>
+          <button class="btn ghost" style="padding:5px 10px;" onclick="addMonTeknisi()" data-t="tambahNama">+ Nama</button>
+        </div>
+        <div id="monTeknisiList" style="margin-top:8px;"></div>
+        <div class="field" style="margin-top:6px;"><label data-t="ttdPersonilTeknik">TTD Personil Teknik</label><div class="sig-wrap"><canvas id="sigMon"></canvas><div class="sig-toolbar"><span class="sig-hint" data-t="ttdHintTeknisi">tanda tangan teknisi</span><button class="sig-clear" onclick="clearSig('sigMon')" data-t="bersihkan">bersihkan</button></div></div></div>
+      </div>
+      <div>
+        <div class="field"><label data-t="personilOps">Personil Operasi</label><input type="text" id="monOps" list="pejabatDatalist" data-t-ph="phPersonilOps" placeholder="Nama personil operasi"></div>
+        <div class="field"><label data-t="kirimTtdKe">Kirim TTD ke akun</label><select id="monOpsAkun"><option value="" data-t="kirimTtdOtomatis">Otomatis (dari nama di atas)</option></select></div>
+        <div class="field"><label data-t="ttdPersonilOps">TTD Personil Operasi</label><div class="sig-wrap"><canvas id="sigMonOps"></canvas><div class="sig-toolbar"><span class="sig-hint" data-t="ttdHintUmum">tanda tangan di sini</span><button class="sig-clear" onclick="clearSig('sigMonOps')" data-t="bersihkan">bersihkan</button></div></div></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn ghost" onclick="closeMonModal()" data-t="batal">Batal</button>
+      <button class="btn" id="monSaveBtn" onclick="saveMon()" data-t="simpanMon">💾 Simpan Form</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DS TEST -->
+<div class="modal-bg" id="dsModalBg">
+  <div class="modal" style="max-width:860px;">
+    <h3 data-t="dsModal">DS Test</h3>
+    <div class="grid2">
+      <div class="field"><label data-t="tanggal">Tanggal</label><input type="date" id="dsTanggal"></div>
+      <div class="field"><label data-t="kategoriDs">Kategori</label>
+        <!-- Isinya dibangun isiPilihanKategoriDs() dari daftar kategori yang
+             dikirim server; yang di bawah cuma isi sementara sebelum data masuk. -->
+        <select id="dsKategori" onchange="gantiKategoriDs()">
+          <option value="domestik" data-t="dsKat_domestik">Domestik</option>
+        </select>
+      </div>
+    </div>
+    <div class="subtle-note" id="dsKosongNote" style="display:none;" data-t="dsDaftarKosong">Daftar site untuk kategori ini belum diisi. Kirimkan daftarnya dan formnya langsung bisa dipakai.</div>
+    <div class="legend">
+      <span><i class="dot" style="background:var(--ok)"></i> <span data-t="lgOk">OK</span></span>
+      <span><i class="dot" style="background:var(--fail)"></i> <span data-t="lgNotOk">NOT OK</span></span>
+      <span><i class="dot" style="background:var(--muted)"></i> <span data-t="lgTidakDicek">TIDAK DICEK</span></span>
+      <span style="color:var(--muted);" data-t="lgKlikUbah">Klik kotak status untuk mengubahnya.</span>
+    </div>
+    <div class="dc-table-wrap">
+      <table class="dc ds" id="dsTable">
+        <!-- Kepalanya diisi renderDsTable(): kolom SITE ikut hilang untuk
+             kategori yang barisnya cuma punya CODE. -->
+        <thead id="dsThead"></thead>
+        <tbody id="dsBody"></tbody>
+      </table>
+    </div>
+    <div class="grid2" style="margin-top:14px;">
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <label style="font-family:var(--font-mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);" data-t="namaTeknisiPelaksana">Nama Teknisi Pelaksana</label>
+          <button class="btn ghost" style="padding:5px 10px;" onclick="addDsTeknisi()" data-t="tambahNama">+ Nama</button>
+        </div>
+        <div id="dsTeknisiList" style="margin-top:8px;"></div>
+      </div>
+      <div class="field"><label data-t="ttdTeknisi">TTD Teknisi</label><div class="sig-wrap"><canvas id="sigDs"></canvas><div class="sig-toolbar"><span class="sig-hint" data-t="ttdHintTeknisi">tanda tangan teknisi</span><button class="sig-clear" onclick="clearSig('sigDs')" data-t="bersihkan">bersihkan</button></div></div></div>
+    </div>
+    <div class="field" style="margin-top:8px;"><label data-t="mengetahuiManager">Mengetahui — Manager Teknik</label><input type="text" id="dsManagerNama" list="pejabatDatalist" data-t-ph="phNamaManager" placeholder="Nama manager teknik"></div>
+    <div class="field" style="margin-top:6px;"><label data-t="kirimTtdKe">Kirim TTD ke akun</label><select id="dsManagerAkun"><option value="" data-t="kirimTtdOtomatis">Otomatis (dari nama di atas)</option></select></div>
+    <div class="modal-footer">
+      <button class="btn ghost" onclick="closeDsModal()" data-t="batal">Batal</button>
+      <button class="btn" id="dsSaveBtn" onclick="saveDs()" data-t="simpanDs">💾 Simpan DS Test</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL LTK -->
+<div class="modal-bg" id="ltkModalBg">
+  <div class="modal" style="max-width:720px;">
+    <h3 data-t="ltkModal">Buat LTK</h3>
+    <div class="grid2">
+      <div class="field"><label data-t="tanggalPelaporan">Tanggal Pelaporan</label><input type="date" id="ltkTanggalLapor"></div>
+      <div class="field"><label data-t="kotaLtk">Kota</label><input type="text" id="ltkKota" placeholder="Tangerang"></div>
+    </div>
+    <div class="field"><label data-t="penyelenggaraLtk">Penyelenggara Pelayanan</label><input type="text" id="ltkPenyelenggara"></div>
+    <div class="field"><label data-t="kelompokLtk">Kelompok Fasilitas</label><input type="text" id="ltkKelompok"></div>
+    <div class="grid2">
+      <div class="field"><label data-t="peralatanLtk">Nama Peralatan</label><input type="text" id="ltkPeralatan" data-t-ph="phPeralatanLtk" placeholder="cth. Transmitter VHF A/G"></div>
+      <div class="field"><label data-t="modulLtk">Bagian / Modul yang Rusak</label><input type="text" id="ltkModul" data-t-ph="phModulLtk" placeholder="cth. Processor Module"></div>
+    </div>
+    <div class="field"><label data-t="analisaLtk">Analisa Terjadinya Kerusakan</label><textarea id="ltkAnalisa" data-t-ph="phAnalisaLtk" placeholder="cth. Kondisi TX1 frekuensi 132.1 MHz display blank dan led nyala semua..."></textarea></div>
+    <div class="field"><label data-t="perbaikanLtk">Kegiatan Perbaikan / Tindak Lanjut</label><textarea id="ltkPerbaikan" data-t-ph="phPerbaikanLtk" placeholder="Satu tindakan per baris"></textarea></div>
+    <div class="grid2">
+      <div class="field"><label data-t="tanggalRusak">Tanggal Terjadi Kerusakan</label><input type="date" id="ltkTanggalRusak"></div>
+      <div class="field"><label data-t="jamRusak">Jam Terjadi Kerusakan (UTC)</label><input type="time" id="ltkJamRusak"></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label data-t="tanggalSelesai">Tanggal Selesai Perbaikan</label><input type="date" id="ltkTanggalSelesai"></div>
+      <div class="field"><label data-t="jamSelesai">Jam Selesai Perbaikan (UTC)</label><input type="time" id="ltkJamSelesai"></div>
+    </div>
+    <div class="field"><label data-t="jamTerputus">Jumlah Jam Operasional Terputus</label><input type="text" id="ltkJamTerputus" data-t-ph="phJamTerputus" placeholder="cth. 3 jam 20 menit"></div>
+    <div class="field">
+      <label data-t-html="labelLampiranLtk">Lampiran — Foto / Dokumen Pendukung <span style="text-transform:none;letter-spacing:0;">(opsional)</span></label>
+      <input type="file" id="ltkLampiran" multiple accept="image/jpeg,image/png,image/webp,application/pdf" onchange="pilihLampiran(this, 'ltkLampiran')">
+      <div class="lampiran-hint" id="ltkLampiranHint">Maksimal 6 berkas, 8 MB per berkas. JPG, PNG, WEBP, atau PDF.</div>
+      <div id="ltkLampiranList"></div>
+    </div>
+    <div class="grid2">
+      <div>
+        <div class="field"><label data-t="teknisiTelekom">Teknisi Telekomunikasi</label><input type="text" id="ltkTeknisiNama" data-t-ph="phNamaTeknisi" placeholder="Nama teknisi"></div>
+        <div class="field"><label data-t="ttdTeknisi">TTD Teknisi</label><div class="sig-wrap"><canvas id="sigLtkTeknisi"></canvas><div class="sig-toolbar"><span class="sig-hint" data-t="ttdHintTeknisi">tanda tangan teknisi</span><button class="sig-clear" onclick="clearSig('sigLtkTeknisi')" data-t="bersihkan">bersihkan</button></div></div></div>
+      </div>
+      <div>
+        <div class="field"><label data-t="managerTeknik1">Mengetahui — Manager Teknik 1</label><input type="text" id="ltkManagerNama" list="pejabatDatalist" data-t-ph="phNamaManager" placeholder="Nama manager teknik"></div>
+        <div class="field" style="margin-top:6px;"><label data-t="kirimTtdKe">Kirim TTD ke akun</label><select id="ltkManagerAkun"><option value="" data-t="kirimTtdOtomatis">Otomatis (dari nama di atas)</option></select></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn ghost" onclick="closeLtkModal()" data-t="batal">Batal</button>
+      <button class="btn" id="ltkSaveBtn" onclick="saveLtk()" data-t="simpanLtk">💾 Simpan LTK</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DETAIL ISU -->
+<div class="modal-bg" id="issueDetailBg">
+  <div class="modal" style="max-width:680px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <h3 style="margin:0;" data-t="detailIsu">Detail Isu</h3>
+      <button class="icon-btn" style="font-size:18px;" onclick="closeIssueDetail()">✕</button>
+    </div>
+    <div id="issueDetailBody"></div>
+    <div class="modal-footer">
+      <button class="btn ghost" onclick="closeIssueDetail()" data-t="tutup">Tutup</button>
+      <button class="btn" id="issueDetailPrintBtn" data-t="cetak">🖨 Cetak</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL TANDA TANGAN SUSULAN (pejabat / manager teknik) -->
+<div class="modal-bg" id="ttdModalBg">
+  <div class="modal" style="max-width:460px;">
+    <h3 data-t="ttdModalJudul">Bubuhkan Tanda Tangan</h3>
+    <div class="subtle-note" style="margin-bottom:12px;">
+      <span data-t="ttdSbgKeterangan">Tanda tangan untuk</span>
+      <b id="ttdSbgPeran">-</b> — <b id="ttdSbgNama">-</b>.<br>
+      <span id="ttdCatatanNama"></span>
+      <span data-t="ttdDicatatSbg">Dicatat dibubuhkan oleh</span> <b id="ttdSbgAkun">-</b>.
+    </div>
+    <div class="field">
+      <label data-t="ttdDiSini">Tanda Tangan</label>
+      <div class="sig-wrap">
+        <canvas id="sigTtdPejabat"></canvas>
+        <div class="sig-toolbar">
+          <span class="sig-hint" data-t="ttdHintUmum">tanda tangan di sini</span>
+          <button class="sig-clear" onclick="clearSig('sigTtdPejabat')" data-t="bersihkan">bersihkan</button>
+        </div>
+      </div>
+    </div>
+    <!-- Muncul hanya kalau akun ini sudah punya TTD tersimpan — lihat
+         perbaruiTampilanTtdTersimpan di js/27-ttd-tersimpan.js. -->
+    <div class="ttd-tersimpan-jalur" id="ttdTersimpanJalur" style="display:none;">
+      <div class="ttd-tersimpan-teks">
+        <b data-t="ttdTersimpanJudul">Pakai TTD tersimpan</b>
+        <span data-t="ttdTersimpanKeterangan">Tanpa menggambar lagi: yang dibubuhkan tanda tangan yang sudah Anda simpan lewat menu “TTD Saya”.</span>
+      </div>
+      <button class="btn" id="ttdTersimpanSaveBtn" onclick="setujuiDenganTtdTersimpan()" data-t="ttdTersimpanTombol">✅ Setujui &amp; Bubuhkan</button>
+    </div>
+    <div class="subtle-note" data-t="ttdSekaliSaja">Tanda tangan hanya bisa dibubuhkan sekali dan tidak bisa dihapus sendiri.</div>
+    <div class="modal-footer">
+      <button class="btn ghost" onclick="closeTtdModal()" data-t="batal">Batal</button>
+      <button class="btn" id="ttdSaveBtn" onclick="simpanTtdPejabat()" data-t="simpanTtd">💾 Simpan Tanda Tangan</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL TTD TERSIMPAN MILIK AKUN SENDIRI -->
+<div class="modal-bg" id="ttdSayaModalBg">
+  <div class="modal" style="max-width:460px;">
+    <h3 data-t="ttdSayaJudul">TTD Tersimpan Saya</h3>
+    <div class="ttd-saya-pratinjau">
+      <label data-t="ttdSayaTersimpanKini">Yang tersimpan sekarang</label>
+      <div id="ttdSayaPratinjau"></div>
+    </div>
+    <div class="field">
+      <label data-t="ttdSayaGambarBaru">Gambar tanda tangan baru</label>
+      <div class="sig-wrap">
+        <canvas id="sigTtdSaya"></canvas>
+        <div class="sig-toolbar">
+          <span class="sig-hint" data-t="ttdHintUmum">tanda tangan di sini</span>
+          <button class="sig-clear" onclick="clearSig('sigTtdSaya')" data-t="bersihkan">bersihkan</button>
+        </div>
+      </div>
+    </div>
+    <div class="subtle-note" data-t="ttdSayaCatatan">Tanda tangan ini milik akun Anda dan hanya bisa dibuat serta dihapus oleh Anda sendiri. Sekali tersimpan, tiap papan tanda tangan di formulir mendapat tombol “pakai TTD tersimpan”. Menyimpan yang baru menggantikan yang lama; tanda tangan yang sudah terlanjur dibubuhkan pada catatan tidak ikut berubah.</div>
+    <div class="modal-footer">
+      <button class="btn ghost btn-hapus-akun" id="ttdSayaHapusBtn" onclick="hapusTtdSaya()" data-t="ttdSayaHapus" style="display:none;">Hapus yang tersimpan</button>
+      <button class="btn ghost" onclick="closeTtdSayaModal()" data-t="tutup">Tutup</button>
+      <button class="btn" id="ttdSayaSaveBtn" onclick="simpanTtdSaya()" data-t="ttdSayaSimpan">💾 Simpan TTD</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL SUNTING CATATAN LOGBOOK (tanggal/jam/uraian yang salah ketik) -->
+<div class="modal-bg" id="entryEditModalBg">
+  <div class="modal">
+    <h3 data-t="modalSuntingCatatan">Sunting Catatan Logbook</h3>
+    <div class="grid3">
+      <div class="field"><label data-t="tanggal">Tanggal</label><input type="date" id="feeTanggal"></div>
+      <div class="field"><label id="feeJamLabel" data-t="jamUtc">Jam (UTC)</label><input type="time" id="feeJam"></div>
+      <div class="field" id="feeJamSelesaiWrap" style="display:none;"><label data-t="jamSelesaiUtc">Jam Selesai (UTC)</label><input type="time" id="feeJamSelesai"></div>
+    </div>
+    <div class="grid3">
+      <div class="field"><label data-t="dinasShift">Dinas / Shift</label><select id="feeDinas"></select></div>
+      <div class="field"><label data-t="lokasiGedung">Lokasi</label><select id="feeLokasi"></select></div>
+      <div class="field" id="feeFrekWrap" style="display:none;"><label data-t="frek">Frekuensi</label><input type="text" id="feeFrek" data-t-ph="phFrek" placeholder="cth. 132.900 MHz"></div>
+    </div>
+    <div class="field"><label id="feeUraianLabel">Uraian Pekerjaan / Kejadian</label><textarea id="feeUraian"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn ghost" onclick="closeEntryEditModal()" data-t="batal">Batal</button>
+      <button class="btn" id="feeSaveBtn" onclick="saveEntryEdit()" data-t="simpanPerubahan">💾 Simpan Perubahan</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL SUNTING TANGGAL DAILY CHECK -->
+<div class="modal-bg" id="dcEditModalBg">
+  <div class="modal" style="max-width:420px;">
+    <h3 data-t="modalSuntingTanggalDc">Ubah Tanggal Daily Check</h3>
+    <div class="field"><label data-t="tanggal">Tanggal</label><input type="date" id="dceTanggal"></div>
+    <div class="modal-footer">
+      <button class="btn ghost" onclick="closeDcEditModal()" data-t="batal">Batal</button>
+      <button class="btn" id="dceSaveBtn" onclick="saveDcEdit()" data-t="simpanPerubahan">💾 Simpan Perubahan</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL KOTAK MASUK TTD (pejabat & admin) -->
+<div class="modal-bg" id="inboxModalBg">
+  <div class="modal" style="max-width:520px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <h3 style="margin:0;" data-t="inboxJudul">Menunggu TTD Anda</h3>
+      <button class="icon-btn" style="font-size:18px;" onclick="closeInboxModal()">✕</button>
+    </div>
+    <div id="inboxBody"></div>
+    <div class="modal-footer">
+      <button class="btn ghost" onclick="closeInboxModal()" data-t="tutup">Tutup</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DETAIL CATATAN LOGBOOK -->
+<div class="modal-bg" id="entryDetailBg">
+  <div class="modal" style="max-width:680px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <h3 style="margin:0;" data-t="detailCatatan">Detail Catatan Logbook</h3>
+      <button class="icon-btn" style="font-size:18px;" onclick="closeEntryDetail()">✕</button>
+    </div>
+    <div id="entryDetailBody"></div>
+    <div class="modal-footer">
+      <button class="btn ghost" onclick="closeEntryDetail()" data-t="tutup">Tutup</button>
+      <button class="btn ghost hanya-tulis" id="entryDetailEditBtn" data-t="suntingBtn">✎ Sunting</button>
+      <button class="btn" id="entryDetailPrintBtn" data-t="cetak">🖨 Cetak</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="dcDetailBg">
+  <div class="modal" style="max-width:820px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <h3 style="margin:0;" data-t="detailDc">Detail Daily Check</h3>
+      <button class="icon-btn" style="font-size:18px;" onclick="closeDcDetail()">✕</button>
+    </div>
+    <div id="dcDetailBody"></div>
+    <div class="modal-footer">
+      <button class="btn ghost" onclick="closeDcDetail()" data-t="tutup">Tutup</button>
+      <button class="btn ghost hanya-tulis" id="dcDetailEditBtn" data-t="suntingBtn">✎ Sunting</button>
+      <button class="btn" id="dcDetailPrintBtn" data-t="cetak">🖨 Cetak</button>
+    </div>
+  </div>
+</div>
+
+<!-- Saran nama akun pejabat/admin untuk isian TTD susulan (lihat 20-ttd-pejabat.js). -->
+<datalist id="pejabatDatalist"></datalist>
+
+<div class="toast" id="toast"></div>
+<div id="printArea"></div>
+<style id="pageStyle"></style>
+
+<!-- Kode dipecah per bagian di folder js/. Berkas biasa (bukan module) supaya
+     fungsi di dalamnya tetap bisa dipanggil dari onclick="..." di atas, dan
+     dijalankan berurutan dari atas ke bawah, persis seperti waktu masih satu
+     blok <script>. Nomor berkas = urutan jalan. Daftar isinya di PETA-BERKAS.md. -->
+<script src="js/01-tema.js"></script>
+<script src="js/02-bahasa.js"></script>
+<script src="js/03-waktu.js"></script>
+<script src="js/04-toast-tab.js"></script>
+<script src="js/05-jembatan-server.js"></script>
+<script src="js/06-keadaan.js"></script>
+<script src="js/07-unit.js"></script>
+<script src="js/08-tanda-tangan.js"></script>
+<script src="js/09-peran.js"></script>
+<script src="js/10-lampiran.js"></script>
+<script src="js/11-logbook.js"></script>
+<script src="js/12-daily-check-radtel.js"></script>
+<script src="js/13-daily-check-radkom.js"></script>
+<script src="js/14-daily-check-umum.js"></script>
+<script src="js/15-isu.js"></script>
+<script src="js/16-monitoring.js"></script>
+<script src="js/17-ds-test.js"></script>
+<script src="js/18-ltk.js"></script>
+<script src="js/20-ttd-pejabat.js"></script>
+<script src="js/21-cetak-dasar.js"></script>
+<script src="js/22-cetak-logbook.js"></script>
+<script src="js/23-cetak-isu.js"></script>
+<script src="js/24-cetak-daily-check.js"></script>
+<script src="js/27-ttd-tersimpan.js"></script>
+<script src="js/29-rekap.js"></script>
+<script src="js/25-login.js"></script>
+<script src="js/26-init.js"></script>
+</body>
+</html>

@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="id" data-tema="gelap">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0e13">
+<meta name="color-scheme" content="dark light">
+<title>Prototipe Rekap &amp; Matrik Pengalaman — New JATSC</title>
+
+<!--
+  PROTOTIPE. Berkas ini berdiri sendiri: tidak memuat css/ atau js/ milik
+  E-Logbook, tidak menyunting satu pun berkasnya, dan tidak ada berkas
+  aplikasi yang memuatnya. Hapus berkas ini kalau tidak jadi dipakai.
+
+  APA YANG DICOBA DI SINI
+  Rekap & Matrik yang sekarang jalan di aplikasi menjawab "BERAPA": berapa
+  catatan per formulir, per dinas, per periode. Prototipe ini menjawab
+  pertanyaan yang lain — "APA SAJA YANG SUDAH PERNAH DIALAMI": kejadian apa
+  yang benar-benar pernah terjadi di unit ini, kapan pertama kali, siapa yang
+  sudah pernah menanganinya, dan siapa yang belum.
+
+  Aturan isinya cuma satu, dan itu yang membedakannya dari rekap sekarang:
+  TIDAK ADA DAFTAR JENIS KEJADIAN YANG DITETAPKAN LEBIH DULU. Setiap baris di
+  matriks lahir dari catatan logbook yang sudah masuk. Kejadian yang belum
+  pernah terjadi tidak punya baris — bukan baris kosong, tapi memang tidak ada.
+
+  DUA SUMBER DATA, dipilih di bilah atas:
+    · DATA CONTOH      — blok CONTOH di bawah, seluruhnya karangan (bawaan)
+    · SERVER E-LOGBOOK — catatan logbook, LTK, dan isu diambil lewat API
+                         server yang sudah ada (getAllData)
+  Sambungan itu hanya hidup kalau halaman ini dibuka DARI server E-Logbook
+  (mis. http://localhost:3000/contoh/rekap-matrik-pengalaman.html) dan sesinya
+  masih login. Di luar itu pilihan servernya mati sendiri dan yang tampil data
+  contoh, ditandai terang-terangan di layar.
+
+  YANG BELUM NYATA, dan perlu diputuskan sebelum dipakai sungguhan:
+  penggolongan kejadian di sini ditebak dari kata kunci pada teks Uraian yang
+  diketik bebas oleh teknisi. Aturannya ditampilkan apa adanya di bagian
+  "Aturan penggolongan" supaya bisa dibantah baris per baris. Catatan lengkap
+  ada di kaki berkas.
+-->
+
+<style>
+:root{
+  --bg:#0a0e13; --panel:#111820; --panel-2:#161f2a; --line:#223040;
+  --text:#dbe6ef; --muted:#7c8ba0; --accent:#29b6f6; --accent-dim:#134a63;
+  --accent-teks:#04222f;
+  --ok:#2ecc71; --warn:#ffb300; --fail:#e5484d;
+  --konsol-1:#0d141b; --konsol-2:#0a0e13;
+  --garis-pindai:rgba(41,182,246,0.035);
+  --zebra:rgba(255,255,255,0.015);
+  --bayang:0 10px 30px rgba(0,0,0,0.45);
+  --sel-0:rgba(255,255,255,0.02);
+  --font-body:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --font-mono:ui-monospace,"Cascadia Mono",Consolas,"SF Mono","Liberation Mono",monospace;
+}
+html[data-tema="terang"]{
+  --bg:#eef2f6; --panel:#ffffff; --panel-2:#f4f7fa; --line:#ccd6e0;
+  --text:#16202b; --muted:#5b6b7d; --accent:#0277bd; --accent-dim:#b9dcf0;
+  --accent-teks:#ffffff;
+  --ok:#1b8a4b; --warn:#a86500; --fail:#c62828;
+  --konsol-1:#ffffff; --konsol-2:#e7eef4;
+  --garis-pindai:rgba(2,119,189,0.045);
+  --zebra:rgba(0,0,0,0.022);
+  --bayang:0 10px 30px rgba(22,32,43,0.16);
+  --sel-0:rgba(0,0,0,0.018);
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-body);
+     font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased;}
+h1,h2,h3{margin:0;font-weight:620;letter-spacing:-.01em;}
+button{font:inherit;color:inherit;}
+::-webkit-scrollbar{height:9px;width:9px;}
+::-webkit-scrollbar-thumb{background:var(--line);border-radius:5px;}
+
+/* ---------- Kepala bergaya konsol ---------- */
+.konsol{background:linear-gradient(150deg,var(--konsol-1),var(--konsol-2));
+        border-bottom:1px solid var(--line);position:relative;overflow:hidden;}
+.konsol::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,var(--garis-pindai) 0 1px,transparent 1px 4px);}
+.konsol-isi{max-width:78rem;margin:0 auto;padding:1.6rem 1.15rem 1.2rem;position:relative;z-index:1;}
+.baris-atas{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;}
+.eyebrow{font-family:var(--font-mono);font-size:11px;letter-spacing:.18em;
+         text-transform:uppercase;color:var(--muted);margin:0 0 .3rem;}
+h1{font-size:clamp(1.3rem,1.05rem + 1.1vw,1.8rem);line-height:1.2;}
+.sub{margin:.45rem 0 0;color:var(--muted);max-width:62ch;font-size:13px;}
+
+.tanda-proto{display:inline-flex;align-items:center;gap:.45rem;font-family:var(--font-mono);
+  font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:.3rem .7rem;
+  border-radius:999px;border:1px solid var(--warn);color:var(--warn);white-space:nowrap;}
+.tanda-proto::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;}
+
+/* ---------- Bilah kendali ---------- */
+.kendali{max-width:78rem;margin:0 auto;padding:.9rem 1.15rem;display:flex;gap:.55rem .9rem;
+         flex-wrap:wrap;align-items:flex-end;}
+.isian{display:flex;flex-direction:column;gap:.22rem;}
+.isian label{font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;
+             text-transform:uppercase;color:var(--muted);}
+select,input[type=date]{background:var(--panel);color:var(--text);border:1px solid var(--line);
+  border-radius:7px;padding:.4rem .55rem;font:inherit;font-size:13px;min-height:34px;}
+.tbl{display:flex;gap:.3rem;flex-wrap:wrap;}
+.tbl button,.tombol{background:var(--panel);border:1px solid var(--line);border-radius:7px;
+  padding:.4rem .7rem;font-size:12.5px;cursor:pointer;min-height:34px;}
+.tbl button:hover,.tombol:hover{border-color:var(--accent);}
+.tbl button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-teks);}
+.tbl button:disabled{opacity:.4;cursor:not-allowed;}
+
+.bungkus{max-width:78rem;margin:0 auto;padding:0 1.15rem 4rem;}
+
+/* ---------- Pita keterangan sumber ---------- */
+.pita{display:flex;gap:.6rem;align-items:flex-start;border:1px solid var(--line);
+  border-left:3px solid var(--warn);background:var(--panel);border-radius:0 8px 8px 0;
+  padding:.7rem .95rem;margin:0 0 1.4rem;font-size:12.5px;color:var(--muted);}
+.pita b{color:var(--text);font-weight:620;}
+.pita.server{border-left-color:var(--ok);}
+
+/* ---------- Kartu ringkasan ---------- */
+section{margin-top:2.2rem;}
+.kepala-bagian{display:flex;align-items:baseline;justify-content:space-between;
+  gap:1rem;flex-wrap:wrap;margin-bottom:.75rem;}
+h2{font-size:1.12rem;}
+.ket{font-size:12.5px;color:var(--muted);max-width:70ch;margin:.15rem 0 0;}
+
+.kartu-baris{display:grid;grid-template-columns:repeat(auto-fit,minmax(11rem,1fr));gap:.7rem;}
+.kartu{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+       padding:.85rem 1rem;display:flex;flex-direction:column;gap:.15rem;}
+.kartu .label{font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--muted);}
+.kartu b{font-size:1.75rem;line-height:1.15;font-variant-numeric:tabular-nums;font-weight:640;}
+.kartu .cat{font-size:12px;color:var(--muted);}
+.kartu.utama{border-color:var(--accent-dim);}
+.kartu .teks-besar{font-size:1.02rem;font-weight:620;line-height:1.3;margin-top:.1rem;}
+
+/* ---------- Tabel matriks ---------- */
+.gulir{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--panel);}
+table{border-collapse:collapse;width:100%;font-size:12.5px;}
+th,td{border-bottom:1px solid var(--line);padding:.42rem .6rem;text-align:center;
+      white-space:nowrap;vertical-align:middle;}
+thead th{font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--muted);font-weight:400;background:var(--panel-2);position:sticky;top:0;}
+tbody tr:nth-child(even){background:var(--zebra);}
+tbody tr:last-child td{border-bottom:none;}
+.nama{text-align:left;white-space:normal;min-width:13rem;max-width:22rem;font-weight:560;}
+.nama .kecil{display:block;font-size:11px;color:var(--muted);font-weight:400;}
+.total{font-variant-numeric:tabular-nums;font-weight:640;background:var(--sel-0);}
+tfoot td{border-top:1px solid var(--line);font-weight:640;background:var(--panel-2);
+         font-variant-numeric:tabular-nums;}
+
+/* Sel matriks: makin sering dialami makin pekat. Sel kosong sengaja dibiarkan
+   sunyi — "belum pernah" adalah keterangan, bukan angka nol. */
+td.sel{font-variant-numeric:tabular-nums;cursor:pointer;position:relative;min-width:3.1rem;}
+td.sel.kosong{color:var(--muted);opacity:.45;cursor:default;}
+td.sel.p1{background:color-mix(in srgb,var(--accent) 12%,transparent);}
+td.sel.p2{background:color-mix(in srgb,var(--accent) 24%,transparent);}
+td.sel.p3{background:color-mix(in srgb,var(--accent) 38%,transparent);}
+td.sel.p4{background:color-mix(in srgb,var(--accent) 55%,transparent);color:var(--accent-teks);}
+td.sel:hover:not(.kosong){outline:2px solid var(--accent);outline-offset:-2px;}
+td.sel.pilih{outline:2px solid var(--accent);outline-offset:-2px;}
+td.sel .pertama{position:absolute;top:2px;right:3px;font-size:9px;color:var(--warn);line-height:1;}
+
+.legenda{display:flex;gap:.9rem;flex-wrap:wrap;align-items:center;margin-top:.6rem;
+  font-size:11.5px;color:var(--muted);}
+.legenda i{display:inline-block;width:14px;height:14px;border-radius:3px;
+  border:1px solid var(--line);vertical-align:-3px;margin-right:.3rem;}
+
+/* ---------- Daftar kejadian ---------- */
+.daftar{display:flex;flex-direction:column;gap:.5rem;}
+.kejadian{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:.7rem .9rem;}
+.kejadian .atas{display:flex;gap:.6rem;flex-wrap:wrap;align-items:baseline;
+  font-family:var(--font-mono);font-size:11px;color:var(--muted);letter-spacing:.04em;}
+.kejadian .isi{margin:.3rem 0 0;font-size:13px;line-height:1.55;}
+.kejadian .kaki{margin-top:.35rem;font-size:11.5px;color:var(--muted);}
+.golongan{display:inline-block;padding:.1rem .45rem;border-radius:999px;border:1px solid var(--accent-dim);
+  color:var(--accent);font-size:10.5px;font-family:var(--font-mono);letter-spacing:.05em;}
+.asal{display:inline-block;padding:.1rem .4rem;border-radius:4px;border:1px solid var(--line);
+  font-size:10px;font-family:var(--font-mono);letter-spacing:.06em;text-transform:uppercase;}
+
+.kosong-pesan{border:1px dashed var(--line);border-radius:10px;padding:1.5rem;
+  text-align:center;color:var(--muted);font-size:13px;}
+
+/* ---------- Aturan penggolongan ---------- */
+.aturan{width:100%;font-size:12.5px;}
+.aturan td,.aturan th{text-align:left;white-space:normal;}
+.aturan code{font-family:var(--font-mono);font-size:11.5px;color:var(--muted);}
+
+footer{margin-top:3rem;padding-top:1.2rem;border-top:1px solid var(--line);
+  color:var(--muted);font-size:12px;}
+
+@media(max-width:640px){
+  .nama{min-width:9.5rem;}
+  .kartu b{font-size:1.45rem;}
+}
+</style>
+</head>
+<body>
+
+<header class="konsol">
+  <div class="konsol-isi">
+    <div class="baris-atas">
+      <div>
+        <p class="eyebrow">E-Logbook New JATSC — prototipe tampilan</p>
+        <h1>Rekap &amp; Matrik pengalaman</h1>
+        <p class="sub">Isinya kejadian yang <b>sudah pernah dialami</b> dan tercatat di logbook.
+           Tidak ada daftar jenis kejadian yang ditetapkan lebih dulu — setiap baris di bawah
+           lahir dari catatan yang sudah masuk.</p>
+      </div>
+      <div style="display:flex;gap:.5rem;align-items:center;">
+        <span class="tanda-proto">Prototipe</span>
+        <button class="tombol" id="btnTema" title="Ganti mode terang/gelap">◐</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="kendali">
+  <div class="isian">
+    <label>Sumber data</label>
+    <div class="tbl" role="group">
+      <button id="btnContoh" aria-pressed="true">Data contoh</button>
+      <button id="btnServer" aria-pressed="false" disabled>Server E-Logbook</button>
+    </div>
+  </div>
+  <div class="isian">
+    <label for="pilUnit">Unit</label>
+    <select id="pilUnit"></select>
+  </div>
+  <div class="isian">
+    <label for="tglDari">Dari</label>
+    <input type="date" id="tglDari">
+  </div>
+  <div class="isian">
+    <label for="tglSampai">Sampai</label>
+    <input type="date" id="tglSampai">
+  </div>
+  <div class="isian">
+    <label>Rentang cepat</label>
+    <div class="tbl">
+      <button data-bulan="1">1 bln</button>
+      <button data-bulan="3">3 bln</button>
+      <button data-bulan="12">1 thn</button>
+      <button data-bulan="0">Semua</button>
+    </div>
+  </div>
+</div>
+
+<div class="bungkus">
+  <div class="pita" id="pitaSumber"></div>
+
+  <section id="bagRingkasan">
+    <div class="kepala-bagian">
+      <div>
+        <h2>Ringkasan</h2>
+        <p class="ket">Dihitung dari catatan pada rentang yang dipilih.</p>
+      </div>
+    </div>
+    <div class="kartu-baris" id="kartuRingkasan"></div>
+  </section>
+
+  <section id="bagJenis">
+    <div class="kepala-bagian">
+      <div>
+        <h2>Jenis kejadian × bulan</h2>
+        <p class="ket">Satu baris = satu jenis kejadian yang benar-benar pernah terjadi.
+          Penanda <span style="color:var(--warn)">▲</span> menandai bulan saat jenis itu
+          <b>pertama kali</b> muncul di rentang ini.</p>
+      </div>
+    </div>
+    <div class="gulir"><table id="tblJenis"></table></div>
+    <div class="legenda" id="legendaJenis"></div>
+  </section>
+
+  <section id="bagOrang">
+    <div class="kepala-bagian">
+      <div>
+        <h2>Siapa sudah pernah menangani apa</h2>
+        <p class="ket">Sel kosong berarti <b>orang itu belum pernah</b> tercatat menangani
+          kejadian jenis itu — bukan nol, tapi belum pernah. Tekan sel mana pun untuk
+          melihat catatan aslinya di bawah.</p>
+      </div>
+    </div>
+    <div class="gulir"><table id="tblOrang"></table></div>
+    <div class="legenda">
+      <span><i style="background:transparent"></i>belum pernah</span>
+      <span><i style="background:color-mix(in srgb,var(--accent) 12%,transparent)"></i>1×</span>
+      <span><i style="background:color-mix(in srgb,var(--accent) 24%,transparent)"></i>2–3×</span>
+      <span><i style="background:color-mix(in srgb,var(--accent) 38%,transparent)"></i>4–6×</span>
+      <span><i style="background:color-mix(in srgb,var(--accent) 55%,transparent)"></i>7× ke atas</span>
+    </div>
+  </section>
+
+  <section id="bagDaftar">
+    <div class="kepala-bagian">
+      <div>
+        <h2 id="judulDaftar">Catatan yang mendasarinya</h2>
+        <p class="ket" id="ketDaftar"></p>
+      </div>
+      <button class="tombol" id="btnSemuaCatatan">Tampilkan semua</button>
+    </div>
+    <div class="daftar" id="daftarKejadian"></div>
+  </section>
+
+  <section id="bagAturan">
+    <div class="kepala-bagian">
+      <div>
+        <h2>Aturan penggolongan</h2>
+        <p class="ket">Bagian ini <b>bukan tampilan untuk pemakai</b> — ini yang perlu dibantah
+          lebih dulu. Uraian di logbook diketik bebas, jadi jenis kejadiannya ditebak dari kata
+          kunci. Aturan diperiksa dari atas ke bawah, yang pertama cocok yang dipakai.</p>
+      </div>
+    </div>
+    <div class="gulir"><table class="aturan" id="tblAturan"></table></div>
+  </section>
+
+  <footer>
+    Prototipe tampilan · berdiri sendiri, tidak menyentuh berkas E-Logbook ·
+    <span id="kakiSumber"></span>
+  </footer>
+</div>
+
+<script>
+/* =======================================================================
+   PENGGOLONGAN KEJADIAN
+
+   Uraian logbook diketik bebas, jadi tidak ada kolom "jenis kejadian" yang
+   bisa dipakai langsung. Di sini jenisnya ditebak dari kata kunci — diperiksa
+   berurutan, yang pertama cocok yang dipakai.
+
+   Urutannya berpengaruh dan sengaja begini: "genset mati" harus jatuh ke
+   catu daya, bukan ke peralatan mati; "ganti modul karena alarm" harus jatuh
+   ke penggantian, bukan ke alarm. Yang lebih khusus ditaruh lebih dulu.
+
+   Yang tidak cocok apa pun TIDAK dipaksa masuk golongan mana pun — ia masuk
+   "Belum tergolong" dan tetap kelihatan, supaya ketahuan kalau aturannya
+   kurang, bukan hilang diam-diam.
+   ======================================================================= */
+
+const ATURAN = [
+  { jenis:'Catu daya & kelistrikan',   kata:['genset','ups','pln','listrik','catu daya','tegangan','padam','breaker','panel ats'] },
+  { jenis:'Penggantian modul / suku cadang', kata:['ganti','penggantian','replace','tukar modul','sparepart','suku cadang'] },
+  { jenis:'Gangguan frekuensi & interferensi', kata:['interferensi','noise','jamming','frekuensi','sinyal lemah','modulasi'] },
+  { jenis:'Peralatan mati / tidak berfungsi', kata:['mati total','down','tidak berfungsi','tidak menyala','off air','blank','hang'] },
+  { jenis:'Alarm & indikasi gangguan', kata:['alarm','warning','fault','error','indikasi','flag','abnormal'] },
+  { jenis:'Konfigurasi & perangkat lunak', kata:['konfigurasi','setting','software','update','upgrade','restart','reboot','database'] },
+  { jenis:'Pemeliharaan berkala',      kata:['pemeliharaan','preventive','perawatan','pembersihan','cleaning','kalibrasi','mingguan','bulanan'] },
+  { jenis:'Pengecekan & pengukuran',   kata:['pengecekan','cek ','pengukuran','ukur','uji','test','pengamatan','monitoring','pemeriksaan'] },
+  { jenis:'Koordinasi & serah terima', kata:['koordinasi','serah terima','briefing','laporan ke','melapor'] }
+];
+const BELUM_TERGOLONG = 'Belum tergolong';
+
+function golongkan(teks){
+  const t = ' ' + String(teks || '').toLowerCase().replace(/\s+/g,' ') + ' ';
+  for(const a of ATURAN){
+    for(const k of a.kata) if(t.includes(k)) return a.jenis;
+  }
+  return BELUM_TERGOLONG;
+}
+
+/* =======================================================================
+   DATA CONTOH — seluruhnya karangan.
+
+   Bentuk tiap baris sengaja disamakan dengan hasil olahan dari server
+   (lihat ambilDariServer), supaya sisa berkas ini tidak perlu tahu datanya
+   datang dari mana.
+   ======================================================================= */
+
+const CONTOH_UNIT = [
+  { kode:'radtel', nama:'Radtel' },
+  { kode:'radkom', nama:'Radkom' }
+];
+
+/* [tanggal, unit, uraian, [pelaksana], asal] */
+const CONTOH_BARIS = [
+  ['2026-06-02','radtel','Pengecekan harian VSCS Garex 300 melalui TMCS, seluruh CWP normal',['B. Santoso'],'Logbook'],
+  ['2026-06-03','radtel','Alarm pada CWP03, indikasi loss of audio, direset dari TMCS',['B. Santoso','A. Rahman'],'Logbook'],
+  ['2026-06-05','radtel','Pemeliharaan mingguan Recording Neptuno, pembersihan filter udara',['D. Prasetyo'],'Logbook'],
+  ['2026-06-08','radtel','Pengukuran level modulasi radio VHF Ground shelter TX',['A. Rahman'],'Logbook'],
+  ['2026-06-11','radtel','UPS ruang equipment berpindah ke baterai saat listrik PLN padam 12 menit',['D. Prasetyo'],'Logbook'],
+  ['2026-06-14','radtel','Penggantian modul power supply CWP07 dengan spare yang tersedia',['B. Santoso'],'Logbook'],
+  ['2026-06-17','radtel','Koordinasi dengan ATC terkait jadwal pemeliharaan kanal darurat',['B. Santoso'],'Logbook'],
+  ['2026-06-21','radtel','Interferensi terdengar pada kanal 118.75, noise berulang tiap 10 detik',['A. Rahman'],'Logbook'],
+  ['2026-06-24','radtel','Pengecekan harian VSCS Garex 300, hasil normal',['D. Prasetyo'],'Logbook'],
+  ['2026-06-28','radtel','Restart server recording setelah update perangkat lunak versi R2.4',['B. Santoso'],'Logbook'],
+  ['2026-07-01','radtel','Pengecekan harian seluruh kanal, hasil normal',['A. Rahman'],'Logbook'],
+  ['2026-07-04','radtel','Alarm temperatur tinggi ruang equipment, AC presisi nomor 2 tidak berfungsi',['D. Prasetyo','B. Santoso'],'Logbook'],
+  ['2026-07-06','radtel','Genset otomatis start saat PLN padam, beban pindah normal',['D. Prasetyo'],'Logbook'],
+  ['2026-07-09','radtel','Pemeliharaan bulanan antena VHF, pengencangan konektor',['A. Rahman'],'Logbook'],
+  ['2026-07-12','radtel','Penggantian kabel jumper antena yang terkelupas',['A. Rahman','B. Santoso'],'Logbook'],
+  ['2026-07-15','radtel','Pengecekan harian, seluruh peralatan normal',['B. Santoso'],'Logbook'],
+  ['2026-07-19','radtel','Interferensi pada kanal 121.5 dari sumber tidak dikenal, dilaporkan ke pusat',['A. Rahman'],'Logbook'],
+  ['2026-07-22','radtel','HF SSB transceiver hang, tidak merespons perintah panel',['D. Prasetyo'],'Logbook'],
+  ['2026-07-26','radtel','Konfigurasi ulang routing audio setelah penggantian modul',['B. Santoso'],'Logbook'],
+  ['2026-07-30','radtel','Pengecekan harian dan pengukuran daya pancar',['A. Rahman'],'Logbook'],
+  ['2026-08-02','radtel','Alarm baterai UPS lemah, kapasitas turun di bawah 70 persen',['D. Prasetyo'],'Logbook'],
+  ['2026-08-04','radtel','Pemeliharaan mingguan Recording Neptuno',['B. Santoso'],'Logbook'],
+  ['2026-08-06','radtel','Serah terima dinas malam, tidak ada gangguan menonjol',['A. Rahman'],'Logbook'],
+  ['2026-08-08','radtel','Pengecekan harian VSCS Garex 300, CWP11 sesekali alarm',['B. Santoso'],'Logbook'],
+  ['2026-08-11','radtel','Penggantian baterai UPS bank 2 sebanyak 20 sel',['D. Prasetyo','B. Santoso'],'Logbook'],
+  ['2026-08-13','radtel','Kalibrasi ulang meter daya setelah penggantian modul',['A. Rahman'],'Logbook'],
+  ['2026-06-19','radtel','Transmitter kanal 6 mati total, tidak ada indikator menyala',['B. Santoso'],'LTK'],
+  ['2026-07-11','radtel','AC presisi ruang equipment tidak berfungsi, kompresor tidak start',['D. Prasetyo'],'LTK'],
+  ['2026-08-05','radtel','Modul power supply CWP07 rusak berulang',['B. Santoso'],'LTK'],
+  ['2026-06-30','radtel','Noise pada kanal 118.75 mengganggu komunikasi',['A. Rahman'],'Isu'],
+  ['2026-08-01','radtel','Baterai UPS perlu diganti seluruhnya',['D. Prasetyo'],'Isu'],
+  ['2026-06-04','radkom','Pengecekan harian transmitter VHF A/G shelter TX',['S. Hidayat'],'Logbook'],
+  ['2026-06-12','radkom','Alarm VSWR tinggi pada antena dipole nomor 4',['S. Hidayat','R. Kurnia'],'Logbook'],
+  ['2026-06-20','radkom','Pemeliharaan bulanan receiver VHF, pembersihan ruang shelter',['R. Kurnia'],'Logbook'],
+  ['2026-07-03','radkom','Penggantian modul transmitter kanal 3',['S. Hidayat'],'Logbook'],
+  ['2026-07-14','radkom','Genset shelter RX gagal start otomatis saat PLN padam',['R. Kurnia'],'Logbook'],
+  ['2026-07-25','radkom','Pengukuran daya pancar seluruh kanal VHF A/G',['S. Hidayat'],'Logbook'],
+  ['2026-08-07','radkom','Remote control unit hang, dilakukan reboot',['R. Kurnia'],'Logbook'],
+  ['2026-08-12','radkom','Pengecekan harian, seluruh kanal normal',['S. Hidayat'],'Logbook'],
+  ['2026-07-16','radkom','Antena dipole nomor 4 patah setelah angin kencang',['S. Hidayat','R. Kurnia'],'LTK']
+];
+
+const CONTOH = CONTOH_BARIS.map(([tanggal, unit, uraian, orang, asal], i) => ({
+  id:'c'+i, tanggal, unit, uraian, orang, asal
+}));
+
+/* =======================================================================
+   KEADAAN
+   ======================================================================= */
+
+const S = {
+  sumber:'contoh',        // 'contoh' | 'server'
+  srvAda:false,           // server E-Logbook menjawab di alamat ini
+  srvSesi:null,           // { username, nama, role } kalau masih login
+  unitDaftar:CONTOH_UNIT,
+  unit:'radtel',
+  baris:[],               // seluruh baris unit terpilih, apa pun rentangnya
+  saring:null,            // { orang, jenis } dari sel yang ditekan
+  jam:null                // kapan data server diambil
+};
+
+const el = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
+  ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+
+const BULAN = ['JAN','FEB','MAR','APR','MEI','JUN','JUL','AGU','SEP','OKT','NOV','DES'];
+const kunciBulan = (iso) => String(iso || '').slice(0,7);
+const labelBulan = (k) => { const [t,b] = k.split('-'); return `${BULAN[+b-1] || b} ${t.slice(2)}`; };
+const tglIndo = (iso) => { const [t,b,g] = String(iso||'').split('-');
+  return g ? `${+g} ${BULAN[+b-1]} ${t}` : (iso || '—'); };
+const isoHariIni = () => new Date(Date.now() - new Date().getTimezoneOffset()*60000)
+  .toISOString().slice(0,10);
+
+/* =======================================================================
+   JEMBATAN E-LOGBOOK — sambungan sementara ke server yang sudah ada
+
+   Tidak ada satu berkas pun milik E-Logbook yang dimuat di sini; yang dipakai
+   cuma API-nya, lewat alamat yang sama dengan aplikasinya. Jadi sambungan ini
+   hanya hidup kalau halaman ini dibuka DARI server itu. Dibuka lewat file://
+   atau server statis lain, pemeriksaannya gagal dan sumbernya jatuh ke data
+   contoh dengan sendirinya.
+
+   Keluar dari halaman ini TIDAK memutus sesi E-Logbook, dan halaman ini tidak
+   pernah memanggil /api/logout — cookie sesinya milik aplikasi yang sungguhan.
+   ======================================================================= */
+
+async function srvFetch(jalur, opsi = {}, ms = 8000){
+  const henti = new AbortController();
+  const jam = setTimeout(()=>henti.abort(), ms);
+  try{ return await fetch(jalur, { credentials:'same-origin', signal:henti.signal, ...opsi }); }
+  finally{ clearTimeout(jam); }
+}
+
+/** Bentuknya sama persis dengan gsRun di aplikasinya: POST /api/<fn> + { args:[...] }. */
+async function srvApi(fn, ...args){
+  const r = await srvFetch('/api/'+fn, {
+    method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify({ args })
+  }, 20000);
+  const data = await r.json().catch(()=>null);
+  if(!r.ok) throw new Error((data && data.error) || ('server menjawab '+r.status));
+  return data ? data.result : null;
+}
+
+/** Sekali di awal. 401 tetap berarti "servernya ada" — cuma belum login. */
+async function srvPeriksa(){
+  try{
+    const r = await srvFetch('/api/me', {}, 5000);
+    const j = await r.json().catch(()=>null);
+    // Halaman 404 milik server statis lain juga menjawab, tapi bukan JSON.
+    S.srvAda  = (r.status === 200 || r.status === 401) && !!j;
+    S.srvSesi = (r.status === 200 && j && j.user) ? j.user : null;
+  }catch(e){ S.srvAda = false; S.srvSesi = null; }
+  el('btnServer').disabled = !(S.srvAda && S.srvSesi);
+}
+
+/** Nama pelaksana sebuah catatan: daftar nama kalau ada, kalau tidak nama tunggalnya. */
+function orangDari(rec){
+  const daftar = Array.isArray(rec.TeknisiNamaListJSON) ? rec.TeknisiNamaListJSON : [];
+  const bersih = daftar.map(x=>String(x||'').trim()).filter(Boolean);
+  if(bersih.length) return bersih;
+  const tunggal = String(rec.TeknisiNama || rec.DilaporkanOleh || '').trim();
+  return tunggal ? [tunggal] : [];
+}
+
+/**
+ * Tiga sumber kejadian dari server, disatukan jadi satu bentuk baris.
+ *
+ * Logbook adalah sumber utamanya. LTK dan Isu ikut karena keduanya juga
+ * kejadian yang benar-benar dialami — hanya saja dicatat di formulir lain.
+ * Daily Check sengaja TIDAK ikut: isinya pemeriksaan rutin yang memang
+ * dijadwalkan, bukan sesuatu yang "dialami".
+ */
+async function ambilDariServer(unit){
+  const d = await srvApi('getAllData', unit);
+  const baris = [];
+  for(const r of (d.entries || [])){
+    baris.push({ id:r.ID, tanggal:String(r.Tanggal||'').slice(0,10), unit:r.Unit || unit,
+                 uraian:r.Uraian || '', orang:orangDari(r), asal:'Logbook' });
+  }
+  for(const r of (d.ltk || [])){
+    const teks = [r.Peralatan, r.Analisa, r.Perbaikan].filter(Boolean).join(' — ');
+    baris.push({ id:r.ID, tanggal:String(r.TanggalLapor||'').slice(0,10), unit:r.Unit || unit,
+                 uraian:teks, orang:orangDari(r), asal:'LTK' });
+  }
+  for(const r of (d.issues || [])){
+    const teks = [r.Jenis, r.Keterangan].filter(Boolean).join(' — ');
+    baris.push({ id:r.ID, tanggal:String(r.TanggalReport||'').slice(0,10), unit,
+                 uraian:teks, orang:orangDari(r), asal:'Isu' });
+  }
+  return {
+    unitDaftar:(d.unitSaya || []).map(u=>({ kode:u.kode, nama:u.nama || u.kode })),
+    unitDipakai:d.unit || unit,
+    baris:baris.filter(b=>/^\d{4}-\d{2}-\d{2}$/.test(b.tanggal))
+  };
+}
+
+/* =======================================================================
+   PENGOLAHAN — dari baris mentah jadi angka matriks
+   ======================================================================= */
+
+/** Baris pada rentang tanggal yang dipilih, sudah bergolongan. */
+function barisTersaring(){
+  const dari = el('tglDari').value || '0000-01-01';
+  const sampai = el('tglSampai').value || '9999-12-31';
+  return S.baris
+    .filter(b => b.tanggal >= dari && b.tanggal <= sampai)
+    .map(b => ({ ...b, jenis:golongkan(b.uraian) }))
+    .sort((a,b) => a.tanggal < b.tanggal ? 1 : a.tanggal > b.tanggal ? -1 : 0);
+}
+
+/**
+ * Inti prototipe ini: daftar jenis kejadian dibangun DARI data, bukan dari
+ * daftar tetap. Jenis yang belum pernah terjadi tidak muncul sama sekali —
+ * itu bedanya dengan tabel yang barisnya sudah dicetak lebih dulu lalu diisi
+ * nol. Yang belum pernah dialami memang belum punya baris.
+ */
+function susun(baris){
+  const jenis = new Map();   // jenis -> { total, perBulan:{}, pertama, orang:Set }
+  const orang = new Map();   // nama  -> { total, perJenis:{}, pertama }
+  const bulan = new Set();
+
+  for(const b of baris){
+    const kb = kunciBulan(b.tanggal);
+    bulan.add(kb);
+
+    if(!jenis.has(b.jenis)) jenis.set(b.jenis, { total:0, perBulan:{}, pertama:b.tanggal, orang:new Set() });
+    const j = jenis.get(b.jenis);
+    j.total++;
+    j.perBulan[kb] = (j.perBulan[kb] || 0) + 1;
+    if(b.tanggal < j.pertama) j.pertama = b.tanggal;
+
+    for(const nama of b.orang){
+      j.orang.add(nama);
+      if(!orang.has(nama)) orang.set(nama, { total:0, perJenis:{}, pertama:b.tanggal });
+      const o = orang.get(nama);
+      o.total++;
+      o.perJenis[b.jenis] = (o.perJenis[b.jenis] || 0) + 1;
+      if(b.tanggal < o.pertama) o.pertama = b.tanggal;
+    }
+  }
+
+  const daftarJenis = [...jenis.entries()]
+    .map(([nama, d]) => ({ nama, ...d }))
+    .sort((a,b) => b.total - a.total || a.nama.localeCompare(b.nama));
+  const daftarOrang = [...orang.entries()]
+    .map(([nama, d]) => ({ nama, ...d }))
+    .sort((a,b) => b.total - a.total || a.nama.localeCompare(b.nama));
+
+  return { jenis:daftarJenis, orang:daftarOrang, bulan:[...bulan].sort() };
+}
+
+/** Pekat sel mengikuti seberapa sering, bukan seberapa besar angkanya. */
+const pekat = (n) => n === 0 ? 'kosong' : n === 1 ? 'p1' : n <= 3 ? 'p2' : n <= 6 ? 'p3' : 'p4';
+
+/* =======================================================================
+   GAMBAR
+   ======================================================================= */
+
+function gambarSemua(){
+  const baris = barisTersaring();
+  const d = susun(baris);
+  gambarRingkasan(baris, d);
+  gambarJenis(d);
+  gambarOrang(d);
+  gambarDaftar(baris);
+  gambarAturan(baris);
+  gambarPita();
+}
+
+function gambarRingkasan(baris, d){
+  const kotak = el('kartuRingkasan');
+  if(!baris.length){
+    kotak.innerHTML = `<div class="kotak-kosong kartu"><span class="label">Tidak ada catatan</span>
+      <b>0</b><span class="cat">Belum ada yang tercatat pada rentang ini.</span></div>`;
+    return;
+  }
+  const terbanyak = d.jenis[0];
+  const terbaru = baris[0];
+  const belum = d.jenis.find(j=>j.nama === BELUM_TERGOLONG);
+  // "Baru pertama kali" = jenis yang catatan paling awalnya jatuh di bulan terakhir.
+  const bulanAkhir = d.bulan[d.bulan.length-1];
+  const baruMuncul = d.jenis.filter(j=>kunciBulan(j.pertama) === bulanAkhir);
+
+  kotak.innerHTML = `
+    <div class="kartu utama">
+      <span class="label">Kejadian tercatat</span><b>${baris.length}</b>
+      <span class="cat">${esc(tglIndo(baris[baris.length-1].tanggal))} → ${esc(tglIndo(terbaru.tanggal))}</span>
+    </div>
+    <div class="kartu">
+      <span class="label">Jenis yang pernah dialami</span><b>${d.jenis.length}</b>
+      <span class="cat">tidak ada jenis lain yang dihitung nol — yang belum pernah, tidak punya baris</span>
+    </div>
+    <div class="kartu">
+      <span class="label">Paling sering</span>
+      <span class="teks-besar">${esc(terbanyak.nama)}</span>
+      <span class="cat">${terbanyak.total}× · pertama ${esc(tglIndo(terbanyak.pertama))}</span>
+    </div>
+    <div class="kartu">
+      <span class="label">Orang yang terlibat</span><b>${d.orang.length}</b>
+      <span class="cat">${d.orang.length ? esc(d.orang[0].nama) + ' terbanyak (' + d.orang[0].total + '×)' : '—'}</span>
+    </div>
+    <div class="kartu">
+      <span class="label">Muncul pertama kali bulan ini</span><b>${baruMuncul.length}</b>
+      <span class="cat">${baruMuncul.length ? esc(baruMuncul.map(j=>j.nama).join(', ')) : 'tidak ada jenis baru'}</span>
+    </div>
+    <div class="kartu">
+      <span class="label">Belum tergolong</span><b>${belum ? belum.total : 0}</b>
+      <span class="cat">${belum ? 'uraiannya tidak cocok aturan mana pun — lihat bagian aturan' : 'seluruh uraian tergolong'}</span>
+    </div>`;
+}
+
+function gambarJenis(d){
+  const t = el('tblJenis');
+  if(!d.jenis.length){ t.innerHTML = ''; el('legendaJenis').innerHTML = ''; return; }
+  const kepala = d.bulan.map(k=>`<th>${esc(labelBulan(k))}</th>`).join('');
+  const isi = d.jenis.map(j=>`
+    <tr>
+      <td class="nama">${esc(j.nama)}
+        <span class="kecil">pertama dialami ${esc(tglIndo(j.pertama))} · ${j.orang.size} orang</span></td>
+      ${d.bulan.map(k=>{
+        const n = j.perBulan[k] || 0;
+        const awal = kunciBulan(j.pertama) === k;
+        return `<td class="sel ${pekat(n)}">${n || '·'}${awal ? '<span class="pertama">▲</span>' : ''}</td>`;
+      }).join('')}
+      <td class="total">${j.total}</td>
+    </tr>`).join('');
+  const totalKolom = d.bulan.map(k=>d.jenis.reduce((s,j)=>s + (j.perBulan[k]||0), 0));
+  t.innerHTML = `
+    <thead><tr><th class="nama" style="text-align:left">Jenis kejadian</th>${kepala}<th>Total</th></tr></thead>
+    <tbody>${isi}</tbody>
+    <tfoot><tr><td class="nama">Total</td>
+      ${totalKolom.map(n=>`<td>${n || '·'}</td>`).join('')}
+      <td>${totalKolom.reduce((a,b)=>a+b,0)}</td></tr></tfoot>`;
+  el('legendaJenis').innerHTML =
+    `<span><span style="color:var(--warn)">▲</span> bulan saat jenis itu pertama kali muncul di rentang ini</span>`;
+}
+
+function gambarOrang(d){
+  const t = el('tblOrang');
+  if(!d.orang.length || !d.jenis.length){ t.innerHTML = ''; return; }
+  const kepala = d.jenis.map(j=>`<th title="${esc(j.nama)}">${esc(ringkas(j.nama))}</th>`).join('');
+  const isi = d.orang.map(o=>{
+    const belum = d.jenis.filter(j=>!(o.perJenis[j.nama] > 0)).length;
+    return `<tr>
+      <td class="nama">${esc(o.nama)}
+        <span class="kecil">${o.total} catatan · belum pernah pada ${belum} dari ${d.jenis.length} jenis</span></td>
+      ${d.jenis.map(j=>{
+        const n = o.perJenis[j.nama] || 0;
+        return `<td class="sel ${pekat(n)}" data-orang="${esc(o.nama)}" data-jenis="${esc(j.nama)}"
+                    title="${esc(o.nama)} — ${esc(j.nama)}: ${n ? n+'×' : 'belum pernah'}">${n || '·'}</td>`;
+      }).join('')}
+      <td class="total">${o.total}</td>
+    </tr>`;
+  }).join('');
+  t.innerHTML = `
+    <thead><tr><th class="nama" style="text-align:left">Pelaksana</th>${kepala}<th>Total</th></tr></thead>
+    <tbody>${isi}</tbody>`;
+
+  t.querySelectorAll('td.sel:not(.kosong)').forEach(sel=>{
+    sel.addEventListener('click', ()=>{
+      S.saring = { orang:sel.dataset.orang, jenis:sel.dataset.jenis };
+      t.querySelectorAll('td.sel').forEach(x=>x.classList.remove('pilih'));
+      sel.classList.add('pilih');
+      gambarDaftar(barisTersaring());
+      el('bagDaftar').scrollIntoView({ behavior:'smooth', block:'start' });
+    });
+  });
+}
+
+/** Judul kolom dipendekkan supaya matriksnya masih terbaca; aslinya tetap di title.
+    Dipotong di " & " atau " / " dulu — memotong per kata saja meninggalkan
+    ekor "Alarm &" yang justru lebih sulit dibaca daripada nama panjangnya. */
+function ringkas(nama){
+  return nama.split(/ [&/] /)[0].split(' ').slice(0,2).join(' ');
+}
+
+function gambarDaftar(baris){
+  let pakai = baris;
+  const s = S.saring;
+  if(s){
+    pakai = baris.filter(b=>b.jenis === s.jenis && b.orang.includes(s.orang));
+    el('judulDaftar').textContent = `${s.orang} — ${s.jenis}`;
+    el('ketDaftar').textContent = `${pakai.length} catatan. Inilah kejadian yang membuat sel itu terisi.`;
+  }else{
+    el('judulDaftar').textContent = 'Catatan yang mendasarinya';
+    el('ketDaftar').textContent = `${pakai.length} catatan pada rentang ini, terbaru di atas. `
+      + 'Tekan salah satu sel di matriks atas untuk mempersempit.';
+  }
+  el('btnSemuaCatatan').style.display = s ? '' : 'none';
+
+  const kotak = el('daftarKejadian');
+  if(!pakai.length){
+    kotak.innerHTML = `<div class="kosong-pesan">Tidak ada catatan pada pilihan ini.</div>`;
+    return;
+  }
+  kotak.innerHTML = pakai.slice(0, 60).map(b=>`
+    <div class="kejadian">
+      <div class="atas">
+        <span>${esc(tglIndo(b.tanggal))}</span>
+        <span class="asal">${esc(b.asal)}</span>
+        <span class="golongan">${esc(b.jenis)}</span>
+      </div>
+      <p class="isi">${esc(b.uraian) || '<span style="color:var(--muted)">(uraian kosong)</span>'}</p>
+      <div class="kaki">${b.orang.length ? esc(b.orang.join(', ')) : 'pelaksana tidak tercatat'}</div>
+    </div>`).join('')
+    + (pakai.length > 60 ? `<div class="kosong-pesan">${pakai.length - 60} catatan lain tidak ditampilkan.</div>` : '');
+}
+
+/** Aturan ditampilkan bersama jumlah kena-nya, supaya yang tidak pernah kena kelihatan. */
+function gambarAturan(baris){
+  const hitung = {};
+  for(const b of baris) hitung[b.jenis] = (hitung[b.jenis] || 0) + 1;
+  const isi = ATURAN.map((a,i)=>`
+    <tr>
+      <td class="total" style="width:2.5rem">${i+1}</td>
+      <td class="nama">${esc(a.jenis)}</td>
+      <td><code>${a.kata.map(k=>esc(k.trim())).join(' · ')}</code></td>
+      <td class="total" style="width:5rem">${hitung[a.jenis] || 0}</td>
+    </tr>`).join('');
+  el('tblAturan').innerHTML = `
+    <thead><tr><th>#</th><th>Jenis kejadian</th><th>Kata kunci pada Uraian</th><th>Kena</th></tr></thead>
+    <tbody>${isi}
+      <tr><td class="total">—</td><td class="nama">${BELUM_TERGOLONG}</td>
+        <td><code>tidak cocok aturan mana pun; tetap ditampilkan apa adanya</code></td>
+        <td class="total">${hitung[BELUM_TERGOLONG] || 0}</td></tr>
+    </tbody>`;
+}
+
+function gambarPita(){
+  const p = el('pitaSumber');
+  if(S.sumber === 'server'){
+    p.className = 'pita server';
+    p.innerHTML = `<span>✓</span><span><b>Data dari server E-Logbook.</b>
+      Catatan Logbook, LTK, dan Isu unit ini, diambil ${esc(S.jam || '')} sebagai
+      ${esc(S.srvSesi ? S.srvSesi.nama || S.srvSesi.username : 'pengguna yang sedang masuk')}.
+      Daily Check sengaja tidak ikut — isinya pemeriksaan terjadwal, bukan kejadian yang dialami.
+      Penggolongan jenisnya tetap tebakan kata kunci, lihat bagian paling bawah.</span>`;
+  }else{
+    p.className = 'pita';
+    p.innerHTML = `<span>!</span><span><b>Data contoh — seluruh angka di halaman ini karangan.</b>
+      ${S.srvAda && !S.srvSesi
+        ? 'Server E-Logbook terdeteksi tetapi sesinya belum login, jadi pilihan servernya dimatikan.'
+        : S.srvAda ? '' : 'Halaman ini tidak dibuka dari server E-Logbook, jadi pilihan servernya dimatikan.'}
+      Buka lewat <code>/contoh/rekap-matrik-pengalaman.html</code> pada server E-Logbook yang sedang
+      login untuk melihat data sungguhan.</span>`;
+  }
+  el('kakiSumber').textContent = S.sumber === 'server' ? 'sumber: server E-Logbook' : 'sumber: data contoh (karangan)';
+}
+
+/* =======================================================================
+   KENDALI
+   ======================================================================= */
+
+function isiPilihanUnit(){
+  el('pilUnit').innerHTML = S.unitDaftar
+    .map(u=>`<option value="${esc(u.kode)}"${u.kode === S.unit ? ' selected' : ''}>${esc(u.nama)}</option>`)
+    .join('');
+}
+
+function aturRentang(bulan){
+  const akhir = isoHariIni();
+  if(bulan === 0){
+    const tgl = S.baris.map(b=>b.tanggal).filter(Boolean).sort();
+    el('tglDari').value = tgl[0] || '2026-01-01';
+    el('tglSampai').value = tgl[tgl.length-1] || akhir;
+  }else{
+    const d = new Date(akhir + 'T00:00:00Z');
+    d.setUTCMonth(d.getUTCMonth() - (bulan - 1));
+    d.setUTCDate(1);
+    el('tglDari').value = d.toISOString().slice(0,10);
+    el('tglSampai').value = akhir;
+  }
+}
+
+async function muatData(){
+  S.saring = null;
+  if(S.sumber === 'server'){
+    try{
+      const hasil = await ambilDariServer(S.unit);
+      if(hasil.unitDaftar.length){ S.unitDaftar = hasil.unitDaftar; }
+      S.unit = hasil.unitDipakai;
+      S.baris = hasil.baris;
+      S.jam = new Date().toLocaleTimeString('id-ID');
+      isiPilihanUnit();
+    }catch(e){
+      alert('Gagal mengambil data server: ' + e.message + '\nKembali ke data contoh.');
+      pilihSumber('contoh');
+      return;
+    }
+  }else{
+    S.unitDaftar = CONTOH_UNIT;
+    if(!S.unitDaftar.some(u=>u.kode === S.unit)) S.unit = S.unitDaftar[0].kode;
+    S.baris = CONTOH.filter(b=>b.unit === S.unit);
+    isiPilihanUnit();
+  }
+  aturRentang(0);
+  gambarSemua();
+}
+
+function pilihSumber(mode){
+  if(mode === 'server' && !(S.srvAda && S.srvSesi)) mode = 'contoh';
+  S.sumber = mode;
+  el('btnContoh').setAttribute('aria-pressed', String(mode === 'contoh'));
+  el('btnServer').setAttribute('aria-pressed', String(mode === 'server'));
+  muatData();
+}
+
+el('btnContoh').addEventListener('click', ()=>pilihSumber('contoh'));
+el('btnServer').addEventListener('click', ()=>pilihSumber('server'));
+el('pilUnit').addEventListener('change', (e)=>{ S.unit = e.target.value; muatData(); });
+el('tglDari').addEventListener('change', ()=>{ S.saring = null; gambarSemua(); });
+el('tglSampai').addEventListener('change', ()=>{ S.saring = null; gambarSemua(); });
+document.querySelectorAll('[data-bulan]').forEach(b=>{
+  b.addEventListener('click', ()=>{ aturRentang(Number(b.dataset.bulan)); S.saring = null; gambarSemua(); });
+});
+el('btnSemuaCatatan').addEventListener('click', ()=>{
+  S.saring = null;
+  document.querySelectorAll('#tblOrang td.sel').forEach(x=>x.classList.remove('pilih'));
+  gambarDaftar(barisTersaring());
+});
+el('btnTema').addEventListener('click', ()=>{
+  const h = document.documentElement;
+  h.dataset.tema = h.dataset.tema === 'terang' ? 'gelap' : 'terang';
+});
+
+/* Mulai: data contoh dulu supaya halaman langsung terisi, baru periksa server. */
+muatData();
+srvPeriksa().then(()=>{ if(S.srvAda && S.srvSesi) pilihSumber('server'); else gambarPita(); });
+</script>
+
+<!--
+  ======================================================================
+  CATATAN — yang perlu diputuskan sebelum ini dipakai sungguhan
+  ======================================================================
+
+  1. PENGGOLONGAN KEJADIAN adalah bagian yang paling lemah, dan sengaja
+     ditampilkan terbuka di layar supaya bisa dibantah. Uraian di logbook
+     diketik bebas, jadi jenis kejadiannya ditebak dari kata kunci. Tiga
+     jalan keluar, dan ini keputusan Bapak:
+       a. Tetap tebak dari kata kunci — tidak perlu mengubah apa pun di
+          aplikasi, tapi hasilnya selalu kira-kira dan bisa salah golong.
+       b. Tambah kolom pilihan "Jenis kegiatan" di form Logbook — hasilnya
+          pasti, tapi butuh perubahan di aplikasi dan catatan lama tetap
+          kosong sampai diisi ulang.
+       c. Gabungan: pilihan jenis di form untuk catatan baru, tebakan kata
+          kunci hanya untuk catatan lama.
+     Selama masih (a), angka di matriks ini tidak boleh dipakai sebagai
+     dasar penilaian orang.
+
+  2. ANGKA PADA MODE "DATA CONTOH" SELURUHNYA KARANGAN — nama, tanggal,
+     dan uraiannya dikarang untuk memperlihatkan bentuk tampilannya. Mode
+     server memakai data sungguhan.
+
+  3. BATAS 200 BARIS. Mode server memakai getAllData, yang memang dibatasi
+     200 catatan terbaru per formulir. Untuk rentang panjang angkanya akan
+     kurang. Rekap yang sudah jalan di aplikasi tidak punya masalah ini
+     karena memakai getRekap yang menghitung langsung di database. Kalau
+     tampilan ini jadi dipakai, ia perlu jalur server sendiri yang sejenis
+     — bukan getAllData.
+
+  4. DAILY CHECK TIDAK IKUT DIHITUNG. Isinya pemeriksaan rutin yang memang
+     dijadwalkan tiap hari, jadi memasukkannya akan menenggelamkan kejadian
+     yang benar-benar dialami. Kalau ternyata perlu ikut, tinggal tambahkan
+     satu blok di ambilDariServer.
+
+  5. MATRIKS ORANG × JENIS bisa terbaca sebagai penilaian kinerja. Itu
+     bukan maksudnya — sel kosong berarti "belum pernah kebagian", bukan
+     "tidak bisa". Kalau tampilan ini dipakai, kalimat itu sebaiknya
+     tertulis di layar, bukan cuma di catatan ini.
+
+  6. Belum ada tombol cetak. Rekap yang sekarang punya, dan kalau bentuk
+     ini jadi dipakai, cetaknya mengikuti pola doPrint di 21-cetak-dasar.js.
+  ======================================================================
+-->
+</body>
+</html>

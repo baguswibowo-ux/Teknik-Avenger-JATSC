@@ -1,0 +1,52 @@
+/* E-Logbook · css/06-peran-lampiran.css — Tampil-sembunyi menurut peran, jejak penginput, dan lampiran
+   Dimuat dari index.html sesuai nomor berkas; urutannya berpengaruh. */
+
+.entry-detail-uraian{white-space:pre-wrap; font-size:13.5px; line-height:1.6; background:var(--panel-2); border:1px solid var(--line); border-radius:8px; padding:10px 12px;}
+
+/* Peran: elemen ini disembunyikan sampai peran pemakai diketahui, supaya
+   tombol administrator tidak sempat berkedip di layar teknisi. */
+.hanya-admin, .hanya-teknisi, .hanya-ttd-susulan, .hanya-tulis{display:none;}
+/* Peran yang hanya boleh melihat: seluruh tombol penambah data disembunyikan. */
+body.tanpa-tulis .btn-tambah{display:none !important;}
+body.peran-admin .hanya-admin{display:revert;}
+body.peran-teknisi .hanya-teknisi{display:revert;}
+/* Kotak masuk TTD: sama seperti tombol bubuhkan TTD susulan, admin dan pejabat. */
+body.peran-admin .hanya-ttd-susulan, body.peran-pejabat .hanya-ttd-susulan{display:revert;}
+/* Peran yang boleh menulis: admin dan teknisi, bukan pejabat. Dipakai tombol
+   sunting catatan — sama syaratnya dengan menambah, jadi kelasnya sama juga. */
+body:not(.tanpa-tulis) .hanya-tulis{display:revert;}
+
+/* Lencana jumlah pada tombol kotak masuk TTD. */
+.inbox-count{position:absolute; top:-5px; right:-5px; background:var(--fail); color:#fff;
+             border-radius:999px; min-width:15px; height:15px; padding:0 3px; font-size:9.5px;
+             line-height:15px; text-align:center; font-weight:700; font-family:var(--font-mono);}
+
+.diinput-oleh{font-family:var(--font-mono); font-size:10.5px; color:var(--muted); letter-spacing:.03em;}
+.diinput-oleh b{color:var(--text); font-weight:500;}
+
+/* Jejak waktu input sebenarnya — hanya digambar untuk administrator, lihat
+   jejakInputHtml di js/09-peran.js. Dibuat setenang mungkin: ini keterangan
+   pemeriksaan, bukan peringatan yang perlu merebut perhatian di tiap baris. */
+.jejak-input{display:inline-block; margin-left:8px; padding:1px 5px; border-radius:4px;
+             border:1px solid var(--line); background:var(--panel-2); color:var(--muted);
+             font-size:10px; white-space:nowrap; cursor:help;}
+/* Lencana selisih hanya muncul kalau selisihnya memang di luar kewajaran. */
+.jejak-selisih{display:inline-block; margin-left:4px; padding:1px 5px; border-radius:4px;
+               font-size:10px; font-weight:700; white-space:nowrap; cursor:help;}
+.jejak-selisih.susulan{color:var(--warn); border:1px solid var(--warn);}
+.jejak-selisih.dini{color:var(--fail); border:1px solid var(--fail);}
+
+.lampiran-hint{font-size:11px; color:var(--muted); margin-top:6px; line-height:1.5;}
+.lampiran-item{display:flex; align-items:center; gap:8px; padding:6px 8px; margin-top:6px;
+               background:var(--panel-2); border:1px solid var(--line); border-radius:6px; font-size:12px;}
+.lampiran-item .nama{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.lampiran-item .ukuran{font-family:var(--font-mono); font-size:10.5px; color:var(--muted); white-space:nowrap;}
+.lampiran-galeri{display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;}
+.lampiran-kartu{display:block; width:104px; border:1px solid var(--line); border-radius:8px; overflow:hidden;
+                background:var(--panel-2); color:var(--text); text-decoration:none;}
+.lampiran-kartu img{display:block; width:100%; height:76px; object-fit:cover; background:var(--tinta-bg);}
+.lampiran-kartu .berkas{height:76px; display:flex; align-items:center; justify-content:center; font-size:24px;}
+.lampiran-kartu .label{display:block; padding:5px 6px; font-size:10.5px; line-height:1.35; color:var(--muted);
+                       overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.lampiran-kartu:hover{border-color:var(--accent);}
+.tag-lampiran{font-family:var(--font-mono); font-size:10.5px; color:var(--muted);}

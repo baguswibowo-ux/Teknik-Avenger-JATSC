@@ -1,0 +1,32 @@
+/* E-Logbook · css/02-kepala-tab.css — Kepala halaman (konsol), jam, meta, deretan tab, kerangka isi
+   Dimuat dari index.html sesuai nomor berkas; urutannya berpengaruh. */
+
+.console{background:repeating-linear-gradient(180deg, var(--garis-pindai) 0px, var(--garis-pindai) 1px, transparent 1px, transparent 3px), linear-gradient(180deg,var(--konsol-1),var(--konsol-2) 70%); border-bottom:1px solid var(--line); padding:18px 20px 14px; position:relative; overflow:hidden;}
+.console::after{content:"";position:absolute;left:0;right:0;top:0;height:2px;background:linear-gradient(90deg, transparent, var(--accent), transparent);animation:sweep 5s linear infinite;opacity:.55;}
+@keyframes sweep{0%{transform:translateX(-100%);}100%{transform:translateX(100%);}}
+.console-top{display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;}
+.brand-eyebrow{font-family:var(--font-mono); font-size:11px; letter-spacing:.18em; color:var(--accent); text-transform:uppercase;}
+.brand-title{font-family:var(--font-display); font-weight:700; font-size:22px; margin:3px 0 2px;}
+.brand-sub{font-family:var(--font-mono); font-size:12px; color:var(--muted);}
+.clock-box{text-align:right; font-family:var(--font-mono);}
+.clock-time{font-size:26px; font-weight:600; color:var(--accent); letter-spacing:.05em; line-height:1;}
+.clock-date{font-size:11px; color:var(--muted); margin-top:4px;}
+.meta-strip{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:8px 22px; margin-top:14px; padding-top:12px; border-top:1px dashed var(--line);}
+.meta-item{font-size:12px;}
+.meta-item span{color:var(--muted); display:block; font-family:var(--font-mono); font-size:10px; letter-spacing:.08em; text-transform:uppercase; margin-bottom:2px;}
+.sync-badge{display:inline-flex; align-items:center; gap:6px; font-family:var(--font-mono); font-size:10.5px; color:var(--ok); margin-top:10px;}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:var(--ok); box-shadow:0 0 6px var(--ok);}
+
+.tabs{display:flex; gap:2px; background:var(--panel); border-bottom:1px solid var(--line); padding:0 20px; overflow-x:auto;}
+.tab-btn{background:transparent; border:none; color:var(--muted); font-family:var(--font-mono); font-size:12.5px; letter-spacing:.04em; padding:13px 16px; cursor:pointer; white-space:nowrap; border-bottom:2px solid transparent; transition:.15s;}
+.tab-btn:hover{color:var(--text);}
+.tab-btn.active{color:var(--accent); border-bottom-color:var(--accent);}
+
+main{max-width:1180px; margin:0 auto; padding:20px;}
+.view{display:none;}
+.view.active{display:block; animation:fadein .25s ease;}
+@keyframes fadein{from{opacity:0; transform:translateY(4px);}to{opacity:1; transform:translateY(0);}}
+
+.section-head{display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:14px; flex-wrap:wrap;}
+.section-head h2{font-family:var(--font-display); font-size:17px; margin:0; font-weight:600;}
+.section-head p{margin:2px 0 0; color:var(--muted); font-size:12.5px;}

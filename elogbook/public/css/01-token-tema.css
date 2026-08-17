@@ -1,0 +1,39 @@
+/* E-Logbook · css/01-token-tema.css — Token warna, mode gelap/terang, dan reset dasar
+   Dimuat dari index.html sesuai nomor berkas; urutannya berpengaruh. */
+
+:root{
+  /* ---------- MODE GELAP (bawaan) ---------- */
+  --bg:#0a0e13; --panel:#111820; --panel-2:#161f2a; --line:#223040;
+  --text:#dbe6ef; --muted:#7c8ba0; --accent:#29b6f6; --accent-dim:#134a63;
+  --accent-teks:#04222f;                  /* teks di atas warna aksen */
+  --ok:#2ecc71; --warn:#ffb300; --fail:#e5484d;
+  --konsol-1:#0d141b; --konsol-2:#0a0e13; /* gradasi kepala halaman */
+  --garis-pindai:rgba(41,182,246,0.035);  /* garis sapuan di kepala halaman */
+  --zebra:rgba(255,255,255,0.015);        /* selang-seling baris tabel */
+  --tirai:rgba(4,7,10,0.72);              /* latar gelap di belakang modal */
+  --bayang:0 10px 30px rgba(0,0,0,0.45);
+
+  /* Panel tanda tangan sengaja tetap gelap di kedua mode: seluruh TTD yang
+     sudah tersimpan berupa goresan putih. Kalau latarnya ikut terang, semua
+     tanda tangan lama jadi tidak terlihat. */
+  --tinta-bg:#0d1319;
+
+  --font-display:'Space Grotesk',sans-serif; --font-body:'IBM Plex Sans',sans-serif; --font-mono:'IBM Plex Mono',monospace;
+}
+
+/* ---------- MODE TERANG ---------- */
+html[data-tema="terang"]{
+  --bg:#eef2f6; --panel:#ffffff; --panel-2:#f4f7fa; --line:#ccd6e0;
+  --text:#16202b; --muted:#5b6b7d; --accent:#0277bd; --accent-dim:#b9dcf0;
+  --accent-teks:#ffffff;
+  --ok:#1b8a4b; --warn:#a86500; --fail:#c62828;
+  --konsol-1:#ffffff; --konsol-2:#e7eef4;
+  --garis-pindai:rgba(2,119,189,0.045);
+  --zebra:rgba(0,0,0,0.022);
+  --tirai:rgba(22,32,43,0.45);
+  --bayang:0 10px 30px rgba(22,32,43,0.16);
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-body);}
+::-webkit-scrollbar{height:8px;width:8px;}
+::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px;}

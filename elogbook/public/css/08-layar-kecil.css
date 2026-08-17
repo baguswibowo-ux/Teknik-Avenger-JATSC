@@ -1,0 +1,71 @@
+/* E-Logbook · css/08-layar-kecil.css — Penyesuaian untuk HP dan tablet (max-width 600px dan 360px)
+   Dimuat dari index.html sesuai nomor berkas; urutannya berpengaruh. */
+
+/* ---------- MOBILE ---------- */
+@media (max-width:600px){
+  .console{padding:14px 14px 12px;}
+  .console-top{gap:8px;}
+  .brand-eyebrow{font-size:10px;}
+  .brand-title{font-size:17px; line-height:1.25;}
+  .brand-sub{font-size:10.5px;}
+  .clock-box{text-align:left;}
+  .clock-time{font-size:20px;}
+  .clock-date{font-size:10px;}
+  .meta-strip{grid-template-columns:1fr; gap:8px; margin-top:10px; padding-top:10px;}
+  .meta-item{font-size:11.5px;}
+  .sync-badge{font-size:10px;}
+
+  .tabs{padding:0 10px;}
+  .tab-btn{padding:11px 10px; font-size:11px;}
+
+  main{padding:12px;}
+  .section-head h2{font-size:15px;}
+  .section-head p{font-size:11.5px;}
+  .btn, .btn.ghost{padding:10px 12px; font-size:12px;}
+  .section-head .btn{width:100%;}
+
+  .card{padding:12px; border-radius:8px;}
+  .grid3{gap:10px;}
+
+  .field label{font-size:10px;}
+  .field input, .field select, .field textarea{font-size:16px; padding:10px;} /* 16px cegah auto-zoom iOS */
+
+  .sig-wrap canvas{height:110px;}
+
+  .entry-top{padding:9px 12px;}
+  .entry-body{padding:10px 12px; font-size:13px;}
+  .entry-sigs{padding:8px 12px 12px; gap:16px;}
+
+  table.dc{font-size:11px; min-width:760px;}
+  /* DS Test tetap tanpa geseran kiri-kanan di layar sesempit 375px: nama site
+     dan kodenya boleh turun baris, sela sel dirapatkan, dan kepala kolomnya
+     dikecilkan sedikit — "INCOMING"/"OUTGOING" satu kata yang tak bisa patah,
+     jadi ukurannya yang menentukan lebar minimum dua kolom status. */
+  table.dc.ds td.rk-nama, table.dc.ds td.rk-frek{white-space:normal;}
+  table.dc.ds th, table.dc.ds td{padding:4px 3px;}
+  table.dc.ds thead th{font-size:9px; letter-spacing:0;}
+  .status-btn{width:24px; height:22px; font-size:11px;}
+  .legend{font-size:10.5px; gap:10px;}
+
+  .modal{padding:14px; margin-top:0; border-radius:10px; max-height:calc(100vh - 20px); overflow-y:auto;}
+  .modal-bg{padding:10px;}
+  .modal h3{font-size:14.5px;}
+  .modal-footer .btn, .modal-footer .btn.ghost{flex:1;}
+
+  table.issues{font-size:12px;}
+  table.issues th, table.issues td{padding:6px;}
+
+  .dc-history-item{padding:9px 12px; font-size:12px;}
+
+  /* Kartu lampiran melar mengikuti lebar layar; nama berkas dipenggal dua baris,
+     bukan dipotong titik-titik seperti di layar lebar. */
+  .lampiran-galeri{display:grid; grid-template-columns:repeat(auto-fill,minmax(132px,1fr));}
+  .lampiran-kartu{width:auto;}
+  .lampiran-kartu .label{white-space:normal; word-break:break-word; display:-webkit-box;
+                         -webkit-line-clamp:2; -webkit-box-orient:vertical;}
+  .detail-ttd{gap:16px;}
+}
+@media (max-width:360px){
+  .brand-title{font-size:15px;}
+  .clock-time{font-size:18px;}
+}

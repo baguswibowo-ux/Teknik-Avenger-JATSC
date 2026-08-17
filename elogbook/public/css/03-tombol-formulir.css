@@ -1,0 +1,66 @@
+/* E-Logbook · css/03-tombol-formulir.css — Tombol, kartu, isian formulir, dan papan tanda tangan
+   Dimuat dari index.html sesuai nomor berkas; urutannya berpengaruh. */
+
+.btn{background:var(--accent-dim); color:var(--accent); border:1px solid var(--accent); border-radius:6px; padding:9px 14px; font-family:var(--font-mono); font-size:12px; letter-spacing:.03em; cursor:pointer; transition:.15s;}
+.btn:hover{background:var(--accent); color:var(--accent-teks);}
+.btn.ghost{background:transparent; color:var(--muted); border-color:var(--line);}
+.btn.ghost:hover{color:var(--text); border-color:var(--muted); background:transparent;}
+.btn:disabled{opacity:.5; cursor:not-allowed;}
+/* Penghapusan akun tidak bisa dibatalkan — tombolnya diam sampai disentuh,
+   lalu memerah supaya tidak tertukar dengan tombol di sebelahnya. */
+.btn.ghost.btn-hapus-akun:hover{color:var(--fail); border-color:var(--fail);}
+
+.card{background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:14px;}
+.empty{color:var(--muted); font-size:13px; text-align:center; padding:30px 10px; border:1px dashed var(--line); border-radius:10px;}
+
+.field{margin-bottom:12px;}
+.field label{display:block; font-family:var(--font-mono); font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin-bottom:5px;}
+.field input[type=text], .field input[type=date], .field input[type=time], .field input[type=password], .field select, .field textarea{width:100%; background:var(--panel-2); border:1px solid var(--line); color:var(--text); border-radius:6px; padding:9px 10px; font-family:var(--font-body); font-size:13.5px; outline:none;}
+.field textarea{min-height:70px; resize:vertical;}
+/* Nama hari di bawah pemilih tanggal daily check. Pemilihnya hanya menunjukkan
+   angka, sementara yang tercetak di formulir memakai nama hari — ini yang
+   membuat salah pilih tanggal langsung kelihatan. */
+.hari-dc{font-family:var(--font-mono); font-size:11px; color:var(--accent);
+         letter-spacing:.06em; margin-top:5px; min-height:14px;}
+.field input:focus, .field select:focus, .field textarea:focus{border-color:var(--accent);}
+.grid2{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+.grid3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;}
+@media (max-width:640px){.grid2,.grid3{grid-template-columns:1fr;}}
+
+.sig-wrap{border:1px solid var(--line); border-radius:8px; background:var(--tinta-bg); overflow:hidden;}
+.sig-wrap canvas{display:block; width:100%; height:130px; touch-action:none; cursor:crosshair;}
+.sig-toolbar{display:flex; justify-content:space-between; align-items:center; padding:6px 8px; border-top:1px solid var(--line); background:var(--panel-2);}
+.sig-hint{font-size:10.5px; color:var(--muted); font-family:var(--font-mono);}
+.sig-clear{background:none; border:none; color:var(--muted); font-size:11px; cursor:pointer; font-family:var(--font-mono);}
+.sig-clear:hover{color:var(--fail);}
+.sig-thumb{background:var(--tinta-bg); border:1px solid var(--line); border-radius:6px; padding:4px; display:inline-block;}
+.sig-thumb img{display:block; height:44px;}
+.sig-empty-thumb{font-size:11px; color:var(--muted); font-style:italic;}
+
+/* ---------- Tanda tangan tersimpan milik akun ---------- */
+/* Tombol "pakai TTD tersimpan" duduk di bilah papan, sebelah "bersihkan".
+   Disisipkan lewat kode — lihat pasangTombolTtdTersimpan di js/27. */
+.sig-pakai{background:none; border:none; color:var(--accent); font-size:11px; cursor:pointer; font-family:var(--font-mono);}
+.sig-pakai:hover{text-decoration:underline;}
+
+/* Lapisan yang menutupi kanvas begitu TTD tersimpan dipakai. Latarnya sama
+   dengan papan (--tinta-bg) karena goresannya putih, sama seperti saat digambar
+   langsung — yang membalik jadi tinta hitam hanya modul cetak. */
+.sig-tersimpan-lapis{display:flex; flex-direction:column; align-items:center; gap:6px;
+                     padding:12px; background:var(--tinta-bg);}
+.sig-tersimpan-lapis img{max-width:70%; height:78px; object-fit:contain; display:block;}
+/* Warnanya dipatok, bukan var(--muted): --tinta-bg sengaja tetap gelap di kedua
+   tema, jadi warna redup versi tema terang akan tenggelam di atasnya. */
+.sig-tersimpan-lapis span{font-family:var(--font-mono); font-size:11px; color:#9aa7b4;}
+.sig-tersimpan-lapis + canvas{display:none;}
+
+.ttd-tersimpan-jalur{display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-top:12px;
+                     padding:12px 14px; border:1px solid var(--line); border-radius:8px; background:var(--panel-2);}
+.ttd-tersimpan-teks{flex:1; min-width:200px; display:flex; flex-direction:column; gap:3px;}
+.ttd-tersimpan-teks b{font-size:13px;}
+.ttd-tersimpan-teks span{font-size:11.5px; color:var(--muted); line-height:1.5;}
+
+.ttd-saya-pratinjau{margin-bottom:12px;}
+.ttd-saya-pratinjau label{display:block; font-family:var(--font-mono); font-size:10.5px;
+                          letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin-bottom:6px;}
+.ttd-saya-pratinjau .sig-thumb img{height:60px;}

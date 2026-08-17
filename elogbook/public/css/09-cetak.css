@@ -1,0 +1,64 @@
+/* E-Logbook · css/09-cetak.css — Area cetak, warna hasil cetak, pratinjau di layar, bilah cetak
+   Dimuat dari index.html sesuai nomor berkas; urutannya berpengaruh. */
+
+/* ---------- AREA CETAK ---------- */
+#printArea{display:none;}
+
+/* ---------- Warna pada hasil cetak ----------
+   Browser membuang warna latar saat mencetak, kecuali diminta secara tegas
+   lewat print-color-adjust. Tanpa baris itu, latar biru kepala tabel dan
+   tanda centang hijau tidak akan pernah keluar di kertas walau sudah ditulis
+   di kode — halamannya keluar hitam putih begitu saja.
+
+   Nilai warnanya diambil dari lembar contoh: biru #cfe2f3 untuk kepala
+   kolom, kuning #fcd668 untuk baris yang ditandai, abu #a6a6a6 untuk garis. */
+#printArea{
+  --p-kepala:#cfe2f3;
+  --p-tandai:#fcd668;
+  --p-garis:#a6a6a6;
+  --p-ok:#0b8043;
+  --p-warn:#b45f06;
+  --p-fail:#c62828;
+  --p-minus:#757575;
+}
+#printArea .p-kepala{background:var(--p-kepala) !important; color:#000;}
+#printArea .p-tandai{background:var(--p-tandai) !important; color:#000;}
+#printArea .p-ok{color:var(--p-ok); font-weight:bold;}
+#printArea .p-warn{color:var(--p-warn); font-weight:bold;}
+#printArea .p-fail{color:var(--p-fail); font-weight:bold;}
+#printArea .p-minus{color:var(--p-minus); font-weight:bold;}
+
+@media print{
+  body > *:not(#printArea){display:none !important;}
+  body{background:#fff !important;}
+  #printArea{
+    display:block !important;
+    background:#fff; color:#000;
+    font-family:Arial, Helvetica, sans-serif;
+    /* Inilah yang membuat warna benar-benar ikut tercetak. */
+    -webkit-print-color-adjust:exact;
+    print-color-adjust:exact;
+  }
+  #printArea table{border-collapse:collapse; width:100%;}
+  #printArea td, #printArea th{border:1px solid var(--p-garis); padding:2px 4px; vertical-align:top;}
+  #printArea .no-border, #printArea .no-border td{border:none;}
+  .page-break{page-break-after:always;}
+}
+
+/* pratinjau di layar saat tombol pratinjau ditekan */
+#printArea.preview{
+  display:block; background:#fff; color:#000; padding:16px;
+  font-family:Arial, Helvetica, sans-serif; margin:14px 0; border-radius:6px;
+}
+#printArea.preview table{border-collapse:collapse; width:100%;}
+#printArea.preview td, #printArea.preview th{border:1px solid var(--p-garis); padding:2px 4px; vertical-align:top;}
+#printArea.preview .no-border, #printArea.preview .no-border td{border:none;}
+#printArea.preview{box-shadow:var(--bayang);}
+.pratinjau-bar{display:flex; justify-content:space-between; align-items:center; gap:12px;
+               margin:-16px -16px 14px; padding:9px 14px; background:var(--panel-2); color:var(--muted);
+               border-bottom:1px solid var(--line); font-family:var(--font-mono); font-size:11px;
+               border-radius:6px 6px 0 0; text-transform:uppercase; letter-spacing:.06em;}
+@media print{ .pratinjau-bar{display:none !important;} }
+
+.print-bar{display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap; margin-bottom:12px;}
+.print-bar .field{margin-bottom:0; flex:1; min-width:130px;}

@@ -1,0 +1,139 @@
+/* E-Logbook · css/05-tabel.css — Tabel daily check (Radtel/Radkom), monitoring, dan isu
+   Dimuat dari index.html sesuai nomor berkas; urutannya berpengaruh. */
+
+.dc-table-wrap{overflow-x:auto; border:1px solid var(--line); border-radius:8px;}
+
+/* Daily check Radkom — tabel sektor dengan sub-baris lokasi radio */
+.rk-judul{font-family:var(--font-mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+          color:var(--accent); margin:16px 0 6px;}
+table.dc.rk{min-width:820px;}
+table.dc.rk th{font-size:10px; letter-spacing:.04em; padding:5px 6px;}
+table.dc.rk td{padding:3px 6px;}
+table.dc.rk td.rk-nama{text-align:left; white-space:nowrap; font-size:11.5px;}
+table.dc.rk td.rk-frek{text-align:left; white-space:nowrap; font-family:var(--font-mono);
+                       font-size:10.5px; color:var(--muted);}
+table.dc.rk tr.rk-sektor > td{background:var(--zebra);}
+table.dc.rk tr.rk-sub td.rk-nama{padding-left:20px; color:var(--muted); font-size:11px;}
+input.rk-ket{width:100%; background:transparent; border:none; color:var(--text);
+             font-size:11.5px; padding:2px 0;}
+
+/* Form monitoring frekuensi — 10 kolom, jadi tabelnya memang lebar */
+table.dc.mon{min-width:1000px;}
+table.dc.mon th{font-size:10px; white-space:nowrap;}
+table.dc.mon td{padding:2px 4px;}
+input.mon-in{width:100%; min-width:78px; background:transparent; border:1px solid transparent;
+             color:var(--text); font-size:12px; padding:4px 5px; border-radius:4px;}
+input.mon-in:hover{border-color:var(--line);}
+input.mon-in:focus{outline:none; border-color:var(--accent); background:var(--panel);}
+input.rk-ket:focus{outline:1px solid var(--accent-dim); border-radius:3px;}
+table.dc{border-collapse:collapse; width:100%; min-width:920px; font-size:12px;}
+/* DS Test cuma enam kolom sempit — lantai 920px di atas itu milik tabel daily
+   check, dan di sini justru yang memaksa jendelanya digeser ke samping.
+   Dilepas supaya tabelnya menyesuaikan lebar yang ada berapa pun layarnya. */
+table.dc.ds{min-width:0;}
+table.dc th, table.dc td{border:1px solid var(--line); padding:5px 6px; text-align:center;}
+table.dc thead th{background:var(--panel-2); font-family:var(--font-mono); font-size:10px; letter-spacing:.04em; color:var(--muted); text-transform:uppercase;}
+table.dc td.name{text-align:left; font-family:var(--font-mono); font-size:11.5px; white-space:nowrap; background:var(--zebra);}
+.status-btn{width:28px; height:24px; border-radius:5px; border:1px solid var(--line); background:var(--panel-2); cursor:pointer; font-size:13px; line-height:1; color:var(--text); transition:.12s;}
+.status-btn.ok{background:rgba(46,204,113,0.14); border-color:rgba(46,204,113,0.5); color:var(--ok);}
+.status-btn.warn{background:rgba(255,179,0,0.14); border-color:rgba(255,179,0,0.5); color:var(--warn);}
+.status-btn.fail{background:rgba(229,72,77,0.16); border-color:rgba(229,72,77,0.55); color:var(--fail);}
+.status-btn.minus{background:rgba(124,139,160,0.16); border-color:rgba(124,139,160,0.5); color:var(--muted);}
+.legend{display:flex; gap:16px; font-size:11.5px; color:var(--muted); margin:10px 0; flex-wrap:wrap;}
+.legend span{display:inline-flex; align-items:center; gap:5px;}
+.dot{width:10px;height:10px;border-radius:3px;display:inline-block;}
+
+.dc-history-item{display:flex; justify-content:space-between; align-items:center; padding:10px 14px; border:1px solid var(--line); border-radius:8px; margin-bottom:8px; background:var(--panel); font-size:13px; flex-wrap:wrap; gap:8px;}
+.tag{font-family:var(--font-mono); font-size:10.5px; padding:3px 8px; border-radius:10px; border:1px solid var(--line); color:var(--muted);}
+.tag.ok{color:var(--ok); border-color:rgba(46,204,113,.4);}
+.tag.warn{color:var(--warn); border-color:rgba(255,179,0,.4);}
+.tag.fail{color:var(--fail); border-color:rgba(229,72,77,.4);}
+
+/* ---------- Rekap & matrik ---------- */
+.rekap-judul{font-family:var(--font-mono); font-size:11px; text-transform:uppercase; letter-spacing:.1em;
+             color:var(--muted); margin:0 0 12px;}
+.rekap-ket{font-size:11.5px; color:var(--muted); margin:-6px 0 12px; max-width:80ch; line-height:1.6;}
+
+.rekap-kartu-baris{display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px;}
+.rekap-kartu{display:flex; flex-direction:column; gap:3px; padding:12px 14px;
+             border:1px solid var(--line); border-radius:8px; background:var(--panel-2);}
+.rekap-kartu.utama{border-color:var(--accent);}
+.rekap-kartu b{font-size:26px; line-height:1.1; font-family:var(--font-mono);}
+.rekap-kartu-label{font-family:var(--font-mono); font-size:10px; text-transform:uppercase;
+                   letter-spacing:.08em; color:var(--muted);}
+.rekap-kartu-catatan{font-size:10.5px; color:var(--muted);}
+.rekap-kartu-catatan.warn{color:var(--warn);}
+
+/* Kalimat satu baris di bawah kartu: jenis yang paling sering dialami. */
+.rekap-sorot{margin-top:10px; padding:9px 12px; font-size:12.5px; line-height:1.6;
+             border-left:3px solid var(--accent); background:var(--panel-2); border-radius:0 6px 6px 0;}
+
+/* Matriks bisa jauh lebih lebar dari layar kalau periodenya banyak. */
+.rekap-gulir{overflow-x:auto;}
+table.rekap-matriks{font-family:var(--font-mono); font-size:12px; min-width:100%;}
+table.rekap-matriks td, table.rekap-matriks th{text-align:center; white-space:nowrap; padding:6px 8px;}
+table.rekap-matriks .rekap-nama{text-align:left; font-family:var(--font-body); white-space:normal;
+                                min-width:180px;}
+table.rekap-matriks .rekap-nama-ket{display:block; font-size:10.5px; color:var(--muted);
+                                    font-weight:normal; margin-top:2px;}
+table.rekap-matriks .rekap-sel.nol{color:var(--line);}
+table.rekap-matriks .rekap-total{font-weight:bold;}
+table.rekap-matriks tfoot td{background:var(--panel-2); font-weight:bold;}
+table.rekap-matriks .rekap-kata{text-align:left; white-space:normal; color:var(--muted);
+                                font-size:11px; line-height:1.7;}
+
+/* Sel makin pekat makin sering dialami. Sel kosong sengaja dibiarkan sunyi:
+   "belum pernah" adalah keterangan, bukan angka nol yang perlu ditonjolkan. */
+table.rekap-matriks .rekap-sel{position:relative;}
+table.rekap-matriks .rekap-sel.p1{background:rgba(41,182,246,.12);}
+table.rekap-matriks .rekap-sel.p2{background:rgba(41,182,246,.24);}
+table.rekap-matriks .rekap-sel.p3{background:rgba(41,182,246,.38);}
+table.rekap-matriks .rekap-sel.p4{background:rgba(41,182,246,.55); color:var(--accent-teks);}
+table.rekap-matriks .rekap-sel.bisa-tekan{cursor:pointer;}
+table.rekap-matriks .rekap-sel.bisa-tekan:hover,
+table.rekap-matriks .rekap-sel.pilih{outline:2px solid var(--accent); outline-offset:-2px;}
+.rekap-awal{position:absolute; top:1px; right:2px; font-size:8px; font-style:normal;
+            color:var(--warn); line-height:1;}
+
+.rekap-legenda{display:flex; flex-wrap:wrap; gap:12px; margin-top:9px;
+               font-size:11px; color:var(--muted);}
+.rekap-legenda i{display:inline-block; width:13px; height:13px; border-radius:3px;
+                 border:1px solid var(--line); vertical-align:-3px; margin-right:5px;}
+.rekap-legenda i.p1{background:rgba(41,182,246,.12);}
+.rekap-legenda i.p2{background:rgba(41,182,246,.24);}
+.rekap-legenda i.p3{background:rgba(41,182,246,.38);}
+.rekap-legenda i.p4{background:rgba(41,182,246,.55);}
+
+/* Catatan di balik angkanya — dibuka dengan menekan sel matriks. */
+.rekap-catatan-kepala{display:flex; align-items:flex-start; justify-content:space-between;
+                      gap:12px; flex-wrap:wrap;}
+.rekap-kejadian{border:1px solid var(--line); border-radius:8px; background:var(--panel-2);
+                padding:9px 12px; margin-bottom:7px;}
+.rekap-kejadian-atas{display:flex; flex-wrap:wrap; gap:8px; align-items:baseline;
+                     font-family:var(--font-mono); font-size:10.5px; color:var(--muted);}
+.rekap-kejadian-isi{margin:5px 0 0; font-size:12.5px; line-height:1.6;}
+.rekap-kejadian-kaki{margin-top:4px; font-size:11px; color:var(--muted);}
+.rekap-asal{border:1px solid var(--line); border-radius:4px; padding:1px 5px;
+            text-transform:uppercase; letter-spacing:.06em;}
+.rekap-golongan{border:1px solid var(--accent); border-radius:10px; padding:1px 7px;
+                color:var(--accent);}
+
+.rekap-aturan summary{cursor:pointer; font-family:var(--font-mono); font-size:11px;
+                      text-transform:uppercase; letter-spacing:.1em; color:var(--muted);}
+.rekap-aturan[open] summary{margin-bottom:10px;}
+
+/* Sebaran akun per unit di Kelola Akun — tiap petak sekaligus tombol saringan. */
+.ringkas-unit{display:flex; flex-wrap:wrap; gap:6px; margin-top:10px;}
+.unit-chip{display:inline-flex; align-items:baseline; gap:6px; padding:5px 10px; border-radius:14px;
+           border:1px solid var(--line); background:var(--panel-2); color:var(--muted);
+           font-family:var(--font-mono); font-size:11px; cursor:pointer;}
+.unit-chip b{color:var(--text); font-size:12.5px;}
+.unit-chip:hover{border-color:var(--accent); color:var(--text);}
+.unit-chip.warn{border-color:rgba(255,179,0,.4); color:var(--warn);}
+
+table.issues{width:100%; border-collapse:collapse; font-size:13px;}
+table.issues th, table.issues td{border:1px solid var(--line); padding:8px; text-align:left; vertical-align:top;}
+table.issues thead th{background:var(--panel-2); font-family:var(--font-mono); font-size:10.5px; text-transform:uppercase; color:var(--muted);}
+select.status-select{background:var(--panel-2); color:var(--text); border:1px solid var(--line); border-radius:5px; padding:4px 6px; font-family:var(--font-mono); font-size:11px;}
+input.issue-date{background:var(--panel-2); color:var(--text); border:1px solid var(--line); border-radius:5px; padding:4px 6px; font-family:var(--font-mono); font-size:11px; width:100%;}
+input.issue-date:disabled{background:transparent; border-color:transparent; color:var(--muted);}

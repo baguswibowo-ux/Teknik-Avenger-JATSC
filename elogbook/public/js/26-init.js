@@ -1,0 +1,92 @@
+/* E-Logbook · js/26-init.js — Pemuatan awal: ambil data server lalu render tiap bagian
+   Dimuat dari index.html sesuai nomor berkas; urutannya berpengaruh. */
+
+/* ============== INIT ============== */
+async function init(){
+  initAllSigPads();
+  pasangTombolTtdTersimpan();
+  initDcState();
+  setDcTanggal();
+  renderDcTable();
+  if(teknisiRows.length === 0) addTeknisi();
+  document.getElementById('syncBadge').innerHTML = '<span class="sync-dot"></span> memuat data dari server...';
+  let data;
+  try{
+    // Sengaja TIDAK memakai unitAktif sebagai cadangan: nilainya bertahan di
+    // halaman yang sama walau yang masuk sudah orang lain. Yang menentukan
+    // hanya ingatan milik akun ini — dan pindahUnit() sudah menuliskannya
+    // sebelum memanggil init() lagi.
+    data = await gsRun('getAllData', unitTersimpan());
+  }catch(e){
+    document.getElementById('syncBadge').innerHTML =
+      '<span class="sync-dot" style="background:var(--fail);box-shadow:none;"></span> gagal memuat — ' +
+      '<a href="#" onclick="init();return false;" style="color:var(--accent);">muat ulang</a>';
+    document.getElementById('entryList').innerHTML =
+      '<div class="empty">Gagal memuat data.<br><span style="font-size:11px;color:var(--fail);">'+escapeHtml(String(e&&e.message||e))+'</span><br><br>' +
+      '<button class="btn" onclick="init()">Coba muat ulang</button></div>';
+    return;
+  }
+  unitAktif = data.unit || unitAktif;
+  unitSaya = data.unitSaya || [];
+  // Tanda tangan tersimpan milik akun ini. Baru diketahui sekarang, jadi tombol
+  // "pakai TTD tersimpan" di tiap papan baru muncul di sini — bukan di atas.
+  setTtdTersimpanSaya(data.ttdTersimpan);
+  renderPemilihUnit();
+  terapkanUnit();
+  // Daftar gedung datang dari server; isi pemilihnya sebelum daftar catatan
+  // digambar, supaya bilah cetak langsung lengkap.
+  if(Array.isArray(data.lokasi) && data.lokasi.length) lokasiPilihan = data.lokasi;
+  isiPilihanLokasi();
+  // render tiap bagian terpisah — kalau satu error, yang lain tetap tampil
+  try{ entries = (data.entries||[]).map(mapEntry); renderEntries(); }
+  catch(e){ document.getElementById('entryList').innerHTML = '<div class="empty">Logbook gagal ditampilkan: '+escapeHtml(String(e.message||e))+'</div>'; }
+  try{ dcHistory = (data.dcHistory||[]).map(mapDc); renderDcHistory(); }
+  catch(e){ document.getElementById('dcHistory').innerHTML = '<div class="empty">Riwayat daily check gagal ditampilkan: '+escapeHtml(String(e.message||e))+'</div>'; }
+  try{ issues = (data.issues||[]).map(mapIssue); renderIssues(); }
+  catch(e){ document.getElementById('issuesBody').innerHTML = '<tr><td colspan="10">Isu gagal ditampilkan: '+escapeHtml(String(e.message||e))+'</td></tr>'; }
+  // Daftar akun hanya dikirim server kalau yang login administrator.
+  try{ monitoring = (data.monitoring||[]).map(mapMon); renderMonList(); }
+  catch(e){ document.getElementById('monList').innerHTML = '<div class="empty">Monitoring gagal ditampilkan: '+escapeHtml(String(e.message||e))+'</div>'; }
+  try{ ltkList = (data.ltk||[]).map(mapLtk); renderLtkList(); }
+  catch(e){ document.getElementById('ltkList').innerHTML = '<div class="empty">LTK gagal ditampilkan: '+escapeHtml(String(e.message||e))+'</div>'; }
+  dsSiteSemua = data.dsSite || dsSiteSemua;
+  dsKategoriUrut = (data.kategoriDs && data.kategoriDs.length) ? data.kategoriDs : dsKategoriUrut;
+  isiPilihanKategoriDs();
+  try{ dsList = (data.dstest||[]).map(mapDs); renderDsList(); }
+  catch(e){ document.getElementById('dsList').innerHTML = '<div class="empty">DS Test gagal ditampilkan: '+escapeHtml(String(e.message||e))+'</div>'; }
+  // Daftar akun tetap diambil — beberapa bagian lain membacanya — tapi tidak
+  // lagi digambar di sini: tab Kelola Akun sudah pindah ke Dashboard Fasilitas
+  // Teknik (port 3100). Server tetap yang memutuskan siapa yang boleh melihat
+  // daftar ini; untuk peran selain administrator isinya memang kosong.
+  users = data.users || [];
+  try{
+    pejabatList = data.pejabatList || [];
+    isiPilihanPejabat();
+    inboxTtd = data.inboxTtd || [];
+    renderInboxBadge();
+  }catch(e){ /* kotak masuk TTD sekadar kemudahan — kegagalannya tidak boleh menghentikan pemuatan */ }
+  // Rekap diminta terpisah ke server; yang tersimpan milik unit sebelumnya.
+  try{ lupakanRekap(); }catch(e){ /* tab rekap belum pernah dibuka */ }
+  document.getElementById('syncBadge').innerHTML = '<span class="sync-dot"></span> ' + T('tersambung');
+}
+/**
+ * Alamat Dashboard Fasilitas Teknik, untuk tombol pulang di kepala halaman.
+ *
+ * Dirangkai dari hostname yang sedang dipakai, bukan ditanam sebagai
+ * 127.0.0.1: begitu halaman ini dibuka dari komputer lain di jaringan,
+ * 127.0.0.1 di sana adalah komputer itu sendiri. Dashboard merangkai
+ * alamat ke sini dengan cara yang persis sama.
+ *
+ * AVENGER_TAUTAN dipakai kalau dashboardnya memang tidak di port sebelah —
+ * misalnya sudah dipasang di belakang nama domain sendiri.
+ */
+function pasangTautanDashboard(){
+  const a = document.getElementById('tautanDashboard');
+  if(!a) return;
+  const alamat = (typeof window.AVENGER_TAUTAN === 'string' && window.AVENGER_TAUTAN)
+    ? window.AVENGER_TAUTAN
+    : `${location.protocol}//${location.hostname}:3100`;
+  a.href = alamat;
+}
+
+window.addEventListener('load', ()=>{ terapkanBahasa(); pasangTautanDashboard(); mulai(); });

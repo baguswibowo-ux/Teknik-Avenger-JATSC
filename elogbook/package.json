@@ -1,0 +1,21 @@
+{
+  "name": "e-logbook-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "E-Logbook New JATSC — server mandiri (Node + SQLite), pengganti Google Apps Script + Spreadsheet",
+  "type": "module",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "user": "node tools/user.js",
+    "import": "node tools/import-sheet.js",
+    "backup": "node tools/backup.js",
+    "migrasi": "node tools/migrasi-supabase.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "pg": "^8.13.1"
+  }
+}

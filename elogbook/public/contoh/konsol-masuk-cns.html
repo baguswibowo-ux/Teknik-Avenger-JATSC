@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#06090d">
+<meta name="color-scheme" content="dark">
+<title>Prototipe Layar Masuk — Konsol CNS/ATM</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<!--
+  PROTOTIPE — belum tersambung ke server dan sengaja TIDAK menyentuh E-Logbook.
+  Berkas ini berdiri sendiri: tidak memuat css/ atau js/ milik aplikasi, dan
+  tidak ada berkas aplikasi yang memuat berkas ini. Hapus kalau tidak jadi.
+
+  Asalnya: proyek Claude Design "Animasi Bandara Soekarno Hatta 3D",
+  berkas `CNS Tower Dashboard.dc.html` + `cns-scene.js`. Yang di sana berupa
+  komponen DC (template {{ }}, sc-for, x-import) di sini ditulis ulang sebagai
+  HTML/CSS/JS biasa, dan kolom sesinya diisi kotak masuk sungguhan.
+
+  Yang belum nyata di prototipe ini:
+    - Tombol MASUK tidak memanggil /api/login. Ia hanya membalik tampilan sesi,
+      persis seperti toggleSession di berkas desain aslinya.
+    - Angka subsistem, traffic, QNH, dan runway in use masih tetap.
+    - Yang benar-benar hidup: jam UTC, panggung 3D, dan tiga angka traffic
+      (fase, ground speed, altitude) yang dihitung dari gerak pesawat di panggung.
+
+  Kalau nanti jadi dipakai, yang perlu dibicarakan dulu ada di bawah "CATATAN
+  SEBELUM DIPAKAI" di akhir berkas ini.
+-->
+
+<script src="https://unpkg.com/three@0.147.0/build/three.min.js"></script>
+<style>
+:root{
+  --bg:#06090d; --panel:#080d12; --panel-2:#0b1219; --panel-3:#0a1017;
+  --line:#17232c; --line-2:#16222b; --line-3:#1a2731;
+  --teks:#cfdae4; --terang:#eaf2f8; --terang-2:#dfe8f0; --terang-3:#d7e3ec;
+  --redup:#8496a5; --redup-2:#7b8d9c; --redup-3:#6d8090; --redup-4:#5f7382;
+  --sian:#3fd6c8; --sian-garis:#1f4e46; --sian-latar:#0a1a19;
+  --kuning:#f0b429;
+}
+*{box-sizing:border-box;}
+html,body{margin:0; padding:0; height:100%; background:var(--bg);}
+body{color:var(--teks); font-family:'IBM Plex Sans',system-ui,sans-serif;
+     -webkit-font-smoothing:antialiased; overflow:hidden;}
+button{font:inherit;}
+
+/* minmax(0,1fr), bukan kolom auto: kepala konsol isinya deretan mono yang tidak
+   boleh patah, dan kolom auto ikut selebar isi terpanjang itu — di HP seluruh
+   konsol jadi lebih lebar dari layar dan kartu masuknya terpotong di kanan.
+   min-width:0 pada ketiga barisnya menahan hal yang sama satu tingkat di bawah. */
+.konsol{display:grid; grid-template-rows:64px 1fr 40px; grid-template-columns:minmax(0,1fr);
+        height:100%; overflow:hidden;}
+.kepala, .badan, .kaki{min-width:0;}
+
+/* ---------------------------------------------------------------- kepala */
+.kepala{display:flex; align-items:center; justify-content:space-between; gap:16px;
+        padding:0 22px; border-bottom:1px solid var(--line);
+        background:linear-gradient(180deg,#0b1218,#080d12);}
+.merek{display:flex; align-items:center; gap:16px; min-width:0; flex:1 1 auto;}
+.tanda{width:30px; height:30px; flex:none; border:1.5px solid var(--sian); display:grid; place-items:center;}
+.tanda i{width:10px; height:10px; background:var(--sian); border-radius:50%;}
+.merek-teks{display:flex; flex-direction:column; gap:3px; min-width:0;}
+.merek-teks b{font:600 14px/1 'IBM Plex Sans',sans-serif; letter-spacing:.18em;
+              white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.merek-teks span{font:400 10px/1 'IBM Plex Mono',monospace; letter-spacing:.2em; color:var(--redup-3);
+                 white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+
+.kepala-kanan{display:flex; align-items:center; gap:22px; flex:none;}
+.metrik{display:flex; gap:18px;}
+.metrik>div{display:flex; flex-direction:column; gap:4px; align-items:flex-end;}
+.metrik .pisah{width:1px; padding:0; gap:0; background:var(--line-3);}
+.metrik span{font:400 9px/1 'IBM Plex Mono',monospace; letter-spacing:.2em; color:var(--redup-4);}
+.metrik b{font:600 13px/1 'IBM Plex Mono',monospace; color:var(--terang);}
+.metrik b.sian{color:var(--sian);}
+.status{display:flex; align-items:center; gap:8px; padding:6px 12px;
+        border:1px solid var(--sian-garis); background:var(--sian-latar);}
+.status i{width:7px; height:7px; border-radius:50%; background:var(--sian); animation:blip 1.6s infinite;}
+.status span{font:500 10px/1 'IBM Plex Mono',monospace; letter-spacing:.18em; color:var(--sian);}
+@keyframes blip{0%,100%{opacity:1;} 50%{opacity:.25;}}
+/* Penanda prototipe. Layar ini terlalu mirip barang jadi untuk dibiarkan
+   tanpa label — orang bisa mengira sistemnya sudah begini. */
+.cap-proto{padding:6px 10px; border:1px solid #5a4415; background:#1c1408;
+           font:600 9.5px/1 'IBM Plex Mono',monospace; letter-spacing:.2em; color:var(--kuning);}
+
+/* ------------------------------------------------- badan: rel · panggung · rel */
+.badan{position:relative; display:grid; grid-template-columns:236px 1fr 268px;
+       min-height:0; max-width:none; margin:0; padding:0;}
+.rel{background:var(--panel); padding:18px 16px; display:flex; flex-direction:column;
+     gap:22px; overflow:auto; min-height:0;}
+.kiri{border-right:1px solid var(--line);}
+.kanan{border-left:1px solid var(--line);}
+.blok{display:flex; flex-direction:column; gap:10px;}
+.judul{font:500 9.5px/1 'IBM Plex Mono',monospace; letter-spacing:.22em; color:var(--redup-4);}
+
+.sub{display:flex; flex-direction:column; gap:7px; padding:11px 12px;
+     background:var(--panel-2); border:1px solid var(--line-2); border-left:2px solid var(--sian);}
+.sub-atas{display:flex; justify-content:space-between; align-items:baseline; gap:8px;}
+.sub-atas b{font:600 11px/1 'IBM Plex Mono',monospace; letter-spacing:.16em; color:var(--terang-2);}
+.sub-atas span{font:500 9px/1 'IBM Plex Mono',monospace; letter-spacing:.14em; color:var(--sian);}
+.sub p{margin:0; font:400 10.5px/1.5 'IBM Plex Sans',sans-serif; color:var(--redup-2);}
+.bar{height:3px; background:#132029;}
+.bar i{display:block; height:3px; background:var(--sian);}
+
+.legenda{display:flex; align-items:center; gap:9px;
+         font:400 10.5px/1.4 'IBM Plex Sans',sans-serif; color:var(--redup);}
+.legenda .garis{width:16px; height:2px; flex:none; background:var(--sian);}
+.legenda .garis.kuning{background:var(--kuning);}
+.legenda .bulat{width:9px; height:9px; flex:none; border:1.5px solid var(--sian); border-radius:50%;}
+
+.sesi-blok{margin-top:auto; display:flex; flex-direction:column; gap:9px;}
+.sesi{display:flex; align-items:center; gap:11px; padding:10px 11px; width:100%;
+      background:var(--panel-2); border:1px solid var(--line-2); cursor:pointer;
+      text-align:left; font-family:'IBM Plex Mono',monospace; transition:.16s;}
+.sesi:hover{border-color:var(--sian-garis); background:#0c161c;}
+.sesi .av{width:28px; height:28px; flex:none; border-radius:50%; border:1.5px solid var(--redup-4);
+          display:grid; place-items:center; font:600 10px/1 'IBM Plex Mono',monospace; color:var(--redup-4);}
+.sesi.masuk .av{border-color:var(--sian); color:var(--sian);}
+.sesi.masuk svg{stroke:var(--sian);}
+.sesi .sesi-teks{display:flex; flex-direction:column; gap:4px; min-width:0; flex:1;}
+.sesi .nm{font:600 10.5px/1 'IBM Plex Mono',monospace; letter-spacing:.12em; color:var(--terang-3);
+          overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.sesi .pr{font:400 9px/1 'IBM Plex Mono',monospace; letter-spacing:.14em; color:var(--redup-3);}
+.sesi svg{flex:none; stroke:var(--redup-4);}
+.sesi-ket{font:400 9.5px/1.5 'IBM Plex Mono',monospace; letter-spacing:.1em; color:var(--redup-4);}
+
+.traffic{padding:13px; background:var(--panel-2); border:1px solid var(--sian-garis);}
+.traffic-atas{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:9px;}
+.traffic-atas b{font:600 13px/1 'IBM Plex Mono',monospace; letter-spacing:.12em; color:var(--terang);}
+.traffic-atas span{font:500 9.5px/1 'IBM Plex Mono',monospace; color:var(--kuning);}
+.fase{font:400 10.5px/1.5 'IBM Plex Mono',monospace; letter-spacing:.08em;
+      color:var(--sian); margin-bottom:11px; min-height:16px;}
+.angka{display:grid; grid-template-columns:1fr 1fr; gap:9px;}
+.angka>div{display:flex; flex-direction:column; gap:4px;}
+.angka span{font:400 9px/1 'IBM Plex Mono',monospace; letter-spacing:.16em; color:var(--redup-4);}
+.angka b{font:600 15px/1 'IBM Plex Mono',monospace; color:var(--terang-2);}
+
+.lalu{display:flex; justify-content:space-between; align-items:center; gap:10px;
+      padding:9px 12px; background:var(--panel-3); border:1px solid var(--line-2);}
+.lalu-kiri{display:flex; flex-direction:column; gap:3px; min-width:0;}
+.lalu b{font:600 11px/1 'IBM Plex Mono',monospace; letter-spacing:.12em; color:#c9d6e1;}
+.lalu span{font:400 9.5px/1 'IBM Plex Mono',monospace; letter-spacing:.1em; color:var(--redup-3);}
+.lalu em{font:500 9.5px/1 'IBM Plex Mono',monospace; letter-spacing:.1em; color:#8ea0af;
+         font-style:normal; white-space:nowrap;}
+
+.rantai{display:flex; gap:11px; align-items:flex-start;}
+.rantai i{margin-top:5px; width:6px; height:6px; flex:none; background:var(--kuning);}
+.rantai div{display:flex; flex-direction:column; gap:3px;}
+.rantai b{font:600 10.5px/1.3 'IBM Plex Mono',monospace; letter-spacing:.12em; color:#c9d6e1;}
+.rantai span{font:400 10.5px/1.5 'IBM Plex Sans',sans-serif; color:var(--redup-2); text-wrap:pretty;}
+
+/* ------------------------------------------------------------- panggung 3D */
+.panggung{position:relative; min-width:0; min-height:0; overflow:hidden; background:var(--panel);}
+/* Kisi radar tergambar di bawah kanvas. Kalau three.js tidak sampai (jaringan
+   kantor kerap tertutup), yang tersisa tetap terlihat seperti layar radar,
+   bukan kotak hitam kosong. */
+.panggung::before{content:""; position:absolute; inset:0; opacity:.5;
+  background:
+    radial-gradient(circle at 50% 58%, rgba(63,214,200,.07), transparent 62%),
+    repeating-linear-gradient(0deg,  rgba(27,43,54,.55) 0 1px, transparent 1px 46px),
+    repeating-linear-gradient(90deg, rgba(27,43,54,.55) 0 1px, transparent 1px 46px);}
+.scene{position:absolute; inset:0;}
+.scene canvas{display:block; width:100%; height:100%; cursor:grab;}
+.scene.geser canvas{cursor:grabbing;}
+.lapis{position:absolute; inset:0; pointer-events:none; overflow:hidden;}
+.chip{position:absolute; transform:translate(-50%,-100%); pointer-events:auto; cursor:pointer;
+      background:rgba(9,15,21,.82); border:1px solid rgba(63,214,200,.4); color:var(--terang-3);
+      padding:4px 9px; font:500 10.5px/1 'IBM Plex Mono',monospace; letter-spacing:.14em;
+      white-space:nowrap; display:flex; gap:7px; align-items:center;
+      backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);}
+.chip i{width:5px; height:5px; background:var(--sian); border-radius:50%; display:inline-block;}
+.chip em{color:var(--kuning); font-style:normal;}
+.label-pesawat{position:absolute; transform:translate(14px,-50%); pointer-events:none;
+               font:500 10px/1.45 'IBM Plex Mono',monospace; letter-spacing:.1em; color:var(--sian);
+               background:rgba(8,14,19,.72); border-left:2px solid var(--sian);
+               padding:4px 8px; white-space:pre;}
+.detail{position:absolute; left:18px; bottom:18px; width:min(320px,46%); padding:16px 18px;
+        background:rgba(10,17,23,.9); border:1px solid rgba(63,214,200,.35);
+        border-left:3px solid var(--sian); backdrop-filter:blur(6px);
+        -webkit-backdrop-filter:blur(6px); pointer-events:auto; display:none;}
+.detail .kode{font:600 10px/1 'IBM Plex Mono',monospace; letter-spacing:.22em; color:var(--kuning);}
+.detail h4{font:600 17px/1.3 'IBM Plex Sans',sans-serif; letter-spacing:.06em; margin:8px 0; color:var(--terang);}
+.detail p{margin:0; font:400 12.5px/1.65 'IBM Plex Sans',sans-serif; color:#93a4b3; text-wrap:pretty;}
+.petunjuk{position:absolute; top:14px; left:14px; padding:8px 12px; background:rgba(8,13,18,.72);
+          border:1px solid var(--line); font:400 9.5px/1.6 'IBM Plex Mono',monospace;
+          letter-spacing:.12em; color:var(--redup-3); pointer-events:none;}
+
+/* ------------------------------------------------------------- kotak masuk */
+/* Lapis pembungkusnya tembus klik supaya panggung di belakang tetap bisa
+   diputar; hanya kartunya yang menangkap tetikus. align-items:flex-start plus
+   margin blok auto, bukan align-items:center — begitu kartunya lebih tinggi
+   dari panggung, margin auto luruh jadi nol dan kartu tetap utuh dari atas. */
+.lapis-masuk{position:absolute; inset:0; z-index:3; display:flex;
+             align-items:flex-start; justify-content:flex-end;
+             padding:26px; overflow:auto; pointer-events:none;}
+.kartu{pointer-events:auto; flex:none; width:352px; max-width:100%;
+       margin-top:auto; margin-bottom:auto; padding:22px 22px 20px;
+       background:rgba(10,17,23,.92); border:1px solid rgba(63,214,200,.35);
+       border-left:3px solid var(--sian); backdrop-filter:blur(6px);
+       -webkit-backdrop-filter:blur(6px); box-shadow:0 24px 60px rgba(0,0,0,.55);}
+.kartu .eyebrow{font:600 10px/1 'IBM Plex Mono',monospace; letter-spacing:.22em; color:var(--kuning);}
+.kartu h3{font:600 17px/1.3 'IBM Plex Sans',sans-serif; letter-spacing:.06em; margin:9px 0 0; color:var(--terang);}
+.kartu .sub-teks{margin:7px 0 0; font:400 11.5px/1.6 'IBM Plex Sans',sans-serif; color:#93a4b3; text-wrap:pretty;}
+.kolom{margin-top:13px;}
+.kolom label{display:block; font:400 9px/1 'IBM Plex Mono',monospace; letter-spacing:.2em;
+             color:var(--redup-4); margin-bottom:6px; text-transform:uppercase;}
+.kolom input{width:100%; background:rgba(255,255,255,.045); border:1px solid var(--line-3);
+             color:var(--terang); font-family:'IBM Plex Mono',monospace; font-size:12.5px;
+             padding:10px 11px; outline:0; transition:border-color .15s, box-shadow .15s;}
+.kolom input::placeholder{color:#54677a;}
+.kolom input:focus{border-color:var(--sian); box-shadow:0 0 0 2px rgba(63,214,200,.16);}
+.tombol-masuk{width:100%; margin-top:18px; background:var(--sian); color:#04231f;
+              border:1px solid var(--sian); padding:11px; cursor:pointer;
+              font:600 11px/1 'IBM Plex Mono',monospace; letter-spacing:.2em;
+              text-transform:uppercase; transition:.16s;}
+.tombol-masuk:hover{background:#5ce4d7; border-color:#5ce4d7;}
+.pesan{display:none; margin-top:12px; padding:8px 10px; border-left:2px solid #ff6b6e;
+       background:rgba(255,107,110,.08); font:400 11px/1.55 'IBM Plex Mono',monospace; color:#ff9b9d;}
+.pesan.tampil{display:block;}
+.pesan.baik{border-left-color:var(--sian); background:rgba(63,214,200,.08); color:#79e6da;}
+.alt{margin-top:16px; padding-top:13px; border-top:1px solid var(--line-3);
+     font:400 10.5px/1.5 'IBM Plex Mono',monospace; letter-spacing:.1em; color:var(--redup-4);}
+.alt button{background:none; border:none; color:var(--sian); cursor:pointer;
+            font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:.1em;
+            font-weight:600; padding:0 0 0 6px; border-bottom:1px solid transparent;}
+.alt button:hover{border-bottom-color:var(--sian);}
+
+/* ------------------------------------------------------------ pita berjalan */
+.kaki{display:flex; align-items:center; border-top:1px solid var(--line);
+      background:var(--panel); overflow:hidden;}
+.pita{display:flex; width:max-content; animation:pita 42s linear infinite;}
+.pita>div{display:flex; align-items:center; gap:26px; padding:0 13px;}
+.pita span{display:flex; align-items:center; gap:8px; white-space:nowrap;
+           font:400 10px/1 'IBM Plex Mono',monospace; letter-spacing:.16em; color:var(--redup-2);}
+.pita span i{width:5px; height:5px; border-radius:50%; background:var(--sian); flex:none;}
+@keyframes pita{from{transform:translateX(0);} to{transform:translateX(-50%);}}
+
+/* ------------------------------------------------------------- layar sempit */
+/* Rel kanan lalu rel kiri dilepas duluan; panggung dan kartu masuk yang
+   terakhir menyerah, karena tanpa kartu itu layar ini tidak ada gunanya. */
+@media (max-width:1180px){ .badan{grid-template-columns:236px 1fr;} .kanan{display:none;} }
+@media (max-width:900px){
+  .badan{grid-template-columns:1fr;}
+  .kiri{display:none;}
+  .lapis-masuk{justify-content:center;}
+  .detail{display:none !important;}
+}
+@media (max-width:720px){
+  .kepala{padding:0 14px; gap:10px;}
+  .metrik>div:not(:last-child), .metrik .pisah{display:none;}
+  .status span{display:none;}
+  .status{padding:6px 8px;}
+  .petunjuk{display:none;}
+}
+/* Di HP yang dilepas "SISTEM NORMAL", bukan cap PROTOTIPE. Layar ini terlalu
+   mirip barang jadi untuk kehilangan labelnya justru di layar yang paling
+   sering dipakai orang untuk melihat-lihat. */
+@media (max-width:560px){
+  .konsol{grid-template-rows:58px 1fr 34px;}
+  .kepala{gap:8px;}
+  .merek-teks b{font-size:12px; letter-spacing:.12em;}
+  .merek-teks span{display:none;}
+  .status{display:none;}
+  .lapis-masuk{padding:16px;}
+  .kartu{padding:18px 16px 16px;}
+}
+/* Layar pendek: kepala dan kaki dilepas. Barisnya ikut jadi satu — kepala dan
+   kaki yang display:none keluar dari grid, jadi kalau templatenya tetap tiga
+   baris, badan konsol jatuh ke baris pertama yang tingginya nol. */
+@media (max-height:520px){
+  .konsol{grid-template-rows:1fr;}
+  .kepala, .kaki{display:none;}
+}
+@media (prefers-reduced-motion:reduce){ .status i, .pita{animation:none;} }
+</style>
+</head>
+<body>
+
+<div class="konsol">
+
+  <header class="kepala">
+    <div class="merek">
+      <div class="tanda"><i></i></div>
+      <div class="merek-teks">
+        <b>CNS / ATM OPERATIONS</b>
+        <span>BANDARA INTERNASIONAL SOEKARNO&ndash;HATTA &middot; WIII / CGK</span>
+      </div>
+    </div>
+    <div class="kepala-kanan">
+      <div class="metrik">
+        <div><span>RUNWAY IN USE</span><b>25L / 25R</b></div>
+        <div class="pisah"></div>
+        <div><span>QNH</span><b>1010 hPa</b></div>
+        <div class="pisah"></div>
+        <div><span>UTC</span><b class="sian" id="jamUtc">00:00:00</b></div>
+      </div>
+      <div class="status"><i></i><span>SISTEM NORMAL</span></div>
+      <div class="cap-proto">PROTOTIPE</div>
+    </div>
+  </header>
+
+  <main class="badan">
+
+    <aside class="rel kiri">
+      <div class="blok">
+        <div class="judul">SUBSISTEM</div>
+        <div class="sub">
+          <div class="sub-atas"><b>COMMUNICATION</b><span>ON LINE</span></div>
+          <p>VHF A/G main + standby, VCCS tower, recorder</p>
+          <div class="bar"><i style="width:96%"></i></div>
+        </div>
+        <div class="sub">
+          <div class="sub-atas"><b>NAVIGATION</b><span>ON LINE</span></div>
+          <p>DVOR/DME, ILS LOC + GP, monitor kategori CAT I</p>
+          <div class="bar"><i style="width:92%"></i></div>
+        </div>
+        <div class="sub">
+          <div class="sub-atas"><b>SURVEILLANCE</b><span>ON LINE</span></div>
+          <p>PSR/SSR Mode S, ADS-B 1090 ES, MLAT</p>
+          <div class="bar"><i style="width:88%"></i></div>
+        </div>
+        <div class="sub">
+          <div class="sub-atas"><b>DATA PROCESSING</b><span>ON LINE</span></div>
+          <p>RDP &middot; FDP &middot; multi-sensor tracker &middot; AMHS</p>
+          <div class="bar"><i style="width:94%"></i></div>
+        </div>
+      </div>
+
+      <div class="blok">
+        <div class="judul">LEGENDA</div>
+        <div class="legenda"><span class="garis"></span>Aliran data ke ruang processing</div>
+        <div class="legenda"><span class="garis kuning"></span>Panduan ILS / pendekatan</div>
+        <div class="legenda"><span class="bulat"></span>Track surveillance aktif</div>
+      </div>
+
+      <div class="sesi-blok">
+        <div class="judul">SESI</div>
+        <button type="button" class="sesi" id="tombolSesi">
+          <span class="av" id="sesiInisial">&mdash;</span>
+          <span class="sesi-teks">
+            <span class="nm" id="sesiNama">BELUM LOGIN</span>
+            <span class="pr" id="sesiPeran">KLIK UNTUK MASUK</span>
+          </span>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+               stroke-width="1.8" stroke-linecap="square" aria-hidden="true">
+            <path d="M10 4H5v16h5"></path><path d="M14 8l4 4-4 4"></path><path d="M18 12H9"></path>
+          </svg>
+        </button>
+        <div class="sesi-ket" id="sesiKet">AKSES TERBATAS &middot; READ ONLY</div>
+      </div>
+    </aside>
+
+    <section class="panggung">
+      <div class="scene" id="scene"></div>
+      <div class="lapis" id="lapis"></div>
+      <div class="detail" id="detail"><div class="kode"></div><h4></h4><p></p></div>
+      <div class="petunjuk">DRAG UNTUK ROTASI &middot; SCROLL UNTUK ZOOM &middot; KLIK LABEL UNTUK DETAIL</div>
+
+      <div class="lapis-masuk">
+        <div class="kartu">
+          <div class="eyebrow">PERUM LPPNPI &middot; CABANG JATSC</div>
+          <h3>E-Logbook Fasilitas</h3>
+          <p class="sub-teks">Masuk dengan akun teknisi Anda.</p>
+          <div class="kolom">
+            <label for="iUser">Username</label>
+            <input type="text" id="iUser" autocomplete="username" autocapitalize="off"
+                   spellcheck="false" placeholder="cth. budi.santoso">
+          </div>
+          <div class="kolom">
+            <label for="iPass">Password</label>
+            <input type="password" id="iPass" autocomplete="current-password">
+          </div>
+          <button class="tombol-masuk" id="btnMasuk">Masuk</button>
+          <div class="pesan" id="pesan"></div>
+          <div class="alt">Belum punya akun?<button type="button" id="btnDaftar">Buat akun</button></div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="rel kanan">
+      <div class="blok">
+        <div class="judul">TRAFFIC DIPANTAU</div>
+        <div class="traffic">
+          <div class="traffic-atas"><b>GIA 652</b><span>A333</span></div>
+          <div class="fase" id="fase">INISIALISASI SURVEILLANCE</div>
+          <div class="angka">
+            <div><span>GND SPEED</span><b id="gs">0 kt</b></div>
+            <div><span>ALTITUDE</span><b id="alt">0 ft</b></div>
+          </div>
+        </div>
+        <div class="lalu"><div class="lalu-kiri"><b>SJY 214</b><span>B738 &middot; SSR + ADS-B</span></div><em>TAXI</em></div>
+        <div class="lalu"><div class="lalu-kiri"><b>BTK 6501</b><span>A320 &middot; ADS-B</span></div><em>ENROUTE</em></div>
+        <div class="lalu"><div class="lalu-kiri"><b>GIA 411</b><span>B77W &middot; PSR + SSR</span></div><em>HOLD</em></div>
+      </div>
+
+      <div class="blok">
+        <div class="judul">RANTAI DATA</div>
+        <div class="rantai"><i></i><div><b>SENSOR</b>
+          <span>PSR/SSR dan ADS-B menangkap posisi, identitas, dan level pesawat.</span></div></div>
+        <div class="rantai"><i></i><div><b>RDP / FDP</b>
+          <span>Data radar difusikan dengan rencana penerbangan menjadi satu track berlabel.</span></div></div>
+        <div class="rantai"><i></i><div><b>DISPLAY</b>
+          <span>Track dan label disajikan ke controller working position di tower dan APP.</span></div></div>
+        <div class="rantai"><i></i><div><b>RECORDING</b>
+          <span>Suara dan data direkam untuk investigasi serta evaluasi kinerja.</span></div></div>
+      </div>
+    </aside>
+  </main>
+
+  <footer class="kaki">
+    <div class="pita">
+      <div>
+        <span><i></i>DVOR CGK &middot; MONITOR NORMAL</span>
+        <span><i></i>ILS RWY 25L &middot; CAT I SERVICEABLE</span>
+        <span><i></i>PSR/SSR &middot; 4.0 s SCAN &middot; PD 0.98</span>
+        <span><i></i>ADS-B &middot; 1090 MHz ES &middot; UPDATE 1 s</span>
+        <span><i></i>AFTN / AMHS &middot; QUEUE 0</span>
+        <span><i></i>UPS &amp; GENSET &middot; STANDBY READY</span>
+      </div>
+      <div aria-hidden="true">
+        <span><i></i>DVOR CGK &middot; MONITOR NORMAL</span>
+        <span><i></i>ILS RWY 25L &middot; CAT I SERVICEABLE</span>
+        <span><i></i>PSR/SSR &middot; 4.0 s SCAN &middot; PD 0.98</span>
+        <span><i></i>ADS-B &middot; 1090 MHz ES &middot; UPDATE 1 s</span>
+        <span><i></i>AFTN / AMHS &middot; QUEUE 0</span>
+        <span><i></i>UPS &amp; GENSET &middot; STANDBY READY</span>
+      </div>
+    </div>
+  </footer>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+const el = (id) => document.getElementById(id);
+
+/* =====================================================================
+   1. JAM UTC — satu-satunya angka di kepala yang benar-benar berjalan
+   ===================================================================== */
+setInterval(()=>{ el('jamUtc').textContent = new Date().toISOString().slice(11,19); }, 1000);
+el('jamUtc').textContent = new Date().toISOString().slice(11,19);
+
+/* =====================================================================
+   2. KOTAK MASUK — prototipe: tidak memanggil server
+   ===================================================================== */
+let masuk = false;
+
+function tampilkanSesi(){
+  el('tombolSesi').classList.toggle('masuk', masuk);
+  el('sesiInisial').textContent = masuk ? 'AT' : '—';
+  el('sesiNama').textContent   = masuk ? 'ATS ENGINEER' : 'BELUM LOGIN';
+  el('sesiPeran').textContent  = masuk ? 'CNS TECH · CWP-04' : 'KLIK UNTUK MASUK';
+  el('sesiKet').textContent    = masuk
+    ? 'LOGIN ' + new Date().toISOString().slice(11,19) + ' UTC'
+    : 'AKSES TERBATAS · READ ONLY';
+}
+
+function pesan(teks, baik){
+  const p = el('pesan');
+  p.textContent = teks;
+  p.classList.add('tampil');
+  p.classList.toggle('baik', !!baik);
+}
+
+el('btnMasuk').addEventListener('click', ()=>{
+  const u = el('iUser').value.trim();
+  const p = el('iPass').value;
+  if(!u || !p){ pesan('Username dan password harus diisi.'); return; }
+  masuk = true;
+  tampilkanSesi();
+  pesan('Prototipe: sesi ditandai masuk di rel kiri. Belum ada panggilan ke server.', true);
+});
+el('btnDaftar').addEventListener('click', ()=>{
+  pesan('Prototipe: pendaftaran belum disambungkan.');
+});
+el('tombolSesi').addEventListener('click', ()=>{
+  if(masuk){ masuk = false; tampilkanSesi(); el('pesan').classList.remove('tampil'); return; }
+  el('iUser').focus();
+});
+[el('iUser'), el('iPass')].forEach(k=>{
+  k.addEventListener('keydown', e=>{ if(e.key === 'Enter') el('btnMasuk').click(); });
+});
+tampilkanSesi();
+
+/* =====================================================================
+   3. PANGGUNG 3D — diterjemahkan dari cns-scene.js di proyek desain
+   ===================================================================== */
+const FASILITAS = [
+  { id:'adc',  nama:'ADC TOWER',       kode:'TWR', pos:[-34,46,44],
+    ket:'Aerodrome Control Tower. Pengendalian pergerakan pesawat di runway, taxiway dan udara sekitar bandara secara visual. Kabin dilengkapi Voice Communication Control System (VCCS) dan display data penerbangan.' },
+  { id:'vhf',  nama:'VHF A/G',         kode:'COM', pos:[-14,30,56],
+    ket:'Antena VHF Air/Ground 118–137 MHz. Kanal komunikasi suara antara pemandu lalu lintas udara dan pilot. Redundan main/standby dengan remote control & monitoring.' },
+  { id:'dvor', nama:'DVOR / DME',      kode:'NAV', pos:[4,12,-74],
+    ket:'Doppler VHF Omnidirectional Range + Distance Measuring Equipment. Memberi informasi azimuth dan jarak (slant range) ke pesawat sebagai acuan navigasi en-route dan approach.' },
+  { id:'loc',  nama:'ILS LOCALIZER',   kode:'NAV', pos:[-152,9,0],
+    ket:'Localizer array ILS. Memancarkan sinyal panduan lateral terhadap garis tengah runway untuk precision approach CAT I/II.' },
+  { id:'gs',   nama:'ILS GLIDE PATH',  kode:'NAV', pos:[104,16,20],
+    ket:'Glide Path antenna. Panduan sudut turun nominal 3° terhadap threshold runway, dipasangkan dengan localizer dan marker/DME.' },
+  { id:'psr',  nama:'PSR / SSR',       kode:'SUR', pos:[64,34,62],
+    ket:'Primary Surveillance Radar & Secondary Surveillance Radar Mode S. PSR mendeteksi echo primer, SSR menginterogasi transponder untuk identitas, altitude dan data Mode S.' },
+  { id:'ads',  nama:'ADS-B STATION',   kode:'SUR', pos:[-84,24,60],
+    ket:'Automatic Dependent Surveillance – Broadcast. Menerima posisi GNSS yang dipancarkan pesawat pada 1090 MHz ES, update rate ~1 detik.' },
+  { id:'dp',   nama:'DATA PROCESSING', kode:'ATM', pos:[-64,20,96],
+    ket:'Ruang Automation / Data Processing: Radar Data Processing (RDP), Flight Data Processing (FDP), multi-sensor tracker, recording & AFTN/AMHS message handling. Output disajikan ke ATC console.' }
+];
+const SIMPUL = [-64,6,96];
+const W = { bg:0x080d12, tanah:0x0d151c, kisi:0x1b2b36, runway:0x171d23,
+            logam:0x8f9aa6, sian:0x3fd6c8, kuning:0xf0b429, kaca:0x7fe3ff, putih:0xdfe7ee };
+
+const diam = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function bangun(){
+  const T = window.THREE;
+  const wadah = el('scene'), lapis = el('lapis'), detail = el('detail');
+  const w = wadah.clientWidth || 1200, h = wadah.clientHeight || 700;
+
+  const renderer = new T.WebGLRenderer({ antialias:true, alpha:false });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
+  renderer.setSize(w, h);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = T.PCFSoftShadowMap;
+  wadah.appendChild(renderer.domElement);
+
+  const scene = new T.Scene();
+  scene.background = new T.Color(W.bg);
+  scene.fog = new T.Fog(W.bg, 380, 900);
+  const camera = new T.PerspectiveCamera(38, w/h, 1, 3000);
+
+  /* ---- orbit ---- */
+  const bidik = new T.Vector3(-6, 12, 10);
+  /* Kamera desainnya dipatok 330 dengan pitch rendah, untuk panggung selebar
+     layar desktop. Di HP bingkainya tinggi-sempit dan bandara ini melebar, jadi
+     sudut rendah cuma menghasilkan langit hitam. Yang menolong bukan mundur —
+     kabut mulai di 380 dan semuanya jadi kelabu — melainkan menunduk: dari atas,
+     landasan dan taxiway mengisi bingkai yang tinggi itu. */
+  const sempitAwal = w < 700;
+  let jarak = sempitAwal ? 320 : 330,
+      yaw = 0.85,
+      pitch = sempitAwal ? 0.72 : 0.42,
+      otomatis = !diam;
+  const pasangKamera = () => {
+    pitch = Math.max(0.08, Math.min(1.15, pitch));
+    jarak = Math.max(120, Math.min(760, jarak));
+    camera.position.set(
+      bidik.x + jarak*Math.cos(pitch)*Math.sin(yaw),
+      bidik.y + jarak*Math.sin(pitch),
+      bidik.z + jarak*Math.cos(pitch)*Math.cos(yaw));
+    camera.lookAt(bidik);
+  };
+  let seret = null;
+  const kanvas = renderer.domElement;
+  kanvas.addEventListener('pointerdown', e=>{
+    seret = { x:e.clientX, y:e.clientY }; otomatis = false;
+    wadah.classList.add('geser'); kanvas.setPointerCapture(e.pointerId);
+  });
+  kanvas.addEventListener('pointermove', e=>{
+    if(!seret) return;
+    yaw   -= (e.clientX - seret.x) * 0.005;
+    pitch += (e.clientY - seret.y) * 0.004;
+    seret = { x:e.clientX, y:e.clientY };
+    pasangKamera(); if(diam) gambarSekali();
+  });
+  const lepas = () => { seret = null; wadah.classList.remove('geser'); };
+  kanvas.addEventListener('pointerup', lepas);
+  kanvas.addEventListener('pointercancel', lepas);
+  kanvas.addEventListener('wheel', e=>{
+    e.preventDefault(); otomatis = false;
+    jarak *= 1 + Math.sign(e.deltaY)*0.08;
+    pasangKamera(); if(diam) gambarSekali();
+  }, { passive:false });
+
+  /* ---- cahaya ---- */
+  scene.add(new T.HemisphereLight(0x2a4356, 0x05080b, 0.85));
+  const surya = new T.DirectionalLight(0xbcd4e6, 1.15);
+  surya.position.set(-160, 220, 180);
+  surya.castShadow = true;
+  surya.shadow.mapSize.set(2048, 2048);
+  const sc = surya.shadow.camera;
+  sc.left = -300; sc.right = 300; sc.top = 300; sc.bottom = -300; sc.far = 800;
+  scene.add(surya);
+  const isi = new T.DirectionalLight(0x2f6f80, 0.45);
+  isi.position.set(200, 90, -160); scene.add(isi);
+
+  const bahan = (c, o) => new T.MeshStandardMaterial(Object.assign({ color:c, roughness:0.72, metalness:0.15 }, o||{}));
+  const nyala = (c, o) => new T.MeshBasicMaterial({ color:c, transparent:true, opacity: o==null ? 0.85 : o });
+
+  /* ---- tanah, kisi, runway, taxiway ---- */
+  const tanah = new T.Mesh(new T.PlaneGeometry(1800,1800), bahan(W.tanah,{roughness:0.95,metalness:0}));
+  tanah.rotation.x = -Math.PI/2; tanah.receiveShadow = true; scene.add(tanah);
+  const kisi = new T.GridHelper(1600, 64, W.kisi, 0x121c24);
+  kisi.position.y = 0.05; kisi.material.transparent = true; kisi.material.opacity = 0.4; scene.add(kisi);
+
+  const runway = new T.Mesh(new T.PlaneGeometry(360,26), bahan(W.runway,{roughness:0.9,metalness:0}));
+  runway.rotation.x = -Math.PI/2; runway.position.set(0,0.12,0); runway.receiveShadow = true; scene.add(runway);
+  const bahu = new T.Mesh(new T.PlaneGeometry(360,34), bahan(0x121a21,{roughness:1,metalness:0}));
+  bahu.rotation.x = -Math.PI/2; bahu.position.set(0,0.08,0); scene.add(bahu);
+  for(let x=-168; x<=168; x+=24){
+    const d = new T.Mesh(new T.PlaneGeometry(12,1.1), nyala(W.putih,0.5));
+    d.rotation.x = -Math.PI/2; d.position.set(x,0.2,0); scene.add(d);
+  }
+  for(const sisi of [-1,1]){
+    const tepi = new T.Mesh(new T.PlaneGeometry(360,0.8), nyala(0x9fb4c4,0.35));
+    tepi.rotation.x = -Math.PI/2; tepi.position.set(0,0.2,sisi*12.4); scene.add(tepi);
+  }
+  const taxi = new T.Mesh(new T.PlaneGeometry(300,14), bahan(0x151d24,{roughness:0.95,metalness:0}));
+  taxi.rotation.x = -Math.PI/2; taxi.position.set(-10,0.1,34); scene.add(taxi);
+  for(let x=-150; x<=140; x+=10){
+    const d = new T.Mesh(new T.PlaneGeometry(6,0.6), nyala(W.kuning,0.4));
+    d.rotation.x = -Math.PI/2; d.position.set(x-10,0.18,34); scene.add(d);
+  }
+  const lampuRunway = [];
+  for(let i=0; i<22; i++){
+    const s = new T.Mesh(new T.SphereGeometry(0.9,8,8), nyala(i<8 ? W.kuning : 0xffffff, 0.9));
+    s.position.set(140 + i*14, 1.2, 0); scene.add(s); lampuRunway.push(s);
+  }
+  for(const sisi of [-1,1]){
+    for(let i=0; i<8; i++){
+      const s = new T.Mesh(new T.SphereGeometry(0.8,8,8), nyala(0x66ff99,0.9));
+      s.position.set(132, 1.2, sisi*(2 + i*1.6)); scene.add(s);
+    }
+  }
+
+  /* ---- menara ADC ---- */
+  const menara = new T.Group(); menara.position.set(-34,0,44);
+  const kaki = new T.Mesh(new T.BoxGeometry(26,7,20), bahan(0x232b33));
+  kaki.position.y = 3.5; kaki.castShadow = true; kaki.receiveShadow = true; menara.add(kaki);
+  const batang = new T.Mesh(new T.CylinderGeometry(4.6,6.6,34,16), bahan(0x3d464f,{roughness:0.6}));
+  batang.position.y = 24; batang.castShadow = true; menara.add(batang);
+  for(let i=0; i<5; i++){
+    const r = new T.Mesh(new T.TorusGeometry(5.3 - i*0.35, 0.28, 8, 24), bahan(0x596570,{metalness:0.5}));
+    r.rotation.x = Math.PI/2; r.position.y = 12 + i*6; menara.add(r);
+  }
+  const dek = new T.Mesh(new T.CylinderGeometry(11,9,2.4,16), bahan(0x2b333c));
+  dek.position.y = 41; dek.castShadow = true; menara.add(dek);
+  const kabin = new T.Mesh(new T.CylinderGeometry(10.2,11.4,9,16),
+    new T.MeshPhysicalMaterial({ color:W.kaca, transparent:true, opacity:0.35,
+      roughness:0.08, metalness:0.1, emissive:0x1d6f80, emissiveIntensity:0.6 }));
+  kabin.position.y = 46.6; menara.add(kabin);
+  const atap = new T.Mesh(new T.CylinderGeometry(12.4,11.6,1.8,16), bahan(0x1e262e));
+  atap.position.y = 51.8; atap.castShadow = true; menara.add(atap);
+  const lampuKabin = new T.PointLight(0x8ff0ff, 0.9, 90); lampuKabin.position.y = 46; menara.add(lampuKabin);
+  const tiang = new T.Mesh(new T.CylinderGeometry(0.5,0.7,16,8), bahan(W.logam,{metalness:0.6}));
+  tiang.position.y = 60; menara.add(tiang);
+  const suar = new T.Mesh(new T.SphereGeometry(1.5,12,12), nyala(W.kuning,1));
+  suar.position.y = 69; menara.add(suar);
+  scene.add(menara);
+
+  /* ---- tiang VHF A/G ---- */
+  const vhf = new T.Group(); vhf.position.set(-14,0,56);
+  const vTiang = new T.Mesh(new T.CylinderGeometry(0.55,0.8,30,8), bahan(W.logam,{metalness:0.55}));
+  vTiang.position.y = 15; vTiang.castShadow = true; vhf.add(vTiang);
+  for(let i=0; i<4; i++){
+    const lengan = new T.Mesh(new T.BoxGeometry(7,0.3,0.3), bahan(0xa7b3bf,{metalness:0.6}));
+    lengan.position.y = 12 + i*5; lengan.rotation.y = i*0.8; vhf.add(lengan);
+    const dipol = new T.Mesh(new T.CylinderGeometry(0.22,0.22,4.5,6), bahan(0xc3ccd6,{metalness:0.6}));
+    dipol.position.set(3.2*Math.cos(i*0.8), 12 + i*5, -3.2*Math.sin(i*0.8)); vhf.add(dipol);
+  }
+  scene.add(vhf);
+
+  /* ---- DVOR / DME ---- */
+  const dvor = new T.Group(); dvor.position.set(4,0,-74);
+  const piring = new T.Mesh(new T.CylinderGeometry(15,15,0.9,32), bahan(0x39424b,{metalness:0.4}));
+  piring.position.y = 7; piring.castShadow = true; dvor.add(piring);
+  for(let i=0; i<8; i++){
+    const k = new T.Mesh(new T.CylinderGeometry(0.4,0.4,7,6), bahan(0x4c565f));
+    k.position.set(11*Math.cos(i*Math.PI/4), 3.5, 11*Math.sin(i*Math.PI/4)); dvor.add(k);
+  }
+  for(let i=0; i<24; i++){
+    const sisi = new T.Mesh(new T.BoxGeometry(1.6,2.2,0.6), bahan(0x6d7986,{metalness:0.5}));
+    const a = i*Math.PI/12;
+    sisi.position.set(14*Math.cos(a), 8.6, 14*Math.sin(a)); sisi.rotation.y = -a; dvor.add(sisi);
+  }
+  const radome = new T.Mesh(new T.ConeGeometry(4.6,8,20), bahan(0xe4e9ee,{roughness:0.5}));
+  radome.position.y = 12; radome.castShadow = true; dvor.add(radome);
+  const dmeRumah = new T.Mesh(new T.BoxGeometry(9,4.5,7), bahan(0x2f373f));
+  dmeRumah.position.set(22,2.3,6); dmeRumah.castShadow = true; dvor.add(dmeRumah);
+  const dmeAntena = new T.Mesh(new T.CylinderGeometry(0.9,0.9,9,10), bahan(0xc9d2da,{metalness:0.5}));
+  dmeAntena.position.set(22,9,6); dvor.add(dmeAntena);
+  scene.add(dvor);
+
+  /* ---- ILS localizer ---- */
+  const loc = new T.Group(); loc.position.set(-152,0,0);
+  for(let i=-6; i<=6; i++){
+    const p = new T.Mesh(new T.CylinderGeometry(0.35,0.35,6,6), bahan(0x545e68));
+    p.position.set(0,3,i*3.4); loc.add(p);
+    const d = new T.Mesh(new T.BoxGeometry(0.5,1.4,2.6), bahan(0xd6dee6,{metalness:0.4}));
+    d.position.set(0,6.6,i*3.4); d.castShadow = true; loc.add(d);
+  }
+  const locBar = new T.Mesh(new T.BoxGeometry(0.4,0.4,44), bahan(0x8b96a2,{metalness:0.6}));
+  locBar.position.y = 7.6; loc.add(locBar);
+  scene.add(loc);
+
+  /* ---- ILS glide path ---- */
+  const gp = new T.Group(); gp.position.set(104,0,20);
+  const gpTiang = new T.Mesh(new T.CylinderGeometry(0.6,0.9,14,8), bahan(W.logam,{metalness:0.5}));
+  gpTiang.position.y = 7; gpTiang.castShadow = true; gp.add(gpTiang);
+  for(let i=0; i<3; i++){
+    const d = new T.Mesh(new T.BoxGeometry(2.6,1.2,0.5), bahan(0xdfe6ec,{metalness:0.4}));
+    d.position.set(1.6, 4 + i*4.4, 0); gp.add(d);
+  }
+  const gpRumah = new T.Mesh(new T.BoxGeometry(7,4,6), bahan(0x2f373f));
+  gpRumah.position.set(-8,2,3); gpRumah.castShadow = true; gp.add(gpRumah);
+  scene.add(gp);
+
+  /* ---- PSR / SSR ---- */
+  const radar = new T.Group(); radar.position.set(64,0,62);
+  const rKaki = new T.Mesh(new T.BoxGeometry(14,10,14), bahan(0x252d35));
+  rKaki.position.y = 5; rKaki.castShadow = true; radar.add(rKaki);
+  const rMenara = new T.Mesh(new T.CylinderGeometry(2.4,3.6,20,12), bahan(0x3f4851));
+  rMenara.position.y = 20; rMenara.castShadow = true; radar.add(rMenara);
+  const rKepala = new T.Group(); rKepala.position.y = 31;
+  rKepala.add(new T.Mesh(new T.CylinderGeometry(3.2,3.6,4,12), bahan(0x555f69,{metalness:0.5})));
+  const psrPiring = new T.Mesh(new T.BoxGeometry(2,9,26), bahan(0xb9c3cd,{metalness:0.6,roughness:0.45}));
+  psrPiring.position.set(0,5,0); psrPiring.castShadow = true; rKepala.add(psrPiring);
+  const ssrBatang = new T.Mesh(new T.BoxGeometry(1.2,1.6,22), bahan(0xe2e8ee,{metalness:0.5}));
+  ssrBatang.position.set(0,10.4,0); rKepala.add(ssrBatang);
+  radar.add(rKepala);
+  const sapuan = new T.Mesh(new T.CircleGeometry(150,40,0,0.5),
+    new T.MeshBasicMaterial({ color:W.sian, transparent:true, opacity:0.1, side:T.DoubleSide, depthWrite:false }));
+  sapuan.rotation.x = -Math.PI/2; sapuan.position.y = 0.35; radar.add(sapuan);
+  for(const r of [50,100,150]){
+    const cincin = new T.Mesh(new T.RingGeometry(r-0.5, r, 96),
+      new T.MeshBasicMaterial({ color:W.sian, transparent:true, opacity:0.12, side:T.DoubleSide, depthWrite:false }));
+    cincin.rotation.x = -Math.PI/2; cincin.position.y = 0.3; radar.add(cincin);
+  }
+  scene.add(radar);
+
+  /* ---- stasiun ADS-B ---- */
+  const ads = new T.Group(); ads.position.set(-84,0,60);
+  const aTiang = new T.Mesh(new T.CylinderGeometry(0.45,0.7,22,8), bahan(W.logam,{metalness:0.55}));
+  aTiang.position.y = 11; aTiang.castShadow = true; ads.add(aTiang);
+  const aAntena = new T.Mesh(new T.CylinderGeometry(0.9,0.9,7,10), bahan(0xf1f5f8,{roughness:0.5}));
+  aAntena.position.y = 24; ads.add(aAntena);
+  const aRumah = new T.Mesh(new T.BoxGeometry(6,3.6,5), bahan(0x2c343c));
+  aRumah.position.set(6,1.8,2); aRumah.castShadow = true; ads.add(aRumah);
+  const panelSurya = new T.Mesh(new T.BoxGeometry(7,0.3,4), bahan(0x16324a,{metalness:0.6,roughness:0.3}));
+  panelSurya.position.set(6,4,2); panelSurya.rotation.z = 0.18; ads.add(panelSurya);
+  scene.add(ads);
+
+  /* ---- gedung data processing ---- */
+  const dp = new T.Group(); dp.position.set(-64,0,96);
+  const badanDp = new T.Mesh(new T.BoxGeometry(52,15,30), bahan(0x222a32));
+  badanDp.position.y = 7.5; badanDp.castShadow = true; badanDp.receiveShadow = true; dp.add(badanDp);
+  const atapDp = new T.Mesh(new T.BoxGeometry(55,1.4,33), bahan(0x1a2128));
+  atapDp.position.y = 15.6; dp.add(atapDp);
+  for(let i=0; i<9; i++){
+    for(let r=0; r<2; r++){
+      const jendela = new T.Mesh(new T.PlaneGeometry(3.6,3), nyala(0x63e0ff,0.55));
+      jendela.position.set(-22 + i*5.5, 5 + r*6, 15.1); dp.add(jendela);
+    }
+  }
+  const pendingin = new T.Mesh(new T.BoxGeometry(10,3,8), bahan(0x39424b));
+  pendingin.position.set(16,17.5,0); dp.add(pendingin);
+  const lampuDp = new T.PointLight(0x4fd0ff, 0.7, 70);
+  lampuDp.position.set(0,12,20); dp.add(lampuDp);
+  scene.add(dp);
+
+  /* ---- tautan data: tiap fasilitas mengalir ke ruang processing ---- */
+  const tautan = [];
+  const simpul = new T.Vector3(SIMPUL[0], SIMPUL[1], SIMPUL[2]);
+  FASILITAS.filter(f => f.id !== 'dp').forEach((f,i)=>{
+    const dari = new T.Vector3(f.pos[0], Math.max(6, f.pos[1]*0.5), f.pos[2]);
+    const tengah = dari.clone().add(simpul).multiplyScalar(0.5);
+    tengah.y += dari.distanceTo(simpul)*0.18 + 10;
+    const lengkung = new T.QuadraticBezierCurve3(dari, tengah, simpul);
+    scene.add(new T.Line(new T.BufferGeometry().setFromPoints(lengkung.getPoints(48)),
+      new T.LineBasicMaterial({ color:W.sian, transparent:true, opacity:0.18 })));
+    const denyut = [];
+    for(let p=0; p<3; p++){
+      const s = new T.Mesh(new T.SphereGeometry(1.15,8,8), nyala(W.sian,0.95));
+      scene.add(s); denyut.push({ mesh:s, geser:p/3 + i*0.11 });
+    }
+    tautan.push({ lengkung, denyut });
+  });
+
+  /* ---- berkas ILS ---- */
+  const berkasIls = new T.Mesh(new T.ConeGeometry(26,300,4,1,true),
+    new T.MeshBasicMaterial({ color:W.kuning, transparent:true, opacity:0.06, side:T.DoubleSide, depthWrite:false }));
+  berkasIls.rotation.z = -Math.PI/2; berkasIls.rotation.y = Math.PI/4;
+  berkasIls.position.set(0,26,0); scene.add(berkasIls);
+
+  /* ---- pesawat ---- */
+  function buatPesawat(skala, warna){
+    const g = new T.Group();
+    const kulit = bahan(0xeef2f6, { roughness:0.45, metalness:0.2 });
+    const badanP = new T.Mesh(new T.CapsuleGeometry(2.3,22,8,16), kulit);
+    badanP.rotation.z = Math.PI/2; badanP.castShadow = true; g.add(badanP);
+    const hidung = new T.Mesh(new T.ConeGeometry(2.3,5,16), kulit);
+    hidung.rotation.z = -Math.PI/2; hidung.position.x = -15.5; g.add(hidung);
+    const garis = new T.Mesh(new T.BoxGeometry(24,1.1,0.2), nyala(warna,0.9));
+    garis.position.set(0,0.6,2.35); g.add(garis);
+    const garis2 = garis.clone(); garis2.position.z = -2.35; g.add(garis2);
+    const sayap = new T.Mesh(new T.BoxGeometry(6.5,0.7,34), bahan(0xdde4ea,{roughness:0.5}));
+    sayap.position.set(1,-0.4,0); sayap.castShadow = true; g.add(sayap);
+    const ujungKi = new T.Mesh(new T.BoxGeometry(3,2.4,0.7), bahan(0xdde4ea));
+    ujungKi.position.set(2.4,0.6,17); g.add(ujungKi);
+    const ujungKa = ujungKi.clone(); ujungKa.position.z = -17; g.add(ujungKa);
+    for(const z of [-9,9]){
+      const mesin = new T.Mesh(new T.CylinderGeometry(1.7,1.5,5.5,14), bahan(0xb9c2cb,{metalness:0.5}));
+      mesin.rotation.z = Math.PI/2; mesin.position.set(-1.5,-2.1,z); mesin.castShadow = true; g.add(mesin);
+    }
+    const sirip = new T.Mesh(new T.BoxGeometry(6,9,0.6), bahan(warna,{roughness:0.5}));
+    sirip.position.set(12.5,5.2,0); sirip.castShadow = true; g.add(sirip);
+    const stabil = new T.Mesh(new T.BoxGeometry(4.2,0.5,14), bahan(0xdde4ea));
+    stabil.position.set(13,0.6,0); g.add(stabil);
+    const navKi = new T.Mesh(new T.SphereGeometry(0.6,8,8), nyala(0xff4d4d,1));
+    navKi.position.set(2.4,0.6,18.4); g.add(navKi);
+    const navKa = new T.Mesh(new T.SphereGeometry(0.6,8,8), nyala(0x4dff87,1));
+    navKa.position.set(2.4,0.6,-18.4); g.add(navKa);
+    const kilat = new T.Mesh(new T.SphereGeometry(0.7,8,8), nyala(0xffffff,1));
+    kilat.position.set(15.5,5.2,0); g.add(kilat);
+    g.scale.setScalar(skala);
+    g.userData = { kilat };
+    return g;
+  }
+  const datang  = buatPesawat(1,    0x2f6fb5); scene.add(datang);
+  const taxiing = buatPesawat(0.85, 0xc23a3a); taxiing.rotation.y = Math.PI; scene.add(taxiing);
+  const lintas  = buatPesawat(1.1,  0x2c7a5b); scene.add(lintas);
+
+  const cincinTrack = new T.Mesh(new T.RingGeometry(6,7,40),
+    new T.MeshBasicMaterial({ color:W.sian, transparent:true, opacity:0.5, side:T.DoubleSide, depthWrite:false }));
+  cincinTrack.rotation.x = -Math.PI/2; cincinTrack.position.y = 0.5; scene.add(cincinTrack);
+
+  /* ---- label fasilitas ---- */
+  const labelEl = {};
+  const pilihFasilitas = (f) => {
+    detail.style.display = 'block';
+    detail.querySelector('.kode').textContent = f.kode;
+    detail.querySelector('h4').textContent = f.nama;
+    detail.querySelector('p').textContent = f.ket;
+  };
+  FASILITAS.forEach(f=>{
+    const chip = document.createElement('button');
+    chip.type = 'button'; chip.className = 'chip';
+    chip.innerHTML = '<i></i>' + f.nama + '<em>' + f.kode + '</em>';
+    chip.addEventListener('click', ()=>pilihFasilitas(f));
+    lapis.appendChild(chip);
+    labelEl[f.id] = { el:chip, v:new T.Vector3(f.pos[0], f.pos[1], f.pos[2]) };
+  });
+  pilihFasilitas(FASILITAS[0]);
+
+  const labelPesawat = document.createElement('div');
+  labelPesawat.className = 'label-pesawat';
+  lapis.appendChild(labelPesawat);
+
+  /* ---- gerak ---- */
+  const jam = new T.Clock();
+  let waktu = 0, kirimTerakhir = -1;
+  const v = new T.Vector3();
+  const proyeksi = (vek, node, sela) => {
+    v.copy(vek).project(camera);
+    const nx = v.x*0.5 + 0.5, ny = -v.y*0.5 + 0.5;
+    const m = sela == null ? 0.02 : sela;
+    const tampak = v.z < 1 && nx > m && nx < 1-m && ny > m && ny < 1-m;
+    node.style.opacity = tampak ? '1' : '0';
+    node.style.visibility = tampak ? 'visible' : 'hidden';
+    node.style.left = (nx*100) + '%';
+    node.style.top  = (ny*100) + '%';
+    return tampak;
+  };
+  pasangKamera();
+
+  /* Satu putaran = satu kedatangan penuh: final approach, touchdown, lalu
+     vacating ke apron. Angka di rel kanan diambil dari perhitungan yang sama,
+     jadi yang terbaca di panel memang yang sedang terlihat di panggung. */
+  function majuAdegan(dt){
+    waktu += dt;
+    if(otomatis){ yaw += dt*0.035; pasangKamera(); }
+
+    rKepala.rotation.y += dt*1.2;
+    sapuan.rotation.z  -= dt*1.2;
+    suar.material.opacity = 0.35 + 0.65*Math.abs(Math.sin(waktu*2.4));
+    lampuKabin.intensity  = 0.75 + 0.2*Math.sin(waktu*1.3);
+    lampuRunway.forEach((s,i)=>{ s.material.opacity = 0.35 + 0.65*Math.max(0, Math.sin(waktu*3 - i*0.45)); });
+
+    tautan.forEach(({lengkung,denyut})=>{
+      denyut.forEach(p=>{
+        const u = (waktu*0.18 + p.geser) % 1;
+        p.mesh.position.copy(lengkung.getPoint(u));
+        p.mesh.material.opacity = 0.25 + 0.75*Math.sin(u*Math.PI);
+      });
+    });
+
+    const putaran = 26, t = (waktu % putaran)/putaran;
+    let ax, ay, fase, gsNilai;
+    if(t < 0.62){
+      const u = t/0.62;
+      ax = 460 - u*370; ay = 3 + (1-u)*(1-u)*88;
+      fase = 'FINAL APPROACH · ILS RWY 25L'; gsNilai = 152 - u*12;
+    } else if(t < 0.72){
+      const u = (t-0.62)/0.1;
+      ax = 90 - u*90; ay = 3 - u*0.6;
+      fase = 'TOUCHDOWN · ROLLOUT'; gsNilai = 140 - u*60;
+    } else {
+      const u = (t-0.72)/0.28;
+      ax = 0 - u*150; ay = 2.4;
+      fase = 'VACATING · TWY TO APRON'; gsNilai = 80 - u*68;
+    }
+    datang.position.set(ax, ay + 2.4, 0);
+    datang.rotation.z = t < 0.62 ? 0.045 : 0;
+    datang.userData.kilat.material.opacity = (waktu*3) % 1 < 0.12 ? 1 : 0.05;
+    cincinTrack.position.set(ax, 0.5, 0);
+    cincinTrack.scale.setScalar(1 + 0.25*Math.sin(waktu*3));
+
+    const tt = (waktu % 40)/40;
+    taxiing.position.set(-140 + tt*250, 2.2, 34);
+    taxiing.rotation.y = Math.PI;
+    taxiing.userData.kilat.material.opacity = 0.15;
+
+    const et = (waktu % 34)/34;
+    lintas.position.set(-320 + et*660, 175, -240 + et*90);
+    lintas.rotation.y = Math.PI + 0.22;
+    lintas.userData.kilat.material.opacity = (waktu*2.6) % 1 < 0.1 ? 1 : 0.05;
+
+    const ketinggian = Math.round(ay*34 + 45);
+    labelPesawat.textContent = 'GIA 652 · A333\n' + fase +
+      '\nGS ' + Math.round(gsNilai) + ' kt   ALT ' + ketinggian + ' ft';
+    if(waktu - kirimTerakhir > 0.5){
+      kirimTerakhir = waktu;
+      el('fase').textContent = fase;
+      el('gs').textContent = Math.round(gsNilai) + ' kt';
+      el('alt').textContent = ketinggian + ' ft';
+    }
+  }
+
+  /* Label ditata setelah kamera bergerak: yang bertumpuk digeser ke atas, dan
+     di panggung sempit semuanya disembunyikan — di lebar itu label lebih banyak
+     menutupi bandara daripada menjelaskannya. */
+  function tataLabel(){
+    const sempit = wadah.clientWidth < 600;
+    const sudah = [];
+    for(const id in labelEl){
+      const L = labelEl[id];
+      if(sempit){ L.el.style.visibility = 'hidden'; L.el.style.opacity = '0'; continue; }
+      if(!proyeksi(L.v, L.el, 0.06)) continue;
+      const px = parseFloat(L.el.style.left) * wadah.clientWidth / 100;
+      const py = parseFloat(L.el.style.top)  * wadah.clientHeight / 100;
+      let geser = 0;
+      for(const p of sudah){
+        if(Math.abs(p.x - px) < 130 && Math.abs(p.y - (py + geser)) < 24) geser -= 24;
+      }
+      sudah.push({ x:px, y:py + geser });
+      L.el.style.transform = 'translate(-50%,-100%) translateY(' + geser + 'px)';
+    }
+    v.copy(datang.position); v.y += 12;
+    proyeksi(v, labelPesawat);
+  }
+
+  function gambarSekali(){ tataLabel(); renderer.render(scene, camera); }
+
+  const gerak = () => {
+    requestAnimationFrame(gerak);
+    majuAdegan(Math.min(jam.getDelta(), 0.05));
+    tataLabel();
+    renderer.render(scene, camera);
+  };
+  if(diam){ majuAdegan(0); gambarSekali(); }
+  else gerak();
+
+  new ResizeObserver(()=>{
+    const lw = wadah.clientWidth, lh = wadah.clientHeight;
+    if(!lw || !lh) return;
+    camera.aspect = lw/lh; camera.updateProjectionMatrix();
+    renderer.setSize(lw, lh);
+    if(diam) gambarSekali();
+  }).observe(wadah);
+}
+
+/* three.js datang dari CDN. Kalau dalam 8 detik belum ada, panggungnya
+   dilewatkan — kisi radar di CSS yang tersisa, dan kotak masuk tetap jalan. */
+(function tunggu(sisa){
+  if(window.THREE){
+    try{ bangun(); }catch(e){ console.error('Panggung gagal dibangun:', e); }
+    return;
+  }
+  if(sisa <= 0){ console.warn('three.js tidak sampai — panggung 3D dilewatkan.'); return; }
+  setTimeout(()=>tunggu(sisa - 120), 120);
+})(8000);
+
+})();
+</script>
+
+<!--
+  ================================================================
+  CATATAN SEBELUM DIPAKAI — kalau layar ini jadi dipasang ke E-Logbook
+  ================================================================
+
+  1. three.js dari unpkg.com. Ini akan jadi pustaka luar pertama di E-Logbook.
+     Kalau server dipakai di jaringan tanpa jalan keluar ke internet, panggung
+     3D-nya tidak muncul (kotak masuk tetap jalan). Pilihannya: menyalin
+     three.min.js ke dalam repo, atau menerima layar masuk tanpa 3D di sana.
+
+  2. Mode terang. E-Logbook punya tombol tema; konsol ini gelap saja. Perlu
+     diputuskan: layar masuk dibiarkan selalu gelap, atau dibuatkan versi
+     terangnya.
+
+  3. Biaya gambar. WebGL dengan bayangan 2048 berjalan terus selama layar masuk
+     terbuka. Di aplikasi sungguhan panggungnya harus dibongkar begitu login
+     berhasil, bukan dibiarkan menggambar di belakang layar seumur sesi.
+
+  4. Isi teks. Runway in use, QNH, angka subsistem, dan daftar traffic di sini
+     karangan. Kalau ditampilkan di layar masuk sungguhan, angka yang tidak
+     benar lebih buruk daripada tidak ada angka — entah disambungkan ke sumber
+     yang nyata, atau diganti isi yang memang tetap.
+
+  5. Bahasa. Teks konsol ini sebagian besar istilah teknis penerbangan yang
+     memang dipakai dalam bahasa Inggris, dan belum masuk kamus 02-bahasa.js.
+-->
+</body>
+</html>

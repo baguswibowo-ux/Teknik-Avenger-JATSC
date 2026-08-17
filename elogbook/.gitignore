@@ -1,0 +1,10 @@
+node_modules/
+
+# Data operasional — jangan pernah ikut masuk ke repositori
+data/
+uploads/
+backup/
+import/
+
+.vercel
+.env

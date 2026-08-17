@@ -1,0 +1,29 @@
+/* E-Logbook · css/04-catatan.css — Daftar catatan logbook dan blok tanda tangan di detail
+   Dimuat dari index.html sesuai nomor berkas; urutannya berpengaruh. */
+
+.entry{border:1px solid var(--line); border-radius:10px; background:var(--panel); margin-bottom:10px; overflow:hidden;}
+.entry-top{display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:var(--panel-2); gap:10px; flex-wrap:wrap;}
+.entry-time{font-family:var(--font-mono); color:var(--accent); font-size:12.5px;}
+.entry-body{padding:12px 14px; font-size:13.5px; line-height:1.5; white-space:pre-wrap;}
+.entry-sigs{display:flex; gap:22px; padding:10px 14px 14px; flex-wrap:wrap;}
+.sig-block{font-size:11px; color:var(--muted);}
+.sig-block b{display:block; color:var(--text); font-size:12.5px; margin-bottom:5px; font-weight:500;}
+/* Blok tanda tangan di jendela detail. Kiri dan kanan dibuat sebentuk supaya
+   tetap sepadan waktu ditumpuk di layar HP — di sana keduanya jadi satu kolom,
+   jadi beda gaya label langsung kelihatan seperti dua bagian yang tak nyambung. */
+.detail-ttd{display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+            gap:18px 30px; margin-top:16px;}
+.detail-ttd .sig-block{font-size:12.5px; color:var(--text); line-height:1.6;}
+.detail-ttd .sig-block b{font-family:var(--font-mono); font-size:10.5px; color:var(--muted);
+                         text-transform:uppercase; letter-spacing:.04em; font-weight:400;
+                         margin-bottom:7px;}
+.detail-ttd .sig-thumb{display:block; width:fit-content; margin-top:6px;}
+/* Tombol pengganti petak TTD kosong, khusus pejabat. Setinggi thumbnail tanda
+   tangan supaya kedua sisi blok tetap sejajar. */
+.btn-ttd{display:block; margin-top:6px; padding:7px 12px; font-size:11.5px;}
+/* Keterangan siapa yang membubuhkan TTD susulan. Sengaja kecil dan redup:
+   ini status, bukan nama pada formulir — dan tidak pernah ikut tercetak. */
+.ttd-status{font-family:var(--font-mono); font-size:10px; color:var(--muted);
+            letter-spacing:.03em; margin-top:5px; line-height:1.45;}
+.icon-btn{background:none; border:none; color:var(--muted); cursor:pointer; font-size:15px; padding:2px 5px;}
+.icon-btn:hover{color:var(--fail);}

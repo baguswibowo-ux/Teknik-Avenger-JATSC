@@ -1,0 +1,69 @@
+/* E-Logbook · css/10-login-identitas.css — Layar login/daftar, identitas pemakai, pemilih unit, tombol tema & bahasa
+   Dimuat dari index.html sesuai nomor berkas; urutannya berpengaruh. */
+
+/* ---------- layar login ---------- */
+#loginBg{position:fixed; inset:0; z-index:9000; background:var(--bg);
+         display:none; align-items:center; justify-content:center; padding:20px;}
+#loginBg.show{display:flex;}
+#loginBox, #daftarBox{width:100%; max-width:380px; background:var(--panel); border:1px solid var(--line);
+          border-radius:14px; padding:28px 26px;}
+#loginBox .brand-eyebrow, #daftarBox .brand-eyebrow{margin-bottom:4px;}
+#loginBox h3, #daftarBox h3{margin:0 0 4px; font-size:17px;}
+#loginBox .login-sub, #daftarBox .login-sub{color:var(--muted); font-size:12px; margin-bottom:20px;}
+#loginBox .btn, #daftarBox .btn{width:100%; justify-content:center; margin-top:6px;}
+#loginErr, #daftarErr{display:none; margin-top:12px; font-size:12px; color:var(--fail);}
+#loginErr.show, #daftarErr.show{display:block;}
+#daftarErr.sukses{color:var(--ok);}
+
+.login-alt{margin-top:16px; padding-top:14px; border-top:1px solid var(--line);
+           font-size:12px; color:var(--muted); text-align:center;}
+.login-alt button{background:none; border:none; color:var(--accent); cursor:pointer;
+                  font-family:inherit; font-size:12px; font-weight:600; padding:0 0 0 4px;
+                  text-decoration:underline;}
+/* Identitas pemakai mentok ke kanan, tombol tema & bahasa di atasnya. */
+.pojok-kanan{margin-left:auto; display:flex; flex-direction:column;
+             align-items:flex-end; gap:6px;}
+.user-chip{display:inline-flex; align-items:center; gap:8px; font-size:11px;
+           font-family:var(--font-mono); color:var(--muted);}
+.user-chip b{color:var(--text); font-weight:600;}
+.user-chip button{background:none; border:1px solid var(--line); color:var(--muted);
+                  border-radius:6px; padding:3px 9px; font-size:10px; cursor:pointer;
+                  font-family:inherit; text-transform:uppercase; letter-spacing:.05em;}
+.user-chip button:hover{color:var(--text); border-color:var(--muted);}
+
+/* Pemilih unit logbook — sengaja menonjol karena menentukan seluruh isi layar. */
+.unit-chip{display:inline-flex; align-items:center; gap:8px; padding:4px 10px 4px 12px;
+           background:var(--panel-2); border:1px solid var(--accent-dim); border-radius:8px;}
+.unit-chip label{font-family:var(--font-mono); font-size:10px; letter-spacing:.12em;
+                 text-transform:uppercase; color:var(--muted);}
+.unit-chip select{background:transparent; border:none; color:var(--accent); cursor:pointer;
+                  font-family:var(--font-display); font-weight:600; font-size:14px; padding:2px 0;}
+.unit-chip select:focus{outline:none;}
+.unit-chip select option{background:var(--panel); color:var(--text); font-size:13px;}
+
+.pengaturan-chip{display:inline-flex; gap:6px; align-items:center;}
+.pengaturan-chip button{background:var(--panel-2); border:1px solid var(--line); color:var(--muted);
+                        border-radius:6px; min-width:34px; height:26px; padding:0 8px; cursor:pointer;
+                        font-family:var(--font-mono); font-size:11px; font-weight:600;
+                        letter-spacing:.05em; line-height:1; transition:.15s;}
+.pengaturan-chip button:hover{color:var(--accent); border-color:var(--accent);}
+.pengaturan-chip select{background:var(--panel-2); border:1px solid var(--line); color:var(--muted);
+                        border-radius:6px; height:26px; padding:0 4px; cursor:pointer;
+                        font-family:var(--font-mono); font-size:10.5px;}
+.pengaturan-chip select:hover{color:var(--accent); border-color:var(--accent);}
+.pengaturan-chip select option{background:var(--panel); color:var(--text);}
+/* Tautan pulang ke dashboard. Dibuat sebangun dengan tombol di sebelahnya,
+   bukan tampil seperti tautan biasa: letaknya di deretan tombol, dan yang
+   berbeda sendiri di antara benda sejenis terbaca sebagai keliru. */
+.pengaturan-chip a#tautanDashboard{display:inline-flex; align-items:center; gap:5px;
+                        background:var(--panel-2); border:1px solid var(--line); color:var(--muted);
+                        border-radius:6px; height:26px; padding:0 10px; text-decoration:none;
+                        font-family:var(--font-mono); font-size:10.5px; font-weight:600;
+                        letter-spacing:.05em; line-height:1; white-space:nowrap; transition:.15s;}
+.pengaturan-chip a#tautanDashboard:hover{color:var(--accent); border-color:var(--accent);}
+/* Alamatnya baru terpasang setelah halaman hidup; sebelum itu tombol yang
+   tidak menuju ke mana-mana lebih baik tidak ada. */
+.pengaturan-chip a#tautanDashboard:not([href^="http"]){display:none;}
+#tombolTema{font-size:13px;}
+
+@media print{ #loginBg, .user-chip, .pengaturan-chip{display:none !important;} }
