@@ -43,10 +43,14 @@ data/                (di luar git — isinya nama pegawai, repositori ini publik
   berkala.json       daftar pekerjaan berulang per unit — mingguan sampai tahunan
   berkala-selesai.json  catatan sudah-dikerjakan, satu baris per periode
   personel.json      lisensi, rating, sertifikat, dan masa berlakunya
+  peralatan.json     daftar peralatan per unit — berisi contoh sampai diganti
+  sparepart.json     stok sparepart per unit
   aktivitas.json     log siapa mengubah apa, 400 baris terakhir
+  dokumen/           berkas dokumen unit + daftar.json keterangannya
 public/
   index.html         seluruh dashboard — satu berkas
   foto/<unit>/       foto dokumentasi, tampil di tab Galeri (di luar git)
+  foto/_logo/        gambar pengenal tiap unit, kalau ilustrasinya diganti
   vendor/
     three.min.js     panggung 3D layar masuk (three 0.147.0)
     font/            Space Grotesk, IBM Plex Sans, IBM Plex Mono (subset latin)
@@ -83,15 +87,22 @@ D:\Airnav\2025\JATSC\New JATSC\2026\Faskompen\E-LogBook-Server
 dan kalau yang itu yang mau dipakai, jalankan sendiri di sana lalu nyalakan
 dashboard ini dengan `npm run dashboard`.
 
-Dua perubahan sengaja dibuat pada salinan di `elogbook/`, keduanya atas
+Tiga perubahan sengaja dibuat pada salinan di `elogbook/`, ketiganya atas
 permintaan:
 
 - **Tab Kelola Akun dicabut** dari E-Logbook. Pengelolaan akun kini satu pintu,
   di dashboard ini. API administratornya tetap utuh di sana — dashboard yang
   memanggilnya, dan penjagaan 403 per peran ditegakkan di situ.
 - **`GET /api/akun-daftar`** ditambahkan: daftar akun aktif (username dan nama
-  saja) yang dijawab sebelum login, untuk pemilih akun di kartu masuk. Lihat
-  catatan keamanannya di bawah.
+  saja) yang dijawab sebelum login, dulu untuk pemilih akun di kartu masuk.
+  Pemilih itu sudah dibuang dan endpointnya tidak dipanggil lagi — biarkan
+  mati dengan `ELOGBOOK_DAFTAR_AKUN=0`.
+- **Tanda pagar di alamat dibaca**, di `elogbook/public/js/26-init.js`:
+  `#<tab>` atau `#<tab>:<unit>` membuka tab itu langsung. Dipakai tombol
+  **Buka DS Test** di dashboard. Rinciannya di *Menunjuk tab tertentu* di bawah.
+
+Itu satu-satunya berkas E-Logbook yang disunting demi dashboard ini. Sisanya
+tetap lewat API.
 
 ### Kenapa lewat penerusan, bukan panggilan langsung
 
@@ -105,35 +116,53 @@ Jalur yang diteruskan: `/api/*` dan `/uploads/*`.
 
 ### Masuk dan membuka E-Logbook
 
-**Pilih tujuan lebih dulu.** Di kartu masuk ada tiga pilihan, dan yang dipilih
-benar-benar menentukan ke mana Anda mendarat:
+**Tidak ada yang perlu dipilih — isi username dan password, selesai.** Masuk
+berarti satu hal: mendarat di dashboard ini. E-Logbook tetap sejauh satu tombol,
+tapi tombolnya ada di kepala dashboard, tempat orang mencarinya setelah masuk.
 
-| Tujuan | Setelah akun diperiksa |
-|---|---|
-| **E-Logbook** | peramban langsung dibawa ke E-Logbook — tidak lewat dashboard |
-| **Dashboard** | dashboard ini, dengan data nyata dari E-Logbook |
-| **Data contoh** | dashboard ini, dengan data karangan yang menyatu di halaman |
+Kartu masuk pernah punya deret **E-LOGBOOK · DASHBOARD · DATA CONTOH** di
+atasnya. Deret itu dibuang: ia menjadikan "ke mana Anda mau mendarat" pertanyaan
+yang harus dijawab sebelum boleh mengetik username, padahal jawabannya hampir
+selalu sama. Yang tersisa satu baris status yang mengatakan apa yang sedang
+berlaku — server terjawab atau tidak, sesi masih hidup atau tidak.
 
-Baris status di bawah pemilih mengatakan apa yang sedang berlaku. Dua pilihan
-pertama padam sendiri kalau tidak ada server E-Logbook yang terjangkau.
+**Data contoh bukan pilihan lagi, melainkan keadaan.** Ia berlaku kalau memang
+tidak ada E-Logbook di belakang halaman ini — demo di luar jaringan kantor,
+salinan etalase, atau server yang kebetulan mati. Begitu servernya terjawab,
+data contoh tidak pernah muncul. Di server kantor, tempat E-Logbook memang
+selalu ada, matikan jatuhannya sekalian dengan `DATA_CONTOH=0`: di sana server
+yang diam adalah kerusakan yang pantas terlihat, dan kartunya mengatakan begitu
+alih-alih menawarkan angka karangan.
 
-**Daftar akun ada di kartu masuknya.** Nama-nama akun yang sedang aktif
-ditampilkan; tekan salah satu untuk mengisi kolom username, lalu isi
-passwordnya. Kalau daftarnya panjang, kotak cari muncul sendiri — mencari nama
-lengkap juga bisa, bukan hanya usernamenya.
+**Tidak ada daftar akun di kartu masuk.** Pernah ada — deret tombol berisi
+seluruh username yang sedang aktif, tinggal ditekan untuk mengisi kolom — dan
+sudah dibuang. Yang tersisa dua kolom yang diketik sendiri.
 
-> **Yang dikorbankan dengan membuka daftar itu.** `/api/login` di E-Logbook
-> sengaja menyamakan pesan salahnya supaya tidak ketahuan username mana yang
-> terdaftar. Daftar akun pra-login membatalkan penjagaan itu: yang tersisa
-> hanya password, plus penahan 8 percobaan gagal per 5 menit. Karena itu isinya
-> ditipiskan sampai username dan nama saja — peran, unit, dan status aktif
-> tidak ikut, dan akun nonaktif tidak dikirim sama sekali. Kalau servernya
-> suatu saat terbuka lebih luas dari jaringan kantor, matikan dengan
+> **Yang kembali dengan dibuangnya daftar itu.** `/api/login` di E-Logbook
+> sengaja menyamakan pesan salahnya — "username atau password salah", tidak
+> pernah menyebut yang mana — supaya tidak ketahuan username mana yang
+> terdaftar. Daftar akun pra-login membatalkan penjagaan itu seluruhnya: yang
+> tersisa untuk ditebak cuma password. Sekarang keduanya harus ditebak lagi,
+> di atas penahan 8 percobaan gagal per 5 menit.
+>
+> `GET /api/akun-daftar` di E-Logbook karena itu **tidak dipanggil dari mana
+> pun lagi**. Endpointnya masih hidup di sana; matikan sekalian dengan
 > `ELOGBOOK_DAFTAR_AKUN=0`.
+
+Yang menggantikan gunanya: username yang terakhir berhasil masuk diingat di
+peramban itu sendiri. Satu nama, milik orang yang memang memakai komputer itu —
+bukan daftar seisi kantor.
 
 **Masuk dengan akun E-Logbook.** Kalau di peramban itu sesi E-Logbook masih
 hidup, tombolnya berubah jadi "Lanjutkan sebagai …" dan password tidak diminta
 lagi.
+
+**Username yang terakhir dipakai diingat.** Sesudah keluar, kolomnya sudah
+terisi dan yang tersisa mengetik password. Yang disimpan hanya usernamenya, di
+`localStorage` peramban itu — password tidak pernah, dan tidak akan. Ia baru
+disimpan setelah server benar-benar menerima akunnya, jadi salah ketik tidak
+ikut menyambut Anda besok, dan ia tidak pernah menimpa username yang sedang
+diketik.
 
 **Sesi bertahan saat halaman disegarkan.** Menekan F5 tidak melempar siapa pun
 kembali ke layar masuk: layar yang sedang dibuka dan unit yang sedang dilihat
@@ -141,9 +170,35 @@ ikut kembali. Penandanya di `sessionStorage`, jadi menutup tab tetap berarti
 keluar. Dalam mode server yang menjaga pintu tetap cookie sesi E-Logbook —
 sesi yang sudah mati di sana tetap berakhir di layar masuk.
 
+**Nama di kartu masuk tidak nyangkut.** Dulu sesinya ditanyakan sekali saja,
+waktu halaman dibuka — sesi yang habis sesudah itu, atau yang diputus dari tab
+E-Logbook sebelah, tetap terpampang sampai halaman disegarkan. Sekarang
+`/api/me` ditanyakan ulang tiap kartu masuk terbuka dan tiap orang keluar dari
+dashboard. Gagal jaringan tidak dipakai menyimpulkan apa-apa: yang tidak
+terjawab dibiarkan seperti sebelumnya, tidak dianggap sudah keluar. Username
+yang terlanjur diketik tidak pernah ditimpa maupun dikosongkan oleh sesi mana
+pun.
+
+**Keluar berarti keluar.** Tombol **Keluar** di dashboard memutus sesi
+E-Logbook-nya sungguhan (`/api/logout`), bukan sekadar kembali ke kartu masuk.
+Dulu tidak begitu: alasannya orangnya mungkin masih memakai tab E-Logbook di
+sebelah dan tidak pantas ikut tertendang. Itu dibalik atas permintaan, dan
+alasannya lebih kuat — keluar yang tidak mengeluarkan adalah janji yang tidak
+ditepati, dan di komputer yang dipakai bergantian orang berikutnya akan
+menemukan "Lanjutkan sebagai *nama orang sebelumnya*" lalu bisa menekannya
+tanpa password sama sekali.
+
+Karena itu tulisan **"Bukan Anda? Ganti akun"** di kaki kartu ikut dibuang. Ia
+ada untuk kasus sesi-yang-menempel, dan kasus itu sudah tidak ada. Yang tersisa
+sesudah keluar cuma username yang sengaja diingat, dan itu tinggal ditimpa
+dengan mengetik.
+
 **Membuka aplikasi E-Logbook.** Tombol **Buka E-Logbook** ada di ikon buku pada
-kepala halaman, di layar unit, dan di Peta Modul. Semuanya membuka E-Logbook di
-tab baru.
+kepala halaman, di layar unit, dan di Peta Modul. Semuanya berpindah **di tab
+yang sama** — dulu tab baru, dan yang tertinggal dari kebiasaan itu cuma
+tumpukan tab yang tidak pernah ditutup siapa pun. Jalan pulangnya ada: tombol
+**Dashboard Teknik** di kepala E-Logbook kembali ke sini, dan cookie sesinya
+tetap yang sama.
 
 Tombol itu menunjuk E-Logbook **langsung**, bukan lewat penerusan — seluruh aset
 E-Logbook memanggil `/css/` dan `/js/` dari akar, dan akar di sini milik
@@ -151,9 +206,66 @@ dashboard. Alamatnya dirangkai dari hostname yang sedang dipakai peramban
 ditambah port E-Logbook, jadi ikut benar walau dashboard dibuka dari komputer
 lain. Kalau E-Logbook ada di alamat yang lain sendiri, isi `ELOGBOOK_TAUTAN`.
 
-E-Logbook tidak membaca satu pun parameter URL dan unit aktifnya hanya ada di
-memori, jadi tidak ada cara menunjuk unit tertentu dari luar — tombolnya membuka
-aplikasinya saja, unitnya dipilih di sana.
+**Menunjuk tab tertentu.** Tombol biasa membuka E-Logbook di halaman depannya:
+unit yang terakhir dipakai, tab Logbook. Yang perlu menunjuk lebih jauh memakai
+tanda pagar — `#<tab>` atau `#<tab>:<unit>`, dibaca `26-init.js` di sana.
+Yang memakainya sekarang tombol di baris kegiatan berkala yang tandanya datang
+dari E-Logbook: **Buka DS Test** berangkat ke `#dstest:radtel`, **Buka Daily
+Check** ke `#dailycheck:<unit>`, **Buka Monitoring Frekuensi** ke
+`#monitoring:<unit>`. Tabnya tidak ditulis di tombolnya — ia datang dari
+registri sumber di `public/index.html`, jadi sumber baru mendapat tombolnya
+tanpa satu baris pun ditambahkan.
+
+Unitnya ikut disebut karena beberapa tab hanya ada pada unit yang memang punya
+formulirnya; tanpa itu tautannya mendarat di unit terakhir yang dibuka orangnya,
+yang belum tentu unit yang dimaksud. Unit dari tautan **tidak** disimpan sebagai
+ingatan akun — sekali dimuat ulang tanpa tanda pagar, yang kembali unit yang
+biasa dipakai. Tautan itu satu kunjungan, bukan pindah rumah. Yang memutuskan
+boleh atau tidaknya unit itu tetap server, dan tab yang tidak ada atau sedang
+disembunyikan dibiarkan saja — halaman terbuka di tab biasanya, dan itu lebih
+baik daripada memaksa masuk ke bagian yang kosong.
+
+### Daftar akun baru
+
+Pendaftaran mandiri sekarang ada di kartu masuk dashboard, di **kaki kartu** —
+bukan deret tombol tersendiri. Kartu itu sudah dua kali dibersihkan dari deret
+tombol: pertama barisan tab MASUK / DAFTAR AKUN, lalu pemilih tujuan
+E-LOGBOOK · DASHBOARD · DATA CONTOH. Sekarang isinya username, password, tombol
+Masuk, dan satu tautan pendaftaran di kakinya.
+
+Formulirnya minta nama lengkap, username, dan password dua kali. Endpointnya
+tetap milik E-Logbook (`POST /api/daftar`), dipanggil lewat penerusan yang sama
+dengan data lainnya; tidak ada berkas E-Logbook yang disunting untuk ini.
+
+**Akun baru lahir teknisi, tanpa unit, dan nonaktif.** Aturan itu milik server
+dan tidak ditiru di sini — membuka pendaftaran tidak sama dengan membuka pintu,
+dan yang mengaktifkan tetap administrator lewat *Kelola Akun*. Sampai
+diaktifkan, login dengan akun itu dijawab 401.
+
+Lima hal diperiksa di layar sebelum permintaannya berangkat, supaya yang salah
+ketik tahu lebih cepat: nama tidak boleh kosong, username 3–32 karakter huruf
+kecil/angka/`.`/`_`/`-`, password minimal 6 karakter, ulangannya harus sama,
+dan servernya harus terjawab. Semuanya diperiksa **ulang** di server — yang di
+layar cuma kenyamanan, termasuk pesan "username itu sudah dipakai" yang memang
+datang dari sana.
+
+Tanpa server E-Logbook terjangkau, formulirnya mengatakan apa adanya:
+pendaftaran menulis ke basis data E-Logbook, dan tidak ada gunanya berpura-pura
+bisa dilakukan pada data contoh.
+
+### Panggung 3D di kartu masuk
+
+Bandara di belakang kartu masuk berputar sendiri sampai disentuh. **Menggeser**
+atau **menggulir** panggungnya mematikan putaran otomatis — dulu satu klik biasa
+sudah cukup, dan itu salah: menekan tombol di atas panggung bukan tanda orangnya
+mau mengambil alih kamera.
+
+Tombol **PUTAR ULANG** mengembalikan semuanya ke keadaan sesaat setelah halaman
+dibuka: kamera di sudut awal, putaran otomatis hidup lagi, kedatangan GIA 652
+dimulai ulang dari *final approach*. Yang diatur ulang cuma angka — geometri,
+cahaya, dan renderernya tidak dibangun ulang, dan itu yang membuatnya tidak
+perlu menyegarkan halaman. Dalam mode hemat gerak panggungnya digambar sekali
+lalu berhenti lagi, sama seperti waktu dibuka.
 
 ### Kelola Akun
 
@@ -169,17 +281,17 @@ Administrator dan pejabat tidak pernah punya daftar unit — perannya sudah
 memberi seluruh unit sekaligus — jadi mereka dikumpulkan di pilihan **Akun semua
 unit**, bukan diulang di tiap unit.
 
-Dengan tujuan **Data contoh**, tab ini bekerja atas daftar **akun contoh**
-yang tersimpan di peramban (`localStorage`), bukan akun sungguhan, supaya
-alurnya bisa dicoba penuh tanpa server. Aturannya sengaja ditiru persis dari
-yang ditegakkan server, jadi yang dicoba bukan versi yang lebih longgar.
-Password tidak disimpan sama sekali di jalur ini: pada data contoh sandinya
-memang tidak pernah diperiksa. Sisa bagian ini berlaku untuk tujuan
-**E-Logbook**.
+Pada **data contoh**, tab ini bekerja atas daftar **akun contoh** yang tersimpan
+di peramban (`localStorage`), bukan akun sungguhan, supaya alurnya bisa dicoba
+penuh tanpa server. Aturannya sengaja ditiru persis dari yang ditegakkan server,
+jadi yang dicoba bukan versi yang lebih longgar. Password tidak disimpan sama
+sekali di jalur ini: pada data contoh sandinya memang tidak pernah diperiksa.
+Sisa bagian ini berlaku waktu tersambung ke E-Logbook.
 
-Akunnya tetap milik E-Logbook. Dashboard ini tidak menyimpan akun sendiri, tidak
-membuka basis datanya, dan tidak menyunting satu pun berkasnya: yang dipakai
-hanya fungsi administrator yang sudah ada di API-nya (`listUsers`, `addUser`,
+Akunnya tetap milik E-Logbook. Dashboard ini tidak menyimpan akun sendiri dan
+tidak membuka basis datanya; untuk urusan akun tidak ada satu pun berkas
+E-Logbook yang disunting. Yang dipakai hanya fungsi administrator yang sudah
+ada di API-nya (`listUsers`, `addUser`,
 `setUserNama`, `setUserRole`, `setUserUnit`, `setUserAktif`, `setUserPassword`,
 `deleteUser`), lewat penerusan `/api/*` yang sama dengan data lainnya.
 
@@ -198,27 +310,75 @@ tersimpan di E-Logbook hanya sidik acaknya. Yang tersedia cuma menggantinya.
 
 ### Kalau E-Logbook mati
 
-Pemeriksaan `/api/me` gagal, tujuan **E-Logbook** padam sendiri, dan halaman
-jatuh ke **data contoh** — semuanya karangan, dan pita di puncak layar menulis
-`PROTOTIPE` supaya tidak ada yang mengira angkanya nyata.
+Pemeriksaan `/api/me` gagal dan halaman jatuh ke **data contoh** — semuanya
+karangan, dan pita di puncak layar menulis `PROTOTIPE` supaya tidak ada yang
+mengira angkanya nyata. Dengan `DATA_CONTOH=0` ia tidak jatuh ke mana-mana:
+kartu masuk mengatakan servernya tidak terjawab dan berhenti di situ, yang benar
+untuk server kantor.
 
 ### Yang belum nyata walau sudah tersambung
 
-Peralatan, sparepart, dan sejarah peralatan **masih data contoh** sekalipun
-sudah tersambung — modulnya memang belum ada di E-Logbook. Layarnya menandai
-ini terang-terangan di tiap tempat yang terpengaruh.
+**Sejarah peralatan** masih data contoh sekalipun sudah tersambung — ia
+dirangkai dari logbook, isu, dan LTK, dan ketiganya belum punya kolom yang
+menyebut peralatan mana. Layarnya menandai ini terang-terangan di tiap tempat
+yang terpengaruh.
 
-Jadwal dinas, kegiatan berkala, dan data personel **bukan** termasuk: ketiganya
-milik dashboard ini sendiri dan tersimpan di servernya, jadi nyata baik
-tersambung maupun tidak. Yang ditanyakan ke E-Logbook hanya siapa Anda, untuk
+Jadwal dinas, kegiatan berkala, data personel, **daftar peralatan**, dan
+sparepart **bukan** termasuk: kelimanya milik dashboard ini sendiri dan
+tersimpan di servernya, jadi nyata baik tersambung maupun tidak. Yang ditanyakan ke E-Logbook hanya siapa Anda, untuk
 menentukan boleh mengisi atau tidak.
 
 ## Jadwal dinas
 
 Tab **Jadwal Dinas** di dalam Database Unit. Satu matriks per unit per bulan:
-baris orang, kolom tanggal, isi tiap sel kode dinas unit itu (`Pagi / Siang /
-Malam / PS`, atau `P / S / PS / M` untuk Radkom). Kolom hari ini ditandai, dan
+baris orang, kolom tanggal, isi tiap sel kode dinas. Kolom hari ini ditandai, dan
 dua kolom pertama tetap di tempat saat tabelnya digulir mendatar.
+
+### Kode dinas dan jamnya
+
+Satu daftar untuk semua unit — pembagian JATSC / New JATSC itu pembagian gedung,
+dan gedungnya sama untuk seluruh teknik. Huruf terakhir menyebut gedungnya:
+**J** = JATSC, **N** = New JATSC. Jamnya sama untuk keduanya.
+
+| Kode | Artinya | Jam (UTC) | Jam (WIB) |
+| --- | --- | --- | --- |
+| `PSJ` | PS di JATSC | 00:00–12:00 | 07:00–19:00 |
+| `PSN` | PS di New JATSC | 00:00–12:00 | 07:00–19:00 |
+| `MJ` | Malam di JATSC | 12:00–00:00 | 19:00–07:00 |
+| `MN` | Malam di New JATSC | 12:00–00:00 | 19:00–07:00 |
+| `P` | Pagi | 00:00–07:00 | 07:00–14:00 |
+| `S` | Siang | 07:00–13:00 | 14:00–20:00 |
+
+Jamnya **UTC** — itu yang tertulis di lembar jadwal yang diedarkan tiap bulan,
+dan di penerbangan UTC yang jadi patokan. Kartu dinas menyebut keduanya, UTC di
+atas dan WIB di bawahnya; hitungan *SEDANG DINAS* dan pita Cakupan 24 Jam
+memakai jam UTC, jadi tetap benar walau dashboard dibuka dari zona waktu lain.
+
+`P` dan `S` adalah pecahan `PS` untuk hari yang dibagi dua orang. Kalau hari itu
+memakai keduanya, siangnya baru selesai pukul 13:00 dan **malam hari itu mundur
+menjadi 13:00–00:00**, bukan 12:00. Pergeserannya dihitung per hari per unit,
+dari kode yang benar-benar terisi orang pada hari itu — bukan disimpan di
+berkas, jadi memperbaiki satu sel jadwal langsung membetulkan jam malamnya.
+
+`PS` dan `M` polos — tanpa huruf gedung — tetap dikenali jamnya kalau terlanjur
+terisi, tetapi sengaja tidak ditawarkan di daftar pilihan dan dilaporkan sebagai
+kode asing waktu impor: keduanya belum menyebut JATSC atau New JATSC, dan
+menebak gedung tempat orang berdinas bukan urusan pengimpor.
+
+**Kartu yang dipasang mengikuti jadwal, bukan daftar kode.** Petak dinas satu
+unit hanya memuat kode yang benar-benar terisi di jadwal bulan berjalan unit
+itu. Unit yang sepanjang bulan cuma memakai `PSJ/PSN/MJ/MN` tidak membawa dua
+kartu `P` dan `S` yang selamanya bertuliskan "tidak ada personel"; begitu ada
+satu sel diisi `P`, kartunya muncul sendiri. Yang dikumpulkan seluruh bulan,
+bukan hari ini saja — shift yang hari ini kebetulan tidak ada orangnya justru
+perlu terlihat, karena itu lubang jaga, bukan shift yang tidak dipakai.
+Urutannya menurut jam mulai, jadi pagi selalu di kiri malam.
+
+Daftar pilihan di mode sunting tetap berisi keenam kode — kalau tidak, `P` dan
+`S` tidak akan pernah bisa diisi untuk pertama kalinya. Unit yang belum punya
+jadwal sama sekali dipasangi empat petak kosong `PSJ/PSN/MJ/MN`. Kode di luar
+daftar — salah ketik yang terlanjur tersimpan — tetap ditampilkan di belakang,
+tidak dibuang diam-diam.
 
 **Siapa yang melihat, siapa yang mengisi.** Melihat: semua orang, dan itu
 memang tujuannya — siapa pun yang masuk dinas bisa membuka jadwal bulan
@@ -260,10 +420,13 @@ Sesudah dibaca, jalurnya satu: barisan tanggal `1 2 3 …` dicari untuk menemuka
 kepala tabelnya, kolom nama dan peran ditebak dari isinya, dan hasilnya
 ditunjukkan sebagai **pratinjau** yang bisa dibetulkan — kolom nama, kolom
 peran, dan baris data mulai dari mana semuanya bisa diganti sebelum apa pun
-masuk. Kode dinas di lembar Excel (`P`, `S`, `M`, `-`, `OFF`) disamakan dengan
-kode unitnya (`Pagi`, `Siang`, `Malam`, kosong); yang tidak dikenali **tidak
-dibuang**, melainkan dibawa apa adanya dan dilaporkan, supaya salah ketik di
-lembar aslinya kelihatan alih-alih hilang diam-diam.
+masuk. Kode dinas di lembar Excel disamakan dengan daftar kode di atas: `PSJ`,
+`PSN`, `MJ`, `MN`, `P`, `S` apa adanya (huruf besar-kecil diabaikan), `Pagi` dan
+`Siang` sebagai nama panjang `P` dan `S`, dan `-`, `L`, `OFF`, `X`, `CUTI`
+sebagai libur. Yang tidak dikenali **tidak dibuang**, melainkan dibawa apa
+adanya dan dilaporkan, supaya salah ketik di lembar aslinya kelihatan alih-alih
+hilang diam-diam. `PS` dan `M` polos ikut dilaporkan dengan alasan yang sama —
+keduanya belum menyebut gedung.
 
 Yang ditekan di kartu impor mengisi **draf suntingan**, bukan yang tersimpan.
 Tombol *Simpan jadwal* yang menuliskannya, dan *Batal* masih membatalkan
@@ -275,17 +438,31 @@ mengatakannya alih-alih diam.
 
 ## Siapa boleh mengisi apa
 
-Panel di tab **Kelola Akun**, matriks tiga baris: Jadwal Dinas, Kegiatan
-Berkala, Data Personel. Kolomnya peran — Administrator, Pejabat, Teknisi —
-ditambah kolom **Ditunjuk** untuk memberi hak kepada satu orang di luar
-perannya.
+Panel di tab **Kelola Akun**, satu baris per modul: Jadwal Dinas, Kegiatan
+Berkala, Data Personel, Daftar Peralatan, Sparepart, Dokumen, Galeri Foto.
+Kolomnya peran — Administrator, Pejabat, Admin Unit, PIC, Teknisi — ditambah
+kolom **Ditunjuk** untuk memberi hak kepada satu orang di luar perannya.
 
 Administrator selalu boleh, di semua modul, dan itu tidak bisa dimatikan dari
 layar ini: kalau bisa, satu centang yang salah cukup untuk mengunci orang yang
 seharusnya membetulkannya.
 
-Bawaannya: jadwal dinas dan kegiatan berkala terbuka sampai pejabat, data
-personel berhenti di administrator — isinya nomor lisensi orang.
+Bawaannya:
+
+| Modul | Terbuka sampai | Kenapa berhenti di situ |
+| --- | --- | --- |
+| Jadwal Dinas | Admin Unit (pejabat ikut) | mengatur orang, bukan mencatat pekerjaan |
+| Kegiatan Berkala | Teknisi (pejabat ikut) | yang mengerjakan yang mencentang |
+| Data Personel | Teknisi | personel satu unit diurus dari dalam unit itu |
+| **Daftar Peralatan** | **Administrator** | daftar induk: trouble, sejarah, dan dokumen menunjuk id-nya, jadi satu baris yang diganti nama menggeser layar orang lain |
+| Sparepart | Teknisi | dipakai dan dicatat sehari-hari |
+| Dokumen, Galeri Foto | Teknisi | lampiran pekerjaan |
+
+Menghapus baris terpisah dari mengisi, dan tidak ikut matriks ini: hanya
+administrator dan admin unit, di unitnya masing-masing.
+
+Semuanya bawaan, bukan aturan mati — matriksnya bisa membuka ulang modul mana
+pun, termasuk daftar peralatan.
 
 Tersimpan di `data/hak.json`. Berkas `data/dinas-petugas.json` dari versi
 sebelumnya masih ikut dibaca dan dilebur sekali, jadi penunjukan yang sudah
@@ -312,13 +489,15 @@ triwulan pertama, Mei untuk triwulan kedua, dan seterusnya — jadi ia benar-ben
 berulang tiap tiga bulan. Kunci periodenya dihitung ulang di server saat
 menandai selesai, tidak diterima dari peramban.
 
-Muncul di tiga tempat, dan itu memang gunanya:
+Muncul di empat tempat, dan itu memang gunanya:
 
 - **tabel jadwal dinas** — baris penanda di atas nama-nama, jadi tanggal yang
   ada pekerjaannya terlihat sambil mencari nama sendiri
 - **beranda** — panel *Perlu Perhatian*, yang lewat jatuh tempo lebih dulu
 - **lonceng tiap akun** — hanya untuk yang namanya tercantum di dinas hari itu,
   di unit tempat pekerjaannya jatuh tempo
+- **Kotak Masuk** — seluruh kejadian periode berjalan beserta tujuannya, lihat
+  bagian di bawah
 
 **Menandai selesai** boleh dilakukan siapa saja yang sudah masuk — yang
 mengerjakan pekerjaan mingguan adalah teknisi yang kebetulan berdinas, dan
@@ -329,6 +508,105 @@ saja: minggu depan ia kembali kosong dengan sendirinya.
 Tanggal 29, 30, dan 31 sengaja tidak bisa dipilih untuk pekerjaan bulanan —
 Februari tidak punya ketiganya, dan pekerjaan yang jatuh pada tanggal yang tidak
 ada tidak akan pernah muncul sama sekali.
+
+### Tanda yang datang dari E-Logbook
+
+Sebagian pekerjaan sudah punya bukti yang lebih baik daripada centang: lembar
+kerjanya sendiri. Karena itu tiap kegiatan menyebut **sumber tandanya**, kolom
+*Sumber* di daftar kegiatan:
+
+| Sumber | Yang menandai selesai | Unit yang punya formulirnya |
+| --- | --- | --- |
+| *(kosong)* | ditandai di dashboard ini, seperti biasa | semua |
+| `dstest` | lembar **DS Test** di E-Logbook pada tanggal itu | Radtel |
+| `dailycheck` | lembar **Daily Check** pada tanggal itu | Radtel, Radkom |
+| `monitoring` | lembar **Monitoring Frekuensi** pada tanggal itu | Radkom |
+
+Kolom terakhir bukan setelan dashboard: ia dibaca dari penanda `adaDsTest`,
+`adaDailyCheck`, dan `adaMonitoring` pada daftar unit E-Logbook. Unit yang
+tidak punya formulirnya tidak dipasangi tombol tautannya — di sana tabnya
+memang disembunyikan. Kalau sebuah kegiatan terlanjur menyebut formulir yang
+unitnya tidak punya, kartunya mengatakan begitu terang-terangan: tandanya tidak
+akan pernah datang, dan kartu merah tanpa sebab lebih buruk daripada teguran.
+
+Yang sudah terpasang di data: **Pengecekan DS (DS Test)** di unit **Radtel** —
+mingguan, hari 1, 3, dan 6 (Senin, Rabu, Sabtu). Begitu lembar DS Test tanggal
+itu ada di E-Logbook, barisnya berubah jadi sudah dikerjakan sendiri, hilang
+dari jatuh tempo, dan lonceng berhenti menyebutnya. Isi lembarnya tetap tinggal
+di sana; yang dibaca dashboard cuma tanggalnya. Yang membedakan dua lembar di
+hari yang sama ikut disebut — kategori pada DS Test, dinas pada Daily Check.
+
+**Menyambungkan formulir berikutnya.** DS Test cuma ada di satu unit, jadi
+sambungan yang berhenti di situ tidak berarti banyak. Karena itu daftar sumber
+dibuat sebagai registri, bukan sederet perbandingan yang tersebar: satu baris di
+`BERKALA_SUMBER` pada `public/index.html` menyebut sebutannya, larik mana yang
+dibaca dari `getAllData`, tab mana yang dituju tautannya, dan penanda per unit
+mana yang menentukan tombolnya dipasang. Cip di kartu, pemilih di mode sunting,
+tombol tautan, dan Kotak Masuk ikut sendiri. Satu baris lagi ditambahkan di
+`server.js` — sumber yang tidak terdaftar di sana tidak akan pernah bisa
+disimpan, dan itu memang yang diinginkan.
+
+**LTK sengaja tidak ikut** walau tabnya ada di semua unit: LTK dibuat waktu ada
+kerusakan, bukan menurut putaran waktu. Memakainya sebagai bukti kegiatan
+berkala berarti pekerjaan rutin baru terhitung selesai kalau ada yang rusak.
+
+Alasannya: dua catatan untuk satu pekerjaan bisa berselisih, dan yang dipercaya
+orang justru yang lebih mudah ditekan, bukan yang berisi hasilnya. Karena itu
+kegiatan yang bersumber lembar **tidak bisa** ditandai manual — juga oleh yang
+berhak. Layar menyembunyikan tombolnya, dan server menolak permintaannya dengan
+**409** beserta alasannya, karena menyembunyikan tombol tidak pernah menghalangi
+siapa pun memanggil endpointnya langsung.
+
+**Cipnya sekaligus pintunya.** Di kartu kegiatan, menekan cip **DS TEST** (atau
+DAILY CHECK, MONITORING) membuka tab itu di E-Logbook langsung — tidak lewat
+halaman depan, tidak perlu memilih unit di sana. Itu jalan terpendek dari
+"kartunya bilang belum" ke "lembarnya diisi", dan cip memang tempat orang
+mencari: di situ nama formulirnya tertulis. Cip yang bisa ditekan berpanah ↗ dan
+berubah warna saat disentuh; cip keterangan biasa seperti MINGGUAN tidak.
+
+Di **Kotak Masuk** jalannya lewat tombol bernama di kolom kanan — *Buka DS Test*
+dan seterusnya — karena di sana kolom itu memang kolom tindakan.
+
+Keduanya jatuh kembali jadi keterangan biasa dalam tiga keadaan, dan ketiganya
+sama sebabnya: pintu yang tidak menuju ke mana-mana lebih buruk daripada tidak
+ada pintu. Yaitu kalau kegiatannya tidak bersumber lembar, kalau alamat
+E-Logbook belum diketahui, atau kalau unit itu memang tidak punya formulirnya —
+di sana tabnya disembunyikan, dan tautannya cuma akan mendarat di tab biasa.
+
+Tanpa server, kegiatan ini jatuh kembali ke tanda manual — dan kartunya
+mengatakan begitu, bukan diam-diam.
+
+## Kotak Masuk
+
+Layar **Kotak Masuk** di rel kiri: seluruh kejadian kegiatan berkala di periode
+berjalan, dikelompokkan per tanggal, dan tiap baris menyebut **siapa yang kena**.
+
+Tujuannya dibaca dari **jadwal dinas pada tanggal kejadian** — bukan dari daftar
+akun, dan bukan dari siapa yang kebetulan berdinas hari ini. DS Test yang jatuh
+Sabtu adalah pekerjaan orang yang jadwalnya Sabtu; memberitahukannya kepada yang
+berdinas Senin cuma melahirkan pertanyaan, bukan pekerjaan yang selesai.
+
+Dua saringan: **tertuju ke saya** dan **semua**. Lencana di rel menghitung yang
+tertuju ke Anda dan belum beres saja — lencana yang tidak bisa dikosongkan siapa
+pun akan berhenti dibaca dalam sepekan.
+
+Nama di jadwal diketik tangan, jadi dicocokkan longgar dengan nama akun. Baris
+yang tidak cocok dengan siapa pun tetap ditampilkan beserta nama penerimanya,
+supaya tidak ada pekerjaan yang diam-diam tidak jadi milik siapa-siapa. Kalau
+jadwalnya memang belum bisa dibaca — bulan lain yang belum dimuat, atau unit
+yang belum punya jadwal bulan ini — yang disebut sebabnya, bukan daftar kosong.
+
+Loncengnya tetap ada dan tugasnya memang berbeda:
+
+| | Yang dijawab |
+| --- | --- |
+| **lonceng** | apa yang perlu **saya** kerjakan **hari ini** — pendek, dan pergi begitu beres |
+| **Kotak Masuk** | seluruh kejadian **periode ini** beserta tujuannya, termasuk milik orang lain |
+
+**Tidak ada penyimpanan baru.** Kotak ini seluruhnya diturunkan dari kegiatan
+berkala + jadwal dinas + catatan selesai yang sudah ada. Tidak ada butir yang
+bisa "dibaca" atau "diarsipkan": yang mengosongkan satu baris cuma pekerjaannya
+benar-benar dikerjakan.
 
 ## Personel, lisensi, dan masa berlaku
 
@@ -359,11 +637,24 @@ tidak ada gunanya ditampilkan pada layar yang terbuka.
 ### Menyunting peralatan dan sparepart
 
 Tab **Peralatan** dan **Sparepart** di Database Unit bisa ditambah, diubah, dan
-dihapus dari layar. Karena kedua daftar itu tidak punya rumah di E-Logbook,
-tidak ada tempat mengirimkan perubahannya: yang disunting tersimpan di
-`localStorage` peramban yang sedang dipakai, per komputer, tidak terlihat orang
-lain. Tombol **Kembalikan ke bawaan** di tab Peralatan membuang seluruh
-suntingan sekaligus.
+dihapus dari layar. Saat tersambung keduanya tersimpan di server ini —
+`data/peralatan.json` dan `data/sparepart.json`, berkunci kode unit — jadi
+suntingan satu orang terlihat oleh unitnya. Tanpa server, keduanya jatuh ke
+`localStorage` peramban yang sedang dipakai dan tombol **Kembalikan ke bawaan**
+di tab Peralatan membuang seluruh suntingan sekaligus.
+
+Siapa yang boleh menyunting berbeda di antara keduanya, dan itu disengaja.
+**Sparepart** terbuka sampai teknisi: ia dipakai dan dicatat sehari-hari.
+**Daftar peralatan** hanya administrator — trouble, sejarah, dan dokumen
+menunjuk barisnya lewat `id`, jadi satu baris yang diganti nama atau dibuang
+menggeser layar orang lain. Bawaan itu bisa dibuka lagi dari matriks hak.
+
+`data/peralatan.json` sudah berisi daftar contoh untuk kedelapan unit — Garex
+dan Neptuno di Radtel, ILS dan DVOR di PPABN, dan seterusnya. Isinya sama
+dengan daftar contoh yang tampil tanpa server, dan tujuannya supaya layar
+peralatan tidak pernah dijumpai kosong sama sekali. Ganti isinya dengan alat
+yang sebenarnya begitu datanya siap; `data/` tidak ikut git, jadi tiap
+pemasangan memegang isinya sendiri.
 
 #### Foto sebagai ganti ilustrasi
 
@@ -453,6 +744,63 @@ Trouble dan logbook sengaja **tidak** ikut bisa disunting: keduanya datang dari
 E-Logbook begitu tersambung, dan salinan lokal yang berbeda dari aslinya tanpa
 jalan mengirim balik hanya akan jadi kabar palsu.
 
+## Dokumen unit
+
+Tab **Dokumen** di dalam Database Unit: SOP, manual, sertifikat kalibrasi,
+berita acara, foto papan nama. Tarik berkasnya ke kotak, atau tekan kotaknya
+untuk memilih dari komputer. Dua kotak di atasnya — *Kaitkan ke peralatan* dan
+*Kategori* — berlaku untuk berkas yang ditambahkan berikutnya; kategori yang
+dibiarkan kosong ditebak dari nama berkasnya.
+
+**Berkasnya tersimpan di server dashboard ini**, dan menyegarkan halaman tidak
+menghilangkannya lagi. Dulu memang hilang: yang disimpan cuma object URL di
+memori tab, karena waktu itu belum ada keputusan berkasnya mau ditaruh di mana.
+
+**Tempatnya `data/dokumen/`, bukan `public/`.** Itu bedanya dengan galeri foto.
+Galeri berisi foto yang memang untuk dipandang siapa saja yang membuka
+dashboard, jadi ia disajikan sebagai berkas statis. Dokumen tidak — di dalamnya
+ada SOP, sertifikat, dan berita acara bertanda tangan. `data/` tidak pernah
+disajikan `express.static`, jadi satu-satunya jalan mengambilnya lewat
+`GET /dokumen/:unit/:id`, yang **menuntut sesi E-Logbook**. Tanpa masuk,
+jawabannya 401 — termasuk kalau alamatnya ditempel langsung di peramban.
+
+Daftarnya sendiri terbuka seperti jadwal dinas dan kegiatan berkala: yang
+berdinas perlu tahu ada dokumen apa tanpa harus masuk. Yang menuntut sesi cuma
+isi berkasnya.
+
+**Nama di disk bukan nama aslinya.** Yang tersimpan `<id>.<ekstensi>` dengan id
+acak 16 heksadesimal; nama yang Anda lihat tinggal di `daftar.json` dan ikut
+turun lagi saat berkasnya dibuka. Tiga hal sekaligus beres: tidak ada jalan
+tembus lewat `../` di nama berkas, dua berkas bernama sama tidak saling
+menimpa, dan nama berspasi atau bertanda kurung tidak perlu dipotong supaya
+aman di disk.
+
+| | |
+| --- | --- |
+| Paling besar | 25 MB per berkas |
+| Yang diterima | PDF · DOC/DOCX · XLS/XLSX · PPT/PPTX · ODT/ODS/ODP · RTF/TXT/CSV/MD · JPG/PNG/WEBP/GIF/BMP/TIF · ZIP/RAR/7Z · DWG/DXF |
+| Yang ditolak | apa pun di luar daftar itu — termasuk `.exe`, `.bat`, `.ps1`, `.js`, `.html`, `.svg` |
+
+Daftar putih, bukan daftar hitam: yang tidak disebut ditolak. Berkas yang bisa
+dijalankan atau bisa membawa skrip tidak punya urusan di rak dokumen — sekali
+ada di sana, ia menunggu ditekan orang.
+
+**Siapa boleh apa.** Menambah dan mengganti kategori: menurut panel *Siapa Boleh
+Mengisi Apa* untuk modul `dokumen`, dan hanya pada unit yang dipegang akun itu.
+Mengeluarkan: administrator saja, dan berkasnya ikut terhapus dari server.
+Membuka: siapa pun yang sudah masuk. Penjagaannya di server; kotak unggahnya
+memang padam sendiri kalau akun itu tidak berhak, tapi itu cuma kenyamanan.
+
+**Dengan data contoh**, berkasnya tidak dikirim ke mana pun — kembali ke
+perilaku lama, object URL di memori tab yang hilang saat disegarkan. Itu
+disengaja: salinan etalase tidak punya server, dan tab yang cuma bisa
+memperlihatkan daftar kosong tidak memperlihatkan apa pun tentang bentuk
+alurnya. Barisnya ditandai *tab ini saja*, dan kartunya mengatakan begitu.
+
+Di Vercel dan sejenisnya penyimpanannya tidak permanen, jadi unggahnya
+dimatikan dengan sebabnya — bukan 500 dari `fs.writeFile` yang tidak berarti
+apa-apa bagi pemakai. Sama seperti galeri dan jadwal dinas.
+
 ## Log aktivitas
 
 Layar **Aktivitas** di rel navigasi menjawab pertanyaan yang selalu datang
@@ -460,13 +808,13 @@ sesudah sebuah data berubah: ini siapa yang mengisi.
 
 Sumbernya dua, dan bedanya penting:
 
-- **server** — jadwal dinas, kegiatan berkala, personel, hak, dan galeri.
-  Ditulis `server.js` ke `data/aktivitas.json` dengan identitas dari sesi
-  E-Logbook yang sungguhan, jadi berlaku untuk semua orang dan tidak bisa
-  dikarang dari peramban. Terbaca hanya oleh yang sudah masuk.
-- **peramban ini** — peralatan dan sparepart. Keduanya memang cuma hidup di
-  `localStorage`, jadi catatannya pun tidak bisa lebih jauh dari itu; barisnya
-  diberi tanda supaya tidak disangka berlaku bersama.
+- **server** — jadwal dinas, kegiatan berkala, personel, peralatan, sparepart,
+  hak, logo, dan galeri. Ditulis `server.js` ke `data/aktivitas.json` dengan
+  identitas dari sesi E-Logbook yang sungguhan, jadi berlaku untuk semua orang
+  dan tidak bisa dikarang dari peramban. Terbaca hanya oleh yang sudah masuk.
+- **peramban ini** — apa pun yang disunting tanpa server, waktu halaman jatuh
+  ke data contoh. Catatannya tinggal di `localStorage` bersama datanya, dan
+  barisnya diberi tanda supaya tidak disangka berlaku bersama.
 
 Yang dicatat hanya **perbuatannya** — modul, unit, dan sepotong keterangan —
 bukan isi datanya. Nomor lisensi tidak pernah ikut masuk ke sini. Berkasnya
@@ -479,6 +827,33 @@ di `localStorage`. Yang diterjemahkan isi dashboard; layar masuk tetap seperti
 apa adanya — konsol operasionalnya memang sudah berbahasa Inggris. Nama unit
 (“Listrik dan Mekanik”, “Gedung dan Keamanan”) tidak diterjemahkan: itu nama
 organisasi, bukan istilah.
+
+## Gambar pengenal unit
+
+Kotak di kiri nama unit, di kepala Database Unit. Bawaannya **ilustrasi vektor**
+yang dibangkitkan halaman ini sendiri menurut jenis unitnya — menara untuk
+Radtel, antena untuk Radkom, dan seterusnya. Bagus untuk contoh, tapi ia bukan
+gambar unit yang sebenarnya.
+
+**Administrator bisa menggantinya dari layar.** Tekan kotaknya (tulisan *Pilih
+gambar* muncul saat kursor lewat), pilih berkasnya, selesai — gambarnya
+langsung berlaku untuk semua orang. Tombol **Pakai ilustrasi** di sebelah
+kanan kepala mengembalikannya ke ilustrasi bawaan dan menghapus berkasnya.
+
+Batas 2 MB, `.png`, `.webp`, `.jpg`, atau `.svg`. Berkasnya tersimpan di
+`public/foto/_logo/<kode unit>.<ext>` dengan daftarnya di
+`public/foto/_logo/daftar.json`; awalan garis bawah membuatnya tidak mungkin
+bentrok dengan folder galeri unit, yang kodenya hanya huruf dan angka. Gambar
+dipotong ke bingkai 96×60, bukan diperas, jadi logo persegi dan foto lanskap
+sama-sama utuh bentuknya.
+
+**Hanya administrator, dan itu tidak ikut matriks hak.** Mengganti gambar unit
+mengubah layar semua orang sekaligus, dan tidak ada centang di layar hak yang
+pantas membukanya tanpa sengaja. Servernya yang memutuskan; layar cuma tidak
+menggambar tombolnya untuk yang pasti ditolak.
+
+Ikut `.gitignore` bersama galeri, dengan alasan yang sama — hasil clone datang
+dengan ilustrasi bawaan sampai gambarnya dipasang lagi.
 
 ## Menambah foto galeri
 
@@ -520,13 +895,13 @@ komputer lain lewat git. Kalau memang perlu dipindah, salin foldernya langsung.
 
 ### Catatan keamanan
 
-`POST /galeri/:unit` dan `DELETE /galeri/:unit/:berkas` adalah **satu-satunya
-bagian aplikasi ini yang menulis ke disk**, dan keduanya belum meminta login.
-Nama berkas disaring ketat (basename, daftar putih karakter, hanya ekstensi
-gambar) sehingga tidak bisa dipakai menulis ke luar `public/foto/`, dan
-penghapusan hanya berlaku untuk berkas yang memang terdaftar. Tetap saja:
-sebelum server ini dibuka ke jaringan kantor, kedua endpoint itu perlu diberi
-pemeriksaan sesi.
+`POST /galeri/:unit`, `DELETE /galeri/:unit/:berkas`, dan `POST|DELETE
+/logo/:unit` adalah bagian yang menulis **berkas gambar** ke disk. Keempatnya
+sekarang meminta sesi E-Logbook: galeri dipagari per unit seperti modul lain,
+logo hanya administrator. Nama berkas disaring ketat (basename, daftar putih
+karakter, hanya ekstensi gambar) sehingga tidak bisa dipakai menulis ke luar
+`public/foto/`, dan penghapusan galeri hanya berlaku untuk berkas yang memang
+terdaftar.
 
 ## Setelan
 
@@ -541,22 +916,29 @@ Lewat environment variable, atau salin `.env.example` jadi `.env`:
 | `ELOGBOOK_TAUTAN` | —                     | alamat E-Logbook untuk tombol "Buka E-Logbook", kalau bukan hostname yang sama |
 | `ELOGBOOK_PORT` | `3000`                  | port E-Logbook yang dinyalakan `npm start`  |
 | `GALERI_MATI`   | —                       | set `1` untuk mematikan unggah dan hapus foto |
+| `DATA_CONTOH`   | `1`                     | set `0` supaya halaman tidak pernah jatuh ke data contoh |
 
 Satu lagi milik E-Logbook, dipasang di `elogbook/.env`:
 
 | Nama                     | Bawaan | Guna                                              |
 | ------------------------ | ------ | ------------------------------------------------- |
-| `ELOGBOOK_DAFTAR_AKUN`   | `1`    | set `0` untuk menutup daftar akun pra-login        |
+| `ELOGBOOK_DAFTAR_AKUN`   | `1`    | set `0` untuk menutup daftar akun pra-login — dashboard sudah tidak memakainya |
 
 `GALERI_MATI` menyala sendiri kalau `VERCEL` terdeteksi — di sana berkas
 aplikasi baca-saja dan yang tertulis ke `/tmp` hilang begitu fungsinya selesai.
 Jadwal dinas ikut aturan yang sama: bisa dibaca di sana, tidak bisa disimpan.
 
+`DATA_CONTOH` sengaja **tidak** ditebak dari `VERCEL`: salinan etalase justru
+satu-satunya yang hidup dari data contoh, jadi menebaknya dari sana persis
+terbalik. Yang perlu dimatikan server kantor, dan itu keputusan yang diketik,
+bukan ditebak.
+
 `GET /_info` menjawab setelan yang sedang dipakai — berguna untuk memastikan
-servernya menunjuk ke E-Logbook yang benar. Dua kolomnya, `galeriBisaTulis` dan
-`elogbookTerjangkau`, dipakai halaman untuk tidak menawarkan tombol yang pasti
-gagal: keduanya tidak bisa ditebak dari sisi peramban, gagalnya baru ketahuan
-setelah tombolnya terlanjur ditekan.
+servernya menunjuk ke E-Logbook yang benar. Empat kolomnya —
+`galeriBisaTulis`, `dokumenBisaTulis`, `dataContoh`, dan `elogbookTerjangkau` —
+dipakai halaman untuk tidak menawarkan sesuatu yang pasti gagal: keempatnya
+tidak bisa ditebak dari sisi peramban, gagalnya baru ketahuan setelah tombolnya
+terlanjur ditekan.
 
 ## Deploy ke Vercel
 
@@ -578,9 +960,9 @@ Setel `ELOGBOOK_MATI=1` di environment variable proyek Vercel-nya. Tanpa itu tia
 panggilan data menunggu 30 detik sampai batas waktu penerusan habis, baru gagal.
 Galeri mati dengan sendirinya di sana lewat deteksi `VERCEL`.
 
-Halaman menyesuaikan diri tanpa perlu diberi tahu: tujuan **E-Logbook** di kartu
-masuk padam sendiri karena tidak ada alamat yang masuk akal untuk dituju, kotak
-unggah foto diganti keterangan, dan tombol hapus tidak digambar. Yang tersisa
+Halaman menyesuaikan diri tanpa perlu diberi tahu: tombol **Buka E-Logbook**
+tidak dipasang karena tidak ada alamat yang masuk akal untuk dituju, kotak
+unggah foto dan dokumen diganti keterangan, dan tombol hapus tidak digambar. Yang tersisa
 berjalan penuh dengan data contoh — termasuk tab Kelola Akun, suntingan
 peralatan dan sparepart, dan sakelar bahasa, karena ketiganya hidup di peramban
 pengunjung dan tidak menuntut apa pun dari server.

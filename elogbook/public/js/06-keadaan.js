@@ -13,6 +13,7 @@ let users = [];
 let monitoring = [];
 let ltkList = [];
 let dsList = [];
+let berkalaList = [];
 
 /* Akun pejabat/admin aktif — dipakai menunjuk penerima TTD susulan saat
    mengisi formulir. Kotak masuk TTD milik akun yang sedang masuk, kalau

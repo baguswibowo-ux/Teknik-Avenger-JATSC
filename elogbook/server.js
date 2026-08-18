@@ -40,6 +40,7 @@ const {
   tambahLampiranIsu, hapusLampiranIsu,
   listMonitoring, insertMonitoring, removeMonitoring,
   listDsTest, insertDsTest, removeDsTest, DS_SITE, KATEGORI_DS,
+  listBerkala, insertBerkala, removeBerkala, BERKALA_ITEM, JENIS_BERKALA,
   LOKASI,
   tambahLampiranLtk, hapusLampiranLtk, getLtk,
   listLtk, insertLtk, removeLtk,
@@ -359,7 +360,7 @@ async function unitDanHakAkses(user, unit) {
 
 /** Fungsi yang menambah atau mengubah data. Pejabat ditolak di sini. */
 const API_TULIS = new Set([
-  'addEntry', 'addDailyCheck', 'addIssue', 'addMonitoring', 'addLtk', 'addDsTest',
+  'addEntry', 'addDailyCheck', 'addIssue', 'addMonitoring', 'addLtk', 'addDsTest', 'addBerkala',
   'updateEntry', 'updateDailyCheck'
 ]);
 
@@ -592,17 +593,17 @@ const API = {
     const jejak = isAdmin(user) ? (rows) => rows : tanpaJejakInput;
 
     /**
-     * Sepuluh pengambilan di bawah ini tidak saling bergantung — tidak ada yang
+     * Sebelas pengambilan di bawah ini tidak saling bergantung — tidak ada yang
      * memakai hasil yang lain — jadi dijalankan berbarengan, bukan berderet.
      *
      * Pada SQLite bedanya tidak terasa: fungsinya sinkron, jadi tetap berjalan
      * satu per satu dan Promise.all cuma membungkus nilai yang sudah jadi. Yang
-     * berubah adalah lapisan Postgres: berderet berarti sepuluh kali menunggu
+     * berubah adalah lapisan Postgres: berderet berarti sebelas kali menunggu
      * jaringan ke Supabase secara berurutan, dan itulah yang membuat pemuatan
      * pertama di Vercel memakan waktu detikan. Berbarengan, yang menentukan
      * hanya kueri paling lambat.
      */
-    const [entries, dcHistory, issues, monitoring, ltk, dstest,
+    const [entries, dcHistory, issues, monitoring, ltk, dstest, berkala,
            users, pejabatList, inboxTtd, ttdTersimpan] = await Promise.all([
       listEntries(u, MAX_ROWS),
       listDailyChecks(u, MAX_ROWS),
@@ -610,6 +611,7 @@ const API = {
       listMonitoring(u, MAX_ROWS),
       listLtk(u, MAX_ROWS),
       listDsTest(u, MAX_ROWS),
+      listBerkala(u, MAX_ROWS),
       isAdmin(user) ? listUsers() : [],
       // Daftar pejabat untuk menunjuk penerima TTD susulan saat mengisi
       // formulir — perlu diketahui seluruh pengguna, bukan cuma admin.
@@ -632,6 +634,12 @@ const API = {
       dstest: jejak(dstest),
       dsSite: DS_SITE,
       kategoriDs: KATEGORI_DS,
+      berkala: jejak(berkala),
+      // Daftar pekerjaan berkala ikut dikirim, bukan ditanam di layar: satu
+      // sumber di berkala-item.js, dan menambah pekerjaan tidak perlu
+      // menyentuh berkas peramban.
+      berkalaItem: BERKALA_ITEM,
+      jenisBerkala: JENIS_BERKALA,
       lokasi: LOKASI,
       batasLampiran: { maksByte: LAMPIRAN_MAKS_BYTE, maksJumlah: LAMPIRAN_MAKS_JUMLAH },
       users,
@@ -681,6 +689,10 @@ const API = {
     user.username, user.nama),
 
   addDsTest: async (rec, user) => insertDsTest(
+    { ...(rec || {}), unit: await unitDiminta(user, rec?.unit), ttdUntuk: await ttdUntukSah(rec?.ttdUntuk) },
+    user.username, user.nama),
+
+  addBerkala: async (rec, user) => insertBerkala(
     { ...(rec || {}), unit: await unitDiminta(user, rec?.unit), ttdUntuk: await ttdUntukSah(rec?.ttdUntuk) },
     user.username, user.nama),
 
@@ -759,6 +771,7 @@ const API_ADMIN = {
   deleteMonitoring: (id) => removeMonitoring(String(id)),
   deleteLtk: (id) => removeLtk(String(id)),
   deleteDsTest: (id) => removeDsTest(String(id)),
+  deleteBerkala: (id) => removeBerkala(String(id)),
 
   // Menempel berkas ke LTK yang sudah tersimpan berarti mengubahnya — admin saja.
   addLtkLampiran: async (id, daftar) => {

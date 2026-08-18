@@ -80,6 +80,14 @@ function terapkanUnit(){
     tabDs.style.display = u.adaDsTest ? '' : 'none';
     if(!u.adaDsTest && tabDs.classList.contains('active')) pilihTab('logbook');
   }
+  // Keempat tab pekerjaan berkala baru dipakai Radtel; unit lain belum punya
+  // daftarnya. Diperlakukan satu paket: tidak ada unit yang punya sebagian.
+  ['bk-neptuno','bk-gatevox','bk-cleaning','bk-restart'].forEach(nama=>{
+    const t = document.querySelector(`.tab-btn[data-tab="${nama}"]`);
+    if(!t) return;
+    t.style.display = u.adaBerkala ? '' : 'none';
+    if(!u.adaBerkala && t.classList.contains('active')) pilihTab('logbook');
+  });
   const tabLtk = document.querySelector('.tab-btn[data-tab="ltk"]');
   if(tabLtk){
     tabLtk.style.display = u.adaLtk ? '' : 'none';
@@ -103,7 +111,9 @@ function terapkanUnit(){
   const judul = document.querySelector('[data-t="logbookJudul"]');
   if(judul) judul.textContent = u.judul;
 
-  // Kolom khusus Radkom
+  // Kolom yang bentuknya ditentukan unit. Jam mulai–selesai dulu cuma milik
+  // Radkom; sekarang seluruh unit memakainya — pekerjaan punya awal dan akhir
+  // di mana pun ia dikerjakan. Frekuensi tetap milik Radkom saja.
   document.getElementById('feJamSelesaiWrap').style.display = u.pakaiJamSelesai ? '' : 'none';
   document.getElementById('feFrekWrap').style.display = u.pakaiFrek ? '' : 'none';
   document.getElementById('feJamLabel').textContent = u.pakaiJamSelesai ? T('jamMulaiUtc') : T('jamUtc');

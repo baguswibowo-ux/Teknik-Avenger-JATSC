@@ -133,7 +133,9 @@ function acuanWaktuEntry(e){
   return jam ? `${tgl}T${jam}` : tgl;
 }
 
-/** Radkom mencatat jam mulai dan selesai; Radtel hanya satu jam. */
+/** Seluruh unit kini mencatat jam mulai dan selesai. Yang dibaca tetap
+    isinya, bukan setelan unitnya: catatan lama — dan catatan baru yang jam
+    selesainya sengaja dikosongkan — tetap tampil sebagai satu jam saja. */
 function jamTeks(e){
   const mulai = e.jam || '-';
   return e.jamSelesai ? `${mulai}–${e.jamSelesai}` : mulai;

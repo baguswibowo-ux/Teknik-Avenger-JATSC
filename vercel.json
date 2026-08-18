@@ -1,8 +1,26 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "regions": ["sin1"],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index" },
     { "source": "/galeri/(.*)", "destination": "/api/index" },
+    { "source": "/logo/(.*)", "destination": "/api/index" },
+    { "source": "/aktivitas", "destination": "/api/index" },
+    { "source": "/hak", "destination": "/api/index" },
+    { "source": "/personel", "destination": "/api/index" },
+    { "source": "/dinas/(.*)", "destination": "/api/index" },
+    { "source": "/berkala", "destination": "/api/index" },
+    { "source": "/berkala/(.*)", "destination": "/api/index" },
+    { "source": "/unitdb", "destination": "/api/index" },
+    { "source": "/unitdb/(.*)", "destination": "/api/index" },
+    { "source": "/dokumen", "destination": "/api/index" },
+    { "source": "/dokumen/(.*)", "destination": "/api/index" },
     { "source": "/_info", "destination": "/api/index" }
-  ]
+  ],
+  "functions": {
+    "api/index.js": {
+      "maxDuration": 30,
+      "memory": 1024
+    }
+  }
 }

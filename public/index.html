@@ -261,9 +261,23 @@ button{font:inherit;}
 .km-detail .km-kode{font:600 10px/1 'IBM Plex Mono',monospace;letter-spacing:.22em;color:var(--km-kuning);}
 .km-detail h4{font:600 17px/1.3 'IBM Plex Sans',sans-serif;letter-spacing:.06em;margin:8px 0;color:var(--km-terang);}
 .km-detail p{margin:0;font:400 12.5px/1.65 'IBM Plex Sans',sans-serif;color:#93a4b3;text-wrap:pretty;}
-.km-petunjuk{position:absolute;top:14px;left:14px;padding:8px 12px;background:rgba(8,13,18,.72);
+/* Pojok kiri atas panggung: petunjuk dan tombol putar ulang, ditumpuk. Dulu
+   petunjuknya dipatok sendiri di 14/14; begitu ada tombol di bawahnya, dua
+   elemen yang sama-sama absolut harus saling menebak tinggi. */
+.km-alat{position:absolute;top:14px;left:14px;z-index:2;display:flex;
+  flex-direction:column;align-items:flex-start;gap:8px;}
+.km-petunjuk{padding:8px 12px;background:rgba(8,13,18,.72);
   border:1px solid var(--km-line);font:400 9.5px/1.6 'IBM Plex Mono',monospace;
   letter-spacing:.12em;color:var(--km-redup-3);pointer-events:none;}
+.km-ulang{display:inline-flex;align-items:center;gap:7px;padding:7px 11px;
+  background:rgba(8,13,18,.72);border:1px solid var(--km-line);color:var(--km-redup-3);
+  font:600 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;cursor:pointer;
+  transition:.16s;}
+.km-ulang:hover{border-color:var(--km-sian);color:var(--km-sian);}
+.km-ulang svg{width:12px;height:12px;flex:none;}
+/* Menyala persis saat tombolnya paling dicari: putaran otomatisnya berhenti. */
+.km-ulang.km-perlu{background:var(--km-sian-latar);border-color:var(--km-sian-garis);
+  color:var(--km-sian);}
 
 /* ---------- kartu masuk ---------- */
 /* Kartunya sengaja tidak ikut muncul di awal: yang pertama terlihat cuma
@@ -326,19 +340,24 @@ button{font:inherit;}
    balik tebakan — orang harus tahu angka yang sedang ia lihat itu nyata atau
    karangan. */
 .km-sumber{margin-top:14px;}
-.km-sumber-tombol{display:flex;gap:0;border:1px solid var(--km-line-3);}
-.km-sumber-tombol button{flex:1;background:transparent;border:0;color:var(--km-redup-3);
-  padding:9px 6px;cursor:pointer;font:600 9.5px/1.3 'IBM Plex Mono',monospace;
-  letter-spacing:.14em;transition:.16s;}
-.km-sumber-tombol button+button{border-left:1px solid var(--km-line-3);}
-.km-sumber-tombol button:hover:not(:disabled){color:var(--km-terang-3);}
-.km-sumber-tombol button.km-pilih{background:var(--km-sian-latar);color:var(--km-sian);
-  box-shadow:inset 0 -2px 0 var(--km-sian);}
-.km-sumber-tombol button:disabled{opacity:.4;cursor:not-allowed;}
 
-/* Judul mungil di atas sekelompok tombol. */
-.km-jdl-mini{font:400 9px/1 'IBM Plex Mono',monospace;letter-spacing:.2em;
-  color:var(--km-redup-4);margin-bottom:7px;}
+/* Kaki kartu: satu tautan, jarang dipakai tapi harus ada — pendaftaran akun.
+   Sengaja kecil dan berupa tautan, bukan tombol: yang biasa terjadi orangnya
+   memang mau masuk sebagai dirinya sendiri, dan tombol lagi di bawah tombol
+   Masuk akan bersaing dengannya.
+
+   Rata kiri, bukan space-between: sejak "Bukan Anda? Ganti akun" dibuang, yang
+   tersisa cuma satu anak, dan space-between akan melemparkannya ke pojok kiri
+   sendirian — benar secara kebetulan, salah begitu ada anak kedua lagi. */
+.km-kaki-tautan{display:flex;flex-wrap:wrap;align-items:baseline;
+  gap:7px 14px;margin-top:11px;
+  font:400 10px/1.5 'IBM Plex Mono',monospace;
+  letter-spacing:.04em;color:var(--km-redup-3);}
+.km-tautan{background:transparent;border:0;padding:0;cursor:pointer;
+  color:var(--km-sian);font:inherit;text-decoration:underline;text-underline-offset:3px;}
+.km-tautan:hover{color:#5ce4d7;}
+.km-tautan:disabled{opacity:.5;cursor:progress;text-decoration:none;}
+.km-tautan[hidden]{display:none;}
 a.km-tombol-masuk{display:block;text-align:center;text-decoration:none;}
 
 .km-sumber-ket{display:flex;align-items:flex-start;gap:7px;margin-top:9px;
@@ -349,30 +368,6 @@ a.km-tombol-masuk{display:block;text-align:center;text-decoration:none;}
 .km-sumber-ket.km-awas i{background:var(--km-kuning);}
 .km-sumber-ket.km-sibuk i{animation:km-kedip 1s steps(2,end) infinite;}
 @keyframes km-kedip{50%{opacity:.25;}}
-
-.km-akun{margin-top:16px;padding-top:14px;border-top:1px solid var(--km-line-3);}
-.km-akun.km-samar{opacity:.42;}
-.km-akun .km-jdl{font:400 9px/1 'IBM Plex Mono',monospace;letter-spacing:.2em;
-  color:var(--km-redup-4);text-transform:uppercase;margin-bottom:9px;}
-/* Daftarnya bisa panjang — seluruh pegawai teknik, bukan lagi enam akun contoh.
-   Karena itu diberi tinggi maksimum dan digulir di tempat: kartu masuk yang
-   memanjang sampai keluar layar membuat tombol Masuk-nya sendiri tidak
-   terlihat. */
-.km-akun .km-baris{display:flex;flex-wrap:wrap;gap:6px;max-height:132px;overflow-y:auto;
-  padding-right:3px;}
-.km-akun .km-baris::-webkit-scrollbar{width:5px;}
-.km-akun .km-baris::-webkit-scrollbar-thumb{background:var(--km-line-3);border-radius:3px;}
-.km-akun button{background:rgba(255,255,255,.05);border:1px solid var(--km-line-3);
-  color:var(--km-terang-3);padding:5px 9px;cursor:pointer;
-  font:400 11px/1 'IBM Plex Mono',monospace;letter-spacing:.06em;transition:.16s;}
-.km-akun button:hover{border-color:var(--km-sian);color:var(--km-sian);}
-.km-akun .km-ket{font:400 10.5px/1.55 'IBM Plex Sans',sans-serif;color:var(--km-redup-4);margin-top:10px;}
-.km-cari{width:100%;margin-bottom:8px;background:rgba(255,255,255,.045);
-  border:1px solid var(--km-line-3);color:var(--km-terang-2);padding:7px 9px;
-  font:400 11px/1 'IBM Plex Mono',monospace;letter-spacing:.05em;}
-.km-cari::placeholder{color:#54677a;}
-.km-cari:focus{outline:none;border-color:var(--km-sian);}
-.km-kosong{font:400 10.5px/1.55 'IBM Plex Sans',sans-serif;color:var(--km-redup-4);}
 
 /* ---------- kaki: pita berjalan ---------- */
 .km-kaki{display:flex;align-items:center;border-top:1px solid var(--km-line);
@@ -427,11 +422,6 @@ a.km-tombol-masuk{display:block;text-align:center;text-decoration:none;}
 #app{display:none;}
 #app.tampil{display:block;}
 
-.pita{position:sticky;top:0;z-index:60;display:flex;gap:10px;align-items:center;flex-wrap:wrap;
-  padding:7px 16px;background:repeating-linear-gradient(135deg,#ffb30022 0 12px,transparent 12px 24px),var(--panel-2);
-  border-bottom:1px solid var(--line);font-family:var(--font-mono);font-size:11.5px;color:var(--warn);}
-.pita b{color:var(--text);font-family:var(--font-display);letter-spacing:.04em;}
-
 header.konsol{position:relative;overflow:hidden;border-bottom:1px solid var(--line);
   background:linear-gradient(150deg,var(--konsol-1),var(--konsol-2));}
 header.konsol::after{content:"";position:absolute;inset:0;pointer-events:none;
@@ -468,12 +458,11 @@ header.konsol::after{content:"";position:absolute;inset:0;pointer-events:none;
 .kartu-akun .nm{font-size:12.5px;font-weight:500;line-height:1.2;}
 .kartu-akun .pr{font-family:var(--font-mono);font-size:9.5px;color:var(--muted);letter-spacing:.05em;}
 
-/* Tingginya pita di atasnya berubah-ubah: kalimatnya melipat jadi dua atau tiga
-   baris di layar sempit, dan dalam mode tersambung kalimatnya jauh lebih
-   panjang. Angka mati 33px membuat rel ini menggantung dengan celah — atau
-   menindih pita — di sebagian besar lebar layar, jadi tingginya diukur dan
-   dituliskan sebagai --tinggi-pita (lihat blok JAM DAN NAVIGASI). */
-nav.rel{position:sticky;top:var(--tinggi-pita,33px);z-index:50;background:var(--panel);
+/* Dulu di atas rel ini ada pita peringatan yang tingginya berubah-ubah, dan
+   rel harus diberi jarak sebesar pita itu — diukur, karena angka matinya cuma
+   benar pada satu lebar layar. Pitanya sudah dibuang; relnya menempel langsung
+   di puncak jendela, dan pengukurannya ikut hilang. */
+nav.rel{position:sticky;top:0;z-index:50;background:var(--panel);
   border-bottom:1px solid var(--line);}
 .rel-isi{display:flex;gap:2px;overflow-x:auto;max-width:1500px;margin:0 auto;padding:0 14px;}
 .rel button{background:none;border:0;border-bottom:2px solid transparent;color:var(--muted);cursor:pointer;
@@ -542,6 +531,12 @@ section.layar.aktif{display:block;}
 .cip.bahaya{color:var(--fail);border-color:var(--fail);}
 .cip.awas{color:var(--warn);border-color:var(--warn);}
 .cip.aman{color:var(--ok);border-color:var(--ok);}
+/* Cip yang menuju formulirnya di E-Logbook. Dibedakan dari cip biasa supaya
+   tidak ada yang menekan cip MINGGUAN dan mengira dashboardnya rusak: yang
+   bisa ditekan berpanah, berubah warna waktu disentuh, dan berkursor tangan. */
+a.cip{text-decoration:none;cursor:pointer;transition:color .15s,border-color .15s;}
+a.cip::after{content:' \2197';font-size:9px;opacity:.75;}
+a.cip:hover{color:var(--ink);border-color:var(--ink);}
 
 .kendali-orbit{display:flex;justify-content:center;gap:9px;align-items:center;margin-top:2px;}
 .kendali-orbit .ket{font-family:var(--font-mono);font-size:10.5px;color:var(--muted);}
@@ -690,7 +685,9 @@ html[data-tema="gelap"] .atur-data input[type=month]::-webkit-calendar-picker-in
 .dinas-kartu:hover{transform:translateY(-3px);}
 .dinas-kartu .pita-sisi{position:absolute;left:0;top:0;bottom:0;width:4px;}
 .dinas-kartu .kode{font-family:var(--font-display);font-size:25px;font-weight:700;line-height:1;}
-.dinas-kartu .jam-shift{font-family:var(--font-mono);font-size:10.5px;color:var(--muted);margin-top:4px;letter-spacing:.06em;}
+.dinas-kartu .jam-shift{font-family:var(--font-mono);font-size:10.5px;color:var(--muted);margin-top:4px;letter-spacing:.06em;line-height:1.55;}
+/* Jam UTC yang jadi patokan; WIB di bawahnya hanya untuk yang melihat jam dinding. */
+.dinas-kartu .jam-lokal{opacity:.62;}
 .orang{display:flex;align-items:center;gap:9px;margin-top:10px;}
 .avatar{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;flex:none;
   font-family:var(--font-mono);font-size:10.5px;font-weight:600;background:var(--panel-2);border:1px solid var(--line);}
@@ -709,8 +706,8 @@ html[data-tema="gelap"] .atur-data input[type=month]::-webkit-calendar-picker-in
 .sel-shift{font-family:var(--font-mono);font-size:10.5px;font-weight:600;border-radius:5px;padding:3px 0;display:block;}
 .s-P,.s-Pagi{background:rgba(41,182,246,.16);color:var(--accent);}
 .s-S,.s-Siang{background:rgba(255,179,0,.16);color:var(--warn);}
-.s-M,.s-Malam{background:rgba(124,139,160,.2);color:var(--text);}
-.s-PS{background:rgba(46,204,113,.16);color:var(--ok);}
+.s-M,.s-MJ,.s-MN,.s-Malam{background:rgba(124,139,160,.2);color:var(--text);}
+.s-PS,.s-PSJ,.s-PSN{background:rgba(46,204,113,.16);color:var(--ok);}
 .s-L{color:var(--muted);opacity:.5;}
 
 /* ---------- Sparepart ---------- */
@@ -725,8 +722,26 @@ html[data-tema="gelap"] .atur-data input[type=month]::-webkit-calendar-picker-in
 .kepala-unit{display:flex;gap:16px;align-items:center;flex-wrap:wrap;border:1px solid var(--line);
   border-radius:14px;padding:14px 16px;background:linear-gradient(145deg,var(--panel-2),var(--panel));
   box-shadow:var(--bayang);}
-.kepala-unit .ikon-unit{width:96px;height:60px;border-radius:10px;overflow:hidden;flex:none;border:1px solid var(--line);}
+.kepala-unit .ikon-unit{position:relative;width:96px;height:60px;border-radius:10px;overflow:hidden;
+  flex:none;border:1px solid var(--line);}
 .kepala-unit .ikon-unit svg{display:block;width:100%;height:100%;}
+/* Gambar yang diunggah menempati kotak yang sama persis dengan ilustrasinya —
+   dipotong, bukan diperas, supaya logo persegi dan foto lanskap sama-sama utuh
+   bentuknya. */
+.kepala-unit .ikon-unit img{display:block;width:100%;height:100%;object-fit:cover;}
+/* Bisa diganti: seluruh kotaknya jadi tombol. padding dan background dilepas
+   karena elemennya <button>, dan bawaan peramban akan menambahkan keduanya. */
+.kepala-unit .ikon-unit.bisa{padding:0;background:none;cursor:pointer;}
+.kepala-unit .ikon-unit .tutup{position:absolute;inset:0;display:grid;place-items:center;
+  background:rgba(6,12,20,.72);color:#fff;font-family:var(--font-mono);font-size:9.5px;
+  letter-spacing:.07em;text-transform:uppercase;text-align:center;padding:0 6px;
+  opacity:0;transition:opacity .15s;}
+.kepala-unit .ikon-unit.bisa:hover .tutup,
+.kepala-unit .ikon-unit.bisa:focus-visible .tutup,
+.kepala-unit .ikon-unit.sibuk .tutup{opacity:1;}
+/* Layar sentuh tidak punya kursor yang bisa lewat, jadi tulisannya tidak
+   pernah muncul di sana. Ditampilkan sejak awal, lebih samar. */
+@media (hover:none){ .kepala-unit .ikon-unit.bisa .tutup{opacity:1;background:rgba(6,12,20,.42);} }
 .kepala-unit h2{font-size:19px;}
 .kepala-unit .sub{font-size:12.5px;color:var(--muted);margin-top:3px;}
 
@@ -1070,6 +1085,35 @@ tr.akun-mati td:not(:last-child){opacity:.55;}
 .bkl-sunting{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;padding:11px 0;
   border-bottom:1px solid var(--line);}
 .bkl-sunting:last-child{border-bottom:none;}
+/* ---------- Kotak Masuk ---------- */
+/* Satu baris per pekerjaan. Berjajar di layar lebar, menumpuk begitu tidak —
+   kolom kanan berisi status dan tombol, dan itu yang paling dulu kehabisan
+   tempat. */
+.kmk{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;
+  border:1px solid var(--line);border-left:3px solid var(--line);border-radius:10px;
+  padding:11px 13px;background:var(--panel-2);}
+.kmk.saya{border-left-color:var(--accent);}
+.kmk.beres{border-left-color:var(--ok);opacity:.72;}
+.kmk-kiri{flex:1 1 320px;min-width:0;display:grid;gap:5px;}
+.kmk-jd{display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:13px;line-height:1.35;}
+.kmk-rn{font-size:11.5px;color:var(--muted);line-height:1.55;}
+.kmk-orang-baris{font-size:11.5px;color:var(--muted);display:flex;align-items:center;
+  gap:6px;flex-wrap:wrap;line-height:1.6;}
+.kmk-orang{display:inline-flex;align-items:center;gap:5px;padding:1px 7px;border-radius:20px;
+  background:var(--kaca);border:1px solid var(--line);font-size:11px;color:var(--text);}
+/* Nama Anda sendiri ditegaskan: di unit berisi delapan orang, baris penerima
+   terbaca sebagai kabut kalau tidak ada satu pun yang menonjol. */
+.kmk-orang.saya{border-color:var(--accent);color:var(--accent);font-weight:600;}
+.kmk-orang .mono{font-size:9.5px;opacity:.7;}
+.kmk-samar{color:var(--muted);font-style:italic;}
+.kmk-kanan{display:grid;gap:7px;justify-items:flex-end;text-align:right;}
+.kmk-tombol{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end;}
+a.btn.kecil{text-decoration:none;display:inline-flex;align-items:center;}
+@media (max-width:640px){
+  .kmk-kanan{justify-items:flex-start;text-align:left;width:100%;}
+  .kmk-tombol{justify-content:flex-start;}
+}
+
 /* Penanda kegiatan di baris atas tabel jadwal. */
 .bkl-titik{display:inline-grid;place-items:center;min-width:15px;height:15px;border-radius:8px;
   font-family:var(--font-mono);font-size:9px;line-height:1;padding:0 3px;}
@@ -1329,7 +1373,21 @@ html[data-tema="gelap"] .sert-sunting input[type=date]::-webkit-calendar-picker-
       <div class="km-scene" id="kmScene"></div>
       <div class="km-lapis" id="kmLapis"></div>
       <div class="km-detail" id="kmDetail"><div class="km-kode"></div><h4></h4><p></p></div>
-      <div class="km-petunjuk">DRAG UNTUK ROTASI &middot; SCROLL UNTUK ZOOM &middot; KLIK LABEL UNTUK DETAIL</div>
+      <div class="km-alat">
+        <div class="km-petunjuk">DRAG UNTUK ROTASI &middot; SCROLL UNTUK ZOOM &middot; KLIK LABEL UNTUK DETAIL</div>
+        <!-- Menyentuh panggung menghentikan putaran otomatisnya. Sebelum ada
+             tombol ini satu-satunya jalan mengembalikannya memuat ulang
+             halaman. Disembunyikan sampai panggungnya benar-benar berdiri —
+             tanpa three.js tidak ada yang bisa diputar ulang. -->
+        <button type="button" class="km-ulang" id="kmUlangi" hidden
+                title="Kembalikan kamera ke posisi awal dan putar animasinya dari awal">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3 12a9 9 0 1 0 2.6-6.4"></path><path d="M3 4v5h5"></path>
+          </svg>
+          PUTAR ULANG
+        </button>
+      </div>
 
       <button type="button" class="km-picu" id="kmPicuMasuk">MASUK</button>
 
@@ -1343,25 +1401,23 @@ html[data-tema="gelap"] .sert-sunting input[type=date]::-webkit-calendar-picker-
             yang dipakai di sana. Setelah masuk, semua akun melihat trouble dan jadwal dinas seluruh
             unit; isi per unit terbuka sesuai peran akun.</p>
 
+          <!-- TIDAK ada deret tombol apa pun di sini, dan itu sudah dua kali
+               dibersihkan. Yang pertama deret MASUK/DAFTAR AKUN; yang kedua
+               pemilih TUJUAN — E-LOGBOOK / DASHBOARD / DATA CONTOH.
+
+               Pemilih tujuan dibuang karena tujuannya cuma satu: masuk berarti
+               mendarat di dashboard ini. E-Logbook tetap sejauh satu tombol,
+               tapi tombolnya ada di kepala dashboard, tempat orang mencarinya
+               setelah masuk — bukan pertanyaan yang harus dijawab sebelum
+               boleh mengetik username.
+
+               Data contoh juga bukan pilihan lagi melainkan keadaan: ia berlaku
+               kalau memang tidak ada server di belakang halaman ini. Begitu
+               dideploy, tidak ada lagi data contoh untuk dipilih — lihat
+               KEMAMPUAN.dataContoh. -->
           <div id="kmBagianDash">
-            <!-- Satu pemilih saja, dan yang dipilih benar-benar menentukan ke
-                 mana datanya diambil: E-Logbook yang sungguhan, atau data contoh
-                 yang dibawa halaman ini sendiri. Sempat ada pemilih kedua di
-                 atasnya yang cuma mengganti isi kartu — dua kotak yang mirip,
-                 satu di antaranya tidak mengubah apa pun, dan yang membaca harus
-                 menebak mana yang berlaku. -->
-            <!-- Tujuan yang sebenarnya, bukan lagi pemilih sumber data yang
-                 menyamar jadi tujuan. E-LOGBOOK sekarang benar-benar membuka
-                 E-Logbook setelah akunnya diperiksa — tidak lewat Dashboard
-                 dulu. Dua yang lain tetap mendarat di dashboard ini, bedanya
-                 pada data yang dipakainya. -->
+           <div id="kmPanelMasuk">
             <div class="km-sumber">
-              <div class="km-jdl-mini">TUJUAN</div>
-              <div class="km-sumber-tombol">
-                <button type="button" id="btnTujuanElogbook" disabled>E-LOGBOOK</button>
-                <button type="button" id="btnTujuanDashboard" disabled>DASHBOARD</button>
-                <button type="button" id="btnTujuanContoh" class="km-pilih">DATA CONTOH</button>
-              </div>
               <div class="km-sumber-ket km-sibuk" id="ketSumber"><i></i><span>Memeriksa sambungan ke server…</span></div>
             </div>
 
@@ -1371,14 +1427,47 @@ html[data-tema="gelap"] .sert-sunting input[type=date]::-webkit-calendar-picker-
               <input type="password" id="iPass" autocomplete="off" placeholder="prototipe — tidak diperiksa"></div>
             <button class="km-tombol-masuk" id="btnMasuk">Masuk</button>
 
-            <div class="km-akun" id="kotakAkun">
-              <div class="km-jdl" id="jdlAkun">Akun contoh — klik untuk mengisi</div>
-              <input type="text" id="cariAkun" class="km-cari" autocomplete="off" spellcheck="false"
-                     placeholder="cari nama atau username" hidden>
-              <div class="km-baris" id="daftarAkun"></div>
-              <div class="km-ket" id="ketAkun">Ini prototipe: sandinya tidak diperiksa dan tidak ada data
-                sungguhan di baliknya. Pemeriksaan akun yang asli tetap milik server E-Logbook.</div>
+            <!-- Kaki kartu. "Bukan Anda? Ganti akun" pernah ada di sini dan
+                 sudah dibuang: keluar dari dashboard sekarang benar-benar
+                 memutus sesinya, jadi tidak ada lagi nama orang lain yang
+                 menempel untuk diganti. Tombol yang tidak pernah dibutuhkan
+                 tetap harus dibaca setiap kali kartunya dibuka. -->
+            <div class="km-kaki-tautan">
+              <button type="button" id="btnBukaDaftar" class="km-tautan">Belum punya akun? Daftar</button>
             </div>
+
+            <!-- Daftar akun pra-login pernah ada di sini: seluruh username yang
+                 sedang aktif, tinggal ditekan untuk mengisi kolom. Dibuang atas
+                 permintaan, dan pembuangannya sekalian mengembalikan penjagaan
+                 yang dulu dikorbankan untuknya — /api/login di E-Logbook sengaja
+                 menyamakan pesan salahnya supaya tidak ketahuan username mana
+                 yang terdaftar, dan daftar itu membatalkannya. Sekarang yang
+                 tersisa untuk ditebak orang luar dua-duanya, bukan cuma
+                 password. Endpoint /api/akun-daftar tidak dipanggil lagi dari
+                 sini; matikan sekalian dengan ELOGBOOK_DAFTAR_AKUN=0. -->
+           </div>
+
+           <!-- Pendaftaran mandiri. Isinya sama dengan formulir yang dulu ada di
+                E-Logbook, dan tujuannya pun endpoint yang sama (/api/daftar,
+                lewat penerusan di server.js). Yang berpindah cuma tempatnya:
+                sejak Kelola Akun dicabut ke sini, pintu masuk akun baru pantas
+                berada di layar yang sama dengan yang mengurusnya. -->
+           <div id="kmPanelDaftar" hidden>
+            <div class="km-kolom"><label for="dfNama">Nama lengkap</label>
+              <input type="text" id="dfNama" autocomplete="off" placeholder="cth. Budi Santoso"></div>
+            <div class="km-kolom"><label for="dfUser">Username</label>
+              <input type="text" id="dfUser" autocomplete="off" spellcheck="false"
+                     autocapitalize="off" placeholder="cth. budi.santoso"></div>
+            <div class="km-kolom"><label for="dfPass">Password</label>
+              <input type="password" id="dfPass" autocomplete="new-password" placeholder="minimal 6 karakter"></div>
+            <div class="km-kolom"><label for="dfPass2">Ulangi password</label>
+              <input type="password" id="dfPass2" autocomplete="new-password" placeholder="ketik ulang password"></div>
+            <button class="km-tombol-masuk" id="btnDaftar">Kirim pendaftaran</button>
+            <div class="km-sumber-ket" id="ketDaftar"><i></i><span></span></div>
+            <div class="km-kaki-tautan">
+              <button type="button" id="btnKembaliMasuk" class="km-tautan">Sudah punya akun? Masuk</button>
+            </div>
+           </div>
           </div>
 
         </div>
@@ -1444,11 +1533,6 @@ html[data-tema="gelap"] .sert-sunting input[type=date]::-webkit-calendar-picker-
      =================================================================== -->
 <div id="app">
 
-<div class="pita">
-  <b id="pitaCap">PROTOTIPE</b>
-  <span id="pitaKet">Contoh tampilan — belum tersambung ke server. Semua angka di halaman ini data karangan.</span>
-</div>
-
 <header class="konsol">
   <div class="konsol-isi">
     <div class="logo">
@@ -1466,13 +1550,6 @@ html[data-tema="gelap"] .sert-sunting input[type=date]::-webkit-calendar-picker-
       <div class="blok"><div class="nilai" id="jamWib">--:--:--</div><div class="label" id="tglWib">WIB</div></div>
       <div class="kartu-akun"><span class="av" id="avAkun">--</span>
         <span><span class="nm" id="nmAkun">—</span><br><span class="pr" id="prAkun">—</span></span></div>
-      <a class="tombol-ikon" href="#" data-elogbook id="tautanElogbook" title="Buka E-Logbook"
-         data-en-judul="Open E-Logbook">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
-          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-          <path d="M9 7h7"/><path d="M9 11h7"/></svg>
-      </a>
       <!-- Lonceng: pemberitahuan yang benar-benar milik akun ini, bukan papan
            bersama di beranda. Yang di sini cuma tombolnya — panelnya duduk di
            akar dokumen, di bawah, karena kepala halaman ini memotong dan
@@ -1508,6 +1585,11 @@ html[data-tema="gelap"] .sert-sunting input[type=date]::-webkit-calendar-picker-
   <button data-layar="trouble" data-en="Trouble, All Units<span class=&quot;lencana&quot; id=&quot;lencanaTrouble&quot;>0</span>"
     >Trouble Semua Unit<span class="lencana" id="lencanaTrouble">0</span></button>
   <button data-layar="dinas" data-en="Today's Shift">Dinas Hari Ini</button>
+  <!-- Lencananya menghitung yang tertuju ke akun ini dan belum beres, bukan
+       seluruh isi kotaknya — angka yang tidak bisa dikosongkan siapa pun akan
+       berhenti dibaca dalam sepekan. -->
+  <button data-layar="kotak" data-en="Inbox<span class=&quot;lencana&quot; id=&quot;lencanaKotak&quot;>0</span>"
+    >Kotak Masuk<span class="lencana" id="lencanaKotak">0</span></button>
   <button data-layar="unit" data-en="Unit Database">Database Unit</button>
   <!-- Personel tidak lagi berdiri sendiri di sini: tempatnya subtab di dalam
        Database Unit, satu daftar per unit. Peringatan masa berlakunya tetap
@@ -1608,20 +1690,46 @@ html[data-tema="gelap"] .sert-sunting input[type=date]::-webkit-calendar-picker-
   <div id="dinasPenuh"></div>
   <div class="panel" style="margin-top:20px">
     <div class="kepala"><h3 data-en="24-Hour Coverage">Cakupan 24 Jam</h3>
-      <span class="ket" data-en="blue line = current hour">Garis biru = jam sekarang</span></div>
+      <span class="ket" data-en="UTC scale · blue line = current hour">Skala UTC · garis biru = jam sekarang</span></div>
     <div class="badan"><div class="pita-jam" id="pitaJam"></div><div class="skala-jam" id="skalaJam"></div></div>
   </div>
   <div class="catatan" data-en="<b>Where this data comes from.</b> The <b>Duty Roster</b> tab inside
     <b>Unit Database</b>: the monthly roster is posted once, and this panel fills itself in every day after
-    that. Everyone sees it; only administrators and appointed officers may fill it in. Shift codes follow
-    each unit — Radkom uses <span class=&quot;mono&quot;>P / S / PS / M</span>, the others
-    <span class=&quot;mono&quot;>Pagi / Siang / Malam / PS</span>. A unit with no roster yet shows empty
-    slots rather than made-up names.">
+    that. Everyone sees it; only administrators and appointed officers may fill it in. The codes are
+    <span class=&quot;mono&quot;>PSJ / PSN / MJ / MN</span> — PS and night duty, at JATSC and at New JATSC —
+    plus <span class=&quot;mono&quot;>P / S</span> for a day split between two people. Hours are UTC:
+    PS 00:00–12:00, M 12:00–00:00, and on a day split into P 00:00–07:00 and S 07:00–13:00 the night starts
+    at 13:00 instead. Each unit only shows the codes its own roster actually uses — a unit that never uses
+    P and S carries no empty P and S cards. A unit with no roster yet shows empty slots rather than made-up
+    names.">
     <b>Sumber datanya.</b> Tab <b>Jadwal Dinas</b> di dalam <b>Database Unit</b>: jadwal bulanan ditempel
     sekali, lalu kotak ini terisi sendiri tiap hari. Semua orang bisa melihatnya; yang boleh mengisi hanya
-    administrator dan petugas yang ditunjuk. Kode dinasnya mengikuti unit masing-masing — Radkom
-    memakai <span class="mono">P / S / PS / M</span>, unit lain <span class="mono">Pagi / Siang / Malam / PS</span>.
+    administrator dan petugas yang ditunjuk. Kodenya <span class="mono">PSJ / PSN / MJ / MN</span> — PS dan
+    malam, di JATSC dan di New JATSC — ditambah <span class="mono">P / S</span> untuk hari yang dibagi dua
+    orang. Jamnya UTC: PS 00:00–12:00, M 12:00–00:00, dan pada hari yang dipecah P 00:00–07:00 dan
+    S 07:00–13:00 malamnya baru mulai pukul 13:00. Tiap unit hanya menampilkan kode yang benar-benar
+    dipakai jadwalnya sendiri — unit yang tidak pernah memakai P dan S tidak membawa kartu P dan S kosong.
     Unit yang belum punya jadwal tampil kosong, bukan diisi nama karangan.
+  </div>
+</section>
+
+<!-- ============ KOTAK MASUK ============ -->
+<section class="layar" id="l-kotak">
+  <div class="judul-seksi"><h2 data-en="Inbox — Recurring Jobs by Date">Kotak Masuk — Kegiatan Berkala per Tanggal</h2>
+    <span class="ket" id="ketKotak"></span></div>
+  <div class="pemisah"></div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px" id="saringKotak"></div>
+  <div id="isiKotak"></div>
+  <div class="catatan" data-en="<b>Who a job is addressed to is read from the duty roster, not from the account list.</b>
+    Whoever is written into the roster for that date is the one the job lands on — a job falling on Saturday
+    reaches whoever is rostered for Saturday, not whoever happens to be on duty today. Names in the roster are
+    typed by hand, so they are matched loosely against your account name; a row nobody matches is still shown,
+    with its recipients named, so the job does not quietly belong to no one.">
+    <b>Tujuan pekerjaan dibaca dari jadwal dinas, bukan dari daftar akun.</b> Yang tertulis di jadwal pada
+    tanggal itulah yang kena — pekerjaan yang jatuh Sabtu masuk ke orang yang jadwalnya Sabtu, bukan ke yang
+    kebetulan berdinas hari ini. Nama di jadwal diketik tangan, jadi dicocokkan longgar dengan nama akun Anda;
+    baris yang tidak cocok dengan siapa pun tetap ditampilkan beserta nama penerimanya, supaya tidak ada
+    pekerjaan yang diam-diam tidak jadi milik siapa-siapa.
   </div>
 </section>
 
@@ -1868,23 +1976,39 @@ html[data-tema="gelap"] .sert-sunting input[type=date]::-webkit-calendar-picker-
    dinas, sejarah — tetap contoh, karena modulnya memang belum ada di server.
    ======================================================================= */
 
+/* Kode dinas yang dipakai seluruh unit. Empat yang pertama adalah bentuk
+   sehari-hari — PS dan Malam, masing-masing di JATSC dan New JATSC. P dan S
+   adalah pecahan PS untuk hari yang dibagi dua orang; kalau ia dipakai, malam
+   hari itu mundur ke pukul 13:00. Jamnya ada di SHIFT, jauh di bawah.
+
+   Satu daftar untuk semua unit, bukan per unit: pembagian JATSC/New JATSC itu
+   pembagian gedung, dan gedungnya sama untuk semua teknik. */
+const KODE_DINAS = ['PSJ','PSN','MJ','MN','P','S'];
+
+/* Yang dipasang sebagai petak sebelum ada jadwal yang bisa dibaca. P dan S
+   tidak ikut: keduanya bentuk khusus untuk hari yang dibagi dua orang, dan
+   memasang kartunya di muka hanya melahirkan dua kotak "tidak ada personel"
+   yang tidak pernah terisi. Begitu jadwalnya masuk, petaknya diambil dari
+   kode yang benar-benar terisi di sana — lihat kodeDipakaiUnit(). */
+const KODE_DINAS_INTI = ['PSJ','PSN','MJ','MN'];
+
 let UNIT = [
   { kode:'radtel', nama:'Radtel', alat:'Radio Komunikasi, VSCS Garex, Recording Neptuno',
-    adegan:'menara', dinas:['Pagi','Siang','Malam','PS'] },
+    adegan:'menara', dinas:KODE_DINAS },
   { kode:'radkom', nama:'Radkom', alat:'Radio Komunikasi VHF/HF A/G',
-    adegan:'antena', dinas:['P','S','PS','M'] },
+    adegan:'antena', dinas:KODE_DINAS },
   { kode:'ppabn', nama:'Pendaratan Presisi & Navigasi', alat:'ILS, DVOR/DME, NDB',
-    adegan:'ils', dinas:['Pagi','Siang','Malam','PS'] },
+    adegan:'ils', dinas:KODE_DINAS },
   { kode:'pengamatan', nama:'Pengamatan', alat:'Radar Pengamatan',
-    adegan:'radar', dinas:['Pagi','Siang','Malam','PS'] },
+    adegan:'radar', dinas:KODE_DINAS },
   { kode:'amhsadps', nama:'AMHS-ADPS', alat:'AMHS dan ADPS',
-    adegan:'server', dinas:['Pagi','Siang','Malam','PS'] },
+    adegan:'server', dinas:KODE_DINAS },
   { kode:'fdpsrdps', nama:'FDPS-RDPS', alat:'FDPS dan RDPS',
-    adegan:'kontrol', dinas:['Pagi','Siang','Malam','PS'] },
+    adegan:'kontrol', dinas:KODE_DINAS },
   { kode:'listrikmekanik', nama:'Listrik dan Mekanik', alat:'Kelistrikan dan Mekanikal',
-    adegan:'genset', dinas:['Pagi','Siang','Malam','PS'] },
+    adegan:'genset', dinas:KODE_DINAS },
   { kode:'gedungkeamanan', nama:'Gedung dan Keamanan', alat:'Gedung dan Sistem Keamanan',
-    adegan:'gedung', dinas:['Pagi','Siang','Malam','PS'] }
+    adegan:'gedung', dinas:KODE_DINAS }
 ];
 
 /* Akun contoh. Peran 'admin' dan 'pejabat' membuka semua unit — sama seperti
@@ -1962,28 +2086,100 @@ let TROUBLE = [
   { unit:'radkom', alat:'ant', jenis:'Antenna System', ket:'VSWR antena dipole #9 naik ke 1.9 saat hujan', lokasi:'Tower antena', status:'Open', tgl:'2026-08-06', pic:'A. Rahman' }
 ];
 
-/* Dinas hari ini per unit — tiap unit punya orang dan kode dinasnya sendiri. */
+/* Dinas hari ini per unit. Radkom sengaja dibuat memakai P dan S, bukan PS:
+   itu satu-satunya bentuk hari yang memundurkan malam ke pukul 13:00, dan
+   tanpa satu contoh pun aturan itu tidak pernah kelihatan di data contoh. */
 const DINAS = {
-  radtel:[ {k:'Pagi',o:[{n:'B. Santoso',p:'Teknisi'}]}, {k:'Siang',o:[{n:'R. Alfian',p:'Teknisi'}]},
-           {k:'Malam',o:[{n:'S. Handoko',p:'Teknisi'}]}, {k:'PS',o:[{n:'G. Nugroho',p:'Penanggung Jawab'}]} ],
+  radtel:[ {k:'PSJ',o:[{n:'B. Santoso',p:'Teknisi'}]}, {k:'PSN',o:[{n:'R. Alfian',p:'Teknisi'}]},
+           {k:'MJ',o:[{n:'S. Handoko',p:'Teknisi'}]}, {k:'MN',o:[{n:'G. Nugroho',p:'Penanggung Jawab'}]} ],
   radkom:[ {k:'P',o:[{n:'A. Rahman',p:'Teknisi'}]}, {k:'S',o:[{n:'T. Wibisono',p:'Teknisi'}]},
-           {k:'M',o:[{n:'Y. Saputra',p:'Teknisi'}]}, {k:'PS',o:[{n:'M. Fauzi',p:'Manager Teknik'}]} ],
-  ppabn:[ {k:'Pagi',o:[{n:'E. Kurnia',p:'Teknisi'}]}, {k:'Siang',o:[{n:'N. Aprilia',p:'Teknisi'}]},
-          {k:'Malam',o:[{n:'W. Gunawan',p:'Teknisi'}]}, {k:'PS',o:[]} ],
-  pengamatan:[ {k:'Pagi',o:[{n:'F. Hidayat',p:'Teknisi'}]}, {k:'Siang',o:[{n:'L. Ramadhan',p:'Teknisi'}]},
-               {k:'Malam',o:[{n:'P. Adiputra',p:'Teknisi'}]}, {k:'PS',o:[]} ],
-  amhsadps:[ {k:'Pagi',o:[{n:'C. Wijaya',p:'Teknisi'}]}, {k:'Siang',o:[{n:'K. Mahendra',p:'Teknisi'}]},
-             {k:'Malam',o:[]}, {k:'PS',o:[{n:'H. Setiawan',p:'Admin'}]} ],
-  fdpsrdps:[ {k:'Pagi',o:[{n:'C. Wijaya',p:'Teknisi'}]}, {k:'Siang',o:[{n:'V. Anggara',p:'Teknisi'}]},
-             {k:'Malam',o:[]}, {k:'PS',o:[]} ],
-  listrikmekanik:[ {k:'Pagi',o:[{n:'D. Prasetyo',p:'Teknisi'}]}, {k:'Siang',o:[{n:'I. Kurniawan',p:'Teknisi'}]},
-                   {k:'Malam',o:[{n:'Z. Firmansyah',p:'Teknisi'}]}, {k:'PS',o:[]} ],
-  gedungkeamanan:[ {k:'Pagi',o:[{n:'G. Nugroho',p:'Teknisi'}]}, {k:'Siang',o:[{n:'U. Salim',p:'Teknisi'}]},
-                   {k:'Malam',o:[{n:'O. Pratama',p:'Teknisi'}]}, {k:'PS',o:[]} ]
+           {k:'MJ',o:[{n:'Y. Saputra',p:'Teknisi'}]}, {k:'MN',o:[{n:'M. Fauzi',p:'Manager Teknik'}]} ],
+  ppabn:[ {k:'PSJ',o:[{n:'E. Kurnia',p:'Teknisi'}]}, {k:'PSN',o:[{n:'N. Aprilia',p:'Teknisi'}]},
+          {k:'MJ',o:[{n:'W. Gunawan',p:'Teknisi'}]}, {k:'MN',o:[]} ],
+  pengamatan:[ {k:'PSJ',o:[{n:'F. Hidayat',p:'Teknisi'}]}, {k:'PSN',o:[{n:'L. Ramadhan',p:'Teknisi'}]},
+               {k:'MJ',o:[{n:'P. Adiputra',p:'Teknisi'}]}, {k:'MN',o:[]} ],
+  amhsadps:[ {k:'PSJ',o:[{n:'C. Wijaya',p:'Teknisi'}]}, {k:'PSN',o:[{n:'K. Mahendra',p:'Teknisi'}]},
+             {k:'MJ',o:[]}, {k:'MN',o:[{n:'H. Setiawan',p:'Admin'}]} ],
+  fdpsrdps:[ {k:'PSJ',o:[{n:'C. Wijaya',p:'Teknisi'}]}, {k:'PSN',o:[{n:'V. Anggara',p:'Teknisi'}]},
+             {k:'MJ',o:[]}, {k:'MN',o:[]} ],
+  listrikmekanik:[ {k:'PSJ',o:[{n:'D. Prasetyo',p:'Teknisi'}]}, {k:'PSN',o:[{n:'I. Kurniawan',p:'Teknisi'}]},
+                   {k:'MJ',o:[{n:'Z. Firmansyah',p:'Teknisi'}]}, {k:'MN',o:[]} ],
+  gedungkeamanan:[ {k:'PSJ',o:[{n:'G. Nugroho',p:'Teknisi'}]}, {k:'PSN',o:[{n:'U. Salim',p:'Teknisi'}]},
+                   {k:'MJ',o:[{n:'O. Pratama',p:'Teknisi'}]}, {k:'MN',o:[]} ]
 };
-const JAM_SHIFT = { 'Pagi':[7,14], 'Siang':[14,21], 'Malam':[21,31], 'PS':[7,16], 'P':[7,14], 'S':[14,21], 'M':[21,31] };
-const WARNA_SHIFT = { 'Pagi':'var(--accent)','P':'var(--accent)', 'Siang':'var(--warn)','S':'var(--warn)',
-                      'Malam':'var(--muted)','M':'var(--muted)', 'PS':'var(--ok)' };
+/* =======================================================================
+   KODE DINAS
+
+   Jamnya UTC, sama seperti lembar jadwal yang diedarkan tiap bulan. Di
+   penerbangan UTC yang jadi patokan, dan menuliskan lembar sumbernya dalam
+   WIB hanya memindahkan kesalahan ke tempat lain. Konversi ke WIB terjadi
+   sekali saja, waktu menggambar label — hitungan "sedang dinas" tetap UTC,
+   supaya benar juga kalau dashboard ini dibuka dari zona waktu lain.
+
+   J = JATSC, N = New JATSC. Dua gedung dengan jam yang sama persis; yang
+   dibedakan tempat orangnya berdinas, bukan panjang shiftnya.
+
+   Malam berangkat pukul 12:00, tepat saat PS pulang. Tapi kalau hari itu
+   dipecah P (00–07) dan S (07–13), siangnya baru selesai pukul 13:00 dan
+   malamnya ikut mundur satu jam. Itulah gunanya `geser` di bawah: penanda
+   bahwa kode ini memanjangkan hari, dan `malam` pada yang ikut mundur.
+
+   `pita` menyebut pita mana yang mewakili kode ini di panel Cakupan 24 Jam.
+   PSJ dan PSN berbagi pita yang sama persis; menggambar keduanya bertumpuk di
+   tempat yang sama tidak menerangkan apa pun.
+   ======================================================================= */
+const SHIFT = {
+  'PSJ':  { mulai:0,  sampai:12, warna:'var(--ok)',     nama:'PS JATSC',        pita:'PS' },
+  'PSN':  { mulai:0,  sampai:12, warna:'var(--ok)',     nama:'PS New JATSC',    pita:'PS' },
+  'MJ':   { mulai:12, sampai:24, warna:'var(--muted)',  nama:'Malam JATSC',     pita:'M', malam:true },
+  'MN':   { mulai:12, sampai:24, warna:'var(--muted)',  nama:'Malam New JATSC', pita:'M', malam:true },
+  'P':    { mulai:0,  sampai:7,  warna:'var(--accent)', nama:'Pagi',            pita:'P', geser:true },
+  'S':    { mulai:7,  sampai:13, warna:'var(--warn)',   nama:'Siang',           pita:'S', geser:true },
+  /* Tanpa huruf gedung. Tidak ditawarkan di daftar kode unit — lembar yang
+     menulis 'PS' saja belum menyebut JATSC atau New JATSC, dan impor memang
+     harus melaporkannya sebagai kode asing supaya dilengkapi. Tetap dikenal
+     di sini supaya jamnya dan warnanya betul kalau terlanjur terisi. */
+  'PS':   { mulai:0,  sampai:12, warna:'var(--ok)',     nama:'Pagi–Siang',      pita:'PS' },
+  'M':    { mulai:12, sampai:24, warna:'var(--muted)',  nama:'Malam',           pita:'M', malam:true },
+  /* Nama lama, dari sebelum kode JATSC/New dipakai. Masih ada di data contoh
+     dan di jadwal yang terlanjur diisi; membuangnya akan mengosongkan petak
+     dinas keduanya tanpa ada yang tahu sebabnya. */
+  'Pagi':  { mulai:0,  sampai:7,  warna:'var(--accent)', nama:'Pagi',  pita:'P', geser:true },
+  'Siang': { mulai:7,  sampai:13, warna:'var(--warn)',   nama:'Siang', pita:'S', geser:true },
+  'Malam': { mulai:12, sampai:24, warna:'var(--muted)',  nama:'Malam', pita:'M', malam:true }
+};
+
+/* Urutan pita di panel Cakupan 24 Jam, dari yang paling lebar. */
+const URUT_PITA = ['PS','M','P','S'];
+
+/**
+ * Jam satu kode dinas dalam UTC, sebagai { mulai, sampai }.
+ *
+ * `kodeHari` adalah seluruh kode yang benar-benar dipakai unit itu pada hari
+ * yang sama. Ia hanya berpengaruh pada shift malam: kalau harinya dipecah P
+ * dan S, malamnya mulai 13:00, bukan 12:00.
+ */
+function jamShift(kode, kodeHari){
+  const s = SHIFT[kode];
+  if(!s) return { mulai:0, sampai:0 };
+  const mundur = s.malam && (kodeHari || []).some(k=>SHIFT[k] && SHIFT[k].geser);
+  return { mulai: mundur ? 13 : s.mulai, sampai: s.sampai };
+}
+
+/** Warna satu kode dinas. `lain` dipakai untuk kode yang tidak dikenal — di
+    kartu dinas abu-abu masih masuk akal, di sel tabel jadwal tidak. */
+const warnaShift = (kode, lain) => (SHIFT[kode] && SHIFT[kode].warna) ||
+                                   (lain === undefined ? 'var(--muted)' : lain);
+
+/** Sedang berjalan sekarang? Diukur dengan jam UTC, bukan jam peramban. */
+const sedangShift = (j) => { const u = new Date().getUTCHours(); return u >= j.mulai && u < j.sampai; };
+
+const jamPad  = (h) => String(h % 24).padStart(2,'0') + ':00';
+const jamWib  = (h) => jamPad(h + 7);
+/** "00:00–12:00 UTC" — patokannya, dan yang tertulis di lembar aslinya. */
+const labelUtc = (j) => `${jamPad(j.mulai)}–${jamPad(j.sampai)} UTC`;
+/** "07:00–19:00 WIB" — untuk yang membaca sambil melihat jam dinding. */
+const labelWib = (j) => `${jamWib(j.mulai)}–${jamWib(j.sampai)} WIB`;
 
 const PART = [
   { nama:'Power Amplifier VHF 50W', pn:'PA-50-VHF-R3', unit:'radkom', rak:'A-01', stok:2, min:2, satuan:'pcs', pakai:'2026-06-18' },
@@ -2421,6 +2617,7 @@ function kmBangunPanggung(){
   const wadah = document.getElementById('kmScene');
   const lapis = document.getElementById('kmLapis');
   const detail = document.getElementById('kmDetail');
+  const tombolUlang = document.getElementById('kmUlangi');
   const w = wadah.clientWidth || 1200, h = wadah.clientHeight || 700;
 
   const renderer = new T.WebGLRenderer({ antialias:true, alpha:false });
@@ -2441,9 +2638,17 @@ function kmBangunPanggung(){
      layar desktop. Di HP bingkainya tinggi-sempit dan bandara ini melebar, jadi
      sudut rendah cuma menghasilkan langit hitam. Yang menolong bukan mundur —
      kabut mulai di 380 dan semuanya jadi kelabu — melainkan menunduk. */
-  const sempitAwal = w < 700;
-  let jarak = 320, yaw = 0.85, pitch = sempitAwal ? 0.72 : 0.42, otomatis = !kmDiam;
-  if(!sempitAwal) jarak = 330;
+  let jarak, yaw, pitch, otomatis = !kmDiam;
+  /* Posisi awalnya dihitung, bukan ditulis sekali di tempat: tombol PUTAR ULANG
+     memanggil fungsi yang sama, dan lebar panggung bisa sudah berubah sejak
+     halaman dibuka. */
+  const kameraAwal = () => {
+    const sempit = (wadah.clientWidth || w) < 700;
+    jarak = sempit ? 320 : 330;
+    yaw   = 0.85;
+    pitch = sempit ? 0.72 : 0.42;
+  };
+  kameraAwal();
   const pasangKamera = () => {
     pitch = Math.max(0.08, Math.min(1.15, pitch));
     jarak = Math.max(120, Math.min(760, jarak));
@@ -2453,14 +2658,24 @@ function kmBangunPanggung(){
       bidik.z + jarak*Math.cos(pitch)*Math.cos(yaw));
     camera.lookAt(bidik);
   };
+  /* Kamera diserahkan ke pemakainya begitu ia benar-benar memutar panggung.
+     Dulu ini terjadi di pointerdown, jadi satu klik saja — tanpa geser
+     sedikit pun — sudah mematikan putaran otomatisnya, dan yang mengklik
+     tidak merasa meminta apa-apa. */
+  const hentiOtomatis = () => {
+    if(!otomatis) return;
+    otomatis = false;
+    tombolUlang.classList.add('km-perlu');
+  };
   let seret = null;
   const kanvas = renderer.domElement;
   kanvas.addEventListener('pointerdown', e=>{
-    seret = { x:e.clientX, y:e.clientY }; otomatis = false;
+    seret = { x:e.clientX, y:e.clientY };
     wadah.classList.add('km-geser'); kanvas.setPointerCapture(e.pointerId);
   });
   kanvas.addEventListener('pointermove', e=>{
     if(!seret) return;
+    hentiOtomatis();
     yaw   -= (e.clientX - seret.x) * 0.005;
     pitch += (e.clientY - seret.y) * 0.004;
     seret = { x:e.clientX, y:e.clientY };
@@ -2470,7 +2685,7 @@ function kmBangunPanggung(){
   kanvas.addEventListener('pointerup', lepas);
   kanvas.addEventListener('pointercancel', lepas);
   kanvas.addEventListener('wheel', e=>{
-    e.preventDefault(); otomatis = false;
+    e.preventDefault(); hentiOtomatis();
     jarak *= 1 + Math.sign(e.deltaY)*0.08;
     pasangKamera(); if(kmDiam) gambarSekali();
   }, { passive:false });
@@ -2852,7 +3067,13 @@ function kmBangunPanggung(){
     proyeksi(v, labelPesawat);
   }
 
-  function gambarSekali(){ tataLabel(); renderer.render(scene, camera); }
+  /* Digambar dulu, labelnya menyusul. tataLabel() memproyeksikan lewat
+     camera.matrixWorldInverse, dan yang menyegarkan matriks itu render() —
+     jadi label yang ditata lebih dulu selalu memakai kamera sebelumnya. Di
+     loop 60fps selisih satu gambar tidak terlihat, tapi gambarSekali() dipakai
+     justru di tempat yang tidak ada gambar berikutnya: setelah resize dan
+     setelah PUTAR ULANG dalam mode hemat gerak. */
+  function gambarSekali(){ renderer.render(scene, camera); tataLabel(); }
 
   let raf = 0, jalan = false;
   const gerak = () => {
@@ -2870,7 +3091,10 @@ function kmBangunPanggung(){
     if(!jalan) gambarSekali();
   }).observe(wadah);
 
-  return {
+  /* Diberi nama, bukan dikembalikan sebagai objek anonim: ulangi() memanggil
+     jalankan(), dan `this` di dalam objek literal ikut ke mana pun metodenya
+     dipegang orang. */
+  const kendali = {
     jalankan(){
       if(jalan) return;
       jalan = true;
@@ -2878,8 +3102,24 @@ function kmBangunPanggung(){
       jam.getDelta();          // buang selisih waktu selama dijeda
       gerak();
     },
-    jeda(){ jalan = false; cancelAnimationFrame(raf); }
+    jeda(){ jalan = false; cancelAnimationFrame(raf); },
+    /* Seluruh panggung dikembalikan ke keadaan sesaat setelah halaman dibuka:
+       kamera di sudut awalnya, putaran otomatis hidup lagi, dan kedatangan
+       GIA 652 dimulai ulang dari final approach. Cukup mengatur ulang angka —
+       geometri, cahaya, dan renderer-nya tidak perlu dibangun ulang, dan itu
+       yang membuatnya tidak perlu menyegarkan halaman. */
+    ulangi(){
+      kameraAwal();
+      pasangKamera();
+      otomatis = !kmDiam;
+      tombolUlang.classList.remove('km-perlu');
+      waktu = 0; kirimTerakhir = -1;
+      // Loop yang sudah jalan menggambar sendiri; yang dijeda dinyalakan, dan
+      // dalam mode hemat gerak jalankan() menggambar sekali lalu berhenti lagi.
+      if(jalan) gambarSekali(); else kendali.jalankan();
+    }
   };
+  return kendali;
 }
 
 /* Blok SESI di rel kiri mengikuti kolom username, jadi sebelum menekan Masuk
@@ -2905,7 +3145,7 @@ function kmSegarkanSesi(){
   el('kmSesi').classList.toggle('km-siap', !!a);
   el('kmSesiInisial').textContent = a ? inisial(a.nama) : '—';
   el('kmSesiNama').textContent    = a ? a.nama.toUpperCase() : 'BELUM LOGIN';
-  el('kmSesiPeran').textContent   = a ? a.peran.toUpperCase() : 'KLIK UNTUK MASUK';
+  el('kmSesiPeran').textContent   = a ? a.peran.toUpperCase() : 'KLIK UNTUK MASUK ATAU DAFTAR';
   el('kmSesiKet').textContent     = a ? sumber : 'AKSES TERBATAS · READ ONLY';
 }
 
@@ -2913,8 +3153,174 @@ function kmSegarkanSesi(){
    apa-apa, dan itu keadaan awalnya. */
 function kmSetMasuk(buka){
   el('kmLapisMasuk').classList.toggle('km-buka', buka);
-  if(buka) el('iUser').focus();
+  if(buka){
+    (KM_TAB === 'daftar' ? el('dfNama') : el('iUser')).focus();
+    // Sesinya ditanyakan ulang tiap kartu dibuka. Lihat srvSegarkanSesi().
+    srvSegarkanSesi();
+  }
   else document.activeElement?.blur?.();   // fokus tidak boleh tertinggal di kartu yang sudah tak terlihat
+}
+
+/* =======================================================================
+   DUA ISI KARTU MASUK: MASUK DAN DAFTAR AKUN
+
+   Pendaftaran mandiri dulu ada di layar login E-Logbook. Sejak Kelola Akun
+   pindah ke sini, layar itu tidak lagi dipakai, dan pintu masuk akun baru
+   ikut pindah — formulirnya di sini, endpoint-nya tetap /api/daftar milik
+   E-Logbook. Yang dibuatnya akun NONAKTIF tanpa unit; aturan itu milik
+   server dan tidak ditiru di sini.
+
+   Perpindahannya lewat satu tautan di kaki kartu, bukan deret tombol sendiri.
+   Deret itu pernah ada, tepat di atas pemilih TUJUAN, dan dua baris tombol
+   sebentuk yang artinya berbeda membuat keduanya harus dibaca dulu sebelum
+   bisa dipakai. Yang tersisa satu deret: E-LOGBOOK, DASHBOARD, DATA CONTOH.
+   ======================================================================= */
+let KM_TAB = 'masuk';
+let KM_SUB_MASUK = '';   // kalimat pembuka aslinya, diambil dari markup sekali
+
+/** Kalimat di bawah judul kartu ikut isinya — satu-satunya baris yang
+    menjelaskan apa yang sedang diisi orangnya. */
+function kmSetTab(tab, fokus){
+  if(tab === 'daftar' && !SRV.ada) tab = 'masuk';
+  KM_TAB = tab;
+  const daftar = tab === 'daftar';
+  // hidden, bukan sekadar disamarkan: kolom password yang tak terlihat tapi
+  // masih bisa dihampiri Tab adalah jebakan bagi yang berpindah kolom dengan
+  // papan ketik.
+  el('kmPanelMasuk').hidden  = daftar;
+  el('kmPanelDaftar').hidden = !daftar;
+  el('kmSubTeks').textContent = daftar
+    ? 'Buat akun E-Logbook baru dari sini. Akunnya langsung terbentuk tetapi masih '
+      + 'nonaktif — administrator yang mengaktifkannya, lalu menentukan peran dan unitnya.'
+    : KM_SUB_MASUK;
+  if(daftar) ketDaftar();
+  if(fokus) (daftar ? el('dfNama') : el('iUser')).focus();
+}
+
+/** Baris status di bawah tombol Kirim pendaftaran. Kembarannya srvKet(). */
+function ketDaftar(teks, rupa){
+  const k = el('ketDaftar');
+  if(!teks){
+    teks = SRV.ada
+      ? 'Akun baru lahir sebagai teknisi, tanpa unit, dan nonaktif. Membuka pendaftaran '
+        + 'tidak sama dengan membuka pintu — administrator yang mengaktifkannya.'
+      : 'Pendaftaran menulis ke database E-Logbook, dan servernya tidak terjawab dari sini.';
+    rupa = SRV.ada ? '' : 'km-awas';
+  }
+  k.className = 'km-sumber-ket ' + (rupa || '');
+  k.querySelector('span').textContent = teks;
+}
+
+async function daftarKirim(){
+  if(!SRV.ada){ ketDaftar(); return; }
+  const nama     = el('dfNama').value.trim();
+  const username = el('dfUser').value.trim().toLowerCase();
+  const p1 = el('dfPass').value, p2 = el('dfPass2').value;
+
+  // Diperiksa di sini juga, bukan cuma di server: yang salah ketik pantas tahu
+  // sebelum permintaannya berangkat. Aturannya tetap milik server — ia
+  // memeriksa ulang semuanya, dan halaman ini tidak menjaga apa pun.
+  if(!nama){ ketDaftar('Nama lengkap belum diisi.', 'km-awas'); return; }
+  if(!/^[a-z0-9._-]{3,32}$/.test(username)){
+    ketDaftar('Username 3–32 karakter: huruf kecil, angka, titik, garis bawah, atau strip.', 'km-awas');
+    return;
+  }
+  if(p1.length < 6){ ketDaftar('Password minimal 6 karakter.', 'km-awas'); return; }
+  if(p1 !== p2){ ketDaftar('Ulangan passwordnya belum sama.', 'km-awas'); return; }
+
+  const btn = el('btnDaftar'), teksAsli = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Mengirim...';
+  ketDaftar('Mengirim pendaftaran ke server...', 'km-sibuk');
+  try{
+    const r = await srvFetch('/api/daftar', {
+      method:'POST', headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({ nama, username, password:p1 })
+    });
+    const j = await r.json().catch(()=>({}));
+    if(!r.ok){ ketDaftar(j.error || 'Pendaftaran ditolak server.', 'km-awas'); return; }
+    ['dfNama','dfUser','dfPass','dfPass2'].forEach(id=>{ el(id).value = ''; });
+    ketDaftar('Akun ' + username + ' terdaftar dan menunggu diaktifkan administrator. '
+      + 'Setelah aktif, masuk lewat tab MASUK dengan akun itu.', 'km-baik');
+  }catch(e){
+    ketDaftar('Server tidak terjawab: ' + (e && e.message || e), 'km-awas');
+  }finally{
+    btn.disabled = false; btn.textContent = teksAsli;
+  }
+}
+
+/* =======================================================================
+   NAMA YANG MENEMPEL DI KARTU MASUK
+
+   Kartu ini menawarkan "Lanjutkan sebagai X" selama cookie E-Logbook masih
+   hidup, dan kolom username ikut terisi sendiri. Itu benar selama sesinya
+   memang masih ada — masalahnya SRV.sesi cuma ditanyakan sekali, waktu
+   halaman dibuka. Sesi yang sesudah itu habis, atau diputus dari tab
+   E-Logbook, tetap terpampang di sini sampai halaman disegarkan.
+
+   Dua jalan keluarnya, dan keduanya dipasang:
+     - ditanyakan ulang tiap kartu masuk dibuka dan tiap orang keluar dari
+       dashboard, jadi nama yang sudah tidak berlaku hilang sendiri;
+     - tombol Keluar di dashboard memutus sesinya sungguhan, jadi tidak ada
+       nama yang bisa menempel sesudahnya.
+
+   Sempat ada tombol ketiga, "Bukan Anda? Ganti akun", untuk komputer yang
+   dipakai bergantian. Ia dibuang setelah Keluar benar-benar memutus sesi.
+
+   Sempat ada juga ingatan username di localStorage, supaya sesudah keluar
+   kolomnya sudah terisi dan yang tersisa mengetik password. Itu pun dibuang:
+   sesi yang sudah diputus tidak pantas meninggalkan siapa pun di layar. Kartu
+   masuk sekarang selalu mulai kosong, dan nama pemakai sebelumnya tidak
+   tertinggal di peramban komputer yang dipakai bergantian.
+   ======================================================================= */
+
+/* Ingatan username yang dulu disimpan di sini dibuang, tapi nilainya bisa
+   masih tertinggal di peramban orang yang sudah memakai versi sebelumnya.
+   Dihapus sekali saat halaman dimuat — kalau tidak, ia diam di sana tanpa ada
+   satu baris pun yang akan membacanya lagi. */
+try{ localStorage.removeItem('avenger.user.terakhir'); }catch(e){ /* localStorage ditutup */ }
+
+/** Sudah ada yang menyentuh kolom username? Kalau ya, isinya tidak boleh
+    ditimpa sesi mana pun — juga tidak dikosongkan saat sesinya ternyata mati. */
+let userDiketik = false;
+
+async function srvSegarkanSesi(){
+  if(!SRV.ada) return;
+  let baru = null;
+  try{
+    const r = await srvFetch('/api/me', {}, 5000);
+    const j = await r.json().catch(()=>null);
+    // Jawaban yang tidak jelas tidak dipakai menyimpulkan apa-apa: yang
+    // menghapus nama hanya jawaban yang benar-benar datang dan terbaca.
+    if(!j || (r.status !== 200 && r.status !== 401)) return;
+    baru = (r.status === 200 && j.user) ? j.user : null;
+  }catch(e){ return; }
+
+  if((baru && baru.username) === (SRV.sesi && SRV.sesi.username)) return;
+  SRV.sesi = baru;
+  // Sesinya habis: nama yang menempel dilepas, lalu segarkanKartuMasuk()
+  // mengisinya kembali dengan username yang terakhir dipakai — bukan
+  // dibiarkan kosong seperti dulu.
+  if(!baru && !userDiketik) el('iUser').value = '';
+  segarkanKartuMasuk();
+}
+
+/* Satu-satunya tempat di halaman ini yang memanggil /api/logout, dan sekarang
+   ia dipanggil tombol Keluar.
+
+   Dulu tidak: Keluar sengaja tidak memutus sesi E-Logbook, alasannya orangnya
+   mungkin masih memakai tab E-Logbook di sebelah dan tidak pantas ikut
+   tertendang. Yang memutus cuma tombol "Ganti akun" di kartu masuk.
+
+   Itu dibalik atas permintaan, dan alasannya lebih kuat: keluar yang tidak
+   benar-benar mengeluarkan adalah janji yang tidak ditepati. Di komputer yang
+   dipakai bergantian, orang berikutnya menemukan "Lanjutkan sebagai <nama
+   orang sebelumnya>" dan bisa menekannya tanpa password sama sekali. Tab
+   E-Logbook yang ikut tertutup itu harga yang jauh lebih murah. */
+async function putusSesiServer(){
+  if(!SRV.ada) return;
+  try{ await srvFetch('/api/logout', { method:'POST' }, 5000); }
+  catch(e){ console.warn('Logout E-Logbook gagal:', e && e.message || e); }
+  SRV.sesi = null;
 }
 
 function kmMulai(){
@@ -2932,8 +3338,19 @@ function kmMulai(){
   document.addEventListener('keydown', e=>{
     if(e.key === 'Escape' && !el('layarMasuk').classList.contains('pergi')) kmSetMasuk(false);
   });
-  el('iUser').addEventListener('input', kmSegarkanSesi);
+  el('iUser').addEventListener('input', ()=>{ userDiketik = true; kmSegarkanSesi(); });
   kmSegarkanSesi();
+
+  // Kalimat pembuka aslinya diambil dari markup, bukan ditulis ulang di JS —
+  // satu kalimat di dua tempat pasti berbeda cepat atau lambat.
+  KM_SUB_MASUK = el('kmSubTeks').textContent.replace(/\s+/g, ' ').trim();
+  el('btnBukaDaftar').addEventListener('click',   ()=>kmSetTab('daftar', true));
+  el('btnKembaliMasuk').addEventListener('click', ()=>kmSetTab('masuk',  true));
+  el('btnDaftar').addEventListener('click', daftarKirim);
+  // Enter di kolom mana pun mengirim pendaftarannya, sama seperti di kartu masuk.
+  ['dfNama','dfUser','dfPass','dfPass2'].forEach(id=>{
+    el(id).addEventListener('keydown', e=>{ if(e.key === 'Enter') daftarKirim(); });
+  });
 
   /* Panggung dijeda begitu layar masuk pergi dan jalan lagi kalau pemakai
      keluar dari dashboard. MutationObserver, bukan tambalan di masuk() dan
@@ -2945,11 +3362,17 @@ function kmMulai(){
     else kmPanggung.jalankan();
   }).observe(layar, { attributes:true, attributeFilter:['class'] });
 
+  el('kmUlangi').addEventListener('click', ()=>{ if(kmPanggung) kmPanggung.ulangi(); });
+
   /* three.js datang dari CDN. Kalau dalam 8 detik belum ada, panggungnya
      dilewatkan — kisi radar di CSS yang tersisa, kartu masuk tetap jalan. */
   (function tunggu(sisa){
     if(window.THREE){
-      try{ kmPanggung = kmBangunPanggung(); kmPanggung.jalankan(); }
+      try{
+        kmPanggung = kmBangunPanggung();
+        kmPanggung.jalankan();
+        el('kmUlangi').hidden = false;   // baru ada gunanya sekarang
+      }
       catch(e){ console.error('Panggung layar masuk gagal dibangun:', e); }
       return;
     }
@@ -3040,7 +3463,7 @@ const unitBoleh = () => UNIT.filter(u=>bolehBuka(u.kode));
  *
  * Tiga sumber, berurutan: jadwal bulanan yang memang sudah diisi orang (modul
  * Jadwal Dinas di bawah), lalu — hanya dalam data contoh — daftar karangan di
- * CONTOH, lalu petak kosong menurut kode dinas unit itu.
+ * CONTOH, lalu petak kosong menurut kode dinas baku.
  *
  * Saat tersambung ke server, unit yang belum punya jadwal tampil KOSONG, bukan
  * diisi nama karangan: alasannya sama dengan cuplikan logbook di layar unit.
@@ -3050,8 +3473,7 @@ const unitBoleh = () => UNIT.filter(u=>bolehBuka(u.kode));
 function dinasUnit(kode){
   const nyata = dinasHariIni(kode);
   if(nyata) return nyata;
-  const kosong = () => (infoUnit(kode).dinas || []).map(k=>({ k, o:[] }));
-  return SRV.aktif ? kosong() : (DINAS[kode] || kosong());
+  return SRV.aktif ? petakBaku(kode) : (DINAS[kode] || petakBaku(kode));
 }
 
 function pesan(teks){
@@ -3066,120 +3488,49 @@ function pesan(teks){
    keduanya membaca SRV, dan SRV baru lahir di blok JEMBATAN di bawah. */
 
 /* =======================================================================
-   DAFTAR AKUN DI KARTU MASUK
+   TIDAK ADA LAGI DAFTAR AKUN DI KARTU MASUK
 
-   Dua daftar yang berbeda, satu tempat: dalam data contoh yang muncul akun
-   contoh, dalam mode server yang muncul akun E-Logbook sungguhan — diambil
-   dari /api/akun-daftar, satu-satunya jalur yang dijawab sebelum login.
+   Pernah ada, dan bentuknya deret tombol berisi seluruh username yang sedang
+   aktif: tekan satu, kolom username terisi. Dalam data contoh yang muncul akun
+   contoh; tersambung, yang muncul akun E-Logbook sungguhan dari
+   /api/akun-daftar.
 
-   Yang datang dari sana hanya username dan nama; peran, unit, dan status
-   aktif tidak ikut, dan akun nonaktif tidak dikirim sama sekali. Rinciannya
-   ada di catatan endpoint itu di elogbook/server.js — termasuk apa yang
-   dikorbankan dengan membukanya.
+   Dibuang atas permintaan, dan itu sekaligus mengembalikan penjagaan yang dulu
+   dikorbankan untuknya. /api/login di E-Logbook sengaja menyamakan pesan
+   salahnya — "username atau password salah", tidak pernah menyebut yang mana —
+   supaya tidak ketahuan username mana yang terdaftar. Daftar pra-login
+   membatalkan itu seluruhnya: yang tersisa untuk ditebak cuma password.
+   Sekarang keduanya harus ditebak lagi.
+
+   Sempat digantikan ingatan satu username di peramban ini sendiri. Itu pun
+   sudah dibuang: yang mengetik username kini mengetiknya sendiri, dan tidak
+   ada nama yang tertinggal untuk orang berikutnya.
+
+   /api/akun-daftar tidak dipanggil dari mana pun lagi. Endpointnya masih hidup
+   di E-Logbook; matikan sekalian dengan ELOGBOOK_DAFTAR_AKUN=0.
    ======================================================================= */
-let AKUN_SERVER = [];        // [{username, nama}] dari E-Logbook
-let AKUN_SERVER_KET = '';    // sebab kalau daftarnya tidak bisa diambil
 
-/** Ambil daftar akun sungguhan. Gagalnya tidak fatal: kolom username tetap
-    bisa diketik, dan itu memang cara sebelumnya. */
-async function muatAkunServer(){
-  if(!SRV.ada){ AKUN_SERVER = []; AKUN_SERVER_KET = ''; return; }
-  try{
-    const r = await srvFetch('/api/akun-daftar', {}, 8000);
-    const j = await r.json().catch(()=>null);
-    if(!r.ok) throw new Error((j && j.error) || ('server menjawab ' + r.status));
-    AKUN_SERVER = Array.isArray(j && j.akun) ? j.akun : [];
-    AKUN_SERVER_KET = '';
-  }catch(e){
-    AKUN_SERVER = [];
-    AKUN_SERVER_KET = e && e.message || String(e);
-    console.warn('Daftar akun E-Logbook tidak terbaca:', AKUN_SERVER_KET);
-  }
-  gambarDaftarAkun();
-}
-
-/** Daftar yang sedang berlaku, sudah disaring kotak cari. */
-function akunUntukDitampilkan(){
-  const server = SRV.mode === 'server';
-  const kata = el('cariAkun').value.trim().toLowerCase();
-  const semua = server
-    ? AKUN_SERVER.map(a=>({ username:a.username, nama:a.nama || a.username, aktif:true, ket:a.nama || '' }))
-    : akunContohMuat().map(a=>({ username:a.username, nama:a.nama || a.username, aktif:a.aktif,
-        ket:(a.peran || PERAN_SERVER[a.role] || a.role || '') + (a.aktif ? '' : ' — nonaktif') }));
-  if(!kata) return semua;
-  return semua.filter(a=>`${a.username} ${a.nama}`.toLowerCase().includes(kata));
-}
-
-function gambarDaftarAkun(){
-  const server = SRV.mode === 'server';
-  const daftar = akunUntukDitampilkan();
-
-  el('jdlAkun').textContent = server
-    ? T('Akun E-Logbook — klik untuk mengisi', 'E-Logbook accounts — click to fill in')
-    : T('Akun contoh — klik untuk mengisi', 'Sample accounts — click to fill in');
-
-  // Kotak cari baru berguna kalau daftarnya memang panjang. Di bawah itu ia
-  // cuma satu isian lagi yang harus dilewati mata.
-  const banyak = (server ? AKUN_SERVER.length : akunContohMuat().length) > 8;
-  el('cariAkun').hidden = !banyak;
-  if(!banyak) el('cariAkun').value = '';
-
-  el('daftarAkun').innerHTML = daftar.length
-    ? daftar.map(a=>`<button data-user="${esc(a.username)}" title="${esc(a.ket)}"${
-        a.aktif ? '' : ' style="opacity:.45"'}>${esc(a.username)}</button>`).join('')
-    : `<div class="km-kosong">${
-        server && !AKUN_SERVER.length
-          ? (AKUN_SERVER_KET
-              ? T('Daftar akun tidak bisa diambil: ','The account list could not be fetched: ') + esc(AKUN_SERVER_KET)
-              : T('Server tidak membuka daftar akun. Ketik username Anda.',
-                  'The server does not publish an account list. Type your username.'))
-          : T('Tidak ada yang cocok.','Nothing matches.')}</div>`;
-
-  el('ketAkun').textContent = server
-    ? T('Daftar ini akun E-Logbook yang sedang aktif — hanya username dan namanya, tidak lebih. '
-        + 'Sandinya tetap harus diisi, dan administrator mengurus akunnya dari tab Kelola Akun di dashboard ini.',
-        'These are the currently active E-Logbook accounts — username and name only, nothing more. '
-        + 'The password is still required, and administrators manage the accounts from the Manage Accounts tab here.')
-    : T('Ini prototipe: sandinya tidak diperiksa dan tidak ada data sungguhan di baliknya. '
-        + 'Pemeriksaan akun yang asli tetap milik server E-Logbook.',
-        'This is a prototype: the password is not checked and there is no real data behind it. '
-        + 'Real account checking still belongs to the E-Logbook server.');
-}
-
-/** Nama lama, dipakai di beberapa tempat yang memuat ulang daftar akun contoh. */
-const gambarAkunContoh = gambarDaftarAkun;
-
-el('cariAkun').addEventListener('input', gambarDaftarAkun);
-el('daftarAkun').addEventListener('click', e=>{
-  const b = e.target.closest('button[data-user]'); if(!b) return;
-  el('iUser').value = b.dataset.user;
-  if(SRV.mode === 'server'){
-    // Yang dari server tetap butuh sandinya. Kursor langsung dipindah ke sana
-    // supaya tidak ada yang menekan Masuk lalu bingung ditolak.
-    el('iPass').focus();
-  }else{
-    // Akun contoh hanya berlaku di data contoh. Menekan salah satunya sekalian
-    // memindahkan tujuannya ke sana — kalau tidak, orang mengisi akun contoh,
-    // menekan Masuk dalam mode server, lalu ditolak tanpa tahu sebabnya.
-    pilihTujuan('contoh');
-    el('iUser').value = b.dataset.user;
-    el('iPass').value = 'contoh';
-  }
-});
 el('btnMasuk').addEventListener('click', masuk);
 el('iPass').addEventListener('keydown', e=>{ if(e.key === 'Enter') masuk(); });
 el('iUser').addEventListener('keydown', e=>{ if(e.key === 'Enter') masuk(); });
 
 async function masuk(){
-  if(TUJUAN === 'contoh') masukContoh();
+  if(SRV.mode === 'contoh') masukContoh();
   else await masukServer();
 }
 
 function masukContoh(){
   const u = el('iUser').value.trim().toLowerCase();
   const c = akunContohMuat().find(x=>x.username.toLowerCase() === u);
-  if(!c){ pesan(T('Akun tidak dikenal. Pakai salah satu akun contoh di bawah.',
-    'Unknown account. Use one of the sample accounts below.')); return; }
+  /* Dulu pesannya menunjuk "daftar akun contoh di bawah". Daftar itu sudah
+     dibuang, jadi nama-namanya disebut di sini — pesan yang menyuruh melihat
+     sesuatu yang tidak ada lebih buruk daripada tidak ada pesan. */
+  if(!c){
+    const ada = akunContohMuat().filter(x=>x.aktif).map(x=>x.username).join(', ');
+    pesan(T('Akun tidak dikenal. Yang ada di data contoh: ' + ada + '.',
+            'Unknown account. Sample data has: ' + ada + '.'));
+    return;
+  }
   // Nonaktif harus benar-benar berarti tidak bisa masuk, juga di data contoh —
   // kalau tidak, tombol Nonaktifkan di tab Kelola Akun tidak membuktikan apa pun.
   if(!c.aktif){ pesan(T('Akun ' + c.username + ' dinonaktifkan dan tidak bisa masuk.',
@@ -3193,7 +3544,6 @@ function bukaDashboard(){
   el('layarMasuk').classList.add('pergi');
   el('app').classList.add('tampil');
   gambarSemua();
-  ukurPita();          // pitanya baru punya ukuran sekarang
   simpanSesi();
   // Tiga modul server menyusul: layar tidak perlu menunggunya, dan yang berubah
   // begitu ia datang cukup digambar ulang di tempatnya masing-masing.
@@ -3265,14 +3615,15 @@ async function pulihkanSesi(){
   try{
     if(s.mode === 'server'){
       if(!SRV.ada || !SRV.sesi) return lupakanSesi();
-      // 'dashboard', bukan 'elogbook': yang dipulihkan sesi di layar ini.
-      // Kalau tujuannya E-Logbook, orangnya sudah berada di sana, bukan di sini.
-      pilihTujuan('dashboard');
+      segarkanKartuMasuk();
       await srvMuat();
     }else{
+      // Sesi data contoh tidak dipulihkan di lingkungan yang memang tidak punya
+      // data contoh: penandanya bisa saja tertinggal dari sebelum dideploy.
+      if(!KEMAMPUAN.dataContoh) return lupakanSesi();
       const c = akunContohMuat().find(x=>x.username.toLowerCase() === String(s.user).toLowerCase());
       if(!c || !c.aktif) return lupakanSesi();
-      pilihTujuan('contoh');
+      segarkanKartuMasuk();
       pakaiContoh();
       akun = akunDariContoh(c);
     }
@@ -3290,27 +3641,34 @@ async function pulihkanSesi(){
   if(tombol && !tombol.hidden) pindahLayar(s.layar);
 }
 
-el('tombolKeluar').addEventListener('click', ()=>{
+el('tombolKeluar').addEventListener('click', async ()=>{
   lupakanSesi();
   akun = null; unitDibuka = null;
   el('app').classList.remove('tampil');
   el('layarMasuk').classList.remove('pergi');
   el('iPass').value = '';
+  // Kolom username dikosongkan dan dibiarkan kosong: sesi yang sudah diputus
+  // tidak meninggalkan nama siapa pun. Di komputer yang dipakai bergantian,
+  // orang berikutnya tidak menemukan jejak orang sebelumnya di layar masuk.
+  el('iUser').value = ''; userDiketik = false;
+  kmSetTab('masuk');
   kmSetMasuk(true);         // yang baru keluar biasanya mau masuk lagi
-  // Sesi E-Logbook-nya sengaja tidak diputus di sini — lihat catatan di blok
-  // JEMBATAN E-LOGBOOK. Kartu masuknya digambar ulang supaya baris status,
-  // tombol, dan blok SESI tidak tertinggal di keadaan sebelum keluar.
-  pilihTujuan(TUJUAN);
   pasangTabAkun();          // tab Kelola Akun ikut pergi bersama akunnya
   pindahLayar('beranda');
+  // Sesi E-Logbook-nya ikut diputus — keluar yang tidak mengeluarkan adalah
+  // janji yang tidak ditepati. Lihat putusSesiServer(). Kartu masuknya
+  // digambar ulang sesudahnya supaya baris status dan tombolnya tidak
+  // tertinggal di keadaan sebelum keluar.
+  await putusSesiServer();
+  segarkanKartuMasuk();
 });
 
 /* =======================================================================
    JEMBATAN E-LOGBOOK — mengambil yang sudah jadi di sana
 
    Halaman ini tetap berdiri sendiri: tidak ada satu berkas pun milik
-   E-Logbook yang dimuat, dan tidak ada berkas E-Logbook yang disunting.
-   Yang dipakai cuma API-nya, dipanggil ke /api/* pada asal yang sama —
+   E-Logbook yang dimuat ke sini. Yang dipakai cuma API-nya, dipanggil ke
+   /api/* pada asal yang sama —
    server.js di akar proyek yang meneruskannya ke E-Logbook. Bagi browser
    semuanya satu asal, jadi tidak ada urusan CORS dan cookie sesinya ikut.
    Dibuka lewat file:// atau server statis lain (tanpa penerusan itu),
@@ -3328,14 +3686,33 @@ el('tombolKeluar').addEventListener('click', ()=>{
    Keluar dari prototipe TIDAK memutus sesi E-Logbook. Cookie sesinya milik
    aplikasi yang sungguhan; memanggil /api/logout dari sini akan menendang
    pemakainya keluar dari tab E-Logbook yang mungkin sedang ia pakai.
+
+   Satu berkas E-Logbook memang disunting demi dashboard ini, dan sampai
+   sekarang cuma satu: elogbook/public/js/26-init.js membaca tanda pagar
+   #<tab>:<unit> di alamatnya, supaya tautan dalam dari sini (tombol Buka
+   DS Test di baris kegiatan berkala) mendarat langsung di tab yang
+   mengerjakannya, bukan di halaman depan. Yang berjalan tetap kode
+   E-Logbook di halaman E-Logbook; yang berangkat dari sini cuma alamatnya.
+   Tanpa suntingan itu tautannya tidak rusak — ia sekadar berhenti di tab
+   biasa.
    ======================================================================= */
 
-/* Tujuan yang dipilih di kartu masuk. Berbeda dari SRV.mode: mode itu soal
-   dari mana datanya diambil, tujuan soal ke mana orangnya mendarat.
-     'elogbook'  — setelah akunnya diperiksa, peramban dibawa ke E-Logbook
-     'dashboard' — dashboard ini, dengan data sungguhan dari E-Logbook
-     'contoh'    — dashboard ini, dengan data contoh                        */
-let TUJUAN = 'contoh';
+/* Tidak ada lagi TUJUAN yang dipilih orang. Dulu ada tiga — E-Logbook,
+   Dashboard, Data contoh — dan ketiganya jadi pertanyaan yang harus dijawab
+   sebelum boleh mengetik username. Sekarang masuk berarti satu hal: mendarat
+   di dashboard ini. E-Logbook dibuka dari tombolnya di kepala dashboard.
+
+   Yang tersisa SRV.mode, dan ia DITURUNKAN, bukan dipilih:
+
+     ada server        → 'server', data sungguhan dari E-Logbook
+     tidak ada server  → 'contoh', tapi hanya kalau data contoh memang masih
+                         ada di salinan ini
+
+   Data contoh untuk demo di luar jaringan kantor, sebelum dideploy. Di
+   lingkungan deploy ia tidak ada sama sekali: server yang mengatakannya lewat
+   /_info, bukan halaman ini yang menebak. Di sana, server yang tidak terjawab
+   adalah kerusakan yang pantas terlihat — bukan alasan menampilkan angka
+   karangan yang bisa disangka nyata.                                        */
 
 const SRV = {
   ada:   false,   // server E-Logbook menjawab di alamat yang sama
@@ -3398,36 +3775,46 @@ async function srvPeriksa(){
   }catch(e){
     SRV.ada = false; SRV.sesi = null;
   }
-  el('btnTujuanElogbook').disabled = !SRV.ada;
-  el('btnTujuanDashboard').disabled = !SRV.ada;
-  // Bawaannya E-Logbook kalau servernya ada: itu yang paling sering dituju
-  // orang saat dinas, dan dashboard ini pelengkapnya.
-  pilihTujuan(SRV.ada ? 'elogbook' : 'contoh');
-  // Daftar akunnya menyusul sendiri — kartu masuk tidak boleh menunggu.
-  muatAkunServer();
+  segarkanKartuMasuk();
 }
 
-function pilihTujuan(tujuan){
-  if(tujuan !== 'contoh' && !SRV.ada) tujuan = 'contoh';
-  TUJUAN = tujuan;
-  SRV.mode = tujuan === 'contoh' ? 'contoh' : 'server';
+/** Modenya diturunkan dari keadaan, bukan dari pilihan orang. Data contoh cuma
+    berlaku kalau memang tidak ada server DAN salinan ini memang masih
+    membawanya — di lingkungan deploy, keduanya tidak pernah terpenuhi. */
+function modeSekarang(){
+  return SRV.ada || !KEMAMPUAN.dataContoh ? 'server' : 'contoh';
+}
 
+/** Kartu masuk digambar ulang mengikuti keadaan: ada server atau tidak, ada
+    sesi yang masih hidup atau tidak. Dulu bernama pilihTujuan() dan menerima
+    tujuan sebagai argumen; sekarang tidak ada yang perlu dipilih. */
+function segarkanKartuMasuk(){
+  SRV.mode = modeSekarang();
   const server = SRV.mode === 'server';
-  el('btnTujuanElogbook').classList.toggle('km-pilih', tujuan === 'elogbook');
-  el('btnTujuanDashboard').classList.toggle('km-pilih', tujuan === 'dashboard');
-  el('btnTujuanContoh').classList.toggle('km-pilih', tujuan === 'contoh');
 
   el('iUser').placeholder = server ? 'username E-Logbook Anda' : 'mis. radtel';
   el('iPass').placeholder = server
     ? (SRV.sesi ? 'kosongkan — sesi Anda masih aktif' : 'password akun E-Logbook')
     : 'prototipe — tidak diperiksa';
-  el('btnMasuk').textContent = tujuan === 'elogbook'
-    ? (SRV.sesi ? 'Buka E-Logbook sebagai ' + (SRV.sesi.nama || SRV.sesi.username) : 'Masuk ke E-Logbook')
-    : server && SRV.sesi
-      ? 'Lanjutkan sebagai ' + (SRV.sesi.nama || SRV.sesi.username)
-      : 'Masuk';
-  if(server && SRV.sesi && !el('iUser').value) el('iUser').value = SRV.sesi.username;
-  gambarDaftarAkun();
+  el('btnMasuk').textContent = server && SRV.sesi
+    ? 'Lanjutkan sebagai ' + (SRV.sesi.nama || SRV.sesi.username)
+    : 'Masuk';
+
+  /* Kolom username diisikan sendiri dari satu sumber saja: sesi yang memang
+     masih hidup. Yang sudah diputus tidak meninggalkan apa-apa — kolomnya
+     tetap kosong, dan orang berikutnya di komputer yang sama tidak menemukan
+     nama siapa pun di sana. Yang sedang diketik tidak pernah ditimpa. */
+  if(!el('iUser').value && !userDiketik && server && SRV.sesi){
+    el('iUser').value = SRV.sesi.username;
+  }
+
+  // Pendaftaran menulis ke database E-Logbook; tanpa servernya tidak ada yang
+  // bisa didaftarkan. Tautannya dilepas sama sekali, bukan sekadar dimatikan —
+  // di salinan yang memang berdiri sendiri, tautan mati cuma menimbulkan
+  // pertanyaan yang tidak ada jawabannya.
+  el('btnBukaDaftar').hidden = !SRV.ada;
+  if(!SRV.ada && KM_TAB === 'daftar') kmSetTab('masuk');
+
   srvKet();
   kmSegarkanSesi();
 }
@@ -3436,23 +3823,22 @@ function pilihTujuan(tujuan){
 function srvKet(teks, rupa){
   const k = el('ketSumber');
   if(!teks){
-    if(!SRV.ada){
+    if(!SRV.ada && !KEMAMPUAN.dataContoh){
+      // Lingkungan deploy tanpa server: tidak ada data contoh untuk dijatuhi,
+      // jadi ini kerusakan yang pantas dikatakan apa adanya. Menawarkan angka
+      // karangan di sini justru yang berbahaya — di sana orang mengira
+      // angkanya nyata.
+      teks = 'Server E-Logbook tidak terjawab, dan salinan ini tidak membawa data contoh. '
+           + 'Coba lagi sebentar lagi, atau hubungi yang mengurus servernya.';
+      rupa = 'km-awas';
+    }else if(!SRV.ada){
       // Dua sebab yang berbeda, dan saran "jalankan servernya" hanya masuk akal
       // untuk salah satunya. Salinan yang berdiri sendiri di luar kantor memang
       // tidak punya E-Logbook di belakangnya — di sana itu bukan kerusakan.
       teks = KEMAMPUAN.elogbook
-        ? 'Server E-Logbook tidak terjawab. Pastikan servernya jalan (npm start di E-LogBook-Server) untuk memakai data nyata.'
+        ? 'Server E-Logbook tidak terjawab — yang tampil data contoh. Nyalakan servernya (npm start) untuk memakai data nyata.'
         : 'Salinan ini berdiri sendiri, tanpa E-Logbook di belakangnya. Seluruh isinya data contoh.';
       rupa = 'km-awas';
-    }else if(TUJUAN === 'contoh'){
-      teks = 'Server terjawab, tapi yang dipilih data contoh. Semua angka di layar karangan.';
-      rupa = '';
-    }else if(TUJUAN === 'elogbook'){
-      teks = SRV.sesi
-        ? 'Sesi E-Logbook aktif sebagai ' + (SRV.sesi.nama || SRV.sesi.username) +
-          '. Tekan lanjut — E-Logbook langsung terbuka, tanpa lewat dashboard.'
-        : 'Setelah akun Anda diperiksa, E-Logbook langsung dibuka — tidak lewat dashboard ini.';
-      rupa = 'km-baik';
     }else if(SRV.sesi){
       teks = 'Sesi E-Logbook aktif sebagai ' + (SRV.sesi.nama || SRV.sesi.username) +
              '. Tekan lanjut tanpa mengisi password.';
@@ -3465,10 +3851,6 @@ function srvKet(teks, rupa){
   k.className = 'km-sumber-ket ' + (rupa || '');
   k.querySelector('span').textContent = teks;
 }
-
-el('btnTujuanElogbook').addEventListener('click', ()=>pilihTujuan('elogbook'));
-el('btnTujuanDashboard').addEventListener('click', ()=>pilihTujuan('dashboard'));
-el('btnTujuanContoh').addEventListener('click', ()=>pilihTujuan('contoh'));
 
 async function masukServer(){
   const u = el('iUser').value.trim();
@@ -3494,22 +3876,6 @@ async function masukServer(){
       SRV.sesi = j.user;
     }
     el('iPass').value = '';
-
-    // Tujuan E-Logbook berhenti di sini: akunnya sudah diperiksa dan cookie
-    // sesinya sudah dipasang, jadi yang tersisa cuma memindahkan peramban ke
-    // sana. Data dashboard sengaja tidak diambil — orangnya memang tidak
-    // menuju layar ini, dan getAllData lintas unit butuh waktu belasan detik.
-    //
-    // Tab yang sama, bukan tab baru: yang dipilih di kartu masuk tujuan, bukan
-    // sambilan. Peramban juga memblokir window.open() yang tidak lahir langsung
-    // dari klik, dan pemeriksaan akun di atas sudah memutus rantai itu.
-    if(TUJUAN === 'elogbook'){
-      const alamat = TAUTAN_ELOGBOOK || `${location.protocol}//${location.hostname}:3000`;
-      btn.textContent = T('Membuka E-Logbook...','Opening E-Logbook...');
-      srvKet('Membuka ' + alamat + ' …', 'km-sibuk');
-      location.href = alamat;
-      return;
-    }
 
     btn.textContent = T('Mengambil data...','Fetching data...');
     srvKet('Mengambil data dari server...', 'km-sibuk');
@@ -3553,6 +3919,7 @@ async function srvMuat(){
   // bukan dari E-Logbook. Kegagalannya tidak menggagalkan pemuatan — layarnya
   // tetap hidup, hanya daftarnya yang belum terisi.
   await unitdbMuat();
+  await dokMuat();
 }
 
 /* =======================================================================
@@ -3649,13 +4016,39 @@ function srvPasang(unitSaya, paket){
   unitSaya.filter(s=>!CONTOH.UNIT.some(u=>u.kode === s.kode)).forEach(s=>UNIT.push({
     kode:s.kode, nama:s.nama || s.kode, alat:s.peralatan || '—',
     adegan: ADEGAN_UNIT[s.kode] || 'server',
-    dinas:(Array.isArray(s.dinas) && s.dinas.length) ? s.dinas : ['Pagi','Siang','Malam','PS']
+    dinas:(Array.isArray(s.dinas) && s.dinas.length) ? s.dinas : KODE_DINAS
   }));
+
+  // Penanda formulir per unit (adaDsTest, adaDailyCheck, adaMonitoring)
+  // dipakai apa adanya dari daftar unit E-Logbook — dashboard ini tidak
+  // menyimpan daftar tandingan yang bisa berselisih dengan aslinya.
+  UNIT_FORM = Object.fromEntries(unitSaya.map(u=>[u.kode, u]));
 
   const STATUS = new Set(['Open','Proses','Closed']);
   TROUBLE = [];
   LOGBOOK = {};
+  BUKTI   = {};
   Object.entries(paket).forEach(([kode, d])=>{
+    /* Lembar-lembar yang dipakai kegiatan berkala bersumber E-Logbook — lihat
+       blok KEGIATAN YANG TANDANYA DATANG DARI E-LOGBOOK. Tanggalnya saja yang
+       diambil; isi lembarnya tetap tinggal di sana. Nama teknisinya bisa
+       berisi beberapa nama yang digabung koma, dan itu dibiarkan apa adanya:
+       yang mengerjakan satu lembar memang sering lebih dari satu orang.
+
+       Diambil untuk SELURUH sumber yang terdaftar, bukan cuma yang kebetulan
+       sedang dipakai satu unit: menambah sumber baru di registri tidak boleh
+       menuntut baris di sini ikut disunting. */
+    Object.entries(BERKALA_SUMBER).forEach(([sumber, f])=>{
+      if(!f.paket) return;
+      BUKTI[sumber] = BUKTI[sumber] || {};
+      BUKTI[sumber][kode] = (d[f.paket] || []).filter(x=>!f.saring || f.saring(x)).map(x=>{
+        const tgl = f.tgl(x) || '';
+        return { tgl, rinci: f.rinci(x) || '', nama: f.nama(x) || '—',
+                 oleh: x.DiinputOleh || '—',
+                 jam:  x.DibuatPada || (tgl ? tgl + 'T00:00:00' : '') };
+      }).filter(x=>x.tgl);
+    });
+
     // Isu yang sudah ditutup bukan lagi trouble — papan ini tentang yang
     // masih menggantung.
     (d.issues || []).forEach(i=>{
@@ -3698,30 +4091,21 @@ function srvPasang(unitSaya, paket){
   SRV.aktif = true;
   SRV.unit  = kodeBoleh;
   SRV.jam   = new Date();
-  gambarKetSumber();
 }
 
 /** Kembali ke data contoh — dipakai saat masuk lewat akun contoh. */
 function pakaiContoh(){
   UNIT = CONTOH.UNIT; TROUBLE = CONTOH.TROUBLE; LOGBOOK = CONTOH.LOGBOOK;
+  // Tanpa server tidak ada lembar apa pun untuk dibaca; kegiatan yang
+  // bersumber E-Logbook jatuh kembali ke tanda manual dengan sendirinya.
+  // Penanda formulir ikut dikosongkan, jadi tombol tautannya juga hilang.
+  BUKTI = {}; UNIT_FORM = {};
+  // Dokumen yang datang dari server ikut dilepas: tautannya menuju endpoint
+  // yang sudah tidak dipakai, dan daftar yang tidak bisa dibuka lebih buruk
+  // daripada daftar kosong. Yang lokal tidak ada di sini — belum ada.
+  Object.keys(BERKAS).forEach(k=>delete BERKAS[k]);
   HARI_INI = new Date('2026-08-14T00:00:00');
   SRV.aktif = false; SRV.unit = []; SRV.jam = null;
-  gambarKetSumber();
-}
-
-/** Pita di puncak dashboard: satu kalimat tentang data yang sedang dilihat. */
-function gambarKetSumber(){
-  const jam = SRV.jam ? SRV.jam.toLocaleTimeString(LOKAL(),{hour:'2-digit',minute:'2-digit'}) : '';
-  el('pitaCap').textContent = SRV.aktif ? T('TERSAMBUNG','CONNECTED') : T('PROTOTIPE','PROTOTYPE');
-  el('pitaKet').textContent = SRV.aktif
-    ? T(`Unit, trouble, dan logbook diambil dari server E-Logbook pukul ${jam} `
-        + `(${SRV.unit.length} unit). Jadwal dinas tersimpan di dashboard ini. `
-        + `Peralatan, sparepart, dan sejarah masih data contoh.`,
-        `Units, trouble, and logbook pulled from the E-Logbook server at ${jam} `
-        + `(${SRV.unit.length} units). The duty roster is stored in this dashboard. `
-        + `Equipment, spare parts, and history are still sample data.`)
-    : T('Contoh tampilan — belum tersambung ke server. Semua angka di halaman ini data karangan.',
-        'Sample view — not connected to a server. Every number on this page is made up.');
 }
 
 /** Catatan penanda di layar unit, hanya saat datanya nyata. */
@@ -3954,9 +4338,6 @@ function pasangTabAkun(){
 async function muatUsers(){
   USERS = (await adminApi('listUsers')) || [];
   USERS_JAM = new Date();
-  // Tombol pengisi cepat di kartu masuk ikut daftar ini, jadi akun yang baru
-  // dibuat atau dihapus harus langsung terlihat di sana juga.
-  if(!SRV.aktif) gambarAkunContoh();
 }
 
 /* ---------- Saringan daftar akun ----------
@@ -4528,7 +4909,6 @@ document.addEventListener('keydown', e=>{
 });
 
 terapkanBahasa();     // teks statis dashboard mengikuti bahasa yang tersimpan
-gambarAkunContoh();   // tombol pengisi cepat di kartu masuk
 kmMulai();      // konsol masuk: jam, panggung 3D, tombol pembuka kartu
 // Lalu tanya server: ada, dan sesinya masih hidup? Jawabannya menentukan apakah
 // sesi sebelum halaman disegarkan boleh dibuka kembali, jadi pemulihannya
@@ -4560,7 +4940,7 @@ let TAUTAN_ELOGBOOK = '';
    bisa ditebak dari sisi peramban — gagalnya baru ketahuan setelah tombolnya
    terlanjur ditekan, dan itu terlambat. Bawaannya "ada", supaya server lama
    yang belum menjawab kedua kolom ini tetap berperilaku seperti sebelumnya. */
-const KEMAMPUAN = { galeriTulis:true, elogbook:true };
+const KEMAMPUAN = { galeriTulis:true, dokumenTulis:true, elogbook:true, dataContoh:true };
 
 async function muatTautanElogbook(){
   let port = 3000;
@@ -4569,6 +4949,8 @@ async function muatTautanElogbook(){
     if(r.ok){
       const j = await r.json();
       if(typeof j.galeriBisaTulis === 'boolean')    KEMAMPUAN.galeriTulis = j.galeriBisaTulis;
+      if(typeof j.dokumenBisaTulis === 'boolean')   KEMAMPUAN.dokumenTulis = j.dokumenBisaTulis;
+      if(typeof j.dataContoh === 'boolean')         KEMAMPUAN.dataContoh   = j.dataContoh;
       if(typeof j.elogbookTerjangkau === 'boolean') KEMAMPUAN.elogbook    = j.elogbookTerjangkau;
       // /_info datang setelah srvPeriksa() sempat menulis baris statusnya, jadi
       // barisnya digambar ulang di sini — kalau tidak, saran "jalankan servernya"
@@ -4589,11 +4971,18 @@ function pasangTautanElogbook(alamat){
   TAUTAN_ELOGBOOK = alamat;
   document.querySelectorAll('[data-elogbook]').forEach(a=>{
     a.href = alamat;
-    // Tab baru: dashboard yang sedang dibaca tidak boleh hilang hanya karena
-    // seseorang ingin melihat logbooknya sebentar.
-    a.target = '_blank';
-    a.rel = 'noopener';
-    a.title = 'Membuka ' + alamat + ' di tab baru';
+    /* Tab yang sama, bukan tab baru. Dulu tab baru, alasannya supaya dashboard
+       yang sedang dibaca tidak hilang — tapi jalan pulangnya sekarang ada:
+       tombol di kepala E-Logbook kembali ke sini dan sesinya ikut, jadi yang
+       ditinggalkan cuma satu ketukan, bukan pekerjaan. Yang tersisa dari tab
+       baru cuma tumpukan tab yang tidak pernah ditutup siapa pun.
+
+       target dan rel dilepas, bukan sekadar tidak dipasang: fungsi ini bisa
+       dipanggil dua kali pada tautan yang sama (/_info datang belakangan), dan
+       atribut dari panggilan pertama akan bertahan kalau tidak dibuang. */
+    a.removeAttribute('target');
+    a.removeAttribute('rel');
+    a.title = 'Membuka ' + alamat;
   });
 }
 
@@ -4609,28 +4998,6 @@ function jalanJam(){
 }
 setInterval(jalanJam, 1000); jalanJam();
 
-/* Rel navigasi menempel tepat di bawah pita peringatan, dan tinggi pita itu
-   tidak tetap: kalimatnya melipat jadi dua atau tiga baris di layar HP, dan
-   berubah lagi saat dashboard tersambung ke server. Diukur, bukan ditebak —
-   angka mati yang dulu dipakai (33px) hanya benar pada satu lebar layar. */
-function ukurPita(){
-  const p = document.querySelector('.pita');
-  // Nol berarti #app masih display:none — sebelum ada yang masuk. Menuliskannya
-  // akan memakukan rel di angka 0 sampai ada yang mengubah ukuran jendela, dan
-  // di sana ia menindih pitanya sendiri.
-  if(!p || !p.offsetHeight) return;
-  document.documentElement.style.setProperty('--tinggi-pita', p.offsetHeight + 'px');
-}
-if(window.ResizeObserver){
-  const pengamat = new ResizeObserver(ukurPita);
-  const pita = document.querySelector('.pita');
-  if(pita) pengamat.observe(pita);
-}
-// Pengamat saja tidak cukup: sebelum ada yang masuk, #app masih display:none
-// dan pitanya tidak punya ukuran untuk diamati. bukaDashboard() memanggil ini
-// sekali lagi begitu app-nya tampil.
-addEventListener('resize', ukurPita);
-ukurPita();
 
 function pindahLayar(nama){
   document.querySelectorAll('.layar').forEach(s=>s.classList.toggle('aktif', s.id === 'l'+'-'+nama));
@@ -4640,6 +5007,10 @@ function pindahLayar(nama){
   // Log yang ditampilkan basi tidak menjawab pertanyaan "barusan siapa", jadi
   // diambil ulang tiap kali layarnya dibuka — bukan sekali saat masuk.
   if(nama === 'aktivitas') aktSegarkan();
+  // Isinya bergantung pada tanggal hari ini. Halaman yang dibiarkan terbuka
+  // semalaman akan menampilkan "hari ini" untuk kemarin kalau tidak digambar
+  // ulang saat layarnya dibuka.
+  if(nama === 'kotak') gambarKotakMasuk();
   // Yang unitnya cuma satu tidak perlu disuruh memilih dari daftar berisi satu
   // nama. Layar dibuka langsung pada unitnya. pindahLayar() tidak dipanggil
   // ulang dari sini — layarnya sudah yang ini.
@@ -4923,16 +5294,20 @@ function isiTiker(idKotak, isi, detik){
 /* =======================================================================
    DINAS
    ======================================================================= */
-function kartuShift(s, kodeUnit){
-  const [m,sel] = JAM_SHIFT[s.k] || [0,0];
-  const warna = WARNA_SHIFT[s.k] || 'var(--muted)';
-  const j = new Date().getHours();
-  const sedang = (j >= m && j < sel) || (sel > 24 && j < sel-24);
+/** Kode yang benar-benar terisi orang pada petak hari ini. Inilah yang
+    menentukan apakah malam berangkat pukul 12:00 atau 13:00. */
+const kodeTerpakai = (petak) => petak.filter(s=>s.o.length).map(s=>s.k);
+
+function kartuShift(s, kodeHari){
+  const jam = jamShift(s.k, kodeHari);
+  const warna = warnaShift(s.k);
+  const sedang = sedangShift(jam);
+  const nama = (SHIFT[s.k] && SHIFT[s.k].nama) || '';
   return `<div class="dinas-kartu">
     <span class="pita-sisi" style="background:${warna}"></span>
     ${sedang && s.o.length ? `<span class="sedang-dinas">${T('SEDANG DINAS','ON DUTY NOW')}</span>` : ''}
-    <div class="kode" style="color:${warna}">${esc(s.k)}</div>
-    <div class="jam-shift">${String(m).padStart(2,'0')}:00 – ${String(sel%24).padStart(2,'0')}:00 WIB</div>
+    <div class="kode" style="color:${warna}" title="${esc(nama)}">${esc(s.k)}</div>
+    <div class="jam-shift">${labelUtc(jam)}<br><span class="jam-lokal">${labelWib(jam)}</span></div>
     ${s.o.length ? s.o.map(o=>`<div class="orang">
         <span class="avatar" style="color:${warna}">${inisial(o.n)}</span>
         <span><span class="nm">${esc(o.n)}</span><br><span class="pr">${esc(o.p)}</span></span>
@@ -4951,23 +5326,28 @@ function gambarDinas(){
   // Pita beranda memuat seluruh personel yang berdinas hari ini, lintas unit,
   // dengan yang sedang bertugas jam ini didahulukan. Sempat hanya menampilkan
   // yang sedang bertugas — dan pada jam pergantian panelnya kosong melompong.
-  const j = new Date().getHours();
   const semua = [];
-  UNIT.forEach(u=>dinasUnit(u.kode).forEach(s=>{
-    const [m,sel] = JAM_SHIFT[s.k] || [0,0];
-    const sedang = (j >= m && j < sel) || (sel > 24 && j < sel-24);
-    s.o.forEach(o=>semua.push({...o, unit:u.kode, k:s.k, m, sel, sedang}));
-  }));
-  semua.sort((a,b)=>(b.sedang - a.sedang) || (a.m - b.m));
+  const petakUnit = new Map();
+  UNIT.forEach(u=>{
+    const petak = dinasUnit(u.kode);
+    const kodeHari = kodeTerpakai(petak);
+    petakUnit.set(u.kode, { petak, kodeHari });
+    petak.forEach(s=>{
+      const jam = jamShift(s.k, kodeHari);
+      const sedang = sedangShift(jam);
+      s.o.forEach(o=>semua.push({...o, unit:u.kode, k:s.k, jam, sedang}));
+    });
+  });
+  semua.sort((a,b)=>(b.sedang - a.sedang) || (a.jam.mulai - b.jam.mulai));
 
   const kartuOrang = semua.map(o=>{
-    const w = WARNA_SHIFT[o.k] || 'var(--muted)';
+    const w = warnaShift(o.k);
     return `<article class="kartu-orang" style="--w:${w}">
       <span class="av3d">${inisial(o.n)}</span>
       <span class="teks"><span class="nm">${esc(o.n)}</span>
         <span class="pr">${esc(namaUnit(o.unit))} · ${esc(o.p)}</span></span>
       <span class="kanan">
-        <span class="jam-kecil">${T('dinas','shift')} ${esc(o.k)} · ${String(o.m).padStart(2,'0')}:00–${String(o.sel%24).padStart(2,'0')}:00</span>
+        <span class="jam-kecil">${T('dinas','shift')} ${esc(o.k)} · ${labelUtc(o.jam)}</span>
         <span class="nyala ${o.sedang?'':'diam'}">${o.sedang
           ? T('SEDANG DINAS','ON DUTY NOW') : T('BELUM/SUDAH','BEFORE/AFTER')}</span>
       </span>
@@ -4976,26 +5356,38 @@ function gambarDinas(){
   isiTiker('tikerDinas', kartuOrang, semua.length * 2.1);
 
   // Penuh: dikelompokkan per unit
-  el('dinasPenuh').innerHTML = UNIT.map(u=>`
-    <div style="margin-bottom:20px">
+  el('dinasPenuh').innerHTML = UNIT.map(u=>{
+    const { petak, kodeHari } = petakUnit.get(u.kode);
+    return `<div style="margin-bottom:20px">
       <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:10px">
         <h3 style="font-size:14px">${esc(u.nama)}</h3>
         <span class="mono" style="font-size:10.5px;color:var(--muted)">${
-          T('kode dinas','shift codes')}: ${u.dinas.join(' · ')}</span>
+          T('kode dinas','shift codes')}: ${petak.map(s=>s.k).join(' · ')}</span>
       </div>
-      <div class="dinas-baris">${dinasUnit(u.kode).map(s=>kartuShift(s,u.kode)).join('')}</div>
-    </div>`).join('');
+      <div class="dinas-baris">${petak.map(s=>kartuShift(s, kodeHari)).join('')}</div>
+    </div>`;
+  }).join('');
 
-  const blok = ['Pagi','Siang','Malam','PS'].map(k=>{
-    const [m,sel] = JAM_SHIFT[k];
-    const kiri = m/24*100, lebar = (sel-m)/24*100;
+  /* Pita cakupan memakai kode polos, bukan PSJ/PSN/MJ/MN — lihat catatan
+     `pita` di SHIFT. Yang digambar hanya pita yang benar-benar ada di petak
+     hari ini: unit yang sepanjang bulan cuma memakai PS dan malam tidak perlu
+     membawa dua pita P dan S yang tidak mewakili siapa pun. Kalau belum ada
+     satu jadwal pun yang terbaca, PS dan M dipasang sebagai bentuk bakunya. */
+  const pitaDipakai = new Set();
+  petakUnit.forEach(({ petak })=>petak.forEach(s=>{
+    if(SHIFT[s.k]) pitaDipakai.add(SHIFT[s.k].pita);
+  }));
+  const pita = URUT_PITA.filter(k=>pitaDipakai.has(k));
+  const blok = (pita.length ? pita : ['PS','M']).map(k=>{
+    const j = SHIFT[k];
+    const kiri = j.mulai/24*100, lebar = (j.sampai - j.mulai)/24*100;
     return `<span class="blok-shift" style="left:${kiri}%;width:${Math.min(lebar,100-kiri)}%;
-      background:${WARNA_SHIFT[k]};opacity:.22;color:var(--text)">${k}</span>`;
+      background:${j.warna};opacity:.22;color:var(--text)">${k}</span>`;
   }).join('');
   const n = new Date();
   el('pitaJam').innerHTML = blok +
-    `<span class="sekarang" style="left:${((n.getHours()*60+n.getMinutes())/1440*100).toFixed(2)}%"></span>`;
-  el('skalaJam').innerHTML = [0,4,8,12,16,20,24].map(h=>`<span>${String(h%24).padStart(2,'0')}:00</span>`).join('');
+    `<span class="sekarang" style="left:${((n.getUTCHours()*60+n.getUTCMinutes())/1440*100).toFixed(2)}%"></span>`;
+  el('skalaJam').innerHTML = [0,4,8,12,16,20,24].map(h=>`<span>${jamPad(h)}</span>`).join('');
 }
 
 /* =======================================================================
@@ -5042,7 +5434,9 @@ const hakBawaan = () => ({
   dinas:     { peran:['admin','pejabat','adminunit'],                    petugas:[] },
   berkala:   { peran:['admin','pejabat','adminunit','pic','teknisi'],    petugas:[] },
   personel:  { peran:['admin','adminunit','pic','teknisi'],              petugas:[] },
-  peralatan: { peran:['admin','adminunit','pic','teknisi'],              petugas:[] },
+  /* Daftar peralatan hanya administrator — alasannya ada di HAK_BAWAAN
+     server.js: ia daftar induk yang ditunjuk modul lain lewat id. */
+  peralatan: { peran:['admin'],                                          petugas:[] },
   sparepart: { peran:['admin','adminunit','pic','teknisi'],              petugas:[] },
   dokumen:   { peran:['admin','adminunit','pic','teknisi'],              petugas:[] },
   galeri:    { peran:['admin','adminunit','pic','teknisi'],              petugas:[] }
@@ -5288,6 +5682,47 @@ async function jdwSimpanUnit(bulan, unit, orang){
 /* ---------- Dinas hari ini, diturunkan dari jadwal bulanan ---------- */
 
 /**
+ * Kode dinas yang benar-benar dipakai satu unit pada bulan berjalan.
+ *
+ * Petak dinas dulu dipasang dari daftar kode unit — enam kode, apa pun isi
+ * jadwalnya. Unit yang sepanjang bulan hanya memakai PSJ/PSN/MJ/MN jadi
+ * membawa dua kartu P dan S yang selamanya bertuliskan "tidak ada personel",
+ * dan kotak yang tidak pernah terisi lebih cepat diabaikan daripada dibaca.
+ *
+ * Yang dikumpulkan seluruh bulan, bukan hari ini saja: kartu yang lenyap dan
+ * muncul lagi tiap ganti hari lebih membingungkan daripada satu kartu kosong,
+ * dan shift yang hari ini tidak ada orangnya justru perlu terlihat — itu
+ * lubang jaga, bukan shift yang tidak dipakai.
+ */
+function kodeDipakaiUnit(kode){
+  const daftar = JDW.jadwal[kode];
+  if(!Array.isArray(daftar)) return [];
+  const ada = new Set();
+  daftar.forEach(o=>(o.hari || []).forEach(h=>{ if(h) ada.add(h); }));
+  /* Urutannya menurut jam mulai, bukan menurut daftar kode unit. Daftar itu
+     menaruh PS di depan malam, dan begitu unit ini ternyata tidak memakai PS
+     sama sekali, sisanya terbaca terbalik — malam dulu, baru pagi. Jam mulai
+     yang dipakai jam dasarnya, sebelum malam mundur ke 13:00; kalau tidak,
+     urutannya ikut berubah tiap kali ada yang berdinas P.
+
+     Kode di luar daftar unit — salah ketik yang terlanjur tersimpan — tidak
+     punya jam, jadi menyusul di belakang. Tetap terlihat, tidak dibuang. */
+  const daftarUnit = infoUnit(kode).dinas || KODE_DINAS;
+  const dikenal = [...ada].filter(k=>SHIFT[k])
+    .sort((a,b)=>(SHIFT[a].mulai - SHIFT[b].mulai) ||
+                 (daftarUnit.indexOf(a) - daftarUnit.indexOf(b)) ||
+                 a.localeCompare(b));
+  return [...dikenal, ...[...ada].filter(k=>!SHIFT[k]).sort()];
+}
+
+/** Petak kosong untuk unit yang jadwalnya belum bisa dibaca. */
+function petakBaku(kode){
+  const daftarUnit = infoUnit(kode).dinas || KODE_DINAS;
+  const inti = daftarUnit.filter(k=>KODE_DINAS_INTI.includes(k));
+  return (inti.length ? inti : daftarUnit).map(k=>({ k, o:[] }));
+}
+
+/**
  * Petak shift hari ini untuk satu unit, dari jadwal bulan berjalan.
  * null berarti unit itu memang belum punya jadwal — pemanggilnya yang
  * memutuskan apa yang ditampilkan sebagai gantinya.
@@ -5296,14 +5731,15 @@ function dinasHariIni(kode){
   const daftar = JDW.jadwal[kode];
   if(!Array.isArray(daftar) || !daftar.length) return null;
   const hari = new Date().getDate();
-  const petak = (infoUnit(kode).dinas || []).map(k=>({ k, o:[] }));
+  const dipakai = kodeDipakaiUnit(kode);
+  const petak = (dipakai.length ? dipakai.map(k=>({ k, o:[] })) : petakBaku(kode));
   daftar.forEach(o=>{
     const k = (o.hari || [])[hari-1];
     if(!k) return;
+    // Kode yang tidak ada di petak tetap ditampilkan, tidak dibuang. Nyaris
+    // tidak pernah terjadi sekarang — petaknya lahir dari isi jadwal yang
+    // sama — tetapi murah, dan menutup celah kalau sumbernya berubah.
     let s = petak.find(x=>x.k === k);
-    // Kode yang tidak ada di daftar unit tetap ditampilkan, tidak dibuang:
-    // jadwal yang sudah terlanjur diisi tidak boleh hilang diam-diam hanya
-    // karena daftar kode unitnya berubah belakangan.
     if(!s){ s = { k, o:[] }; petak.push(s); }
     s.o.push({ n:o.nama, p:o.peran || T('Teknisi','Technician') });
   });
@@ -5357,7 +5793,7 @@ function jdwTabel(unit){
       const nilai = (o.hari || [])[h] || '';
       if(!JDW.sunting){
         return `<td class="${h+1===hariIni?'jdw-hari-ini':''}"${nilai
-          ? ` style="color:${WARNA_SHIFT[nilai] || 'var(--text)'}"` : ''}>${esc(nilai) || '·'}</td>`;
+          ? ` style="color:${warnaShift(nilai, 'var(--text)')}"` : ''}>${esc(nilai) || '·'}</td>`;
       }
       return `<td class="${h+1===hariIni?'jdw-hari-ini':''}"><select data-baris="${i}" data-hari="${h}">
         <option value=""></option>${kodeShift.map(k=>
@@ -5410,15 +5846,22 @@ function jdwIsi(unit){
         'The current month roster is deliberately open to every account; who may fill it in is decided '
         + 'per role by an administrator, in the Who May Fill What panel on the Manage Accounts screen.')}</div>`}`;
 
+  const petak = dinasUnit(unit);
   return kepala
     + `<div class="jdw-gulir">${jdwTabel(unit)}</div>`
     + `<div class="dinas-baris" style="margin-top:18px">${
-        dinasUnit(unit).map(s=>kartuShift(s,unit)).join('')}</div>`
-    + `<div class="catatan"><b>${T('Kode dinas unit ini:','Shift codes for this unit:')}</b> ${u.dinas.join(' · ')}.
-        ${unit === 'radkom'
-          ? T('Radkom memakai P/S/PS/M, berbeda dari unit lain — bentuk ini diambil dari daftar unit di db.js, bukan disamaratakan.',
-              'Radkom uses P/S/PS/M, unlike the other units — this comes from the unit list in db.js rather than being flattened.')
-          : T('Sama seperti sebagian besar unit lain.','The same as most other units.')}</div>`
+        petak.map(s=>kartuShift(s, kodeTerpakai(petak))).join('')}</div>`
+    + `<div class="catatan"><b>${T('Kode yang bisa diisi:','Codes you can fill in:')}</b> ${u.dinas.join(' · ')}.
+        ${T('Huruf terakhir menyebut gedungnya — <b>J</b> untuk JATSC, <b>N</b> untuk New JATSC — dan jamnya '
+          + 'sama untuk keduanya. Jam dinas dihitung UTC: <b>PS</b> 00:00–12:00, <b>M</b> 12:00–00:00, dan '
+          + 'kalau hari itu dipecah <b>P</b> 00:00–07:00 dan <b>S</b> 07:00–13:00, malamnya mundur jadi '
+          + '13:00–00:00. Kartu di atas hanya memuat kode yang benar-benar terisi di jadwal bulan ini; '
+          + 'yang tidak dipakai tidak ikut dipasang sebagai kotak kosong.',
+            'The last letter names the building — <b>J</b> for JATSC, <b>N</b> for New JATSC — and the hours '
+          + 'are the same for both. Shift hours are UTC: <b>PS</b> 00:00–12:00, <b>M</b> 12:00–00:00, and when '
+          + 'a day is split into <b>P</b> 00:00–07:00 and <b>S</b> 07:00–13:00, the night moves back to '
+          + '13:00–00:00. The cards above carry only the codes this month’s roster actually uses; the rest '
+          + 'are not laid out as empty slots.')}</div>`
     + (SRV.aktif
         ? `<div class="catatan"><b>${T('Tersimpan di server ini.','Stored on this server.')}</b> ${
             T('Jadwal yang disimpan di sini terlihat oleh semua orang yang membuka dashboard ini — '
@@ -5530,9 +5973,9 @@ function jdwPasang(unit){
       if(!b) return;
       if(!Array.isArray(b.hari)) b.hari = [];
       b.hari[Number(s.dataset.hari)] = s.value;
-      s.style.color = WARNA_SHIFT[s.value] || '';
+      s.style.color = warnaShift(s.value, '');
     });
-    s.style.color = WARNA_SHIFT[s.value] || '';
+    s.style.color = warnaShift(s.value, '');
   });
   kotak.querySelectorAll('.jdw input[data-kolom]').forEach(i=>{
     i.addEventListener('input', ()=>{
@@ -5847,12 +6290,20 @@ async function pdfBaca(berkas){
 
 /* ---------- Menebak bentuk tabelnya ---------- */
 
-/* Kode dinas di lembar Excel jarang sama persis dengan kode unitnya di sini:
-   yang di layar 'Pagi', di lembar sering 'P'. Yang libur bisa kosong, '-', 'L',
-   'OFF', atau 'X'. Dipetakan, dan yang tidak dikenali TIDAK dibuang — ia
-   disimpan apa adanya dan dilaporkan, supaya salah ketik di lembar aslinya
-   kelihatan alih-alih hilang diam-diam. */
+/* Kode dinas di lembar Excel jarang sama persis dengan kode unitnya di sini.
+   Yang libur bisa kosong, '-', 'L', 'OFF', atau 'X'. Dipetakan, dan yang tidak
+   dikenali TIDAK dibuang — ia disimpan apa adanya dan dilaporkan, supaya salah
+   ketik di lembar aslinya kelihatan alih-alih hilang diam-diam.
+
+   'PS' dan 'M' polos ikut dilaporkan, bukan ditebak: keduanya belum menyebut
+   JATSC atau New JATSC, dan menebak gedung tempat orang berdinas adalah hal
+   terakhir yang boleh dilakukan diam-diam oleh pengimpor. */
 const IMPOR_LIBUR = new Set(['', '-', '—', '.', 'L', 'LIBUR', 'OFF', 'X', 'O', 'CUTI']);
+
+/* Nama panjang yang sudah pasti kodenya. Hanya untuk yang tidak punya
+   pasangan JATSC/New JATSC — 'MALAM' sengaja tidak ada di sini, karena ia
+   memang belum menyebut gedung. */
+const IMPOR_ALIAS = { 'PAGI':'P', 'SIANG':'S' };
 
 function imporKode(nilai, kodeUnit){
   const asli = String(nilai == null ? '' : nilai).trim();
@@ -5860,19 +6311,16 @@ function imporKode(nilai, kodeUnit){
   if(IMPOR_LIBUR.has(naik)) return '';
   const cocok = kodeUnit.find(k=>k.toUpperCase() === naik);
   if(cocok) return cocok;
-  /* Singkatan satu-dua huruf: 'P' untuk unit yang kodenya 'Pagi'.
-     Satu huruf hampir selalu berkerabat dengan dua kode sekaligus — 'P'
-     berawal sama dengan 'Pagi' DAN 'PS' — dan kalau keduanya dianggap sama
-     kaburnya, tidak ada satu pun lembar Excel yang kodenya bisa dikenali.
-     Yang dipilih kode yang berupa kata; singkatan seperti 'PS' memang ditulis
-     utuh di lembarnya, dan itu sudah tertangkap sebagai kecocokan penuh di
-     atas. Kalau yang berupa kata pun lebih dari satu, ia memang kabur, dan
-     nilainya dibiarkan apa adanya untuk dilaporkan. */
+  // Nama panjang yang sudah pasti, mis. 'Pagi' pada lembar lama.
+  const alias = kodeUnit.find(k=>k.toUpperCase() === IMPOR_ALIAS[naik]);
+  if(alias) return alias;
+  /* Singkatan yang lebih pendek daripada kodenya, mis. 'PS' pada unit yang
+     satu-satunya kode PS-nya 'PSJ'. Hanya diambil kalau ia berpangkal pada
+     tepat satu kode; begitu ada dua yang berawal sama — 'M' berawal sama
+     dengan 'MJ' DAN 'MN' — ia memang kabur, dan nilainya dibiarkan apa adanya
+     untuk dilaporkan. Menebak antara JATSC dan New JATSC bukan urusan
+     pengimpor. */
   const awal = kodeUnit.filter(k=>k.toUpperCase().startsWith(naik));
-  if(naik.length === 1){
-    const kata = awal.filter(k=>k.length >= 3);
-    if(kata.length === 1) return kata[0];
-  }
   if(naik.length <= 2 && awal.length === 1) return awal[0];
   return asli;
 }
@@ -6045,7 +6493,7 @@ function imporGambar(){
       <td class="jdw-nama">${esc(o.nama)}</td>
       <td class="jdw-peran">${esc(o.peran || '—')}</td>
       ${o.hari.map(h=>`<td${h && !kodeUnit.includes(h)
-        ? ' style="color:var(--warn)"' : h ? ` style="color:${WARNA_SHIFT[h] || 'var(--text)'}"` : ''
+        ? ' style="color:var(--warn)"' : h ? ` style="color:${warnaShift(h, 'var(--text)')}"` : ''
         }>${esc(h) || '·'}</td>`).join('')}</tr>`).join('');
 
     pratinjau = `
@@ -6253,6 +6701,11 @@ const hariNama = (n) => T(...(HARI_NAMA[Math.min(6, Math.max(0, Number(n) - 1))]
    justru orang yang belum tahu apa yang mau diisikan. */
 const BERKALA_CONTOH = {
   radtel: [
+    // Hari 1, 3, 6 = Senin, Rabu, Sabtu. Tandanya tidak dicentang di sini —
+    // lihat blok KEGIATAN YANG TANDANYA DATANG DARI E-LOGBOOK.
+    { id:'ds', nama:'Pengecekan DS (DS Test)', jenis:'mingguan', hari:[1,3,6], bulan:null, tanggal:null,
+      sumber:'dstest', alat:'',
+      ket:'Uji incoming dan outgoing seluruh site. Lembarnya diisi di E-Logbook; tanda di sini mengikutinya.' },
     { id:'k1', nama:'Periksa daya pancar dan VSWR', jenis:'mingguan', hari:2, bulan:null, tanggal:null,
       alat:'', ket:'Catat hasilnya di logbook. Kalau turun lebih dari 10%, buka trouble.' },
     { id:'k2', nama:'Bersihkan filter pendingin shelter', jenis:'bulanan', hari:null, bulan:null, tanggal:5,
@@ -6285,6 +6738,250 @@ const BKL = {
   draf:     null,
   unit:     null       // unit yang drafnya sedang dibuka
 };
+
+/* =======================================================================
+   KEGIATAN YANG TANDANYA DATANG DARI E-LOGBOOK
+
+   Kegiatan berkala boleh menyebut SUMBER tandanya: bukan dicentang orang di
+   sini, melainkan dibuktikan lembar yang sudah diisi di E-Logbook.
+
+   Sebelum ini kegiatannya harus dicentang lagi di dashboard: dua catatan
+   untuk satu pekerjaan, dan yang satu bisa berkata sudah sementara lembarnya
+   kosong. Sekarang tandanya DIBACA dari lembar itu — dashboard ini tidak
+   menyimpan apa pun tentangnya, dan tidak bisa mengarangnya.
+
+   Yang dibaca cuma TANGGAL lembarnya. Isi per site, tanda tangan, dan
+   kategorinya tetap tinggal di E-Logbook; menyalinnya ke sini hanya
+   melahirkan salinan yang lebih tua dari aslinya.
+
+   Tanpa sambungan ke server (data contoh), kegiatan bersumber lembar jatuh
+   kembali ke tanda manual — tidak ada lembar untuk dibaca, dan kartu yang
+   selamanya "belum" tidak memperlihatkan apa pun.
+
+   ---- Menambah sumber baru ----
+
+   Yang pertama disambungkan DS Test, dan DS Test cuma ada di satu unit. Karena
+   itu daftar di bawah dibuat sebagai REGISTRI, bukan sederet perbandingan
+   "sumber === dstest" yang tersebar: menyambungkan formulir E-Logbook
+   berikutnya cukup menambah satu baris di sini, dan seluruh layar — cip di
+   kartu, pemilih di mode sunting, tombol tautan, Kotak Masuk — ikut sendiri.
+
+   Satu baris menyebut tujuh hal, kadang delapan:
+     label  sebutan panjang, untuk pemilih di mode sunting
+     cip    sebutan pendek, untuk cip di kartu dan di Kotak Masuk
+     judul  nama tabnya, untuk label tombol ("Buka DS Test")
+     sebut  sebutan di dalam kalimat ("menunggu lembar DS Test")
+     paket  nama larik pada jawaban getAllData E-Logbook
+     tab    tab E-Logbook untuk tautan #<tab>:<unit>, lihat kotakTautanForm()
+     ada    penanda per unit di daftar unit E-Logbook — unit yang tidak punya
+            formulirnya tidak dipasangi tombol yang menuju tab tersembunyi
+     saring boleh tidak ada. Dipakai kalau beberapa sumber berbagi satu larik
+            dan dibedakan kolom di dalamnya — empat lembar pekerjaan berkala
+            Radtel semuanya datang di larik berkala, dipisah kolom Jenis
+   ditambah tiga pembaca baris (tgl, nama, rinci), karena tiap formulir menamai
+   kolomnya sendiri-sendiri dan bentuk itu milik E-Logbook, bukan milik sini.
+
+   LTK sengaja TIDAK ada di daftar ini walau tabnya ada di semua unit: LTK
+   dibuat waktu ada kerusakan, bukan menurut putaran waktu. Memakainya sebagai
+   bukti kegiatan berkala berarti pekerjaan rutin baru terhitung selesai kalau
+   ada yang rusak.
+   ======================================================================= */
+
+/** Lembar E-Logbook yang jadi bukti: { sumber: { unit: [baris] } }. */
+let BUKTI = {};
+
+/** Penanda formulir per unit, apa adanya dari daftar unit E-Logbook. Dipakai
+    untuk memutuskan tombol tautannya dipasang atau tidak. */
+let UNIT_FORM = {};
+
+const BERKALA_SUMBER = {
+  '': { label: ['Ditandai di sini', 'Ticked off here'] },
+
+  /* DS Test radtel jatuh Senin, Rabu, dan Sabtu. Satu hari bisa punya beberapa
+     lembar — domestik, internasional, SLI & GSM, PABX masing-masing satu — dan
+     satu saja sudah cukup jadi bukti hari itu dikerjakan. */
+  dstest: {
+    label: ['Lembar DS Test E-Logbook', 'E-Logbook DS Test sheet'],
+    cip:   'DS TEST',  judul: 'DS Test',
+    sebut: ['lembar DS Test', 'the DS Test sheet'],
+    paket: 'dstest',  tab: 'dstest',  ada: 'adaDsTest',
+    tgl:   (x)=> isoTgl(x.Tanggal) || isoTgl(x.DibuatPada),
+    nama:  (x)=> x.TeknisiNama || x.DiinputOleh,
+    rinci: (x)=> x.Kategori || ''
+  },
+
+  /* Daily Check diisi tiap dinas, jadi satu tanggal bisa punya beberapa lembar
+     — dan yang membedakannya kolom Dinas, bukan kategori. Tanggalnya diambil
+     dari TanggalIso lebih dulu: kolom Tanggal di formulir itu teks yang
+     diketik orang, dan yang dicocokkan di sini tanggal kalender. */
+  dailycheck: {
+    label: ['Lembar Daily Check E-Logbook', 'E-Logbook Daily Check sheet'],
+    cip:   'DAILY CHECK',  judul: 'Daily Check',
+    sebut: ['lembar Daily Check', 'the Daily Check sheet'],
+    paket: 'dcHistory',  tab: 'dailycheck',  ada: 'adaDailyCheck',
+    tgl:   (x)=> isoTgl(x.TanggalIso) || isoTgl(x.Tanggal) || isoTgl(x.DibuatPada),
+    nama:  (x)=> x.TeknisiNama || x.DiinputOleh,
+    rinci: (x)=> x.Dinas || ''
+  },
+
+  /* Monitoring Frekuensi — satu lembar berisi banyak baris pengamatan, dan
+     yang menandatanganinya dua orang: teknik dan operasi. Yang disebut di
+     dashboard yang teknik, karena kegiatannya kegiatan teknik. */
+  monitoring: {
+    label: ['Lembar Monitoring Frekuensi E-Logbook', 'E-Logbook frequency monitoring sheet'],
+    cip:   'MONITORING',  judul: 'Monitoring Frekuensi',
+    sebut: ['lembar Monitoring Frekuensi', 'the frequency monitoring sheet'],
+    paket: 'monitoring',  tab: 'monitoring',  ada: 'adaMonitoring',
+    tgl:   (x)=> isoTgl(x.Tanggal) || isoTgl(x.DibuatPada),
+    nama:  (x)=> x.PersonilTeknik || x.DiinputOleh,
+    rinci: ()=> ''
+  },
+
+  /* ---- Empat lembar pekerjaan berkala Radtel ----
+     Di E-Logbook keempatnya satu tabel dan satu jendela pengisian, dibedakan
+     kolom Jenis; yang berbeda cuma daftar barisnya. Di sini tetap empat sumber
+     terpisah, dan itu bukan pengulangan yang bisa dipadatkan: yang membuktikan
+     Cleaning CWP bukan lembar Restart CWP, walau keduanya datang lewat pintu
+     yang sama. Karena itu tiap baris menyaring lariknya sendiri.
+
+     Keempatnya hanya ada di Radtel, jadi ada-nya satu: adaBerkala. Unit lain
+     yang memilih sumber ini akan diberi tahu lembarnya tidak ada di sana —
+     lihat salahForm di bklIsi(). */
+  'bk-neptuno': {
+    label: ['Lembar Cek Query Neptuno E-Logbook', 'E-Logbook Neptuno query check sheet'],
+    cip:   'CEK NEPTUNO',  judul: 'Cek Query Neptuno',
+    sebut: ['lembar Cek Query Neptuno', 'the Neptuno query check sheet'],
+    paket: 'berkala',  tab: 'bk-neptuno',  ada: 'adaBerkala',
+    saring:(x)=> x.Jenis === 'neptuno',
+    tgl:   (x)=> isoTgl(x.Tanggal) || isoTgl(x.DibuatPada),
+    nama:  (x)=> x.TeknisiNama || x.DiinputOleh,
+    rinci: ()=> ''
+  },
+
+  'bk-gatevox': {
+    label: ['Lembar Restart CPU Gatevox E-Logbook', 'E-Logbook Gatevox CPU restart sheet'],
+    cip:   'RESTART GATEVOX',  judul: 'Restart CPU Gatevox',
+    sebut: ['lembar Restart CPU Gatevox', 'the Gatevox CPU restart sheet'],
+    paket: 'berkala',  tab: 'bk-gatevox',  ada: 'adaBerkala',
+    saring:(x)=> x.Jenis === 'gatevox',
+    tgl:   (x)=> isoTgl(x.Tanggal) || isoTgl(x.DibuatPada),
+    nama:  (x)=> x.TeknisiNama || x.DiinputOleh,
+    rinci: ()=> ''
+  },
+
+  'bk-cleaning': {
+    label: ['Lembar Cleaning CWP E-Logbook', 'E-Logbook CWP cleaning sheet'],
+    cip:   'CLEANING CWP',  judul: 'Cleaning CWP',
+    sebut: ['lembar Cleaning CWP', 'the CWP cleaning sheet'],
+    paket: 'berkala',  tab: 'bk-cleaning',  ada: 'adaBerkala',
+    saring:(x)=> x.Jenis === 'cleaning-cwp',
+    tgl:   (x)=> isoTgl(x.Tanggal) || isoTgl(x.DibuatPada),
+    nama:  (x)=> x.TeknisiNama || x.DiinputOleh,
+    rinci: ()=> ''
+  },
+
+  'bk-restart': {
+    label: ['Lembar Restart CWP E-Logbook', 'E-Logbook CWP restart sheet'],
+    cip:   'RESTART CWP',  judul: 'Restart CWP',
+    sebut: ['lembar Restart CWP', 'the CWP restart sheet'],
+    paket: 'berkala',  tab: 'bk-restart',  ada: 'adaBerkala',
+    saring:(x)=> x.Jenis === 'restart-cwp',
+    tgl:   (x)=> isoTgl(x.Tanggal) || isoTgl(x.DibuatPada),
+    nama:  (x)=> x.TeknisiNama || x.DiinputOleh,
+    rinci: ()=> ''
+  }
+};
+
+/** Baris registri untuk satu kegiatan. Sumber yang tidak dikenal — kegiatan
+    lama, atau berkas yang disunting tangan — dibaca sebagai tanda manual,
+    bukan dijatuhkan. */
+const bklSumber = (k) => (k && BERKALA_SUMBER[k.sumber]) || BERKALA_SUMBER[''];
+
+/** Kegiatan ini tandanya sedang benar-benar dibaca dari E-Logbook? Butuh dua
+    hal: kegiatannya memang menyebut sumber, DAN ada server untuk dibaca. */
+const bklDariElogbook = (k) => SRV.aktif && !!bklSumber(k).paket;
+
+/** Unit ini memang punya formulirnya di E-Logbook? Dijawab dari daftar unit
+    yang dikirim server. Selama daftarnya belum ada — data contoh, atau
+    pemuatan yang gagal — dijawab false: tombol yang menuju tab tersembunyi
+    lebih buruk daripada tidak ada tombol. */
+function bklFormAda(unit, k){
+  const s = bklSumber(k);
+  return !!s.ada && !!(UNIT_FORM[unit] || {})[s.ada];
+}
+
+/**
+ * Pilihan "Tanda selesai" untuk satu unit — hanya lembar yang MEMANG ADA di
+ * sana.
+ *
+ * Sebelum ini daftarnya sama untuk semua unit. Radtel tidak punya Monitoring
+ * Frekuensi, tapi tetap bisa memilihnya, dan kegiatan yang memilihnya akan
+ * menunggu lembar yang tidak akan pernah datang — kartunya merah selamanya
+ * tanpa satu pun petunjuk kenapa. Pilihan yang tidak mungkin benar lebih baik
+ * tidak ditawarkan sejak awal.
+ *
+ * Dua hal tetap ditawarkan walau tidak lolos:
+ *   — "Ditandai di sini", yang memang tidak butuh lembar apa pun;
+ *   — sumber yang SEDANG dipakai kegiatan ini, diberi keterangan. Membuangnya
+ *     dari daftar membuat pemilihnya menunjuk pilihan lain, dan menyimpan
+ *     tanpa menyentuh kolom itu akan diam-diam mengganti sumbernya. Yang
+ *     salah harus terlihat salah, bukan hilang.
+ *
+ * Selama daftar unit belum ada — data contoh, atau pemuatan yang gagal —
+ * semuanya ditawarkan. Menyembunyikan pilihan karena tidak tahu jawabannya
+ * lebih buruk daripada menawarkan terlalu banyak.
+ */
+function bklPilihanSumber(unit, k){
+  const kini = (k && k.sumber) || '';
+  const tahu = !!UNIT_FORM[unit];
+  return Object.keys(BERKALA_SUMBER)
+    .filter(s=>!s || s === kini || !tahu || bklFormAda(unit, { sumber:s }))
+    .map(s=>{
+      const label = T(...BERKALA_SUMBER[s].label);
+      const hilang = s && tahu && !bklFormAda(unit, { sumber:s });
+      return { nilai:s, label: hilang
+        ? label + T(' — tidak ada di unit ini', ' — not in this unit') : label };
+    });
+}
+
+/**
+ * Cip sumber di kartu kegiatan — dan, kalau lembarnya memang bisa dituju,
+ * sekaligus pintunya.
+ *
+ * Menekan cip DS TEST membuka tab DS Test di E-Logbook langsung, tanpa mampir
+ * ke halaman depan. Itu jalan yang paling pendek dari "kartunya bilang belum"
+ * ke "lembarnya diisi", dan cipnya memang tempat yang dicari orang: di situ
+ * nama formulirnya tertulis.
+ *
+ * Jatuh kembali jadi cip biasa — tulisan, bukan tautan — dalam keadaan yang
+ * sama dengan kotakTautanForm(): tidak bersumber lembar, alamat E-Logbook
+ * belum diketahui, atau unit ini memang tidak punya formulirnya. Cip yang
+ * kelihatan bisa ditekan lalu tidak melakukan apa-apa lebih buruk daripada
+ * cip yang memang cuma keterangan.
+ */
+function bklCipSumber(unit, k){
+  const f = bklSumber(k);
+  if(!f.cip) return '';
+  const ket = T('Tandanya dibaca dari ' + T(...f.sebut) + ' di E-Logbook, tidak dicentang di sini.',
+                'The mark is read from ' + T(...f.sebut) + ' in E-Logbook, not ticked off here.');
+  if(!f.tab || !TAUTAN_ELOGBOOK || !bklFormAda(unit, k)){
+    return `<span class="cip" title="${esc(ket)}">${esc(f.cip)}</span>`;
+  }
+  return `<a class="cip" href="${esc(TAUTAN_ELOGBOOK)}#${esc(f.tab)}:${esc(unit)}"
+    title="${esc(ket + ' ' + T('Tekan untuk membuka tab ' + f.judul + ' di sana.',
+                               'Press to open the ' + f.judul + ' tab there.'))}">${esc(f.cip)}</a>`;
+}
+
+/** Lembar yang membuktikan kegiatan ini dikerjakan pada tanggal itu. Satu hari
+    bisa punya beberapa lembar, dan satu saja sudah cukup jadi bukti. Yang
+    ditampilkan lembar pertama; sisanya cuma dihitung. */
+function bklBukti(unit, k, tanggal){
+  if(!bklDariElogbook(k)) return null;
+  const baris = ((BUKTI[k.sumber] || {})[unit] || []).filter(x=>x.tgl === tanggal);
+  if(!baris.length) return null;
+  return { ...baris[0], jumlah: baris.length,
+           rinci: [...new Set(baris.map(x=>x.rinci).filter(Boolean))] };
+}
 
 /** Minggu ISO — bentuknya harus sama persis dengan yang di server.js, karena
     kunci catatan selesainya dirangkai dari sini dan diperiksa di sana. */
@@ -6320,7 +7017,19 @@ const bklTgl = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0
 const bklKunciTgl = (unit, k, tanggal) => k.jenis === 'mingguan'
   ? `${unit}|${k.id}|${tanggal}`
   : `${unit}|${k.id}|${periodeKini(k.jenis)}`;
-const bklSudahTgl = (unit, k, tanggal) => BKL.selesai[bklKunciTgl(unit, k, tanggal)] || null;
+/**
+ * Sudah dikerjakan atau belum, untuk satu kejadian.
+ *
+ * Kegiatan yang bersumber E-Logbook dijawab lembarnya, dan hanya lembarnya:
+ * catatan manual yang mungkin tertinggal dari sebelum kegiatannya disambungkan
+ * sengaja tidak ikut dibaca. Kalau ikut, kartunya bisa berkata "sudah" karena
+ * tanda lama, padahal lembar minggu ini belum ada — dan itu persis kesalahan
+ * yang membuat penyambungannya perlu.
+ */
+function bklSudahTgl(unit, k, tanggal){
+  if(bklDariElogbook(k)) return bklBukti(unit, k, tanggal);
+  return BKL.selesai[bklKunciTgl(unit, k, tanggal)] || null;
+}
 
 const bklDaftar = (unit) => BKL.kegiatan[unit] || [];
 
@@ -6588,6 +7297,12 @@ function bklIsi(unit){
                 }).join('')}</div>`
             : `<input type="number" min="1" max="28" data-bkl="${i}" data-kolom="tanggal"
                  value="${Number(k.tanggal) || 1}">`}</div>
+        <div class="isian" style="margin-bottom:0;min-width:200px">
+          <label>${T('Tanda selesai','Completion mark')}</label>
+          <select data-bkl="${i}" data-kolom="sumber">${bklPilihanSumber(unit, k).map(o=>
+            `<option value="${o.nilai}"${(k.sumber || '') === o.nilai ? ' selected' : ''}>${
+              esc(o.label)}</option>`).join('')}
+          </select></div>
         <div class="isian" style="margin-bottom:0;flex:2;min-width:170px">
           <label>${T('Catatan','Notes')}</label>
           <input type="text" data-bkl="${i}" data-kolom="ket" value="${esc(k.ket || '')}"></div>
@@ -6630,30 +7345,90 @@ function bklIsi(unit){
     // kegiatan bulanan yang memang cuma jatuh sekali, "Rabu ·" tidak
     // menambah apa pun selain panjang baris.
     const banyak = kejadian.length > 1;
+    // Tanda yang dibaca dari E-Logbook tidak bisa ditekan dari sini — tombolnya
+    // diganti keterangan asalnya, supaya yang membaca tahu ke mana harus pergi
+    // kalau tandanya belum muncul.
+    const dariEl = bklDariElogbook(k);
     return `<article class="bkl-kartu ${rupa}">
       <div class="bkl-atas">
         <span class="cip ${bklRupaJenis(k.jenis)}">${esc(bklJenisNama(k.jenis).toUpperCase())}</span>
+        ${bklCipSumber(unit, k)}
         <span class="mono bkl-kapan">${esc(bklKapan(k))}</span>
       </div>
       <h4>${esc(k.nama)}</h4>
       ${k.ket ? `<p>${esc(k.ket)}</p>` : ''}
       ${kejadian.map(x=>{
         const hari = banyak ? esc(hariNama(x.hari)) + ' · ' : '';
+        // Yang membedakan lembar sehari berbeda tiap formulir — kategori pada
+        // DS Test, dinas pada Daily Check — jadi yang disebut apa pun yang
+        // dikembalikan registrinya, tanpa dinamai di sini.
+        const lembar = x.sudah && Array.isArray(x.sudah.rinci) && x.sudah.rinci.length
+          ? ' · ' + esc(x.sudah.rinci.join(', ')) : '';
         return `<div class="bkl-kaki">
         ${x.sudah
-          ? `<span class="bkl-status aman">${hari}${T('Sudah dikerjakan','Done')} · ${esc(x.sudah.nama || x.sudah.oleh)}
+          ? `<span class="bkl-status aman">${hari}${T('Sudah dikerjakan','Done')} · ${esc(x.sudah.nama || x.sudah.oleh)}${lembar}
               <span class="mono">${new Date(x.sudah.jam).toLocaleDateString(LOKAL(),{day:'numeric',month:'short'})}</span></span>`
           : `<span class="bkl-status ${x.sisa < 0 ? 'bahaya' : x.sisa <= 1 ? 'awas' : ''}">${hari}${
               x.sisa < 0 ? T(`Lewat ${-x.sisa} hari`, `${-x.sisa} days overdue`)
               : x.sisa === 0 ? T('Jatuh tempo hari ini','Due today')
               : T(`${x.sisa} hari lagi`, `in ${x.sisa} days`)}</span>`}
-        <button class="btn ${x.sudah ? 'garis ' : ''}kecil" data-bkl-tandai="${esc(k.id)}"
-          data-tanggal="${esc(x.tanggal)}" data-batal="${x.sudah ? '1' : ''}">${x.sudah
-            ? T('Batalkan tanda','Undo')
-            : T('Tandai selesai','Mark done')}</button>
+        ${dariEl
+          ? `<span class="mono" style="font-size:10.5px;color:var(--muted);white-space:nowrap">${
+              x.sudah ? T('dari ' + T(...bklSumber(k).sebut), 'from ' + T(...bklSumber(k).sebut))
+                      : T('menunggu ' + T(...bklSumber(k).sebut), 'awaiting ' + T(...bklSumber(k).sebut))}</span>`
+          : `<button class="btn ${x.sudah ? 'garis ' : ''}kecil" data-bkl-tandai="${esc(k.id)}"
+              data-tanggal="${esc(x.tanggal)}" data-batal="${x.sudah ? '1' : ''}">${x.sudah
+                ? T('Batalkan tanda','Undo')
+                : T('Tandai selesai','Mark done')}</button>`}
       </div>`;}).join('')}
     </article>`;
   }).join('');
+
+  /* Keterangan sambungan hanya muncul kalau unit ini memang punya kegiatan
+     yang bersumber E-Logbook. Ditulis dua rupa: yang tersambung perlu tahu
+     lembarnya diisi di mana, yang memakai data contoh perlu tahu kenapa
+     tombolnya masih ada. Sumber yang disebut yang benar-benar dipakai unit
+     ini — menyebut ketiganya pada unit yang cuma punya satu hanya membuat
+     kalimatnya panjang tanpa menambah apa pun. */
+  const sumberDipakai = [...new Set(daftar.map(k=>k.sumber)
+    .filter(x=>x && BERKALA_SUMBER[x] && BERKALA_SUMBER[x].paket))];
+  const cipDipakai = sumberDipakai.map(x=>BERKALA_SUMBER[x].cip).join(' / ');
+  const lembarDipakai = sumberDipakai.map(x=>T(...BERKALA_SUMBER[x].sebut)).join(' / ');
+
+  /* Kegiatan yang menyebut formulir yang TIDAK dimiliki unit ini. Tandanya
+     tidak akan pernah datang — bukan karena pekerjaannya belum dilakukan,
+     melainkan karena lembarnya memang tidak ada di sana. Dibiarkan diam,
+     kartunya akan selamanya merah dan tidak seorang pun tahu sebabnya. */
+  const salahForm = SRV.aktif
+    ? daftar.filter(k=>bklDariElogbook(k) && !bklFormAda(unit, k)) : [];
+
+  const ketDs = !sumberDipakai.length ? '' : `<div class="catatan"><b>${
+    T('Ada kegiatan yang tandanya datang dari E-Logbook.',
+      'Some jobs get their mark from E-Logbook.')}</b> ${SRV.aktif
+    ? T(`Kegiatan bercip ${cipDipakai} tidak dicentang di sini. Tandanya dibaca dari ${lembarDipakai} `
+      + 'yang tersimpan di E-Logbook: begitu lembar hari itu diisi di sana, kartunya berubah '
+      + 'sendiri. Kalau tandanya belum muncul padahal pekerjaannya sudah dilakukan, yang belum '
+      + 'ada lembarnya — bukan tandanya.',
+        `Jobs tagged ${cipDipakai} are not ticked off here. The mark is read from ${lembarDipakai} `
+      + 'stored in E-Logbook: as soon as that day\'s sheet is filled in there, the card changes '
+      + 'by itself. If the mark is missing even though the work was done, what is missing is the '
+      + 'sheet, not the mark.')
+    : T(`Halaman ini sedang memakai data contoh, jadi tidak ada ${lembarDipakai} untuk dibaca — `
+      + 'kegiatannya jatuh kembali ke tanda manual. Tersambung ke server, tombolnya hilang dan '
+      + 'tandanya mengikuti lembar di E-Logbook.',
+        `This page is on sample data, so there is no ${lembarDipakai} to read — those jobs fall back `
+      + 'to a manual tick. Connected to the server, the button disappears and the mark follows the '
+      + 'sheet in E-Logbook.')}${salahForm.length ? `<br><br><b>${
+    T('Satu hal yang perlu dibetulkan.','One thing needs fixing.')}</b> ${
+    T(`${salahForm.map(k=>'"' + k.nama + '"').join(', ')} menunggu lembar yang tidak dimiliki unit ini di `
+      + 'E-Logbook, jadi tandanya tidak akan pernah datang. Ganti sumbernya lewat Atur kegiatan, atau '
+      + 'kembalikan ke tanda manual dengan tombol di bawah.',
+        `${salahForm.map(k=>'"' + k.nama + '"').join(', ')} waits on a sheet this unit does not have in `
+      + 'E-Logbook, so the mark will never arrive. Change its source under Set up jobs, or use the '
+      + 'button below to put it back on a manual tick.')}${boleh
+    ? `<br><br><button class="btn kecil" id="bklBetulkan">${
+        T(`Kembalikan ${salahForm.length} kegiatan ke tanda manual`,
+          `Put ${salahForm.length} job(s) back on a manual tick`)}</button>` : ''}` : ''}</div>`;
 
   return kepala
     + (daftar.length
@@ -6670,7 +7445,8 @@ function bklIsi(unit){
           'Dates with work on them are marked on the top row of the Duty Roster table, and anything still '
         + 'undone at its due date appears on the home screen and in the notification bell of whoever is on '
         + 'duty that day. Marking a job done applies to the current period only — next week it empties '
-        + 'itself again.')}</div>`;
+        + 'itself again.')}</div>`
+    + ketDs;
 }
 
 function bklGambar(){
@@ -6698,7 +7474,7 @@ function bklPasang(unit){
   const sunting = kotak.querySelector('#bklSunting');
   if(sunting) sunting.addEventListener('click', ()=>{
     BKL.draf = bklDaftar(unit).map(k=>({ ...k }));
-    if(!BKL.draf.length) BKL.draf.push({ id:'', nama:'', jenis:'mingguan', hari:[1], bulan:1, tanggal:1, ket:'', alat:'' });
+    if(!BKL.draf.length) BKL.draf.push({ id:'', nama:'', jenis:'mingguan', hari:[1], bulan:1, tanggal:1, sumber:'', ket:'', alat:'' });
     BKL.sunting = true; BKL.unit = unit;
     bklGambar();
   });
@@ -6710,8 +7486,35 @@ function bklPasang(unit){
 
   const tambah = kotak.querySelector('#bklTambah');
   if(tambah) tambah.addEventListener('click', ()=>{
-    BKL.draf.push({ id:'', nama:'', jenis:'mingguan', hari:[1], bulan:1, tanggal:1, ket:'', alat:'' });
+    BKL.draf.push({ id:'', nama:'', jenis:'mingguan', hari:[1], bulan:1, tanggal:1, sumber:'', ket:'', alat:'' });
     bklGambar();
+  });
+
+  /* Membetulkan kegiatan yang menunggu lembar yang tidak dimiliki unit ini.
+     Menyaring pemilih hanya mencegah yang baru; yang terlanjur tersimpan —
+     termasuk yang tertinggal di localStorage dari sebelum penyaringnya ada —
+     akan menunggu selamanya sampai ada yang mengubahnya, dan kartunya merah
+     tanpa sebab yang kelihatan.
+
+     Yang dikembalikan cuma sumbernya, jadi tanda manual. Menebak lembar
+     pengganti bukan urusan layar ini: yang tahu pekerjaan itu sebenarnya
+     dibuktikan apa hanya orang yang mengerjakannya. */
+  const betulkan = kotak.querySelector('#bklBetulkan');
+  if(betulkan) betulkan.addEventListener('click', async ()=>{
+    const daftar = bklDaftar(unit);
+    const kena = daftar.filter(k=>bklDariElogbook(k) && !bklFormAda(unit, k));
+    if(!kena.length) return;
+    betulkan.disabled = true;
+    try{
+      await bklSimpanUnit(unit, daftar.map(k=>kena.includes(k) ? { ...k, sumber:'' } : { ...k }));
+      bklGambar(); gambarUbin(); gambarPerhatian();
+      if(subtabAktif === 'dinas') jdwGambar();
+      pesan(T(`${kena.length} kegiatan dikembalikan ke tanda manual.`,
+              `${kena.length} job(s) put back on a manual tick.`));
+    }catch(e){
+      pesan(T('Gagal menyimpan: ','Could not save: ') + (e && e.message || e));
+      betulkan.disabled = false;
+    }
   });
 
   const simpan = kotak.querySelector('#bklSimpan');
@@ -6725,6 +7528,7 @@ function bklPasang(unit){
         bulan:   BERKALA_PANJANG[k.jenis]
           ? Math.min(BERKALA_PANJANG[k.jenis], Math.max(1, Number(k.bulan) || 1)) : null,
         tanggal: k.jenis === 'mingguan' ? null : Math.min(28, Math.max(1, Number(k.tanggal) || 1)),
+        sumber: BERKALA_SUMBER[k.sumber] ? (k.sumber || '') : '',
         alat: k.alat || '', ket: String(k.ket || '').trim()
       }))
       .filter(k=>k.nama);
@@ -6783,7 +7587,7 @@ function bklPasang(unit){
   kotak.querySelectorAll('[data-bkl-buang]').forEach(b=>{
     b.addEventListener('click', ()=>{
       BKL.draf.splice(Number(b.dataset.bklBuang), 1);
-      if(!BKL.draf.length) BKL.draf.push({ id:'', nama:'', jenis:'mingguan', hari:[1], bulan:1, tanggal:1, ket:'', alat:'' });
+      if(!BKL.draf.length) BKL.draf.push({ id:'', nama:'', jenis:'mingguan', hari:[1], bulan:1, tanggal:1, sumber:'', ket:'', alat:'' });
       bklGambar();
     });
   });
@@ -7585,20 +8389,28 @@ el('btnSegarAktivitas').addEventListener('click', ()=>aktSegarkan());
  * sementara layar di sebelahnya menyebut nama orangnya hanya membuat orang
  * berhenti mempercayai keduanya.
  */
-function unitDinasSaya(){
-  if(!akun) return [];
+/**
+ * Nama di jadwal ini merujuk akun yang sedang masuk?
+ *
+ * Nama di jadwal diketik tangan dan jarang sama persis dengan nama akun.
+ * Dicocokkan longgar dua arah — kalau harus sama persis, hampir tidak ada yang
+ * pernah kena peringatannya. Dipakai bersama oleh lonceng dan Kotak Masuk:
+ * dua aturan pencocokan yang berbeda akan membuat keduanya berselisih tentang
+ * pekerjaan yang sama.
+ */
+function namaSaya(n){
+  if(!akun) return false;
+  const x = String(n || '').toLowerCase().trim();
+  if(!x) return false;
   const nama = String(akun.nama || '').toLowerCase();
   const user = String(akun.user || '').toLowerCase();
-  // Nama di jadwal diketik tangan dan jarang sama persis dengan nama akun.
-  // Dicocokkan longgar dua arah — kalau harus sama persis, hampir tidak ada
-  // yang pernah kena peringatannya.
-  const sayaJuga = (n) => {
-    const x = String(n || '').toLowerCase().trim();
-    if(!x) return false;
-    return x === nama || x === user || (x.length > 3 && (nama.includes(x) || x.includes(nama)));
-  };
+  return x === nama || x === user || (x.length > 3 && (nama.includes(x) || x.includes(nama)));
+}
+
+function unitDinasSaya(){
+  if(!akun) return [];
   return UNIT.map(u=>u.kode)
-    .filter(kode=>dinasUnit(kode).some(s=>s.o.some(o=>sayaJuga(o.n))));
+    .filter(kode=>dinasUnit(kode).some(s=>s.o.some(o=>namaSaya(o.n))));
 }
 
 /** Pemberitahuan pribadi untuk akun yang sedang masuk. */
@@ -7688,6 +8500,236 @@ function gambarLonceng(){
         bukaUnit(n.unit); subtabAktif = n.sub || 'berkala'; gambarUnit();
       }
       else pindahLayar(n.layar);
+    });
+  });
+
+  /* Kotak Masuk digambar dari sini, bukan ditambahkan ke enam tempat yang
+     memanggil gambarLonceng(). Keduanya diturunkan dari data yang sama persis —
+     kegiatan berkala, jadwal dinas, catatan selesai — jadi tidak ada keadaan di
+     mana yang satu perlu digambar ulang dan yang lain tidak. Dipisah, cepat
+     atau lambat ada satu tempat yang lupa memanggil salah satunya. */
+  gambarKotakMasuk();
+}
+
+/* =======================================================================
+   KOTAK MASUK — kegiatan berkala, per tanggal, tertuju ke yang berdinas
+
+   Bedanya dengan lonceng di sebelahnya, dan kenapa keduanya ada:
+
+     lonceng      apa yang perlu SAYA kerjakan HARI INI. Pendek, hanya yang
+                  sudah jatuh tempo atau besok, dan pergi begitu beres.
+     kotak masuk  seluruh kejadian di periode berjalan beserta TUJUANNYA —
+                  termasuk yang masih beberapa hari lagi, dan termasuk yang
+                  tertuju ke orang lain.
+
+   Yang menentukan tujuan JADWAL DINAS pada tanggal kejadian, bukan daftar akun
+   dan bukan siapa yang kebetulan berdinas hari ini. DS Test yang jatuh Sabtu
+   adalah pekerjaan orang yang jadwalnya Sabtu; memberitahukannya kepada yang
+   berdinas Senin hanya melahirkan pertanyaan, bukan pekerjaan yang selesai.
+
+   Yang TIDAK dilakukan di sini: tidak ada penyimpanan baru. Kotak ini
+   seluruhnya diturunkan dari kegiatan berkala + jadwal dinas + catatan selesai
+   yang sudah ada. Tidak ada butir yang bisa "dibaca" atau "diarsipkan" — yang
+   mengosongkan satu baris cuma pekerjaannya benar-benar dikerjakan.
+   ======================================================================= */
+
+/** Siapa yang berdinas di satu unit pada tanggal tertentu.
+    null — bukan daftar kosong — kalau jadwalnya memang belum bisa dibaca:
+    "belum termuat" dan "tidak ada yang berdinas" dua hal yang berbeda, dan
+    yang kedua itu lubang jaga yang pantas terlihat. */
+function dinasPadaTanggal(unit, d){
+  // Yang termuat cuma bulan berjalan. Kejadian di pekan yang melewati pergantian
+  // bulan jatuh di luar jangkauan itu, dan menebaknya lebih buruk daripada
+  // mengaku tidak tahu.
+  if(bulanKode(d) !== JDW.bulanIni) return null;
+  const daftar = JDW.jadwal[unit];
+  if(!Array.isArray(daftar) || !daftar.length) return null;
+  const h = d.getDate();
+  return daftar
+    .map(o=>({ nama:o.nama, peran:o.peran || '', kode:(o.hari || [])[h-1] || '' }))
+    .filter(o=>o.kode && o.nama);
+}
+
+/** Kenapa penerimanya tidak bisa dibaca. Dua sebab yang berbeda, dan hanya satu
+    di antaranya yang bisa dibereskan dengan mengisi jadwal — yang satu lagi
+    cuma soal bulan yang memang belum diambil dari server. */
+function dinasSebabKosong(unit, d){
+  return bulanKode(d) !== JDW.bulanIni
+    ? T(`jadwal ${namaBulan(bulanKode(d))} belum dimuat`,
+        `the ${namaBulan(bulanKode(d))} roster is not loaded`)
+    : T('unit ini belum punya jadwal dinas bulan ini',
+        'this unit has no roster for this month yet');
+}
+
+/** Satu butir per kejadian, seluruh unit yang boleh dibuka akun ini. */
+function kotakButir(){
+  const kini = new Date(); kini.setHours(0,0,0,0);
+  const keluar = [];
+  Object.entries(BKL.kegiatan).forEach(([unit, daftar])=>{
+    if(!bolehBuka(unit)) return;
+    (daftar || []).forEach(k=>{
+      bklKejadian(k).forEach(j=>{
+        const tanggal = bklTgl(j);
+        const orang = dinasPadaTanggal(unit, j);
+        keluar.push({
+          unit, k, tanggal,
+          hari:  j.getDay() || 7,
+          sisa:  Math.round((j - kini) / 86400000),
+          sudah: bklSudahTgl(unit, k, tanggal),
+          orang,
+          untukSaya: !!orang && orang.some(o=>namaSaya(o.nama))
+        });
+      });
+    });
+  });
+  return keluar.sort((a,b)=>a.tanggal.localeCompare(b.tanggal)
+    || a.unit.localeCompare(b.unit) || a.k.nama.localeCompare(b.k.nama));
+}
+
+/** Angka di rel: yang tertuju ke saya dan belum beres. Yang tertuju ke orang
+    lain tidak dihitung — lencana yang tidak bisa dikosongkan siapa pun akan
+    berhenti dibaca dalam sepekan. */
+const kotakUntukSaya = () => kotakButir().filter(b=>b.untukSaya && !b.sudah);
+
+let KOTAK_SARING = 'saya';    // 'saya' | 'semua'
+
+function gambarKotakMasuk(){
+  const kotak = el('isiKotak'); if(!kotak) return;
+  const semua = kotakButir();
+  const milikSaya = semua.filter(b=>b.untukSaya);
+  const tampil = KOTAK_SARING === 'saya' ? milikSaya : semua;
+
+  const lencana = el('lencanaKotak');
+  const n = kotakUntukSaya().length;
+  if(lencana){ lencana.textContent = n; lencana.hidden = !n; }
+
+  el('ketKotak').textContent = SRV.aktif
+    ? T(`Periode berjalan · pekan ${periodeKini('mingguan')}`,
+        `Current period · week ${periodeKini('mingguan')}`)
+    : T('Data contoh — jadwal dinas dan kegiatannya tersimpan di peramban ini saja.',
+        'Sample data — the roster and its jobs live in this browser only.');
+
+  el('saringKotak').innerHTML = [
+    ['saya',  T(`Untuk saya (${milikSaya.length})`, `For me (${milikSaya.length})`)],
+    ['semua', T(`Semua unit saya (${semua.length})`, `All my units (${semua.length})`)]
+  ].map(([nilai, teks])=>`<button class="btn ${KOTAK_SARING === nilai ? '' : 'garis '}kecil"
+      data-saring-kotak="${nilai}">${esc(teks)}</button>`).join('');
+
+  if(!tampil.length){
+    kotak.innerHTML = `<div class="panel"><div class="badan" style="color:var(--muted);font-size:12.5px;line-height:1.7">${
+      KOTAK_SARING === 'saya'
+        ? T('Tidak ada kegiatan berkala yang tertuju ke Anda di periode ini. Anda tidak tercantum '
+          + 'berdinas pada tanggal-tanggal kejadiannya, atau pekerjaannya sudah beres semua.',
+            'No recurring job is addressed to you this period. You are not rostered on any of the '
+          + 'occurrence dates, or everything is already done.')
+        : T('Belum ada kegiatan berkala di unit yang boleh Anda buka.',
+            'No recurring jobs in the units you may open yet.')}</div></div>`;
+    kotakPasang();
+    return;
+  }
+
+  // Dikelompokkan per tanggal: yang dibaca orang "apa saja hari Rabu", bukan
+  // "kapan saja pekerjaan bernama X".
+  const perTanggal = {};
+  tampil.forEach(b=>{ (perTanggal[b.tanggal] = perTanggal[b.tanggal] || []).push(b); });
+
+  kotak.innerHTML = Object.entries(perTanggal).map(([tanggal, butir])=>{
+    const s = butir[0].sisa;
+    const rupa = butir.every(b=>b.sudah) ? 'aman' : s < 0 ? 'bahaya' : s === 0 ? 'awas' : '';
+    const kapan = s < 0 ? T(`lewat ${-s} hari`, `${-s} days ago`)
+      : s === 0 ? T('hari ini','today')
+      : s === 1 ? T('besok','tomorrow')
+      : T(`${s} hari lagi`, `in ${s} days`);
+    return `<div class="panel" style="margin-bottom:14px">
+      <div class="kepala">
+        <h3>${esc(hariNama(butir[0].hari))}, ${esc(tglRingkas(tanggal))}</h3>
+        <span class="cip ${rupa}">${esc(kapan.toUpperCase())}</span>
+      </div>
+      <div class="badan" style="display:grid;gap:10px">${butir.map(b=>kotakBaris(b)).join('')}</div>
+    </div>`;
+  }).join('');
+
+  kotakPasang();
+}
+
+/** Satu baris pekerjaan di dalam kelompok tanggalnya. */
+function kotakBaris(b){
+  const { unit, k, sudah, orang, untukSaya } = b;
+  const penerima = orang === null
+    ? `<span class="kmk-samar">${esc(dinasSebabKosong(unit, new Date(b.tanggal + 'T00:00:00')))}</span>`
+    : orang.length
+      ? orang.map(o=>`<span class="kmk-orang${namaSaya(o.nama) ? ' saya' : ''}">${esc(o.nama)}
+          <span class="mono">${esc(o.kode)}</span></span>`).join('')
+      : `<span class="kmk-samar">${T('tidak ada yang berdinas hari itu','nobody is rostered that day')}</span>`;
+
+  return `<article class="kmk ${sudah ? 'beres' : ''}${untukSaya ? ' saya' : ''}">
+    <div class="kmk-kiri">
+      <div class="kmk-jd">
+        <span class="cip ${bklRupaJenis(k.jenis)}">${esc(bklJenisNama(k.jenis).toUpperCase())}</span>
+        ${bklSumber(k).cip ? `<span class="cip">${esc(bklSumber(k).cip)}</span>` : ''}
+        <b>${esc(k.nama)}</b>
+      </div>
+      <div class="kmk-rn">${esc(namaUnit(unit))}${k.ket ? ' · ' + esc(k.ket) : ''}</div>
+      <div class="kmk-orang-baris">${T('Berdinas','On duty')}: ${penerima}</div>
+    </div>
+    <div class="kmk-kanan">
+      ${sudah
+        ? `<span class="bkl-status aman">${T('Sudah dikerjakan','Done')} · ${esc(sudah.nama || sudah.oleh)}</span>`
+        : `<span class="bkl-status ${b.sisa < 0 ? 'bahaya' : b.sisa <= 0 ? 'awas' : ''}">${
+            T('Belum dikerjakan','Not done yet')}</span>`}
+      <span class="kmk-tombol">
+        ${kotakTautanForm(unit, k)}
+        <button class="btn garis kecil" data-kotak-buka="${esc(unit)}">${T('Buka kegiatannya','Open the job')}</button>
+      </span>
+    </div>
+  </article>`;
+}
+
+/**
+ * Tombol yang membuka formulir kegiatan ini di E-Logbook, langsung pada tabnya.
+ *
+ * Tautannya membawa #<tab>:<unit> — tabnya dari registri sumber, jadi sumber
+ * baru mendapat tombolnya tanpa satu baris pun ditambahkan di sini. E-Logbook
+ * membaca potongan itu saat halaman dibuka dan langsung berpindah ke tab yang
+ * disebut; lihat tautanMasuk() di elogbook/public/js/26-init.js.
+ *
+ * Unit ikut disebut karena tab-tab itu hanya ada pada unit yang memang punya
+ * formulirnya; tanpa itu tautannya mendarat di unit terakhir yang dibuka orang,
+ * yang belum tentu unit ini.
+ *
+ * Tidak dipasang sama sekali dalam tiga keadaan, dan ketiganya sama sebabnya —
+ * tombol yang menuju entah ke mana lebih buruk daripada tidak ada tombol:
+ *   · kegiatannya tidak bersumber lembar
+ *   · alamat E-Logbook belum diketahui (/_info belum menjawab, atau memang
+ *     tidak ada E-Logbook di belakangnya)
+ *   · unit ini tidak punya formulirnya, jadi di sana tabnya disembunyikan
+ */
+function kotakTautanForm(unit, k){
+  const f = bklSumber(k);
+  if(!f.tab || !TAUTAN_ELOGBOOK || !bklFormAda(unit, k)) return '';
+  return `<a class="btn kecil" href="${esc(TAUTAN_ELOGBOOK)}#${esc(f.tab)}:${esc(unit)}"
+    title="${esc(T('Buka tab ' + f.judul + ' di E-Logbook untuk unit ini',
+                   'Open the ' + f.judul + ' tab in E-Logbook for this unit'))}">${
+    esc(T('Buka ' + f.judul, 'Open ' + f.judul))}</a>`;
+}
+
+function kotakPasang(){
+  el('saringKotak').querySelectorAll('[data-saring-kotak]').forEach(b=>{
+    b.addEventListener('click', ()=>{ KOTAK_SARING = b.dataset.saringKotak; gambarKotakMasuk(); });
+  });
+  el('isiKotak').querySelectorAll('[data-kotak-buka]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const unit = b.dataset.kotakBuka;
+      if(!bolehBuka(unit)){
+        pesan(T(`Akun Anda tidak berhak membuka unit ${namaUnit(unit)}.`,
+                `Your account may not open the ${namaUnit(unit)} unit.`));
+        return;
+      }
+      // bukaUnit() sudah berpindah layar sendiri; subtabnya disetel sesudahnya
+      // karena ia selalu mendarat di Peralatan. Sama dengan yang dilakukan
+      // lonceng — dua jalan menuju tempat yang sama harus sampai dengan cara
+      // yang sama juga.
+      bukaUnit(unit); subtabAktif = 'berkala'; gambarUnit();
     });
   });
 }
@@ -7791,6 +8833,102 @@ function bukaUnit(kode){
   gambarPilihUnit(); gambarUnit(); pindahLayar('unit');
 }
 
+/* =======================================================================
+   GAMBAR PENGENAL UNIT
+
+   Kotak di kiri nama unit. Bawaannya ilustrasi vektor yang dibangkitkan
+   halaman ini menurut u.adegan — bagus untuk contoh, tapi ia tidak pernah
+   jadi gambar unit yang sebenarnya: yang ada di kepala Radtel bukan menara
+   karangan melainkan logo atau foto yang dipilih sendiri.
+
+   Servernya sudah ada sejak modul database unit dipasang (POST dan DELETE
+   /logo/:unit, berkasnya di public/foto/_logo/), cuma belum pernah ada jalan
+   menekannya dari layar. Ini jalannya.
+
+   Hanya administrator, dan itu diputuskan server — bukan hak.json: mengganti
+   gambar unit mengubah layar semua orang sekaligus, dan tidak ada centang di
+   layar hak yang pantas membukanya tanpa sengaja. Tombol di sini cuma tidak
+   digambar untuk yang pasti ditolak.
+   ======================================================================= */
+
+const bolehGantiIkon = () =>
+  SRV.aktif && KEMAMPUAN.galeriTulis && !!akun && akun.role === 'admin';
+
+/** Kotak gambar unit: yang diunggah kalau ada, ilustrasi kalau belum. */
+function ikonUnitHtml(u){
+  const l = LOGO[u.kode];
+  /* Nama berkasnya tetap sama tiap kali diganti (kode unit + ekstensi), jadi
+     tanpa penanda ini peramban akan menunjukkan gambar lama sampai singgahannya
+     kedaluwarsa. Cap waktunya yang jadi penandanya. */
+  const isi = (l && l.berkas)
+    ? `<img src="/foto/_logo/${esc(l.berkas)}?v=${esc(String(l.jam || '').replace(/\D/g, ''))}"
+         alt="${esc(u.nama)}">`
+    : adegan(u.adegan);
+  if(!bolehGantiIkon()) return `<div class="ikon-unit">${isi}</div>`;
+  return `<button type="button" class="ikon-unit bisa" id="ikonUnit"
+    title="${T('Ganti gambar unit ini','Change this unit’s image')}">${isi}<span class="tutup">${
+      l ? T('Ganti gambar','Change image') : T('Pilih gambar','Choose image')}</span></button>`;
+}
+
+const IKON_EXT_SAH   = /\.(jpe?g|png|webp|svg)$/i;
+const IKON_BATAS     = 2 * 1024 * 1024;   // sama dengan LOGO_BATAS di server.js
+
+function pasangIkonUnit(){
+  const kotak = el('isiUnit').querySelector('#ikonUnit');
+  if(kotak) kotak.addEventListener('click', ()=>ikonUnitPilih(unitDibuka, kotak));
+  const buang = el('isiUnit').querySelector('#ikonUnitBuang');
+  if(buang) buang.addEventListener('click', ()=>ikonUnitBuang(unitDibuka));
+}
+
+/** Pilih berkas, kirim, lalu gambar ulang layarnya dari jawaban server. */
+function ikonUnitPilih(unit, kotak){
+  const pilih = document.createElement('input');
+  pilih.type = 'file';
+  pilih.accept = '.png,.webp,.jpg,.jpeg,.svg,image/png,image/webp,image/jpeg,image/svg+xml';
+  pilih.addEventListener('change', async ()=>{
+    const berkas = pilih.files[0]; if(!berkas) return;
+    // Diperiksa di sini juga, bukan cuma di server: menunggu 2 MB terkirim
+    // hanya untuk ditolak adalah menit yang tidak perlu hilang.
+    if(!IKON_EXT_SAH.test(berkas.name)){
+      pesan(T('Gambar harus .png, .webp, .jpg, atau .svg.',
+              'The image must be .png, .webp, .jpg, or .svg.')); return;
+    }
+    if(berkas.size > IKON_BATAS){
+      pesan(T('Gambar lebih dari 2 MB.','The image is larger than 2 MB.')); return;
+    }
+    kotak.classList.add('sibuk');
+    try{
+      const r = await srvFetch('/logo/' + encodeURIComponent(unit), {
+        method:'POST', headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({ berkas: berkas.name, isi: await berkasBase64(berkas) })
+      }, 20000);
+      const j = await r.json().catch(()=>({}));
+      if(!r.ok) throw new Error(j.error || 'server menjawab ' + r.status);
+      await unitdbMuat();
+      gambarUnit();
+      pesan(T('Gambar unit diganti.','Unit image changed.'));
+    }catch(e){
+      kotak.classList.remove('sibuk');
+      pesan(T('Gagal mengganti gambar: ','Could not change the image: ') + (e && e.message || e));
+    }
+  });
+  pilih.click();
+}
+
+async function ikonUnitBuang(unit){
+  if(!confirm(T('Kembalikan gambar unit ini ke ilustrasi bawaan?\n\nBerkasnya dihapus dari server.',
+                'Return this unit\'s image to the default illustration?\n\nThe file is removed from the server.'))) return;
+  try{
+    const r = await srvFetch('/logo/' + encodeURIComponent(unit), { method:'DELETE' }, 15000);
+    const j = await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(j.error || 'server menjawab ' + r.status);
+    await unitdbMuat();
+    gambarUnit();
+  }catch(e){
+    pesan(T('Gagal menghapus gambar: ','Could not remove the image: ') + (e && e.message || e));
+  }
+}
+
 function gambarUnit(){
   if(!unitDibuka){
     const boleh = unitBoleh();
@@ -7819,7 +8957,7 @@ function gambarUnit(){
 
   el('isiUnit').innerHTML = `
     <div class="kepala-unit">
-      <div class="ikon-unit">${adegan(u.adegan)}</div>
+      ${ikonUnitHtml(u)}
       <div style="flex:1;min-width:200px">
         <h2>${esc(u.nama)}</h2>
         <div class="sub">${esc(u.alat)}</div>
@@ -7827,10 +8965,14 @@ function gambarUnit(){
           ${T('kode dinas','shift codes')} ${u.dinas.join(' · ')} · ${alat.length}
           ${T('peralatan terdaftar','equipment registered')}</div>
       </div>
-      <!-- Bukan "unit ini": E-Logbook tidak membaca satu pun parameter URL,
-           dan unit aktifnya cuma ada di memori — tidak ada cara menunjuknya
-           dari luar. Yang dijanjikan tombol ini hanya membuka aplikasinya. -->
-      <a class="btn" href="#" data-elogbook>${T('Buka E-Logbook','Open E-Logbook')}</a>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        ${(bolehGantiIkon() && LOGO[unitDibuka]) ? `<button class="btn garis kecil" id="ikonUnitBuang">${
+          T('Pakai ilustrasi','Use illustration')}</button>` : ''}
+        <!-- Bukan "unit ini": E-Logbook tidak membaca satu pun parameter URL,
+             dan unit aktifnya cuma ada di memori — tidak ada cara menunjuknya
+             dari luar. Yang dijanjikan tombol ini hanya membuka aplikasinya. -->
+        <a class="btn" href="#" data-elogbook>${T('Buka E-Logbook','Open E-Logbook')}</a>
+      </div>
     </div>
 
     <div class="subtab" id="subtab">
@@ -8088,16 +9230,25 @@ function gambarUnit(){
         </div>
         <div id="daftarBerkas"></div>
       </div>
-      <div class="catatan">
-        <b>${T('Berkasnya tidak dikirim ke mana pun.','The files are not sent anywhere.')}</b>
-        ${T('Daftar ini hidup di memori tab peramban saja — menyegarkan halaman mengosongkannya, '
-            + 'dan tidak ada satu byte pun yang sampai ke server E-Logbook. Yang diuji di sini bentuk '
-            + 'alurnya: apa yang ditanyakan saat berkas masuk, dan seperti apa daftarnya setelah terisi. '
-            + 'Tempat penyimpanan dan hak buka berkas adalah keputusan berikutnya, bukan bagian prototipe ini.',
-            'This list lives only in the memory of this browser tab — refreshing the page empties it, and '
-            + 'not one byte reaches the E-Logbook server. What is being tried here is the shape of the flow: '
-            + 'what gets asked when a file arrives, and what the list looks like once filled. Where the files '
-            + 'are stored and who may open them are the next decisions, not part of this prototype.')}
+      <div class="catatan">${SRV.aktif
+        ? `<b>${T('Berkasnya tersimpan di server dashboard ini.','The files are stored on this dashboard server.')}</b>
+            ${T('Menyegarkan halaman tidak menghilangkannya lagi. Tempatnya data/dokumen/ di server ini — '
+              + 'bukan di E-Logbook, dan bukan di dalam public/, jadi tidak ada yang bisa mengunduhnya '
+              + 'tanpa masuk lebih dulu. Yang boleh menambah ditentukan panel Hak Akses per unit; yang '
+              + 'boleh mengeluarkan hanya administrator, dan berkasnya ikut terhapus dari server.',
+                'Refreshing the page no longer empties it. They live in data/dokumen/ on this server — not '
+              + 'in E-Logbook, and not inside public/, so nobody can download them without signing in '
+              + 'first. Who may add is set per unit in the Access Rights panel; only an administrator may '
+              + 'remove, and the file is deleted from the server with it.')}`
+        : `<b>${T('Pada data contoh, berkasnya tidak dikirim ke mana pun.','On sample data, the files are not sent anywhere.')}</b>
+            ${T('Daftar ini hidup di memori tab peramban saja — menyegarkan halaman mengosongkannya. '
+              + 'Yang bisa dicoba di sini bentuk alurnya: apa yang ditanyakan saat berkas masuk, dan seperti '
+              + 'apa daftarnya setelah terisi. Tersambung ke server, berkasnya benar-benar tersimpan dan '
+              + 'kembali sendiri waktu halaman dibuka lagi.',
+                'This list lives only in the memory of this browser tab — refreshing the page empties it. What '
+              + 'can be tried here is the shape of the flow: what gets asked when a file arrives, and what the '
+              + 'list looks like once filled. Connected to the server, the files really are stored and come '
+              + 'back by themselves when the page is opened again.')}`}
       </div>
     </div>`;
 
@@ -8144,6 +9295,7 @@ function gambarUnit(){
   bklGambar();
   // Personel juga: saringan dan tombol tambahnya menggambar ulang isinya.
   gambarPersonel();
+  pasangIkonUnit();
   // Layar ini digambar ulang tiap pindah unit, jadi tombol E-Logbook di
   // dalamnya selalu lahir kembali dengan href="#" — alamatnya harus dipasang
   // ulang di sini, bukan sekali saja saat halaman dimuat.
@@ -8232,22 +9384,24 @@ const FOTO_EXT_SAH = /\.(jpe?g|png|webp)$/i;
 const FOTO_BATAS_KLIEN = 15 * 1024 * 1024;
 
 /**
- * Kirim satu foto ke server.
+ * Isi satu berkas sebagai base64 tanpa kepala 'data:...;base64,' di depannya.
  *
  * Base64 lewat FileReader, bukan multipart: bentuknya sama dengan lampiran di
  * E-Logbook, jadi seluruh aplikasi ini cuma punya satu bentuk badan permintaan.
- * Yang dipotong hanya kepala 'data:...;base64,' di depan.
  */
+const berkasBase64 = (berkas) => new Promise((selesai, gagal)=>{
+  const baca = new FileReader();
+  baca.onload = ()=>selesai(String(baca.result).split(',')[1] || '');
+  baca.onerror = ()=>gagal(new Error('berkas tidak terbaca'));
+  baca.readAsDataURL(berkas);
+});
+
+/** Kirim satu foto ke galeri unit. */
 async function kirimFoto(unit, berkas, nama, ket, tgl){
   if(berkas.size > FOTO_BATAS_KLIEN) throw new Error('lebih dari 15 MB');
   if(!FOTO_EXT_SAH.test(nama)) throw new Error('hanya .jpg, .png, atau .webp');
 
-  const isi = await new Promise((selesai, gagal)=>{
-    const baca = new FileReader();
-    baca.onload = ()=>selesai(String(baca.result).split(',')[1] || '');
-    baca.onerror = ()=>gagal(new Error('berkas tidak terbaca'));
-    baca.readAsDataURL(berkas);
-  });
+  const isi = await berkasBase64(berkas);
 
   const r = await fetch('/galeri/' + encodeURIComponent(unit), {
     method:'POST', headers:{ 'Content-Type':'application/json' },
@@ -9382,19 +10536,91 @@ document.addEventListener('keydown', e=>{
 });
 
 /* =======================================================================
-   DOKUMEN UNIT — satu-satunya tempat halaman ini menerima masukan
+   DOKUMEN UNIT
 
-   Berkasnya TIDAK diunggah ke mana pun. Yang disimpan cuma object URL di
-   memori tab ini, jadi begitu halaman disegarkan seluruh daftarnya hilang.
-   Disengaja: yang perlu dilihat lebih dulu adalah bentuk alurnya — apa yang
-   ditanyakan waktu berkas masuk, dan seperti apa daftarnya setelah terisi —
-   sebelum ada keputusan berkasnya mau ditaruh di mana dan siapa yang boleh
-   membukanya. Prototipe ini tetap tidak menyentuh satu berkas pun milik
-   E-Logbook, termasuk servernya.
+   Dulu berkasnya tidak dikirim ke mana pun: yang disimpan cuma object URL di
+   memori tab, jadi menyegarkan halaman mengosongkan seluruh daftarnya. Itu
+   memang disengaja selama belum ada keputusan berkasnya mau ditaruh di mana.
+   Sekarang ada, dan berkasnya tersimpan di server dashboard ini —
+   data/dokumen/, di luar public/, hanya bisa diambil setelah masuk. Lihat blok
+   DOKUMEN UNIT di server.js.
+
+   Dua jalan hidup berdampingan, dan bedanya bukan bentuk daftarnya melainkan
+   ke mana byte-nya pergi:
+
+     tersambung   diunggah ke server, tinggal di sana, dan kembali sendiri
+                  waktu halaman dibuka lagi
+     data contoh  seperti dulu — object URL di memori tab, hilang saat
+                  disegarkan, dan kartunya mengatakan begitu
+
+   Yang kedua sengaja dipertahankan: salinan etalase tidak punya server, dan
+   tab yang cuma bisa memperlihatkan daftar kosong tidak memperlihatkan apa pun
+   tentang bentuk alurnya. Baris lokal ditandai .lokal, dan itu satu-satunya
+   yang membedakan keduanya di sisa berkas ini.
+
+   Berkas yang masuk lewat layar ini tetap tidak pernah sampai ke E-Logbook —
+   bukan ke basis datanya, bukan ke uploads/ miliknya, bukan pula ke servernya.
    ======================================================================= */
 const BERKAS = {};                       // kode unit -> array berkas, terbaru di atas
-const BRK_BATAS = 25 * 1024 * 1024;      // 25 MB; object URL hidup di memori tab
+const BRK_BATAS = 25 * 1024 * 1024;      // 25 MB; sama dengan batas di server
 let brkNomor = 0;
+
+/** Berkas yang masuk akan pergi ke server, bukan tinggal di memori tab? */
+const dokKeServer = () => SRV.aktif;
+
+/** Kenapa berkas tidak bisa diunggah, dalam satu kalimat — atau '' kalau bisa.
+    Diperiksa di layar supaya penolakannya datang sebelum berkasnya terlanjur
+    dibaca jadi base64; yang menolak sungguhan tetap server. */
+function dokSebabTolak(){
+  if(!dokKeServer()) return '';
+  if(!KEMAMPUAN.dokumenTulis){
+    return T('Menyimpan dokumen dimatikan di lingkungan ini — penyimpanannya tidak permanen.',
+             'Saving documents is off in this environment — its storage is not permanent.');
+  }
+  if(!bolehSuntingDb('dokumen')){
+    return bolehBuka(unitDibuka)
+      ? T('Peran akun Anda tidak diberi hak mengisi dokumen unit.',
+          'Your role is not granted the right to fill in unit documents.')
+      : T('Akun Anda tidak memegang unit ini, jadi dokumennya tidak bisa Anda isi.',
+          'Your account does not hold this unit, so you cannot fill in its documents.');
+  }
+  return '';
+}
+
+/** Unggah satu berkas ke server. Batas waktunya panjang: 25 MB lewat jaringan
+    kantor bisa memakan lebih dari delapan detik yang jadi bawaan srvFetch. */
+async function dokKirim(unit, f, kategori, alat){
+  const isi = await berkasBase64(f);
+  const r = await srvFetch('/dokumen/' + encodeURIComponent(unit), {
+    method:'POST', headers:{ 'Content-Type':'application/json' },
+    body: JSON.stringify({ nama:f.name, jenis:f.type || '', kategori, alat, isi })
+  }, 120000);
+  const j = await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(j.error || 'server menjawab ' + r.status);
+  return j.baris;
+}
+
+/** Ambil daftar dokumen seluruh unit dari server. Kegagalannya tidak
+    menjatuhkan apa pun — tabnya cuma kosong, sama seperti sebelum ada isinya. */
+async function dokMuat(){
+  try{
+    const r = await srvFetch('/dokumen', {}, 10000);
+    if(!r.ok) throw new Error('server menjawab ' + r.status);
+    const j = await r.json();
+    Object.keys(BERKAS).forEach(k=>delete BERKAS[k]);
+    Object.entries(j.dokumen || {}).forEach(([unit, daftar])=>{
+      BERKAS[unit] = (Array.isArray(daftar) ? daftar : []).map(b=>({
+        ...b,
+        // Satu-satunya yang dirangkai di sini: jalan mengambil berkasnya.
+        // Servernya yang menjaga, bukan tautan ini — tanpa sesi, 401.
+        url: '/dokumen/' + encodeURIComponent(unit) + '/' + encodeURIComponent(b.id)
+      }));
+    });
+    if(typeof j.bisaTulis === 'boolean') KEMAMPUAN.dokumenTulis = j.bisaTulis;
+  }catch(e){
+    console.warn('Daftar dokumen tidak terbaca dari server:', e && e.message || e);
+  }
+}
 
 /* Nilainya tetap Indonesia — itu yang tersimpan di tiap baris berkas, dan
    mengubahnya saat bahasa berganti akan membuat baris lama tidak cocok dengan
@@ -9452,45 +10678,90 @@ function brkTebakKategori(nama, jenis){
 
 const brkDaftar = () => BERKAS[unitDibuka] || (BERKAS[unitDibuka] = []);
 
-function brkTambah(daftarFile){
+async function brkTambah(daftarFile){
   if(!unitDibuka || !daftarFile || !daftarFile.length) return;
-  const kotak  = brkDaftar();
+
+  // Ditolak di muka, bukan setelah berkasnya dibaca: membaca 25 MB jadi base64
+  // lalu membuangnya karena 403 cuma membuat layarnya diam beberapa detik.
+  const tolak = dokSebabTolak();
+  if(tolak){ pesan(tolak); return; }
+
   const pAlat  = el('brkAlat');
   const pKat   = el('brkKat');
   const alat   = pAlat && pAlat.value ? pAlat.value : '';
   const paksa  = pKat && pKat.value ? pKat.value : '';
-  let masuk = 0; const gemuk = [];
+  const keServer = dokKeServer();
+  let masuk = 0; const gemuk = [], gagal = [];
 
   for(const f of daftarFile){
     if(f.size > BRK_BATAS){ gemuk.push(f.name); continue; }
-    kotak.unshift({
-      id: 'brk' + (++brkNomor),
-      nama: f.name,
-      jenis: f.type || '',
-      ukuran: f.size,
-      waktu: new Date(),
-      oleh: akun ? akun.user : '—',
-      kategori: paksa || brkTebakKategori(f.name, f.type || ''),
-      alat,
-      url: URL.createObjectURL(f)
-    });
-    masuk++;
+    const kategori = paksa || brkTebakKategori(f.name, f.type || '');
+    if(keServer){
+      try{ await dokKirim(unitDibuka, f, kategori, alat); masuk++; }
+      catch(e){ gagal.push(f.name + ': ' + (e && e.message || e)); }
+    }else{
+      // Jalan lama, dan sekarang hanya untuk data contoh: object URL di memori
+      // tab. Ditandai .lokal supaya sisa berkas ini tahu barisnya tidak punya
+      // apa pun di server untuk dihapus atau diubah.
+      brkDaftar().unshift({
+        id: 'brk' + (++brkNomor),
+        nama: f.name,
+        jenis: f.type || '',
+        ukuran: f.size,
+        waktu: new Date().toISOString(),
+        olehNama: akun ? akun.nama : '—',
+        oleh: akun ? akun.user : '—',
+        kategori, alat, lokal: true,
+        url: URL.createObjectURL(f)
+      });
+      masuk++;
+    }
   }
 
+  // Satu kali baca ulang untuk seluruh kiriman, bukan sekali per berkas:
+  // yang dijawab server daftar seluruh unit, dan mengambilnya berulang kali
+  // tidak menambah apa pun selain perjalanan.
+  if(keServer && masuk) await dokMuat();
   gambarBerkas(); brkLencana();
-  if(gemuk.length) pesan(T(`${gemuk.length} berkas dilewati — lebih dari ${brkUkuran(BRK_BATAS)}.`,
-                           `${gemuk.length} files skipped — larger than ${brkUkuran(BRK_BATAS)}.`));
-  else if(masuk)   pesan(T(`${masuk} berkas masuk ke daftar ${namaUnit(unitDibuka)}.`,
-                           `${masuk} files added to the ${namaUnit(unitDibuka)} list.`));
+
+  if(gagal.length)      pesan(T('Gagal mengunggah: ','Upload failed: ') + gagal.join('; '));
+  else if(gemuk.length) pesan(T(`${gemuk.length} berkas dilewati — lebih dari ${brkUkuran(BRK_BATAS)}.`,
+                                `${gemuk.length} files skipped — larger than ${brkUkuran(BRK_BATAS)}.`));
+  else if(masuk)        pesan(keServer
+    ? T(`${masuk} berkas tersimpan di dokumen ${namaUnit(unitDibuka)}.`,
+        `${masuk} files saved to ${namaUnit(unitDibuka)} documents.`)
+    : T(`${masuk} berkas masuk ke daftar ${namaUnit(unitDibuka)} — di tab ini saja.`,
+        `${masuk} files added to the ${namaUnit(unitDibuka)} list — in this tab only.`));
 }
 
-function brkBuang(id){
+async function brkBuang(id){
   const kotak = brkDaftar();
   const i = kotak.findIndex(b => b.id === id); if(i < 0) return;
-  URL.revokeObjectURL(kotak[i].url);        // tanpa ini berkasnya menetap di memori
-  const [b] = kotak.splice(i, 1);
-  gambarBerkas(); brkLencana();
-  pesan(T(`"${b.nama}" dikeluarkan dari daftar.`, `"${b.nama}" removed from the list.`));
+  const b = kotak[i];
+
+  if(b.lokal){
+    URL.revokeObjectURL(b.url);             // tanpa ini berkasnya menetap di memori
+    kotak.splice(i, 1);
+    gambarBerkas(); brkLencana();
+    pesan(T(`"${b.nama}" dikeluarkan dari daftar.`, `"${b.nama}" removed from the list.`));
+    return;
+  }
+
+  // Yang tersimpan di server dihapus sungguhan, jadi ditanya dulu. Baris lokal
+  // tidak ditanya: yang hilang di sana cuma satu baris di tab ini.
+  if(!confirm(T(`Keluarkan "${b.nama}" dari dokumen unit ini?\n\nBerkasnya ikut dihapus dari server.`,
+                `Remove "${b.nama}" from this unit's documents?\n\nThe file is deleted from the server too.`))) return;
+  try{
+    const r = await srvFetch(`/dokumen/${encodeURIComponent(unitDibuka)}/${encodeURIComponent(id)}`,
+      { method:'DELETE' }, 15000);
+    const j = await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(j.error || 'server menjawab ' + r.status);
+    await dokMuat();
+    gambarBerkas(); brkLencana();
+    pesan(T(`"${b.nama}" dihapus dari server.`, `"${b.nama}" deleted from the server.`));
+  }catch(e){
+    pesan(T('Gagal menghapus: ','Could not delete: ') + (e && e.message || e));
+  }
 }
 
 /** Angka di label subtab. Dipatch langsung supaya menambah berkas tidak perlu
@@ -9520,7 +10791,12 @@ function gambarBerkas(){
       <th>${T('Peralatan','Equipment')}</th><th>${T('Ukuran','Size')}</th>
       <th>${T('Ditambahkan','Added')}</th><th></th></tr></thead><tbody>${isi.map(b=>{
     const nmAlat = (alatUnit.find(a => a.id === b.alat) || {}).nama;
-    const jam = b.waktu.toLocaleTimeString(LOKAL(),{hour:'2-digit',minute:'2-digit'});
+    // Tanggalnya ikut disebut, bukan cuma jam: daftar yang tinggal di server
+    // akan berisi berkas dari bulan-bulan sebelumnya, dan "09:40" saja tidak
+    // memberi tahu apa pun tentang yang diunggah tiga minggu lalu.
+    const saat = new Date(b.waktu);
+    const jam = isNaN(saat) ? '—' : saat.toLocaleString(LOKAL(),
+      { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
     return `<tr>
       <td><div class="brk-nama">
         <span class="brk-rupa">${b.jenis.startsWith('image/')
@@ -9533,7 +10809,8 @@ function gambarBerkas(){
       <td>${nmAlat ? esc(nmAlat)
         : '<span class="mono" style="color:var(--muted)">—</span>'}</td>
       <td><span class="mono">${brkUkuran(b.ukuran)}</span></td>
-      <td><span class="mono" style="color:var(--muted)">${jam} · ${esc(b.oleh)}</span></td>
+      <td><span class="mono" style="color:var(--muted)">${jam} · ${esc(b.olehNama || b.oleh)}${
+        b.lokal ? ' · ' + esc(T('tab ini saja','this tab only')) : ''}</span></td>
       <td><div style="display:flex;gap:6px;justify-content:flex-end">
         <a class="btn garis kecil" href="${b.url}" target="_blank" rel="noopener">${T('Buka','Open')}</a>
         <button class="brk-buang" data-buang="${b.id}">${T('Keluarkan','Remove')}</button>
@@ -9543,15 +10820,46 @@ function gambarBerkas(){
   kotak.querySelectorAll('[data-buang]').forEach(t =>
     t.addEventListener('click', () => brkBuang(t.dataset.buang)));
   kotak.querySelectorAll('[data-kat]').forEach(s =>
-    s.addEventListener('change', () => {
+    s.addEventListener('change', async () => {
       const b = (BERKAS[unitDibuka] || []).find(x => x.id === s.dataset.kat);
-      if(b) b.kategori = s.value;
+      if(!b) return;
+      const lama = b.kategori;
+      b.kategori = s.value;
+      if(b.lokal) return;
+      /* Yang tersimpan di server ikut diubah di sana. Kalau ditolak, pilihannya
+         dikembalikan ke yang lama — kotak yang menunjukkan sesuatu yang tidak
+         tersimpan akan membuat orang mengira pekerjaannya sudah aman. */
+      try{
+        const r = await srvFetch(`/dokumen/${encodeURIComponent(unitDibuka)}/${encodeURIComponent(b.id)}`, {
+          method:'PATCH', headers:{ 'Content-Type':'application/json' },
+          body: JSON.stringify({ kategori: s.value })
+        }, 15000);
+        const j = await r.json().catch(()=>({}));
+        if(!r.ok) throw new Error(j.error || 'server menjawab ' + r.status);
+      }catch(e){
+        b.kategori = lama; s.value = lama;
+        pesan(T('Kategori gagal disimpan: ','Category could not be saved: ') + (e && e.message || e));
+      }
     }));
 }
 
 /** Dipanggil sekali tiap gambarUnit(), setelah innerHTML-nya diganti. */
 function brkPasang(){
   const jatuh = el('brkJatuh'); if(!jatuh) return;
+
+  /* Kotak yang bisa ditarik berkas tapi selalu menolaknya adalah janji palsu.
+     Kalau sebabnya sudah diketahui sekarang, kotaknya dipadamkan dan sebabnya
+     ditulis di tempat ajakannya. */
+  const tolak = dokSebabTolak();
+  if(tolak){
+    jatuh.style.opacity = '.45';
+    jatuh.style.pointerEvents = 'none';
+    const ajak = jatuh.querySelector('.ajak');
+    if(ajak) ajak.textContent = tolak;
+    gambarBerkas();
+    return;
+  }
+
   el('brkInput').addEventListener('change', e => {
     brkTambah(e.target.files);
     e.target.value = '';        // supaya berkas yang sama bisa dipilih dua kali
@@ -9583,7 +10891,6 @@ function gambarSemua(){
   el('ketBeranda').textContent = akun.unit === 'semua'
     ? T('Semua unit terbuka untuk akun ini.','Every unit is open to this account.')
     : T('Kartu bergembok = di luar wewenang akun ini.','A padlocked card is outside this account’s authority.');
-  gambarKetSumber();      // pita di puncak ikut bahasa yang sedang dipilih
   gambarCincin(); gambarUbin(); gambarTrouble(); gambarDinas();
   gambarPerhatian(); gambarLonceng(); gambarPersonel();
   gambarPilihUnit(); gambarUnit();

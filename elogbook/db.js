@@ -14,6 +14,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isoDariTanggalPanjang } from './tanggal-lama.js';
 import { DS_SITE, KATEGORI_DS, kategoriDsSah, dsSiteUntuk } from './ds-site.js';
+import { BERKALA_ITEM, JENIS_BERKALA, jenisBerkalaSah, berkalaItemUntuk } from './berkala-item.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 export const DATA_DIR = process.env.ELOGBOOK_DATA_DIR || path.join(ROOT, 'data');
@@ -29,6 +30,25 @@ export const db = new DatabaseSync(DB_FILE);
 // menyimpan catatan bersamaan saat pergantian dinas.
 db.exec('PRAGMA journal_mode = WAL');
 db.exec('PRAGMA foreign_keys = ON');
+
+/* Tabel berkala sempat berbentuk mingguan/bulanan berkolom `periode`. Bentuk
+   itu dibuang: pekerjaannya sekarang dipecah per jenis, dan kolomnya `jenis`.
+   Yang lama disingkirkan di sini supaya CREATE TABLE IF NOT EXISTS di bawah
+   benar-benar membuat yang baru — tanpa ini ia menemukan tabel bernama sama
+   lalu diam saja, dan kolom `jenis` tidak akan pernah ada.
+
+   Hanya tabel berbentuk lama yang dibuang, dikenali dari kolom `periode`.
+   Bentuk baru dilewati, jadi menjalankan ini berkali-kali tidak menghapus
+   catatan siapa pun. */
+try {
+  const kolom = db.prepare("PRAGMA table_info(berkala)").all();
+  if (kolom.length && kolom.some((k) => k.name === 'periode')) {
+    db.exec('DROP TABLE berkala');
+    console.log('[db] tabel berkala bentuk lama (periode) dibuang, dibuat ulang berkolom jenis');
+  }
+} catch (e) {
+  console.error('[db] gagal memeriksa tabel berkala lama:', e?.message || e);
+}
 
 db.exec(`
 CREATE TABLE IF NOT EXISTS users (
@@ -186,6 +206,28 @@ CREATE TABLE IF NOT EXISTS dstest (
 );
 CREATE INDEX IF NOT EXISTS idx_dstest_unit ON dstest(unit, tanggal);
 
+-- Pekerjaan berkala: satu lembar per jenis pekerjaan per unit. Keempat
+-- jenisnya punya tabnya sendiri di layar, tapi satu tabel di sini — bentuk
+-- lembarnya sama persis, yang berbeda cuma daftar barisnya.
+-- Daftar itemnya di berkala-item.js, bukan di tabel ini: yang disimpan hanya
+-- hasil pengisiannya, berkunci kode item. Menambah item tidak perlu migrasi.
+CREATE TABLE IF NOT EXISTS berkala (
+  id                TEXT PRIMARY KEY,
+  unit              TEXT NOT NULL DEFAULT 'radtel',
+  jenis             TEXT NOT NULL DEFAULT 'neptuno',
+  tanggal           TEXT NOT NULL DEFAULT '',
+  state_json        TEXT NOT NULL DEFAULT '{}',
+  catatan           TEXT NOT NULL DEFAULT '',
+  teknisi_nama      TEXT NOT NULL DEFAULT '',
+  teknisi_nama_list TEXT NOT NULL DEFAULT '[]',
+  teknisi_ttd       TEXT NOT NULL DEFAULT '',
+  manager_nama      TEXT NOT NULL DEFAULT '',
+  manager_ttd       TEXT NOT NULL DEFAULT '',
+  dibuat_pada       TEXT NOT NULL,
+  dibuat_oleh       TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_berkala_unit ON berkala(unit, jenis, tanggal);
+
 -- Unit mana saja yang boleh dibuka sebuah akun. Diatur administrator.
 CREATE TABLE IF NOT EXISTS user_unit (
   user_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -239,7 +281,7 @@ tambahKolom('entries', 'lokasi', "TEXT NOT NULL DEFAULT ''");
    catatan mana saja yang menunggunya. Menunjuk akun bukan berarti hanya akun
    itu yang boleh menandatangani — pejabat lain tetap bisa membubuhkan seperti
    biasa kalau yang ditunjuk sedang tidak dinas. */
-for (const tabel of ['entries', 'dailychecks', 'monitoring', 'dstest', 'ltk']) {
+for (const tabel of ['entries', 'dailychecks', 'monitoring', 'dstest', 'ltk', 'berkala']) {
   tambahKolom(tabel, 'ttd_oleh', "TEXT NOT NULL DEFAULT ''");
   tambahKolom(tabel, 'ttd_pada', "TEXT NOT NULL DEFAULT ''");
   tambahKolom(tabel, 'ttd_untuk', "TEXT NOT NULL DEFAULT ''");
@@ -387,7 +429,7 @@ export const UNIT = [
     kelompok: 'Fasilitas Komunikasi Penerbangan (Radtel)',
     peralatan: 'Radio Komunikasi, VSCS Garex, Recording Neptuno',
     dinas: ['Pagi', 'Siang', 'Malam', 'PS'],
-    pakaiJamSelesai: false,
+    pakaiJamSelesai: true,
     pakaiFrek: false,
     labelUraian: 'Uraian Pekerjaan / Kejadian',
     labelPj: 'Penanggung Jawab',
@@ -395,6 +437,8 @@ export const UNIT = [
     dcJudul: 'Daily Check VCS Garex 300 — Unit Radtel',
     adaMonitoring: false,
     adaDsTest: true,
+    // Pekerjaan mingguan dan bulanan Radtel — daftarnya di berkala-item.js.
+    adaBerkala: true,
     adaLtk: true,
     ltkPenyelenggara: 'Telekomunikasi Penerbangan',
     ltkKelompok: 'Fasilitas Komunikasi Penerbangan (Radtel)',
@@ -416,6 +460,7 @@ export const UNIT = [
     dcJudul: 'Daily Check Unit Radkom — New JATSC',
     adaMonitoring: true,
     adaDsTest: false,
+    adaBerkala: false,
     adaLtk: true,
     ltkPenyelenggara: 'Telekomunikasi Penerbangan',
     ltkKelompok: 'Radio Komunikasi Penerbangan',
@@ -431,7 +476,7 @@ export const UNIT = [
     kelompok: 'Fasilitas Pendaratan Presisi dan Alat Bantu Navigasi',
     peralatan: 'ILS, DVOR/DME, NDB',
     dinas: ['Pagi', 'Siang', 'Malam', 'PS'],
-    pakaiJamSelesai: false,
+    pakaiJamSelesai: true,
     pakaiFrek: false,
     labelUraian: 'Uraian Pekerjaan / Kejadian',
     labelPj: 'Penanggung Jawab',
@@ -440,6 +485,7 @@ export const UNIT = [
     adaDailyCheck: false,
     adaMonitoring: false,
     adaDsTest: false,
+    adaBerkala: false,
     adaLtk: true,
     ltkPenyelenggara: 'Telekomunikasi Penerbangan',
     ltkKelompok: 'Fasilitas Pendaratan Presisi dan Alat Bantu Navigasi',
@@ -453,7 +499,7 @@ export const UNIT = [
     kelompok: 'Fasilitas Pengamatan Penerbangan',
     peralatan: 'Radar Pengamatan',
     dinas: ['Pagi', 'Siang', 'Malam', 'PS'],
-    pakaiJamSelesai: false,
+    pakaiJamSelesai: true,
     pakaiFrek: false,
     labelUraian: 'Uraian Pekerjaan / Kejadian',
     labelPj: 'Penanggung Jawab',
@@ -462,6 +508,7 @@ export const UNIT = [
     adaDailyCheck: false,
     adaMonitoring: false,
     adaDsTest: false,
+    adaBerkala: false,
     adaLtk: true,
     ltkPenyelenggara: 'Telekomunikasi Penerbangan',
     ltkKelompok: 'Fasilitas Pengamatan Penerbangan',
@@ -477,7 +524,7 @@ export const UNIT = [
     kelompok: 'Fasilitas Otomasi',
     peralatan: 'AMHS dan ADPS',
     dinas: ['Pagi', 'Siang', 'Malam', 'PS'],
-    pakaiJamSelesai: false,
+    pakaiJamSelesai: true,
     pakaiFrek: false,
     labelUraian: 'Uraian Pekerjaan / Kejadian',
     labelPj: 'Penanggung Jawab',
@@ -486,6 +533,7 @@ export const UNIT = [
     adaDailyCheck: false,
     adaMonitoring: false,
     adaDsTest: false,
+    adaBerkala: false,
     adaLtk: true,
     ltkPenyelenggara: 'Telekomunikasi Penerbangan',
     ltkKelompok: 'Fasilitas Otomasi',
@@ -499,7 +547,7 @@ export const UNIT = [
     kelompok: 'Fasilitas Otomasi',
     peralatan: 'FDPS dan RDPS',
     dinas: ['Pagi', 'Siang', 'Malam', 'PS'],
-    pakaiJamSelesai: false,
+    pakaiJamSelesai: true,
     pakaiFrek: false,
     labelUraian: 'Uraian Pekerjaan / Kejadian',
     labelPj: 'Penanggung Jawab',
@@ -508,6 +556,7 @@ export const UNIT = [
     adaDailyCheck: false,
     adaMonitoring: false,
     adaDsTest: false,
+    adaBerkala: false,
     adaLtk: true,
     ltkPenyelenggara: 'Telekomunikasi Penerbangan',
     ltkKelompok: 'Fasilitas Otomasi',
@@ -523,7 +572,7 @@ export const UNIT = [
     kelompok: 'Fasilitas Penunjang',
     peralatan: 'Kelistrikan dan Mekanikal',
     dinas: ['Pagi', 'Siang', 'Malam', 'PS'],
-    pakaiJamSelesai: false,
+    pakaiJamSelesai: true,
     pakaiFrek: false,
     labelUraian: 'Uraian Pekerjaan / Kejadian',
     labelPj: 'Penanggung Jawab',
@@ -532,6 +581,7 @@ export const UNIT = [
     adaDailyCheck: false,
     adaMonitoring: false,
     adaDsTest: false,
+    adaBerkala: false,
     adaLtk: true,
     ltkPenyelenggara: 'Telekomunikasi Penerbangan',
     ltkKelompok: 'Fasilitas Penunjang',
@@ -545,7 +595,7 @@ export const UNIT = [
     kelompok: 'Fasilitas Penunjang',
     peralatan: 'Gedung dan Sistem Keamanan',
     dinas: ['Pagi', 'Siang', 'Malam', 'PS'],
-    pakaiJamSelesai: false,
+    pakaiJamSelesai: true,
     pakaiFrek: false,
     labelUraian: 'Uraian Pekerjaan / Kejadian',
     labelPj: 'Penanggung Jawab',
@@ -554,6 +604,7 @@ export const UNIT = [
     adaDailyCheck: false,
     adaMonitoring: false,
     adaDsTest: false,
+    adaBerkala: false,
     adaLtk: true,
     ltkPenyelenggara: 'Telekomunikasi Penerbangan',
     ltkKelompok: 'Fasilitas Penunjang',
@@ -1464,6 +1515,81 @@ export function removeDsTest(id) {
   return true;
 }
 
+/* ============== PEKERJAAN BERKALA ==============
+ * Daftar itemnya di berkala-item.js dan diekspor ulang di sini supaya
+ * server.js tidak perlu tahu asalnya — pola yang sama dengan DS Test.
+ *
+ * Yang disimpan cuma hasil pengisian, berkunci kode item. Item yang belum
+ * pernah ada waktu lembar itu diisi terbaca kosong, dan itu memang benar:
+ * pekerjaan yang baru ditambahkan bulan ini tidak pernah dikerjakan bulan lalu.
+ */
+
+export { BERKALA_ITEM, JENIS_BERKALA, jenisBerkalaSah, berkalaItemUntuk };
+
+const rowToBerkala = (r, extra = {}) => ({
+  ID: r.id, Unit: r.unit, Tanggal: r.tanggal,
+  Jenis: r.jenis || 'neptuno',
+  State: parseJson(r.state_json, {}),
+  Catatan: r.catatan || '',
+  ManagerNama: r.manager_nama || '', ManagerTTD: r.manager_ttd || '',
+  TeknisiNama: r.teknisi_nama,
+  TeknisiNamaListJSON: parseJson(r.teknisi_nama_list, []),
+  TeknisiTTD: r.teknisi_ttd,
+  DiinputOleh: extra.diinputOleh ?? (r.dibuat_oleh || ''),
+  DibuatPada: r.dibuat_pada || '',
+  TtdOleh: extra.ttdOleh ?? (r.ttd_oleh || ''), TtdPada: r.ttd_pada || '', TtdUntuk: r.ttd_untuk || ''
+});
+
+export function listBerkala(unit = 'radtel', limit = 200) {
+  const rows = db.prepare(`SELECT * FROM berkala WHERE unit = ?
+                           ORDER BY tanggal DESC, dibuat_pada DESC LIMIT ?`).all(unit, limit);
+  const nama = petaNamaPengguna();
+  return rows.map((r) => rowToBerkala(r, {
+    diinputOleh: namaTampil(nama, r.dibuat_oleh),
+    ttdOleh: namaTampil(nama, r.ttd_oleh)
+  }));
+}
+
+export function insertBerkala(rec = {}, olehUsername = '', olehNama = '') {
+  const namaList = Array.isArray(rec.teknisiNamaList) ? rec.teknisiNamaList : [];
+  const jenis = jenisBerkalaSah(rec.jenis) ? rec.jenis : 'neptuno';
+  // Jenis tanpa satu pun item berarti formnya belum bisa dipakai — sama
+  // alasannya dengan DS Test: yang tersimpan hanya lembar kosong.
+  if (berkalaItemUntuk(jenis).length === 0) {
+    throw new Error('Daftar pekerjaan untuk jenis ' + jenis + ' belum diisi.');
+  }
+  const row = {
+    id: newId(),
+    unit: unitSah(rec.unit) ? rec.unit : 'radtel',
+    jenis,
+    tanggal: String(rec.tanggal || '').trim() || today(),
+    state_json: JSON.stringify(rec.state || {}),
+    catatan: String(rec.catatan || '').trim(),
+    manager_nama: String(rec.managerNama || '').trim(),
+    manager_ttd: saveSignature(rec.managerTtd, 'berkala_manager'),
+    ttd_untuk: rec.ttdUntuk || '',
+    teknisi_nama: namaList.join(', '),
+    teknisi_nama_list: JSON.stringify(namaList),
+    teknisi_ttd: saveSignature(rec.teknisiTtd, 'berkala_teknisi'),
+    dibuat_pada: nowIso()
+  };
+  db.prepare(`INSERT INTO berkala (id, unit, jenis, tanggal, state_json, catatan, teknisi_nama,
+                                   teknisi_nama_list, teknisi_ttd, manager_nama, manager_ttd,
+                                   ttd_untuk, dibuat_pada, dibuat_oleh)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(row.id, row.unit, row.jenis, row.tanggal, row.state_json, row.catatan, row.teknisi_nama,
+         row.teknisi_nama_list, row.teknisi_ttd, row.manager_nama, row.manager_ttd, row.ttd_untuk,
+         row.dibuat_pada, olehUsername);
+  return rowToBerkala(row, { diinputOleh: olehNama || olehUsername });
+}
+
+export function removeBerkala(id) {
+  const r = db.prepare('SELECT teknisi_ttd, manager_ttd FROM berkala WHERE id = ?').get(id);
+  db.prepare('DELETE FROM berkala WHERE id = ?').run(id);
+  if (r) { removeSignatureFile(r.teknisi_ttd); removeSignatureFile(r.manager_ttd); }
+  return true;
+}
+
 /* ============== LTK — LAPORAN TERJADINYA KERUSAKAN ============== */
 
 const rowToLtk = (r, extra = {}) => ({
@@ -1574,6 +1700,7 @@ export const JENIS_TTD = {
   dailycheck: { tabel: 'dailychecks', nama: 'manager_nama', ttd: 'manager_ttd',      prefix: 'dailycheck_manager', label: 'Manager Teknik',   tglKolom: 'tanggal' },
   monitoring: { tabel: 'monitoring',  nama: 'personil_ops', ttd: 'personil_ops_ttd', prefix: 'monitoring_ops',     label: 'Personil Operasi', tglKolom: 'tanggal' },
   dstest:     { tabel: 'dstest',      nama: 'manager_nama', ttd: 'manager_ttd',      prefix: 'dstest_manager',     label: 'Manager Teknik',   tglKolom: 'tanggal' },
+  berkala:    { tabel: 'berkala',     nama: 'manager_nama', ttd: 'manager_ttd',      prefix: 'berkala_manager',    label: 'Manager Teknik',   tglKolom: 'tanggal' },
   ltk:        { tabel: 'ltk',         nama: 'manager_nama', ttd: 'manager_ttd',      prefix: 'ltk_manager',        label: 'Manager Teknik',   tglKolom: 'tanggal_lapor' }
 };
 

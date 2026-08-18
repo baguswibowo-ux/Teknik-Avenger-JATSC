@@ -60,7 +60,7 @@ let ttdTarget = null;   // { jenis, id }
 
 const TTD_JUDUL = {
   logbook:'ttdSbgPj', dailycheck:'ttdSbgManager', monitoring:'ttdSbgOps',
-  dstest:'ttdSbgManager', ltk:'ttdSbgManager'
+  dstest:'ttdSbgManager', berkala:'ttdSbgManager', ltk:'ttdSbgManager'
 };
 
 /** Nama yang sudah tertulis pada formulir, dari catatan yang ada di memori. */
@@ -70,6 +70,7 @@ function namaPadaFormulir(jenis, id){
     case 'dailycheck': return dcHistory.find(x=>x.id===id)?.managerNama || '';
     case 'monitoring': return monitoring.find(x=>x.id===id)?.personilOps || '';
     case 'dstest':     return dsList.find(x=>x.id===id)?.managerNama || '';
+    case 'berkala':    return berkalaList.find(x=>x.id===id)?.managerNama || '';
     case 'ltk':        return ltkList.find(x=>x.id===id)?.managerNama || '';
     default:           return '';
   }
@@ -129,6 +130,11 @@ const TTD_TERAP = {
     if(d){ d.managerNama = r.nama; d.managerTtd = r.ttd; d.ttdOleh = r.ttdOleh; d.ttdPada = r.ttdPada; }
     renderDsList();
   },
+  berkala: (r)=>{
+    const b = berkalaList.find(x=>x.id===r.id);
+    if(b){ b.managerNama = r.nama; b.managerTtd = r.ttd; b.ttdOleh = r.ttdOleh; b.ttdPada = r.ttdPada; }
+    renderBerkalaList();
+  },
   ltk: (r)=>{
     const l = ltkList.find(x=>x.id===r.id);
     if(l){ l.managerNama = r.nama; l.managerTtd = r.ttd; l.ttdOleh = r.ttdOleh; l.ttdPada = r.ttdPada; }
@@ -142,6 +148,7 @@ const TTD_BUKA_ULANG = {
   dailycheck: (id)=>openDcDetail(id),
   monitoring: (id)=>openMonDetail(id),
   dstest: (id)=>openDsDetail(id),
+  berkala: (id)=>openBerkalaDetail(id),
   ltk: (id)=>openLtkDetail(id)
 };
 
@@ -200,7 +207,7 @@ function tutupSemuaDetail(){
    sama seperti sebelum fitur ini ada: sekadar tidak ada yang diberi tahu. */
 
 /** Tiap <select> pilihan akun TTD susulan, satu per formulir yang punya isian nama pejabat. */
-const AKUN_TTD_SELECT_ID = ['fePjAkun','dcManagerAkun','monOpsAkun','dsManagerAkun','ltkManagerAkun'];
+const AKUN_TTD_SELECT_ID = ['fePjAkun','dcManagerAkun','monOpsAkun','dsManagerAkun','bkManagerAkun','ltkManagerAkun'];
 
 /** Isi <datalist> saran nama akun dan tiap <select> pilihan akun eksplisit —
     dipanggil sekali saat data dimuat. */
@@ -241,7 +248,17 @@ function ttdUntukTerpilih(selectId, nama){
    dan membukakan jalan ke jendela detail yang sesuai. */
 
 /** Tab mana yang harus aktif untuk tiap jenis catatan — sama dengan nama jenisnya. */
-const INBOX_TAB = { logbook:'logbook', dailycheck:'dailycheck', monitoring:'monitoring', dstest:'dstest', ltk:'ltk' };
+/* Pekerjaan berkala punya empat tab tapi satu jenis catatan, jadi tab
+   tujuannya baru diketahui dari lembarnya sendiri — lihat tabInbox(). */
+const INBOX_TAB = { logbook:'logbook', dailycheck:'dailycheck', monitoring:'monitoring', dstest:'dstest',
+                    ltk:'ltk' };
+
+/** Tab yang harus dibuka untuk satu baris kotak masuk. */
+function tabInbox(jenis, id){
+  if(jenis !== 'berkala') return INBOX_TAB[jenis];
+  const b = berkalaList.find(x=>x.id===id);
+  return BK_TAB[b ? b.jenis : 'neptuno'] || 'bk-neptuno';
+}
 
 function renderInboxBadge(){
   const badge = document.getElementById('inboxCount');
@@ -289,7 +306,7 @@ async function bukaInboxItem(jenis, unit, id){
     tutupPratinjau();
     await init();
   }
-  const tab = INBOX_TAB[jenis];
+  const tab = tabInbox(jenis, id);
   if(tab) pilihTab(tab);
   if(TTD_BUKA_ULANG[jenis]) TTD_BUKA_ULANG[jenis](id);
 }

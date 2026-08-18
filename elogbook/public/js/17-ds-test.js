@@ -49,7 +49,7 @@ const mapDs = d => ({ id:d.ID, tanggal:d.Tanggal, state:d.State||{}, kategori:d.
 
 function initDsState(){
   dsState = {};
-  dsSiteAktif().forEach(s=>{ dsState[s.code] = { in:'ok', out:'ok', ket:'' }; });
+  dsSiteAktif().forEach(s=>{ dsState[s.code] = { in:'ok', out:'ok', vin:'', vout:'', ket:'' }; });
 }
 
 /** Isi pilihan kategori dari daftar yang dikirim server. */
@@ -85,6 +85,10 @@ function toggleDs(code, kolom){
   renderDsTable();
 }
 function setDsKet(code, nilai){ if(dsState[code]) dsState[code].ket = nilai; }
+/* Voltage disimpan apa adanya sebagai teks, tidak dibulatkan atau divalidasi:
+   yang diketik teknisi adalah angka yang terbaca di alat, dan lembar ini
+   merekam pembacaan itu — bukan menilainya. */
+function setDsVolt(code, kolom, nilai){ if(dsState[code]) dsState[code][kolom] = nilai; }
 
 /* Kepala tabel DS, dipakai bersama oleh form, detail, dan cetakan.
 
@@ -98,12 +102,14 @@ function dsTheadHtml(kategori, cetak){
   const t = cetak ? 'td' : 'th';
   const kelas = cetak ? ' class="p-kepala"' : '';
   const lebarNo  = cetak ? '' : ' style="width:34px;"';
-  const lebarKet = cetak ? '' : ' style="width:44%;"';
-  const lebarSt  = cetak ? '' : ' style="width:92px;"';
+  const lebarKet = cetak ? '' : ' style="width:26%;"';
+  const lebarSt  = cetak ? '' : ' style="width:82px;"';
+  const lebarV   = cetak ? '' : ' style="width:76px;"';
   const site = dsPakaiSite(kategori) ? `<${t} rowspan="2">SITE</${t}>` : '';
   return `<tr${kelas}><${t} rowspan="2"${lebarNo}>NO</${t}>${site}<${t} rowspan="2">CODE</${t}>
-      <${t} colspan="2">NEW JATSC</${t}><${t} rowspan="2"${lebarKet}>KETERANGAN</${t}></tr>
-    <tr${kelas}><${t}${lebarSt}>INCOMING</${t}><${t}${lebarSt}>OUTGOING</${t}></tr>`;
+      <${t} colspan="2">NEW JATSC</${t}><${t} colspan="2">VOLTAGE</${t}><${t} rowspan="2"${lebarKet}>KETERANGAN</${t}></tr>
+    <tr${kelas}><${t}${lebarSt}>INCOMING</${t}><${t}${lebarSt}>OUTGOING</${t}>
+      <${t}${lebarV}>INCOMING</${t}><${t}${lebarV}>OUTGOING</${t}></tr>`;
 }
 
 function renderDsTable(){
@@ -116,12 +122,19 @@ function renderDsTable(){
     const s = (dsState[code] || {})[kolom] || 'ok';
     return `<td><button class="status-btn ${s}" onclick="toggleDs('${code}','${kolom}')">${DS_STATUS_SIMBOL[s]}</button></td>`;
   };
+  /* Angka bebas: sebagian alat membaca desimal, sebagian bulat, dan sebagian
+     site memang tidak punya pembacaan sama sekali. step="any" supaya peramban
+     tidak menolak koma, dan kosong tetap sah. */
+  const volt = (code, kolom) => `<td><input type="number" step="any" class="rk-ket" style="text-align:right;"
+                 value="${escapeHtml((dsState[code]||{})[kolom]||'')}" placeholder="–"
+                 oninput="setDsVolt('${code}','${kolom}', this.value)"></td>`;
   body.innerHTML = dsSiteAktif().map(s=>`
     <tr>
       <td>${s.no}</td>
       ${pakaiSite ? `<td class="rk-nama">${escapeHtml(s.site)}</td>` : ''}
       <td class="rk-frek">${escapeHtml(s.code)}</td>
       ${sel(s.code,'in')}${sel(s.code,'out')}
+      ${volt(s.code,'vin')}${volt(s.code,'vout')}
       <td><input type="text" class="rk-ket" value="${escapeHtml((dsState[s.code]||{}).ket||'')}"
                  onchange="setDsKet('${s.code}', this.value)"></td>
     </tr>`).join('');
@@ -230,12 +243,17 @@ function dsTabelBaca(state, cetak, kategori){
     ? `<td style="text-align:center;"><span class="${kelasCetak[s] || 'p-ok'}">${sym(s)}</span></td>`
     : `<td><span class="status-btn ${s === 'fail' || s === 'minus' ? s : 'ok'}" style="cursor:default;">${sym(s)}</span></td>`;
   const pakaiSite = dsPakaiSite(kategori);
+  /* Catatan sebelum kolom voltage ada tidak menyimpan vin/vout sama sekali.
+     Yang kosong tampil sebagai "–", bukan "0": lembar lama memang tidak pernah
+     mengukurnya, dan menuliskan angka di situ akan mengarang pembacaan. */
+  const volt = (nilai) => `<td style="text-align:right;white-space:nowrap;">${escapeHtml(String(nilai ?? '').trim() || '–')}</td>`;
   const baris = dsSiteUntuk(kategori).map(s=>{
     const b = dsAmbilState(state, s);
     return `<tr><td style="text-align:center;">${s.no}</td>
       ${pakaiSite ? `<td style="text-align:left;">${escapeHtml(s.site)}</td>` : ''}
       <td style="text-align:left;">${escapeHtml(s.code)}</td>
       ${sel(b.in||'ok')}${sel(b.out||'ok')}
+      ${volt(b.vin)}${volt(b.vout)}
       <td style="text-align:left;font-size:${cetak?'7.5pt':'11px'};">${escapeHtml(b.ket||'')}</td></tr>`;
   }).join('');
   const tabel = `<table class="${cetak?'':'dc ds'}" style="font-size:${cetak?'8pt':''};">

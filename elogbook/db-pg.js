@@ -22,6 +22,7 @@ import crypto from 'node:crypto';
 import pg from 'pg';
 import { isoDariTanggalPanjang } from './tanggal-lama.js';
 import { DS_SITE, KATEGORI_DS, kategoriDsSah, dsSiteUntuk } from './ds-site.js';
+import { BERKALA_ITEM, JENIS_BERKALA, jenisBerkalaSah, berkalaItemUntuk } from './berkala-item.js';
 
 const { Pool } = pg;
 
@@ -77,6 +78,61 @@ const q = async (sql, params = []) => (await pool.query(sql, params)).rows;
 const q1 = async (sql, params = []) => (await pool.query(sql, params)).rows[0];
 /** Jumlah baris yang terpengaruh. */
 const jalankan = async (sql, params = []) => (await pool.query(sql, params)).rowCount;
+
+/* ============== TABEL SUSULAN ==============
+ * Skema Supabase dibuat sekali di luar aplikasi, dan tabel yang lahir setelah
+ * itu tidak punya jalan masuk ke sana selain lewat sini. Kolom susulan di bawah
+ * memakai ALTER; tabel yang memang belum pernah ada perlu CREATE.
+ *
+ * IF NOT EXISTS membuatnya aman dijalankan pada tiap cold start, dan tidak
+ * seperti ALTER TABLE, CREATE TABLE IF NOT EXISTS pada tabel yang sudah ada
+ * tidak mengunci apa pun.
+ *
+ * Bentuknya harus sepadan dengan CREATE TABLE berkala di db.js. Keduanya
+ * ditulis dua kali karena tipe SQLite dan Postgres memang berbeda — kalau yang
+ * satu diubah, yang lain wajib ikut.
+ */
+const TABEL_SUSULAN = [
+  /* Bentuk lama berkolom `periode` (mingguan/bulanan) dibuang. Pekerjaannya
+     sekarang dipecah per jenis. Tanpa ini CREATE TABLE IF NOT EXISTS di
+     bawah menemukan tabel bernama sama lalu diam saja, dan kolom `jenis`
+     tidak akan pernah ada. Hanya bentuk lama yang kena — dikenali dari
+     kolom `periode`, jadi aman diulang tiap cold start. */
+  `DO $$
+   BEGIN
+     IF EXISTS (SELECT 1 FROM information_schema.columns
+                WHERE table_schema = current_schema()
+                  AND table_name = 'berkala' AND column_name = 'periode') THEN
+       DROP TABLE berkala;
+     END IF;
+   END $$`,
+  `CREATE TABLE IF NOT EXISTS berkala (
+     id                TEXT PRIMARY KEY,
+     unit              TEXT NOT NULL DEFAULT 'radtel',
+     jenis             TEXT NOT NULL DEFAULT 'neptuno',
+     tanggal           TEXT NOT NULL DEFAULT '',
+     state_json        TEXT NOT NULL DEFAULT '{}',
+     catatan           TEXT NOT NULL DEFAULT '',
+     teknisi_nama      TEXT NOT NULL DEFAULT '',
+     teknisi_nama_list TEXT NOT NULL DEFAULT '[]',
+     teknisi_ttd       TEXT NOT NULL DEFAULT '',
+     manager_nama      TEXT NOT NULL DEFAULT '',
+     manager_ttd       TEXT NOT NULL DEFAULT '',
+     ttd_oleh          TEXT NOT NULL DEFAULT '',
+     ttd_pada          TEXT NOT NULL DEFAULT '',
+     ttd_untuk         TEXT NOT NULL DEFAULT '',
+     dibuat_pada       TEXT NOT NULL,
+     dibuat_oleh       TEXT NOT NULL DEFAULT ''
+   )`,
+  'CREATE INDEX IF NOT EXISTS idx_berkala_unit ON berkala(unit, jenis, tanggal)'
+];
+for (const sql of TABEL_SUSULAN) {
+  try {
+    await pool.query(sql);
+  } catch (err) {
+    console.error('[db-pg] gagal membuat tabel susulan:', err?.message || err);
+  }
+}
 
 /* ============== MIGRASI KOLOM ==============
  * Skema Supabase dibuat sekali di luar aplikasi, jadi kolom yang ditambahkan
@@ -442,7 +498,7 @@ export const UNIT = [
     kelompok: 'Fasilitas Komunikasi Penerbangan (Radtel)',
     peralatan: 'Radio Komunikasi, VSCS Garex, Recording Neptuno',
     dinas: ['Pagi', 'Siang', 'Malam', 'PS'],
-    pakaiJamSelesai: false,
+    pakaiJamSelesai: true,
     pakaiFrek: false,
     labelUraian: 'Uraian Pekerjaan / Kejadian',
     labelPj: 'Penanggung Jawab',
@@ -450,6 +506,8 @@ export const UNIT = [
     dcJudul: 'Daily Check VCS Garex 300 — Unit Radtel',
     adaMonitoring: false,
     adaDsTest: true,
+    // Pekerjaan mingguan dan bulanan Radtel — daftarnya di berkala-item.js.
+    adaBerkala: true,
     adaLtk: true,
     ltkPenyelenggara: 'Telekomunikasi Penerbangan',
     ltkKelompok: 'Fasilitas Komunikasi Penerbangan (Radtel)',
@@ -471,6 +529,7 @@ export const UNIT = [
     dcJudul: 'Daily Check Unit Radkom — New JATSC',
     adaMonitoring: true,
     adaDsTest: false,
+    adaBerkala: false,
     adaLtk: true,
     ltkPenyelenggara: 'Telekomunikasi Penerbangan',
     ltkKelompok: 'Radio Komunikasi Penerbangan',
@@ -486,7 +545,7 @@ export const UNIT = [
     kelompok: 'Fasilitas Pendaratan Presisi dan Alat Bantu Navigasi',
     peralatan: 'ILS, DVOR/DME, NDB',
     dinas: ['Pagi', 'Siang', 'Malam', 'PS'],
-    pakaiJamSelesai: false,
+    pakaiJamSelesai: true,
     pakaiFrek: false,
     labelUraian: 'Uraian Pekerjaan / Kejadian',
     labelPj: 'Penanggung Jawab',
@@ -495,6 +554,7 @@ export const UNIT = [
     adaDailyCheck: false,
     adaMonitoring: false,
     adaDsTest: false,
+    adaBerkala: false,
     adaLtk: true,
     ltkPenyelenggara: 'Telekomunikasi Penerbangan',
     ltkKelompok: 'Fasilitas Pendaratan Presisi dan Alat Bantu Navigasi',
@@ -508,7 +568,7 @@ export const UNIT = [
     kelompok: 'Fasilitas Pengamatan Penerbangan',
     peralatan: 'Radar Pengamatan',
     dinas: ['Pagi', 'Siang', 'Malam', 'PS'],
-    pakaiJamSelesai: false,
+    pakaiJamSelesai: true,
     pakaiFrek: false,
     labelUraian: 'Uraian Pekerjaan / Kejadian',
     labelPj: 'Penanggung Jawab',
@@ -517,6 +577,7 @@ export const UNIT = [
     adaDailyCheck: false,
     adaMonitoring: false,
     adaDsTest: false,
+    adaBerkala: false,
     adaLtk: true,
     ltkPenyelenggara: 'Telekomunikasi Penerbangan',
     ltkKelompok: 'Fasilitas Pengamatan Penerbangan',
@@ -532,7 +593,7 @@ export const UNIT = [
     kelompok: 'Fasilitas Otomasi',
     peralatan: 'AMHS dan ADPS',
     dinas: ['Pagi', 'Siang', 'Malam', 'PS'],
-    pakaiJamSelesai: false,
+    pakaiJamSelesai: true,
     pakaiFrek: false,
     labelUraian: 'Uraian Pekerjaan / Kejadian',
     labelPj: 'Penanggung Jawab',
@@ -541,6 +602,7 @@ export const UNIT = [
     adaDailyCheck: false,
     adaMonitoring: false,
     adaDsTest: false,
+    adaBerkala: false,
     adaLtk: true,
     ltkPenyelenggara: 'Telekomunikasi Penerbangan',
     ltkKelompok: 'Fasilitas Otomasi',
@@ -554,7 +616,7 @@ export const UNIT = [
     kelompok: 'Fasilitas Otomasi',
     peralatan: 'FDPS dan RDPS',
     dinas: ['Pagi', 'Siang', 'Malam', 'PS'],
-    pakaiJamSelesai: false,
+    pakaiJamSelesai: true,
     pakaiFrek: false,
     labelUraian: 'Uraian Pekerjaan / Kejadian',
     labelPj: 'Penanggung Jawab',
@@ -563,6 +625,7 @@ export const UNIT = [
     adaDailyCheck: false,
     adaMonitoring: false,
     adaDsTest: false,
+    adaBerkala: false,
     adaLtk: true,
     ltkPenyelenggara: 'Telekomunikasi Penerbangan',
     ltkKelompok: 'Fasilitas Otomasi',
@@ -578,7 +641,7 @@ export const UNIT = [
     kelompok: 'Fasilitas Penunjang',
     peralatan: 'Kelistrikan dan Mekanikal',
     dinas: ['Pagi', 'Siang', 'Malam', 'PS'],
-    pakaiJamSelesai: false,
+    pakaiJamSelesai: true,
     pakaiFrek: false,
     labelUraian: 'Uraian Pekerjaan / Kejadian',
     labelPj: 'Penanggung Jawab',
@@ -587,6 +650,7 @@ export const UNIT = [
     adaDailyCheck: false,
     adaMonitoring: false,
     adaDsTest: false,
+    adaBerkala: false,
     adaLtk: true,
     ltkPenyelenggara: 'Telekomunikasi Penerbangan',
     ltkKelompok: 'Fasilitas Penunjang',
@@ -600,7 +664,7 @@ export const UNIT = [
     kelompok: 'Fasilitas Penunjang',
     peralatan: 'Gedung dan Sistem Keamanan',
     dinas: ['Pagi', 'Siang', 'Malam', 'PS'],
-    pakaiJamSelesai: false,
+    pakaiJamSelesai: true,
     pakaiFrek: false,
     labelUraian: 'Uraian Pekerjaan / Kejadian',
     labelPj: 'Penanggung Jawab',
@@ -609,6 +673,7 @@ export const UNIT = [
     adaDailyCheck: false,
     adaMonitoring: false,
     adaDsTest: false,
+    adaBerkala: false,
     adaLtk: true,
     ltkPenyelenggara: 'Telekomunikasi Penerbangan',
     ltkKelompok: 'Fasilitas Penunjang',
@@ -1334,6 +1399,79 @@ export async function removeDsTest(id) {
   return true;
 }
 
+/* ============== PEKERJAAN BERKALA ==============
+   Daftar itemnya di berkala-item.js, sama persis dengan yang dipakai db.js
+   (diimpor di atas). Yang disimpan cuma hasil pengisiannya, berkunci kode
+   item — menambah pekerjaan tidak perlu migrasi. */
+
+export { BERKALA_ITEM, JENIS_BERKALA, jenisBerkalaSah, berkalaItemUntuk };
+
+const rowToBerkala = (r, extra = {}) => ({
+  ID: r.id, Unit: r.unit, Tanggal: r.tanggal,
+  Jenis: r.jenis || 'neptuno',
+  State: parseJson(r.state_json, {}),
+  Catatan: r.catatan || '',
+  ManagerNama: r.manager_nama || '', ManagerTTD: r.manager_ttd || '',
+  TeknisiNama: r.teknisi_nama,
+  TeknisiNamaListJSON: parseJson(r.teknisi_nama_list, []),
+  TeknisiTTD: r.teknisi_ttd,
+  DiinputOleh: extra.diinputOleh ?? (r.dibuat_oleh || ''),
+  DibuatPada: r.dibuat_pada || '',
+  TtdOleh: extra.ttdOleh ?? (r.ttd_oleh || ''), TtdPada: r.ttd_pada || '', TtdUntuk: r.ttd_untuk || ''
+});
+
+export async function listBerkala(unit = 'radtel', limit = 200) {
+  const rows = await q(
+    'SELECT * FROM berkala WHERE unit = $1 ORDER BY tanggal DESC, dibuat_pada DESC LIMIT $2',
+    [unit, limit]
+  );
+  const nama = await petaNamaPengguna();
+  return rows.map((r) => rowToBerkala(r, {
+    diinputOleh: namaTampil(nama, r.dibuat_oleh),
+    ttdOleh: namaTampil(nama, r.ttd_oleh)
+  }));
+}
+
+export async function insertBerkala(rec = {}, olehUsername = '', olehNama = '') {
+  const namaList = Array.isArray(rec.teknisiNamaList) ? rec.teknisiNamaList : [];
+  const jenis = jenisBerkalaSah(rec.jenis) ? rec.jenis : 'neptuno';
+  if (berkalaItemUntuk(jenis).length === 0) {
+    throw new Error('Daftar pekerjaan untuk jenis ' + jenis + ' belum diisi.');
+  }
+  const row = {
+    id: newId(),
+    unit: unitSah(rec.unit) ? rec.unit : 'radtel',
+    jenis,
+    tanggal: String(rec.tanggal || '').trim() || today(),
+    state_json: JSON.stringify(rec.state || {}),
+    catatan: String(rec.catatan || '').trim(),
+    teknisi_nama: namaList.join(', '),
+    teknisi_nama_list: JSON.stringify(namaList),
+    teknisi_ttd: await saveSignature(rec.teknisiTtd, 'berkala_teknisi'),
+    manager_nama: String(rec.managerNama || '').trim(),
+    manager_ttd: await saveSignature(rec.managerTtd, 'berkala_manager'),
+    ttd_untuk: rec.ttdUntuk || '',
+    dibuat_pada: nowIso()
+  };
+  await jalankan(
+    `INSERT INTO berkala (id, unit, jenis, tanggal, state_json, catatan, teknisi_nama,
+                          teknisi_nama_list, teknisi_ttd, manager_nama, manager_ttd,
+                          ttd_untuk, dibuat_pada, dibuat_oleh)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+    [row.id, row.unit, row.jenis, row.tanggal, row.state_json, row.catatan, row.teknisi_nama,
+     row.teknisi_nama_list, row.teknisi_ttd, row.manager_nama, row.manager_ttd, row.ttd_untuk,
+     row.dibuat_pada, olehUsername]
+  );
+  return rowToBerkala(row, { diinputOleh: olehNama || olehUsername });
+}
+
+export async function removeBerkala(id) {
+  const r = await q1('SELECT teknisi_ttd, manager_ttd FROM berkala WHERE id = $1', [id]);
+  await jalankan('DELETE FROM berkala WHERE id = $1', [id]);
+  if (r) { await hapusBerkas(r.teknisi_ttd); await hapusBerkas(r.manager_ttd); }
+  return true;
+}
+
 /* ============== LTK ============== */
 
 const rowToLtk = (r, extra = {}) => ({
@@ -1439,6 +1577,7 @@ export const JENIS_TTD = {
   dailycheck: { tabel: 'dailychecks', nama: 'manager_nama', ttd: 'manager_ttd',      prefix: 'dailycheck_manager', label: 'Manager Teknik',   tglKolom: 'tanggal' },
   monitoring: { tabel: 'monitoring',  nama: 'personil_ops', ttd: 'personil_ops_ttd', prefix: 'monitoring_ops',     label: 'Personil Operasi', tglKolom: 'tanggal' },
   dstest:     { tabel: 'dstest',      nama: 'manager_nama', ttd: 'manager_ttd',      prefix: 'dstest_manager',     label: 'Manager Teknik',   tglKolom: 'tanggal' },
+  berkala:    { tabel: 'berkala',     nama: 'manager_nama', ttd: 'manager_ttd',      prefix: 'berkala_manager',    label: 'Manager Teknik',   tglKolom: 'tanggal' },
   ltk:        { tabel: 'ltk',         nama: 'manager_nama', ttd: 'manager_ttd',      prefix: 'ltk_manager',        label: 'Manager Teknik',   tglKolom: 'tanggal_lapor' }
 };
 

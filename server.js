@@ -25,6 +25,7 @@
 import express from 'express';
 import path from 'node:path';
 import fs from 'node:fs/promises';
+import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 try { process.loadEnvFile?.(); } catch { /* tidak ada .env: pakai bawaan */ }
@@ -43,6 +44,24 @@ const TERUS = process.env.ELOGBOOK_MATI !== '1';
 
    Bisa dipaksa lewat GALERI_MATI=1 untuk mencobanya di komputer sendiri. */
 const GALERI = process.env.GALERI_MATI !== '1' && !process.env.VERCEL;
+
+/* Data contoh: angka karangan yang menyatu di halaman, supaya seluruh alurnya
+   bisa dicoba tanpa server. Berguna sebelum dipasang di kantor dan di salinan
+   etalase; berbahaya sesudahnya, karena yang membaca layar di lingkungan
+   sungguhan berhak menganggap yang tertulis di sana nyata.
+
+   Sejak pemilih TUJUAN dibuang, data contoh bukan lagi sesuatu yang dipilih
+   orang: ia cuma berlaku kalau E-Logbook memang tidak terjawab. Yang diputuskan
+   di sini karena itu satu hal saja — boleh tidak halaman ini JATUH ke data
+   contoh waktu servernya diam.
+
+   Bawaannya boleh, karena itu yang benar untuk salinan etalase dan untuk
+   mencoba di komputer sendiri. Di server kantor, tempat E-Logbook memang selalu
+   ada, pasang DATA_CONTOH=0: di sana server yang diam adalah kerusakan yang
+   pantas terlihat, bukan alasan menampilkan angka karangan. Sengaja TIDAK
+   ditebak dari VERCEL — etalase justru satu-satunya yang hidup dari data
+   contoh, jadi menebaknya dari sana persis terbalik. */
+const DATA_CONTOH = process.env.DATA_CONTOH !== '0';
 
 const app = express();
 app.disable('x-powered-by');
@@ -435,14 +454,23 @@ const MODUL_PER_UNIT = new Set(['dinas', 'berkala', 'peralatan', 'sparepart',
 /* Bawaan kalau hak.json belum ada.
 
    Jadwal dinas berhenti di adminunit: ia mengatur orang, bukan mencatat
-   pekerjaan. Sisanya terbuka sampai teknisi — itu yang diminta, "semua
-   personel sesuai unit yang dituju bisa menyunting". Yang menahannya dari
-   jadi kacau bukan daftar ini melainkan pagar unit dan pagar hapus. */
+   pekerjaan. Daftar peralatan berhenti di admin: isinya daftar induk yang
+   dipakai modul lain sebagai acuan — trouble, sejarah, dan dokumen semuanya
+   menunjuk id peralatan — jadi satu baris yang diganti nama atau dibuang
+   menggeser layar orang lain, bukan cuma layar yang mengubahnya. Yang
+   mengisinya kami sendiri; unit lain membacanya.
+
+   Sisanya terbuka sampai teknisi — itu yang diminta, "semua personel sesuai
+   unit yang dituju bisa menyunting". Yang menahannya dari jadi kacau bukan
+   daftar ini melainkan pagar unit dan pagar hapus.
+
+   Semuanya tetap bisa dibuka lagi dari layar Hak Akses — daftar ini bawaan,
+   bukan aturan mati. */
 const HAK_BAWAAN = {
   dinas:     { peran: ['admin', 'pejabat', 'adminunit'],               petugas: [] },
   berkala:   { peran: ['admin', 'pejabat', 'adminunit', 'pic', 'teknisi'], petugas: [] },
   personel:  { peran: ['admin', 'adminunit', 'pic', 'teknisi'],        petugas: [] },
-  peralatan: { peran: ['admin', 'adminunit', 'pic', 'teknisi'],        petugas: [] },
+  peralatan: { peran: ['admin'],                                       petugas: [] },
   sparepart: { peran: ['admin', 'adminunit', 'pic', 'teknisi'],        petugas: [] },
   dokumen:   { peran: ['admin', 'adminunit', 'pic', 'teknisi'],        petugas: [] },
   galeri:    { peran: ['admin', 'adminunit', 'pic', 'teknisi'],        petugas: [] }
@@ -908,6 +936,38 @@ function periodeSekarang(jenis, d = new Date()) {
 
 const BERKALA_JENIS = new Set(['mingguan', 'bulanan', 'triwulan', 'semesteran', 'tahunan']);
 
+/* Dari mana tanda "sudah dikerjakan" datang. Kosong berarti ditandai orang di
+   layar dashboard, seperti sejak awal; sisanya dibuktikan lembar yang sudah
+   diisi di E-Logbook, dan sebutannya dipakai untuk menyusun penolakan di
+   bawah.
+
+   Yang bukan kosong ada karena pekerjaannya sudah punya bukti yang lebih baik.
+   Tiap kali dikerjakan ada satu lembar berisi hasilnya yang tersimpan di
+   E-Logbook, lengkap dengan nama dan tanda tangan. Meminta orang mencentang
+   ulang di sini berarti dua catatan untuk satu pekerjaan — dan yang satu bisa
+   berkata sudah sementara yang lain kosong. Tanda di dashboard mengikuti
+   lembar itu, tidak menggantikannya.
+
+   Daftar ini kembarannya BERKALA_SUMBER di public/index.html, dan yang di sana
+   yang lengkap: ia juga tahu larik mana yang dibaca dan tab mana yang dituju
+   tautannya. Yang perlu diketahui server cuma dua hal — sumber mana yang sah
+   tersimpan, dan apa sebutannya waktu menolak. Menambah sumber baru berarti
+   menambah satu baris di sini DAN satu baris di sana; kalau yang di sini
+   tertinggal, sumbernya tidak akan pernah bisa disimpan. */
+const BERKALA_SUMBER = new Map([
+  ['', ''],
+  ['dstest',     'lembar DS Test'],
+  ['dailycheck', 'lembar Daily Check'],
+  ['monitoring', 'lembar Monitoring Frekuensi'],
+  /* Empat lembar pekerjaan berkala Radtel. Di E-Logbook keempatnya tersimpan
+     di satu tabel dan dibedakan kolom jenis; di sini tetap empat sumber
+     terpisah, karena yang membuktikan Cleaning CWP bukan lembar Restart CWP. */
+  ['bk-neptuno',  'lembar Cek Query Neptuno'],
+  ['bk-gatevox',  'lembar Restart CPU Gatevox'],
+  ['bk-cleaning', 'lembar Cleaning CWP'],
+  ['bk-restart',  'lembar Restart CWP']
+]);
+
 /* Berapa bulan panjang satu putaran, untuk jenis yang lebih panjang dari
    sebulan. Angkanya sekaligus batas atas kolom "bulan ke-" pada kegiatannya:
    pekerjaan triwulan jatuh di bulan ke-1, ke-2, atau ke-3 dalam triwulan itu. */
@@ -952,7 +1012,10 @@ function rapikanKegiatan(k, adaId) {
     bulan:   panjang ? Math.min(panjang, Math.max(1, Number(k?.bulan) || 1)) : null,
     tanggal: jenis === 'mingguan' ? null : Math.min(28, Math.max(1, Number(k?.tanggal) || 1)),
     alat: String(k?.alat || '').trim().slice(0, 40),
-    ket:  String(k?.ket  || '').trim().slice(0, 400)
+    ket:  String(k?.ket  || '').trim().slice(0, 400),
+    // Kegiatan lama tidak punya kolom ini dan tetap dibaca — tanpa sumber
+    // berarti ditandai manual, yaitu perilaku sebelumnya.
+    sumber: BERKALA_SUMBER.has(k?.sumber) ? (k.sumber || '') : ''
   };
 }
 
@@ -1048,6 +1111,19 @@ app.post('/berkala/selesai', badanDinas, async (req, res) => {
   // dilakukan siapa pun yang kebetulan sudah masuk.
   if (!bolehUnit(user, unit)) {
     return res.status(403).json({ error: 'Akun Anda tidak memegang unit ini.' });
+  }
+
+  /* Kegiatan yang tandanya datang dari E-Logbook tidak bisa ditandai dari sini,
+     juga oleh yang berhak. Kalau boleh, dua catatan untuk satu pekerjaan bisa
+     berselisih — dan yang dipercaya orang justru yang lebih mudah ditekan,
+     bukan yang berisi hasilnya. Layar sudah menyembunyikan tombolnya; ini
+     penjagaan untuk permintaan yang tidak lewat layar. */
+  const sebutSumber = BERKALA_SUMBER.get(keg.sumber);
+  if (sebutSumber) {
+    return res.status(409).json({
+      error: `"${keg.nama}" ditandai sendiri dari ${sebutSumber} di E-Logbook. `
+           + 'Isi lembarnya di sana — tanda di dashboard ini mengikutinya.'
+    });
   }
 
   /* Kegiatan mingguan sekarang bisa jatuh beberapa hari dalam sepekan, jadi
@@ -1513,6 +1589,265 @@ app.delete('/logo/:unit', galeriHidup, async (req, res) => {
 });
 
 /* =====================================================================
+   DOKUMEN UNIT — berkas yang tinggal, bukan yang hilang saat disegarkan
+
+   Sampai sekarang tab Dokumen cuma menyimpan object URL di memori tab: begitu
+   halaman disegarkan, seluruh daftarnya hilang. Itu memang disengaja selama
+   belum ada keputusan berkasnya mau ditaruh di mana dan siapa yang boleh
+   membukanya. Keputusannya sekarang ada, dan bentuknya di bawah ini.
+
+   DI LUAR public/, tidak seperti galeri. Galeri berisi foto yang memang untuk
+   dipandang siapa saja yang membuka dashboard, jadi ia disajikan sebagai
+   berkas statis. Dokumen tidak: di dalamnya ada SOP, sertifikat, dan berita
+   acara yang bertanda tangan. Karena itu berkasnya tinggal di data/dokumen/
+   — yang tidak pernah disajikan express.static — dan satu-satunya jalan
+   mengambilnya lewat GET /dokumen/:unit/:id, yang menuntut sesi E-Logbook.
+
+   Nama di disk BUKAN nama aslinya. Yang tersimpan <id><ekstensi>, dan nama
+   asli orangnya tinggal di daftar.json. Tiga hal sekaligus beres: tidak ada
+   jalan tembus lewat "../" di nama berkas, dua berkas bernama sama tidak
+   saling menimpa, dan nama yang mengandung apa pun — spasi, tanda kurung,
+   huruf beraksen — tidak perlu dipotong supaya aman di disk.
+
+   Daftarnya sendiri terbuka seperti jadwal dinas dan kegiatan berkala: yang
+   berdinas perlu tahu dokumen apa yang ada tanpa harus masuk. Yang menuntut
+   sesi cuma isi berkasnya.
+   ===================================================================== */
+
+const DOK_DIR   = path.join(DATA_DIR, 'dokumen');
+const DOK_JSON  = path.join(DOK_DIR, 'daftar.json');
+const DOK_BATAS = 25 * 1024 * 1024;      // sama dengan batas yang tertulis di layar
+
+/* Ekstensi yang boleh masuk. Daftar putih, bukan daftar hitam: yang tidak
+   disebut ditolak. Tidak ada .exe, .bat, .cmd, .ps1, .js, .html — berkas yang
+   bisa dijalankan atau bisa membawa skrip tidak punya urusan di rak dokumen,
+   dan sekali ada di sana ia menunggu ditekan orang. */
+const DOK_EXT = new Set([
+  '.pdf',
+  '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
+  '.odt', '.ods', '.odp', '.rtf', '.txt', '.csv', '.md',
+  '.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.tif', '.tiff',
+  '.zip', '.rar', '.7z',
+  '.dwg', '.dxf'
+]);
+
+/* Alasannya sama dengan galeri dan jadwal dinas: di Vercel dan sejenisnya yang
+   tertulis ke disk hilang begitu fungsinya selesai. Lebih baik menolak dengan
+   sebabnya daripada menerima berkas yang diam-diam menguap. */
+const DOK_TULIS = !process.env.VERCEL;
+
+function dokumenHidup(_req, res, next) {
+  if (DOK_TULIS) return next();
+  res.status(503).json({
+    error: 'Dokumen tidak bisa disimpan di lingkungan ini: penyimpanannya tidak permanen, '
+         + 'jadi berkas yang diunggah akan hilang dengan sendirinya.'
+  });
+}
+
+const dokIdSah = (x) => /^[a-f0-9]{16}$/.test(String(x || ''));
+
+/** Ekstensi dari nama yang dikirim klien. Yang dipakai cuma ekstensinya —
+    sisa namanya tidak pernah menyentuh disk, jadi tidak perlu dibersihkan. */
+function dokEkstensi(nama) {
+  const e = path.extname(String(nama || '')).toLowerCase();
+  return DOK_EXT.has(e) ? e : '';
+}
+
+/** Nama yang ikut turun ke peramban saat berkasnya dibuka. Petik ganda, garis
+    miring terbalik, dan baris baru dibuang: ketiganya memutus kepala
+    Content-Disposition. */
+const dokNamaAman = (nama) => String(nama || 'berkas')
+  .replace(/[\r\n"\\]/g, '').trim().slice(0, 120) || 'berkas';
+
+/** Satu baris dokumen, dirapikan. Kategori dan kaitan peralatan datang dari
+    layar dan boleh apa saja — yang penting panjangnya berhenti di suatu tempat. */
+const dokBaris = (b) => ({
+  id:       String(b.id || ''),
+  berkas:   String(b.berkas || ''),
+  nama:     String(b.nama || '').slice(0, 200),
+  jenis:    String(b.jenis || '').slice(0, 120),
+  ukuran:   Number(b.ukuran) || 0,
+  kategori: String(b.kategori || '').slice(0, 40),
+  alat:     String(b.alat || '').slice(0, 40),
+  waktu:    String(b.waktu || ''),
+  oleh:     String(b.oleh || ''),
+  olehNama: String(b.olehNama || '')
+});
+
+/** Seluruh dokumen, semua unit. Isi berkasnya tidak ikut — hanya keterangannya. */
+app.get('/dokumen', async (_req, res) => {
+  const daftar = await bacaJson(DOK_JSON, {});
+  res.json({ dokumen: daftar, bisaTulis: DOK_TULIS });
+});
+
+/**
+ * Ambil satu berkas.
+ *
+ * Menuntut sesi, tidak seperti daftarnya. Yang membedakan: daftar cuma
+ * menyebut ada dokumen apa, sementara ini menyerahkan isinya — dan isi berita
+ * acara memuat nama serta tanda tangan orang.
+ *
+ * Yang boleh mengambil siapa pun yang sudah masuk, bukan hanya pemegang
+ * unitnya. Dashboard ini memang begitu sejak awal: melihat terbuka untuk semua
+ * yang berdinas, yang dipagari per unit adalah menulis.
+ */
+app.get('/dokumen/:unit/:id', async (req, res) => {
+  const unit = String(req.params.unit || '').toLowerCase();
+  if (!unitSah(unit) || !dokIdSah(req.params.id)) {
+    return res.status(400).json({ error: 'Permintaan tidak sah.' });
+  }
+
+  const user = await siapa(req);
+  if (!user) {
+    return res.status(401).json({ error: 'Masuk dengan akun E-Logbook Anda dulu untuk membuka dokumen.' });
+  }
+
+  const daftar = await bacaJson(DOK_JSON, {});
+  const baris = (daftar[unit] || []).find((b) => b.id === req.params.id);
+  if (!baris) return res.status(404).json({ error: 'Dokumen tidak ada dalam daftar.' });
+
+  /* Jalurnya dirangkai dari id yang sudah lolos /^[a-f0-9]{16}$/ dan dari
+     ekstensi yang sudah lolos daftar putih waktu diunggah, bukan dari apa pun
+     yang dibawa permintaan ini. Tidak ada bagian nama yang datang dari luar. */
+  res.setHeader('Content-Disposition', `inline; filename="${dokNamaAman(baris.nama)}"`);
+  res.sendFile(path.join(DOK_DIR, unit, baris.berkas), (e) => {
+    if (!e || res.headersSent) return;
+    console.error('[dokumen] gagal mengirim:', e);
+    res.status(404).json({ error: 'Berkasnya tidak ada lagi di server.' });
+  });
+});
+
+/** Unggah satu berkas. Bentuk badannya sama dengan galeri: base64 di dalam JSON. */
+app.post('/dokumen/:unit', dokumenHidup, badanGaleri, async (req, res) => {
+  const unit = String(req.params.unit || '').toLowerCase();
+  if (!unitSah(unit)) return res.status(400).json({ error: 'Kode unit tidak sah.' });
+
+  const user = await siapa(req);
+  if (!user) {
+    return res.status(401).json({ error: 'Masuk dengan akun E-Logbook Anda dulu.' });
+  }
+  if (!(await bolehIsi(user, 'dokumen', unit))) {
+    return res.status(403).json({
+      error: bolehUnit(user, unit)
+        ? 'Peran akun Anda tidak diberi hak mengisi dokumen unit.'
+        : 'Akun Anda tidak memegang unit ini, jadi dokumennya tidak bisa Anda isi.'
+    });
+  }
+
+  const nama = String(req.body?.nama || '').trim();
+  const ext = dokEkstensi(nama);
+  if (!ext) {
+    return res.status(400).json({
+      error: 'Jenis berkas ini tidak diterima. Yang boleh: '
+           + [...DOK_EXT].map((x) => x.slice(1).toUpperCase()).join(', ') + '.'
+    });
+  }
+
+  const isi = Buffer.from(String(req.body?.isi || ''), 'base64');
+  if (!isi.length) return res.status(400).json({ error: 'Isi berkas kosong.' });
+  if (isi.length > DOK_BATAS) {
+    return res.status(413).json({ error: `Berkas lebih dari ${Math.round(DOK_BATAS / 1024 / 1024)} MB.` });
+  }
+
+  try {
+    const id = crypto.randomBytes(8).toString('hex');
+    const berkas = id + ext;
+    await fs.mkdir(path.join(DOK_DIR, unit), { recursive: true });
+    await fs.writeFile(path.join(DOK_DIR, unit, berkas), isi);
+
+    const daftar = await bacaJson(DOK_JSON, {});
+    const isiUnit = daftar[unit] || (daftar[unit] = []);
+    const baris = dokBaris({
+      id, berkas, nama,
+      jenis: req.body?.jenis,
+      // dari berkas yang benar-benar tersimpan, bukan dari angka yang dikirim layar
+      ukuran: isi.length,
+      kategori: req.body?.kategori,
+      alat: req.body?.alat,
+      waktu: new Date().toISOString(),
+      oleh: user.username,
+      olehNama: user.nama || user.username
+    });
+    isiUnit.unshift(baris);        // terbaru di atas, sama dengan urutan di layar
+    await tulisJson(DOK_JSON, daftar);
+
+    await catat(user, { modul: 'dokumen', aksi: 'unggah', unit, rincian: nama });
+    res.json({ ok: true, baris, jumlah: isiUnit.length });
+  } catch (e) {
+    console.error('[dokumen] gagal menyimpan:', e);
+    res.status(500).json({ error: 'Gagal menyimpan berkas: ' + (e?.message || e) });
+  }
+});
+
+/**
+ * Ganti kategori atau kaitan peralatannya. Berkasnya sendiri tidak tersentuh,
+ * jadi ini masih "mengisi", bukan "menghapus" — haknya pun hak mengisi.
+ */
+app.patch('/dokumen/:unit/:id', dokumenHidup, badanGaleri, async (req, res) => {
+  const unit = String(req.params.unit || '').toLowerCase();
+  if (!unitSah(unit) || !dokIdSah(req.params.id)) {
+    return res.status(400).json({ error: 'Permintaan tidak sah.' });
+  }
+
+  const user = await siapa(req);
+  if (!user) return res.status(401).json({ error: 'Masuk dengan akun E-Logbook Anda dulu.' });
+  if (!(await bolehIsi(user, 'dokumen', unit))) {
+    return res.status(403).json({ error: 'Akun Anda tidak berhak mengubah dokumen unit ini.' });
+  }
+
+  try {
+    const daftar = await bacaJson(DOK_JSON, {});
+    const baris = (daftar[unit] || []).find((b) => b.id === req.params.id);
+    if (!baris) return res.status(404).json({ error: 'Dokumen tidak ada dalam daftar.' });
+
+    if (req.body?.kategori !== undefined) baris.kategori = String(req.body.kategori).slice(0, 40);
+    if (req.body?.alat !== undefined)     baris.alat     = String(req.body.alat).slice(0, 40);
+    await tulisJson(DOK_JSON, daftar);
+
+    await catat(user, { modul: 'dokumen', aksi: 'ubah', unit, rincian: baris.nama });
+    res.json({ ok: true, baris: dokBaris(baris) });
+  } catch (e) {
+    console.error('[dokumen] gagal mengubah:', e);
+    res.status(500).json({ error: 'Gagal mengubah: ' + (e?.message || e) });
+  }
+});
+
+/** Keluarkan satu dokumen. Berkasnya ikut dihapus dari disk — daftar yang
+    kosong sementara berkasnya menumpuk cuma menyisakan sampah tak terlihat. */
+app.delete('/dokumen/:unit/:id', dokumenHidup, async (req, res) => {
+  const unit = String(req.params.unit || '').toLowerCase();
+  if (!unitSah(unit) || !dokIdSah(req.params.id)) {
+    return res.status(400).json({ error: 'Permintaan tidak sah.' });
+  }
+
+  const user = await siapa(req);
+  if (!user) return res.status(401).json({ error: 'Masuk dengan akun E-Logbook Anda dulu.' });
+  if (!(await bolehHapus(user, 'dokumen', unit))) {
+    return res.status(403).json({
+      error: 'Mengeluarkan dokumen hanya bisa dilakukan administrator. Yang lain boleh menambah '
+           + 'dan mengubah keterangannya.'
+    });
+  }
+
+  try {
+    const daftar = await bacaJson(DOK_JSON, {});
+    const isiUnit = daftar[unit] || [];
+    const baris = isiUnit.find((b) => b.id === req.params.id);
+    if (!baris) return res.status(404).json({ error: 'Dokumen tidak ada dalam daftar.' });
+
+    daftar[unit] = isiUnit.filter((b) => b.id !== baris.id);
+    await tulisJson(DOK_JSON, daftar);
+    await fs.rm(path.join(DOK_DIR, unit, baris.berkas), { force: true });
+
+    await catat(user, { modul: 'dokumen', aksi: 'hapus', unit, rincian: baris.nama });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[dokumen] gagal menghapus:', e);
+    res.status(500).json({ error: 'Gagal menghapus: ' + (e?.message || e) });
+  }
+});
+
+/* =====================================================================
    HALAMAN
    ===================================================================== */
 
@@ -1534,6 +1869,13 @@ app.get('/_info', (_req, res) => {
     // tombol yang pasti gagal. Menebaknya dari sisi peramban tidak mungkin:
     // gagalnya baru ketahuan setelah tombolnya terlanjur ditekan.
     galeriBisaTulis: GALERI,
+    dokumenBisaTulis: DOK_TULIS,
+    // Boleh tidak halaman ini jatuh ke data contoh waktu E-Logbook diam.
+    // Di server kantor jawabannya tidak: di sana server yang tidak terjawab
+    // adalah kerusakan yang pantas terlihat, bukan alasan menampilkan angka
+    // karangan yang bisa disangka nyata oleh yang membaca.
+    // DATA_CONTOH=0 di server kantor; bawaannya menyala.
+    dataContoh: DATA_CONTOH,
     // Tanpa penerusan, alamat E-Logbook tidak bisa dirangkai dari hostname yang
     // sedang dipakai — di cloud, hostname:3000 menunjuk entah ke mana. Hanya
     // ELOGBOOK_TAUTAN yang berlaku di situ.

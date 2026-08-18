@@ -120,6 +120,12 @@
   <button class="tab-btn" data-tab="issues" data-t="tabIsu">⚠ ISU / UPDATE ISSUE</button>
   <button class="tab-btn" data-tab="monitoring" data-t="tabMonitoring">📶 MONITORING FREKUENSI</button>
   <button class="tab-btn" data-tab="dstest" data-t="tabDsTest">☎ DS TEST</button>
+  <!-- Empat pekerjaan berkala Radtel. Tabnya empat, tapi jendela pengisian
+       dan tabel penyimpanannya satu — lihat js/19-berkala.js. -->
+  <button class="tab-btn" data-tab="bk-neptuno" data-t="tabBkNeptuno">🎙 CEK QUERY NEPTUNO</button>
+  <button class="tab-btn" data-tab="bk-gatevox" data-t="tabBkGatevox">♻ RESTART CPU GATEVOX</button>
+  <button class="tab-btn" data-tab="bk-cleaning" data-t="tabBkCleaning">🧹 CLEANING CWP</button>
+  <button class="tab-btn" data-tab="bk-restart" data-t="tabBkRestart">⟳ RESTART CWP</button>
   <button class="tab-btn" data-tab="ltk" data-t="tabLtk">🛠 LTK</button>
   <button class="tab-btn" data-tab="rekap" data-t="tabRekap">📊 REKAP &amp; MATRIK</button>
   <!-- KELOLA AKUN sudah tidak di sini. Pengelolaan akun diurus dari Dashboard
@@ -276,6 +282,67 @@
       <div class="subtle-note" data-t="noteCariDs">Isi tanggal untuk menampilkan hasil DS Test pada hari itu saja.</div>
     </div>
     <div id="dsList"></div>
+  </section>
+
+  <!-- ===== TAB: PEKERJAAN BERKALA (empat jenis) ===== -->
+  <section class="view" id="view-bk-neptuno">
+    <div class="section-head">
+      <div><h2 data-t="bkJudul_neptuno"></h2><p data-t="bkSub_neptuno"></p></div>
+      <button class="btn btn-tambah" onclick="openBerkalaModal('neptuno')" data-t="tambahBk">+ Form Baru</button>
+    </div>
+    <div class="card">
+      <div class="print-bar">
+        <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariBkTanggal-neptuno" onchange="renderBerkalaList()"></div>
+        <button class="btn ghost" onclick="resetCariBerkala('neptuno')" data-t="resetCari">↺ Tampilkan Semua</button>
+      </div>
+      <div class="subtle-note" data-t="noteCariBk">Isi tanggal untuk menampilkan lembar pada hari itu saja.</div>
+    </div>
+    <div id="bkList-neptuno"></div>
+  </section>
+
+  <section class="view" id="view-bk-gatevox">
+    <div class="section-head">
+      <div><h2 data-t="bkJudul_gatevox"></h2><p data-t="bkSub_gatevox"></p></div>
+      <button class="btn btn-tambah" onclick="openBerkalaModal('gatevox')" data-t="tambahBk">+ Form Baru</button>
+    </div>
+    <div class="card">
+      <div class="print-bar">
+        <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariBkTanggal-gatevox" onchange="renderBerkalaList()"></div>
+        <button class="btn ghost" onclick="resetCariBerkala('gatevox')" data-t="resetCari">↺ Tampilkan Semua</button>
+      </div>
+      <div class="subtle-note" data-t="noteCariBk">Isi tanggal untuk menampilkan lembar pada hari itu saja.</div>
+    </div>
+    <div id="bkList-gatevox"></div>
+  </section>
+
+  <section class="view" id="view-bk-cleaning">
+    <div class="section-head">
+      <div><h2 data-t="bkJudul_cleaning-cwp"></h2><p data-t="bkSub_cleaning-cwp"></p></div>
+      <button class="btn btn-tambah" onclick="openBerkalaModal('cleaning-cwp')" data-t="tambahBk">+ Form Baru</button>
+    </div>
+    <div class="card">
+      <div class="print-bar">
+        <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariBkTanggal-cleaning" onchange="renderBerkalaList()"></div>
+        <button class="btn ghost" onclick="resetCariBerkala('cleaning-cwp')" data-t="resetCari">↺ Tampilkan Semua</button>
+      </div>
+      <div class="subtle-note" data-t="noteCariBk">Isi tanggal untuk menampilkan lembar pada hari itu saja.</div>
+    </div>
+    <div id="bkList-cleaning"></div>
+  </section>
+
+  <section class="view" id="view-bk-restart">
+    <div class="section-head">
+      <div><h2 data-t="bkJudul_restart-cwp"></h2><p data-t="bkSub_restart-cwp"></p></div>
+      <button class="btn btn-tambah" onclick="openBerkalaModal('restart-cwp')" data-t="tambahBk">+ Form Baru</button>
+    </div>
+    <div class="card">
+      <div class="print-bar">
+        <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariBkTanggal-restart" onchange="renderBerkalaList()"></div>
+        <button class="btn ghost" onclick="resetCariBerkala('restart-cwp')" data-t="resetCari">↺ Tampilkan Semua</button>
+      </div>
+      <div class="subtle-note" data-t="noteCariBk">Isi tanggal untuk menampilkan lembar pada hari itu saja.</div>
+    </div>
+    <div id="bkList-restart"></div>
   </section>
 
   <!-- ===== TAB: LTK ===== -->
@@ -495,6 +562,50 @@
     <div class="modal-footer">
       <button class="btn ghost" onclick="closeDsModal()" data-t="batal">Batal</button>
       <button class="btn" id="dsSaveBtn" onclick="saveDs()" data-t="simpanDs">💾 Simpan DS Test</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PEKERJAAN BERKALA
+     Satu jendela untuk keempat jenis. Judul dan isi tabelnya diatur
+     openBerkalaModal(jenis); tidak ada pemilih jenis di dalam sini, karena
+     yang menentukan sudah tab tempat tombolnya ditekan. -->
+<div class="modal-bg" id="bkModalBg">
+  <div class="modal" style="max-width:860px;">
+    <h3 id="bkModalJudul">Pekerjaan Berkala</h3>
+    <div class="grid2">
+      <div class="field"><label data-t="tanggal">Tanggal</label><input type="date" id="bkTanggal"></div>
+      <div class="field"><label data-t="bkRingkasan">Ringkasan</label><div id="bkRingkas" style="padding:9px 0;font-size:12px;color:var(--muted);"></div></div>
+    </div>
+    <div class="subtle-note" id="bkKosongNote" style="display:none;" data-t="bkDaftarKosong">Daftar pekerjaan untuk lembar ini belum diisi. Kirimkan daftarnya dan formnya langsung bisa dipakai.</div>
+    <div class="legend">
+      <span><i class="dot" style="background:var(--ok)"></i> <span data-t="lgOk">OK</span></span>
+      <span><i class="dot" style="background:var(--fail)"></i> <span data-t="lgNotOk">NOT OK</span></span>
+      <span><i class="dot" style="background:var(--muted)"></i> <span data-t="lgTidakDikerjakan">TIDAK DIKERJAKAN</span></span>
+      <span style="color:var(--muted);" data-t="bkLgBawaan">Semua baris dimulai dari ✓ — cukup tandai yang tidak beres.</span>
+    </div>
+    <div class="dc-table-wrap" style="max-height:52vh;overflow-y:auto;">
+      <table class="dc" id="bkTable">
+        <thead id="bkThead"></thead>
+        <tbody id="bkBody"></tbody>
+      </table>
+    </div>
+    <div class="field" style="margin-top:12px;"><label data-t="bkCatatan">Catatan</label><textarea id="bkCatatan" data-t-ph="phBkCatatan" placeholder="Catatan tambahan untuk lembar ini — boleh dikosongkan"></textarea></div>
+    <div class="grid2" style="margin-top:8px;">
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <label style="font-family:var(--font-mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);" data-t="namaTeknisiPelaksana">Nama Teknisi Pelaksana</label>
+          <button class="btn ghost" style="padding:5px 10px;" onclick="addBerkalaTeknisi()" data-t="tambahNama">+ Nama</button>
+        </div>
+        <div id="bkTeknisiList" style="margin-top:8px;"></div>
+      </div>
+      <div class="field"><label data-t="ttdTeknisi">TTD Teknisi</label><div class="sig-wrap"><canvas id="sigBerkala"></canvas><div class="sig-toolbar"><span class="sig-hint" data-t="ttdHintTeknisi">tanda tangan teknisi</span><button class="sig-clear" onclick="clearSig('sigBerkala')" data-t="bersihkan">bersihkan</button></div></div></div>
+    </div>
+    <div class="field" style="margin-top:8px;"><label data-t="mengetahuiManager">Mengetahui — Manager Teknik</label><input type="text" id="bkManagerNama" list="pejabatDatalist" data-t-ph="phNamaManager" placeholder="Nama manager teknik"></div>
+    <div class="field" style="margin-top:6px;"><label data-t="kirimTtdKe">Kirim TTD ke akun</label><select id="bkManagerAkun"><option value="" data-t="kirimTtdOtomatis">Otomatis (dari nama di atas)</option></select></div>
+    <div class="modal-footer">
+      <button class="btn ghost" onclick="closeBerkalaModal()" data-t="batal">Batal</button>
+      <button class="btn" id="bkSaveBtn" onclick="saveBerkala()" data-t="simpanBk">💾 Simpan Lembar</button>
     </div>
   </div>
 </div>
@@ -734,6 +845,7 @@
 <script src="js/16-monitoring.js"></script>
 <script src="js/17-ds-test.js"></script>
 <script src="js/18-ltk.js"></script>
+<script src="js/19-berkala.js"></script>
 <script src="js/20-ttd-pejabat.js"></script>
 <script src="js/21-cetak-dasar.js"></script>
 <script src="js/22-cetak-logbook.js"></script>

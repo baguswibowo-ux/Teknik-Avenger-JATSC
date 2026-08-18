@@ -16,7 +16,11 @@ async function init(){
     // halaman yang sama walau yang masuk sudah orang lain. Yang menentukan
     // hanya ingatan milik akun ini — dan pindahUnit() sudah menuliskannya
     // sebelum memanggil init() lagi.
-    data = await gsRun('getAllData', unitTersimpan());
+    // Unit dari tanda pagar didahulukan, dan hanya untuk kunjungan ini — lihat
+    // catatan di bukaTabDariTautan(). Tidak ditulis ke ingatan akun: tautan
+    // dari dashboard tidak boleh diam-diam memindahkan unit kerja orangnya.
+    const tuju = tautanMasuk();
+    data = await gsRun('getAllData', (tuju && tuju.unit) || unitTersimpan());
   }catch(e){
     document.getElementById('syncBadge').innerHTML =
       '<span class="sync-dot" style="background:var(--fail);box-shadow:none;"></span> gagal memuat — ' +
@@ -54,6 +58,17 @@ async function init(){
   isiPilihanKategoriDs();
   try{ dsList = (data.dstest||[]).map(mapDs); renderDsList(); }
   catch(e){ document.getElementById('dsList').innerHTML = '<div class="empty">DS Test gagal ditampilkan: '+escapeHtml(String(e.message||e))+'</div>'; }
+  berkalaItemSemua = data.berkalaItem || berkalaItemSemua;
+  berkalaJenisUrut = (data.jenisBerkala && data.jenisBerkala.length) ? data.jenisBerkala : berkalaJenisUrut;
+  isiPilihanJenisBerkala();
+  try{ berkalaList = (data.berkala||[]).map(mapBerkala); renderBerkalaList(); }
+  catch(e){
+    // Empat daftar, empat wadah — satu pesan galat di masing-masing.
+    berkalaJenisUrut.forEach(j=>{
+      const el = document.getElementById(bkListId(j));
+      if(el) el.innerHTML = '<div class="empty">Pekerjaan berkala gagal ditampilkan: '+escapeHtml(String(e.message||e))+'</div>';
+    });
+  }
   // Daftar akun tetap diambil — beberapa bagian lain membacanya — tapi tidak
   // lagi digambar di sini: tab Kelola Akun sudah pindah ke Dashboard Fasilitas
   // Teknik (port 3100). Server tetap yang memutuskan siapa yang boleh melihat
@@ -68,6 +83,49 @@ async function init(){
   // Rekap diminta terpisah ke server; yang tersimpan milik unit sebelumnya.
   try{ lupakanRekap(); }catch(e){ /* tab rekap belum pernah dibuka */ }
   document.getElementById('syncBadge').innerHTML = '<span class="sync-dot"></span> ' + T('tersambung');
+  bukaTabDariTautan();
+}
+
+/* ============== TAUTAN MASUK DARI LUAR ==============
+ *
+ * Dashboard Fasilitas Teknik menautkan pekerjaan berkala langsung ke formulir
+ * yang mengerjakannya — "Pengecekan DS" di sana membuka tab DS Test di sini.
+ * Sebelum ini tautannya cuma bisa sampai ke halaman depan, dan sisanya urusan
+ * orangnya: pilih unit, cari tab, baru mulai.
+ *
+ * Bentuknya  #<tab>  atau  #<tab>:<unit>
+ * Contohnya  #dstest:radtel  dan  #bk-neptuno:radtel
+ *
+ * Unit ikut disebut karena beberapa tab hanya ada pada unit yang memang punya
+ * formulirnya — tanpa itu tautannya mendarat di unit terakhir yang dibuka
+ * orangnya, yang belum tentu unit yang dimaksud.
+ *
+ * Unit dari tautan TIDAK disimpan sebagai ingatan akun ini. Tautan itu satu
+ * kunjungan, bukan pindah rumah: setelah halaman ini dimuat ulang tanpa tanda
+ * pagar, yang kembali unit yang biasa dipakai orangnya. Yang memutuskan boleh
+ * atau tidaknya tetap server — kode unit yang bukan miliknya dijawab dengan
+ * unit yang memang boleh.
+ */
+function tautanMasuk(){
+  const isi = String(location.hash || '').replace(/^#/, '').trim();
+  if(!isi) return null;
+  const [tab, unit] = isi.split(':');
+  // Tanda hubung ikut diterima. Empat tab pekerjaan berkala bernama bk-neptuno
+  // sampai bk-restart, dan pola yang cuma menerima huruf menolak keempatnya
+  // tanpa suara: tautannya mendarat di halaman depan seolah tabnya tidak ada.
+  if(!/^[a-z][a-z0-9-]*$/.test(tab || '')) return null;
+  return { tab, unit: /^[a-z0-9_-]+$/.test(unit || '') ? unit : '' };
+}
+
+function bukaTabDariTautan(){
+  const tuju = tautanMasuk();
+  if(!tuju || !tuju.tab) return;
+  const btn = document.querySelector(`.tab-btn[data-tab="${tuju.tab}"]`);
+  // Tab yang tidak ada, atau yang disembunyikan karena unit ini memang tidak
+  // punya formulirnya, dibiarkan saja — halaman tetap terbuka di tab biasanya,
+  // dan itu lebih baik daripada memaksa masuk ke bagian yang kosong.
+  if(!btn || btn.style.display === 'none') return;
+  btn.click();
 }
 /**
  * Alamat Dashboard Fasilitas Teknik, untuk tombol pulang di kepala halaman.
