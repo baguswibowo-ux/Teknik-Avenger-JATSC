@@ -1,0 +1,66 @@
+/* =====================================================================
+   2. KERANGKA APLIKASI
+   ===================================================================== */
+#app{display:none;}
+#app.tampil{display:block;}
+
+header.konsol{position:relative;overflow:hidden;border-bottom:1px solid var(--line);
+  background:linear-gradient(150deg,var(--konsol-1),var(--konsol-2));}
+header.konsol::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,var(--garis-pindai) 0 1px,transparent 1px 3px);}
+.konsol-isi{position:relative;z-index:1;display:flex;gap:16px;align-items:center;flex-wrap:wrap;
+  padding:14px 22px;max-width:1500px;margin:0 auto;}
+.logo{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;flex:none;
+  background:linear-gradient(160deg,var(--accent),var(--accent-dim));color:var(--accent-teks);
+  box-shadow:0 6px 18px rgba(41,182,246,.28);}
+.brand{flex:1;min-width:190px;}
+.brand .eyebrow{font-family:var(--font-mono);font-size:10px;letter-spacing:.16em;color:var(--muted);text-transform:uppercase;}
+.brand h1{font-size:19px;margin-top:2px;}
+/* Boleh melipat. Tanpa ini, deretan jam + kartu akun + lima tombol ikon
+   menyusut sampai di bawah lebarnya sendiri di layar HP, dan tombol paling
+   kanan — Keluar — terpotong keluar layar tanpa bisa dicapai sama sekali. */
+.jam{display:flex;gap:13px;align-items:center;flex-wrap:wrap;justify-content:flex-end;}
+.jam .blok{text-align:right;}
+.jam .nilai{font-family:var(--font-mono);font-size:18px;font-weight:600;color:var(--accent);line-height:1.1;}
+.jam .label{font-family:var(--font-mono);font-size:9px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;}
+/* Dipakai <button> maupun <a> — tanpa text-decoration:none, tautannya
+   membawa garis bawah yang menyeberang di bawah ikonnya. */
+.tombol-ikon{background:var(--panel);border:1px solid var(--line);color:var(--text);border-radius:9px;
+  width:34px;height:34px;display:grid;place-items:center;cursor:pointer;transition:.16s;
+  text-decoration:none;}
+.tombol-ikon:hover{border-color:var(--accent);color:var(--accent);}
+/* Sakelar bahasa memakai huruf, bukan ikon: bendera salah karena bahasa bukan
+   negara, dan gambar bola dunia tidak memberi tahu bahasa apa yang akan dituju. */
+.tombol-ikon.teks{font-family:var(--font-mono);font-size:11px;font-weight:600;letter-spacing:.06em;}
+
+.kartu-akun{display:flex;align-items:center;gap:9px;border:1px solid var(--line);border-radius:10px;
+  padding:5px 10px 5px 6px;background:var(--panel);}
+.kartu-akun .av{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;flex:none;
+  background:var(--accent-dim);color:var(--accent);font-family:var(--font-mono);font-size:11px;font-weight:600;}
+.kartu-akun .nm{font-size:12.5px;font-weight:500;line-height:1.2;}
+.kartu-akun .pr{font-family:var(--font-mono);font-size:9.5px;color:var(--muted);letter-spacing:.05em;}
+
+/* Dulu di atas rel ini ada pita peringatan yang tingginya berubah-ubah, dan
+   rel harus diberi jarak sebesar pita itu — diukur, karena angka matinya cuma
+   benar pada satu lebar layar. Pitanya sudah dibuang; relnya menempel langsung
+   di puncak jendela, dan pengukurannya ikut hilang. */
+nav.rel{position:sticky;top:0;z-index:50;background:var(--panel);
+  border-bottom:1px solid var(--line);}
+.rel-isi{display:flex;gap:2px;overflow-x:auto;max-width:1500px;margin:0 auto;padding:0 14px;}
+.rel button{background:none;border:0;border-bottom:2px solid transparent;color:var(--muted);cursor:pointer;
+  font-family:var(--font-display);font-size:13px;font-weight:500;padding:13px 15px;white-space:nowrap;transition:.16s;}
+.rel button:hover{color:var(--text);}
+.rel button.aktif{color:var(--accent);border-bottom-color:var(--accent);}
+.rel .lencana{font-family:var(--font-mono);font-size:10px;background:var(--fail);color:#fff;
+  border-radius:20px;padding:1px 6px;margin-left:6px;vertical-align:1px;}
+
+main{max-width:1500px;margin:0 auto;padding:22px 22px 70px;}
+section.layar{display:none;animation:masuk .3s ease;}
+section.layar.aktif{display:block;}
+@keyframes masuk{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+
+.judul-seksi{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin:0 0 4px;}
+.judul-seksi h2{font-size:17px;}
+.judul-seksi .ket{color:var(--muted);font-size:12.5px;}
+.pemisah{height:1px;background:var(--line);margin:14px 0 20px;}
+

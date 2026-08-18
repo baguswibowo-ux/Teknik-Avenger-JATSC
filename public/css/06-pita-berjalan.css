@@ -1,0 +1,136 @@
+/* =====================================================================
+   PITA BERJALAN — daftar yang menggeser dirinya sendiri ke atas
+   Isinya dicetak dua kali; setelah bergeser tepat setengah tinggi jalur,
+   yang terlihat adalah salinan kedua pada posisi yang sama persis dengan
+   awal, jadi perulangannya tidak pernah tampak meloncat.
+   ===================================================================== */
+.tiker{position:relative;height:404px;overflow:hidden;}
+.tiker::before,.tiker::after{content:"";position:absolute;left:0;right:0;height:44px;z-index:3;pointer-events:none;}
+.tiker::before{top:0;background:linear-gradient(var(--panel),transparent);}
+.tiker::after{bottom:0;background:linear-gradient(transparent,var(--panel));}
+/* Jaraknya dipasang sebagai margin-bottom tiap kartu, bukan gap + padding
+   tegak pada jalur. Dengan gap, jarak antara salinan pertama dan kedua ikut
+   terhitung sekali saja, sementara padding atas-bawah terhitung penuh — geser
+   50% jadi meleset belasan piksel dan sambungannya terlihat tersentak.
+   Dengan margin per kartu, tinggi tiap satuan sama rata dan 50% tepat. */
+/* Tanpa will-change dengan sengaja. Jalur dinas tingginya bisa 3.400 px, dan
+   will-change:transform memaksa peramban menyiapkan tekstur selebar panel dan
+   setinggi itu terus-menerus. Animasi transform sudah mendapat lapisan
+   komposit sendiri tanpa perlu diminta. */
+.jalur{display:flex;flex-direction:column;padding:0 13px;
+  animation:naik 30s linear infinite;}
+.jalur > *{margin-bottom:9px;}
+@keyframes naik{to{transform:translateY(-50%);}}
+.tiker:hover .jalur,.tiker.jeda .jalur{animation-play-state:paused;}
+.tiker-kaki{display:flex;justify-content:space-between;align-items:center;gap:10px;
+  padding:8px 13px;border-top:1px solid var(--line);background:var(--panel-2);}
+.tiker-kaki .ket{font-family:var(--font-mono);font-size:10px;color:var(--muted);}
+
+/* ---------- Baris trouble di dalam pita ---------- */
+.trouble-baris{position:relative;flex:none;border:1px solid var(--line);border-radius:11px;
+  background:var(--panel-2);padding:10px 12px 10px 15px;cursor:pointer;
+  transition:transform .3s cubic-bezier(.2,.7,.3,1),border-color .2s,box-shadow .3s;
+  transform-style:preserve-3d;}
+.trouble-baris .pita-status{position:absolute;left:0;top:9px;bottom:9px;width:3px;border-radius:0 3px 3px 0;}
+.trouble-baris.open .pita-status{background:var(--fail);}
+.trouble-baris.proses .pita-status{background:var(--warn);}
+.trouble-baris:hover{border-color:var(--accent);box-shadow:0 14px 26px rgba(0,0,0,.4);
+  transform:perspective(800px) rotateX(3.5deg) translateZ(16px);}
+.trouble-baris .atas{display:flex;justify-content:space-between;align-items:center;gap:8px;}
+.trouble-baris .unit{font-family:var(--font-display);font-size:12.5px;font-weight:600;color:var(--accent);}
+.trouble-baris .ket-isi{font-size:12px;line-height:1.45;margin-top:5px;}
+.trouble-baris .bawah{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:7px;}
+.trouble-baris .jejak{font-family:var(--font-mono);font-size:10px;color:var(--muted);}
+.lencana-umur{font-family:var(--font-mono);font-size:10.5px;font-weight:600;border-radius:20px;
+  padding:2px 9px;border:1px solid currentColor;white-space:nowrap;}
+
+/* ---------- Kartu personel 3D ---------- */
+.kartu-orang{position:relative;flex:none;display:flex;align-items:center;gap:11px;
+  border:1px solid var(--line);border-radius:12px;background:var(--panel-2);padding:10px 13px;
+  overflow:hidden;transform-style:preserve-3d;
+  transition:transform .35s cubic-bezier(.2,.7,.3,1),border-color .2s,box-shadow .35s;}
+.kartu-orang::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--w);}
+/* Kilau yang menyapu saat kartunya dimiringkan — memberi kesan permukaan
+   yang memantul, bukan kotak datar yang sekadar diputar. */
+.kartu-orang::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:0;
+  background:linear-gradient(105deg,transparent 34%,rgba(255,255,255,.13) 48%,transparent 62%);
+  transform:translateX(-60%);transition:opacity .35s,transform .55s;}
+.kartu-orang:hover{border-color:var(--w);box-shadow:0 18px 34px rgba(0,0,0,.45);
+  transform:perspective(760px) rotateX(6deg) rotateY(-7deg) translateZ(24px);}
+.kartu-orang:hover::after{opacity:1;transform:translateX(60%);}
+.av3d{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;flex:none;
+  font-family:var(--font-mono);font-size:12.5px;font-weight:600;color:var(--w);
+  background:var(--panel);border:1px solid var(--line);
+  transform:translateZ(30px);box-shadow:0 6px 14px rgba(0,0,0,.4);}
+.kartu-orang .teks{flex:1;min-width:0;transform:translateZ(15px);}
+.kartu-orang .nm{font-size:13px;font-weight:500;line-height:1.25;display:block;}
+.kartu-orang .pr{font-family:var(--font-mono);font-size:10px;color:var(--muted);}
+.kartu-orang .kanan{text-align:right;flex:none;transform:translateZ(9px);}
+.kartu-orang .jam-kecil{font-family:var(--font-mono);font-size:10px;color:var(--muted);display:block;}
+.nyala{font-family:var(--font-mono);font-size:8.5px;letter-spacing:.09em;color:var(--ok);
+  border:1px solid var(--ok);border-radius:20px;padding:1px 6px;display:inline-block;margin-top:3px;}
+.nyala.diam{color:var(--muted);border-color:var(--line);}
+
+/* ---------- Dinas ---------- */
+/* Tabel jadwal bulanan: 31 kolom, jadi ia digulir mendatar di dalam kotaknya
+   sendiri — halaman tidak boleh ikut melebar. Dua kolom pertama dibekukan di
+   tempat, kalau tidak nama orangnya hilang begitu digulir ke tanggal 20. */
+.jdw-gulir{overflow-x:auto;border:1px solid var(--line);border-radius:11px;background:var(--panel);}
+table.jdw{border-collapse:separate;border-spacing:0;font-size:11.5px;width:max-content;min-width:100%;}
+table.jdw th,table.jdw td{border-bottom:1px solid var(--line);padding:5px 4px;text-align:center;
+  white-space:nowrap;}
+table.jdw thead th{position:sticky;top:0;background:var(--panel-2);font-family:var(--font-mono);
+  font-size:10px;color:var(--muted);font-weight:500;z-index:2;}
+table.jdw th.jdw-nama,table.jdw td.jdw-nama{position:sticky;left:0;z-index:3;background:var(--panel);
+  text-align:left;min-width:150px;padding-left:11px;}
+table.jdw th.jdw-peran,table.jdw td.jdw-peran{position:sticky;left:150px;z-index:3;background:var(--panel);
+  text-align:left;min-width:110px;color:var(--muted);}
+table.jdw thead th.jdw-nama,table.jdw thead th.jdw-peran{background:var(--panel-2);z-index:4;}
+table.jdw td{font-family:var(--font-mono);color:var(--muted);}
+table.jdw .jdw-hari-ini{background:var(--kaca);box-shadow:inset 0 0 0 1px var(--accent);}
+table.jdw select{background:var(--panel-2);color:var(--text);border:1px solid var(--line);
+  border-radius:6px;padding:3px 2px;font-family:var(--font-mono);font-size:11px;min-width:52px;}
+table.jdw input{background:var(--panel-2);color:var(--text);border:1px solid var(--line);
+  border-radius:6px;padding:4px 7px;font-family:var(--font-body);font-size:12px;width:100%;}
+table.jdw select:focus,table.jdw input:focus{outline:none;border-color:var(--accent);}
+.atur-data input[type=month]{background:var(--panel-2);color:var(--text);border:1px solid var(--line);
+  border-radius:8px;padding:5px 9px;font-family:var(--font-mono);font-size:11.5px;}
+html[data-tema="gelap"] .atur-data input[type=month]::-webkit-calendar-picker-indicator{filter:invert(.7);}
+
+.dinas-baris{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;}
+.dinas-kartu{position:relative;border:1px solid var(--line);border-radius:13px;background:var(--panel);
+  padding:14px 15px;overflow:hidden;transition:transform .25s;box-shadow:var(--bayang);}
+.dinas-kartu:hover{transform:translateY(-3px);}
+.dinas-kartu .pita-sisi{position:absolute;left:0;top:0;bottom:0;width:4px;}
+.dinas-kartu .kode{font-family:var(--font-display);font-size:25px;font-weight:700;line-height:1;}
+.dinas-kartu .jam-shift{font-family:var(--font-mono);font-size:10.5px;color:var(--muted);margin-top:4px;letter-spacing:.06em;line-height:1.55;}
+/* Jam UTC yang jadi patokan; WIB di bawahnya hanya untuk yang melihat jam dinding. */
+.dinas-kartu .jam-lokal{opacity:.62;}
+.orang{display:flex;align-items:center;gap:9px;margin-top:10px;}
+.avatar{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;flex:none;
+  font-family:var(--font-mono);font-size:10.5px;font-weight:600;background:var(--panel-2);border:1px solid var(--line);}
+.orang .nm{font-size:12.5px;line-height:1.25;}
+.orang .pr{font-family:var(--font-mono);font-size:10px;color:var(--muted);}
+.sedang-dinas{position:absolute;right:12px;top:12px;font-family:var(--font-mono);font-size:9px;letter-spacing:.1em;
+  color:var(--ok);border:1px solid var(--ok);border-radius:20px;padding:2px 7px;}
+
+.pita-jam{position:relative;height:34px;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--panel-2);}
+.pita-jam .blok-shift{position:absolute;top:0;bottom:0;display:grid;place-items:center;
+  font-family:var(--font-mono);font-size:10px;border-right:1px solid var(--bg);}
+.pita-jam .sekarang{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--accent);box-shadow:0 0 10px var(--accent);z-index:2;}
+.skala-jam{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:9.5px;color:var(--muted);margin-top:4px;}
+.matriks td,.matriks th{padding:6px 8px;text-align:center;}
+.matriks td:first-child,.matriks th:first-child{text-align:left;white-space:nowrap;}
+.sel-shift{font-family:var(--font-mono);font-size:10.5px;font-weight:600;border-radius:5px;padding:3px 0;display:block;}
+.s-P,.s-Pagi{background:rgba(41,182,246,.16);color:var(--accent);}
+.s-S,.s-Siang{background:rgba(255,179,0,.16);color:var(--warn);}
+.s-M,.s-MJ,.s-MN,.s-Malam{background:rgba(124,139,160,.2);color:var(--text);}
+.s-PS,.s-PSJ,.s-PSN{background:rgba(46,204,113,.16);color:var(--ok);}
+.s-L{color:var(--muted);opacity:.5;}
+
+/* ---------- Sparepart ---------- */
+.stok-bar{height:6px;background:var(--line);border-radius:4px;overflow:hidden;width:84px;margin-top:5px;}
+.stok-bar i{display:block;height:100%;}
+.rak-kode{font-family:var(--font-mono);font-size:10.5px;color:var(--muted);border:1px solid var(--line);
+  border-radius:5px;padding:1px 6px;}
+

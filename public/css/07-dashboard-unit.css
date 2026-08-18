@@ -1,0 +1,489 @@
+/* =====================================================================
+   5. DASHBOARD UNIT
+   ===================================================================== */
+.kepala-unit{display:flex;gap:16px;align-items:center;flex-wrap:wrap;border:1px solid var(--line);
+  border-radius:14px;padding:14px 16px;background:linear-gradient(145deg,var(--panel-2),var(--panel));
+  box-shadow:var(--bayang);}
+.kepala-unit .ikon-unit{position:relative;width:96px;height:60px;border-radius:10px;overflow:hidden;
+  flex:none;border:1px solid var(--line);}
+.kepala-unit .ikon-unit svg{display:block;width:100%;height:100%;}
+/* Gambar yang diunggah menempati kotak yang sama persis dengan ilustrasinya —
+   dipotong, bukan diperas, supaya logo persegi dan foto lanskap sama-sama utuh
+   bentuknya. */
+.kepala-unit .ikon-unit img{display:block;width:100%;height:100%;object-fit:cover;}
+/* Bisa diganti: seluruh kotaknya jadi tombol. padding dan background dilepas
+   karena elemennya <button>, dan bawaan peramban akan menambahkan keduanya. */
+.kepala-unit .ikon-unit.bisa{padding:0;background:none;cursor:pointer;}
+.kepala-unit .ikon-unit .tutup{position:absolute;inset:0;display:grid;place-items:center;
+  background:rgba(6,12,20,.72);color:#fff;font-family:var(--font-mono);font-size:9.5px;
+  letter-spacing:.07em;text-transform:uppercase;text-align:center;padding:0 6px;
+  opacity:0;transition:opacity .15s;}
+.kepala-unit .ikon-unit.bisa:hover .tutup,
+.kepala-unit .ikon-unit.bisa:focus-visible .tutup,
+.kepala-unit .ikon-unit.sibuk .tutup{opacity:1;}
+/* Layar sentuh tidak punya kursor yang bisa lewat, jadi tulisannya tidak
+   pernah muncul di sana. Ditampilkan sejak awal, lebih samar. */
+@media (hover:none){ .kepala-unit .ikon-unit.bisa .tutup{opacity:1;background:rgba(6,12,20,.42);} }
+.kepala-unit h2{font-size:19px;}
+.kepala-unit .sub{font-size:12.5px;color:var(--muted);margin-top:3px;}
+
+/* Baris subtab. Dulu sederet tombol yang melayang tanpa alas, dan begitu
+   jumlahnya lewat dari lima ia terlihat menempel ke kepala unit di atasnya
+   sementara isinya jatuh terlalu jauh di bawah. Sekarang barisnya punya garis
+   alas — jadi jelas bahwa isi di bawahnya milik tab yang menyala — dan tinggi
+   tombolnya disamakan supaya yang berlencana angka tidak lebih jangkung
+   daripada tetangganya. */
+.subtab{display:flex;gap:7px;overflow-x:auto;margin:22px 0 0;padding:0 2px 10px;
+  border-bottom:1px solid var(--line);scroll-snap-type:x proximity;
+  scrollbar-width:thin;-webkit-overflow-scrolling:touch;}
+.subtab button{background:var(--panel);border:1px solid var(--line);color:var(--muted);border-radius:9px;
+  padding:0 14px;min-height:38px;flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;
+  cursor:pointer;font-family:var(--font-display);font-size:12.5px;font-weight:500;
+  white-space:nowrap;transition:.16s;scroll-snap-align:start;}
+.subtab button:hover{color:var(--text);border-color:var(--muted);}
+.subtab button.aktif{background:var(--accent);border-color:var(--accent);color:var(--accent-teks);}
+.subisi{display:none;padding-top:18px;} .subisi.aktif{display:block;animation:masuk .25s ease;}
+
+/* Kartu peralatan — miring sedikit saat disentuh kursor, tanpa JS per bingkai */
+.alat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(228px,1fr));gap:14px;perspective:1000px;}
+.alat-kartu{border:1px solid var(--line);border-radius:13px;background:var(--panel);overflow:hidden;cursor:pointer;
+  transition:transform .3s cubic-bezier(.2,.7,.3,1),border-color .2s,box-shadow .3s;box-shadow:var(--bayang);
+  transform-style:preserve-3d;}
+.alat-kartu:hover{transform:rotateX(5deg) rotateY(-5deg) translateY(-5px) scale(1.02);
+  border-color:var(--accent);box-shadow:0 22px 40px rgba(0,0,0,.45);}
+.alat-kartu.terpilih{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),var(--bayang);}
+.alat-kartu .bingkai{height:104px;}
+.alat-kartu .isi{padding:11px 13px 12px;}
+.alat-kartu .nm{font-family:var(--font-display);font-size:13px;font-weight:600;line-height:1.3;}
+.alat-kartu .tp{font-family:var(--font-mono);font-size:10.5px;color:var(--muted);margin-top:3px;}
+.alat-kartu .kaki{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:9px;
+  padding-top:9px;border-top:1px solid var(--line);}
+
+/* GALERI — foto kegiatan unit.
+   Bingkainya aspect-ratio, bukan tinggi tetap: foto datang dari kamera dan HP
+   dengan rasio bermacam-macam, dan tinggi tetap membuat barisnya bergerigi.
+   object-fit:cover memotong ke tengah, jadi ubinnya rata tanpa foto penyok. */
+.foto-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;}
+.foto-kartu{border:1px solid var(--line);border-radius:13px;background:var(--panel);overflow:hidden;
+  cursor:zoom-in;box-shadow:var(--bayang);transition:transform .25s cubic-bezier(.2,.7,.3,1),border-color .2s;}
+.foto-kartu:hover{transform:translateY(-4px);border-color:var(--accent);}
+.foto-kartu .bing{position:relative;aspect-ratio:4/3;background:var(--panel-2);overflow:hidden;
+  border-bottom:1px solid var(--line);}
+.foto-kartu img{display:block;width:100%;height:100%;object-fit:cover;}
+/* Ditampilkan lewat .hilang saat berkasnya belum ada — lihat onerror di gambarGaleri(). */
+.foto-kartu .hilang{position:absolute;inset:0;display:none;place-items:center;text-align:center;
+  padding:14px;font-family:var(--font-mono);font-size:10px;line-height:1.6;color:var(--muted);
+  background:repeating-linear-gradient(45deg,transparent 0 8px,var(--kaca) 8px 16px);}
+/* Ubin kosong tetap bisa ditekan — ia jadi tombol pilih berkas untuk slot itu. */
+.foto-kartu.kosong{cursor:pointer;}
+.foto-kartu.kosong .hilang{display:grid;}
+.foto-kartu.kosong .hilang b{color:var(--accent);letter-spacing:.08em;}
+.foto-kartu.kosong img{visibility:hidden;}
+.foto-kartu.sibuk{cursor:progress;opacity:.55;}
+.foto-kartu .isi{padding:10px 13px 12px;position:relative;}
+.foto-kartu .ket{font-size:12.5px;line-height:1.45;}
+.foto-kartu .meta{font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-top:5px;
+  padding-right:64px;word-break:break-all;}
+/* Muncul hanya saat ubinnya disentuh tetikus — daftar foto tidak boleh
+   berjejer tombol hapus yang mengundang kecelakaan. */
+.foto-kartu .buang{position:absolute;right:8px;bottom:8px;opacity:0;transition:opacity .15s;
+  background:var(--panel-2);color:var(--muted);border:1px solid var(--line);border-radius:7px;
+  padding:7px 11px;min-height:32px;font-family:var(--font-mono);font-size:9.5px;
+  letter-spacing:.06em;cursor:pointer;}
+.foto-kartu:hover .buang,.foto-kartu .buang:focus{opacity:1;}
+.foto-kartu .buang:hover{border-color:var(--fail);color:var(--fail);}
+/* Menyembunyikan tombol sampai disentuh tetikus hanya masuk akal kalau ada
+   tetikusnya. Di layar sentuh tidak ada :hover — tombolnya tidak pernah
+   muncul, dan satu-satunya jalan tersisa adalah menyodok-nyodok sampai
+   fokusnya kebetulan mendarat di situ. Di sana ia tampil sejak awal. */
+@media (hover:none),(pointer:coarse){
+  .foto-kartu .buang{opacity:1;}
+}
+
+.gal-kabar{margin-top:12px;font-size:12px;line-height:1.6;color:var(--muted);}
+.gal-kabar b{color:var(--text);font-weight:600;}
+.gal-kabar .gagal{color:var(--fail);}
+
+.foto-besar{position:fixed;inset:0;z-index:200;display:none;place-items:center;padding:28px;
+  background:rgba(0,0,0,.86);backdrop-filter:blur(3px);cursor:zoom-out;}
+.foto-besar.buka{display:grid;}
+.foto-besar img{max-width:100%;max-height:82vh;border-radius:10px;box-shadow:0 24px 60px rgba(0,0,0,.6);}
+.foto-besar .kap{margin-top:14px;text-align:center;color:#dbe6ef;font-size:13px;line-height:1.5;
+  max-width:620px;}
+.foto-besar .kap span{display:block;font-family:var(--font-mono);font-size:10.5px;opacity:.62;margin-top:5px;}
+
+.riwayat{position:relative;padding-left:26px;}
+.riwayat::before{content:"";position:absolute;left:7px;top:6px;bottom:6px;width:2px;
+  background:linear-gradient(var(--accent),var(--line));}
+.riwayat .butir{position:relative;padding:0 0 18px;}
+.riwayat .butir::before{content:"";position:absolute;left:-23px;top:4px;width:11px;height:11px;border-radius:50%;
+  background:var(--panel);border:2px solid var(--accent);}
+.riwayat .butir.merah::before{border-color:var(--fail);}
+.riwayat .butir.kuning::before{border-color:var(--warn);}
+.riwayat .tgl{font-family:var(--font-mono);font-size:10.5px;color:var(--muted);letter-spacing:.06em;}
+.riwayat .kepala-butir{font-family:var(--font-display);font-size:13px;font-weight:600;margin-top:2px;}
+.riwayat .rinci{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5;}
+
+.spek{display:grid;grid-template-columns:repeat(auto-fit,minmax(126px,1fr));gap:10px;}
+.spek div{border:1px solid var(--line);border-radius:9px;padding:9px 11px;background:var(--panel-2);}
+.spek .k{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.11em;color:var(--muted);text-transform:uppercase;}
+.spek .v{font-size:13px;margin-top:3px;font-weight:500;}
+
+/* ---------- Dokumen unit ----------
+   Satu-satunya bagian halaman ini yang menerima masukan dari pemakai.
+   Kotak jatuhnya <label>, bukan <div>+JS: menekannya membuka pemilih berkas
+   tanpa satu baris skrip pun, jadi papan tik dan pembaca layar mendapat
+   perilaku yang sama dengan tetikus. */
+.jatuh{display:block;border:1.5px dashed var(--line);border-radius:12px;padding:22px 18px;text-align:center;
+  background:var(--panel-2);cursor:pointer;transition:.18s;}
+.jatuh:hover{border-color:var(--accent);}
+.jatuh.siap{border-color:var(--accent);background:var(--accent-dim);border-style:solid;}
+.jatuh .ajak{font-family:var(--font-display);font-size:13.5px;font-weight:600;}
+.jatuh .ket2{font-size:11.5px;color:var(--muted);margin-top:5px;line-height:1.6;}
+.jatuh input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;}
+/* Di dalam kartu ubah, kotak jatuh setinggi ini mendorong seluruh isian ke
+   bawah lipatan — kartunya jadi dibuka dengan kotak kosong, bukan dengan
+   isian yang mau diisi. Yang di sana dibuat serendah tombol biasa. */
+.jatuh.rapat{padding:12px 14px;}
+.jatuh.rapat .ajak{font-size:12.5px;}
+.jatuh.rapat .ket2{margin-top:3px;font-size:11px;}
+
+.brk-atur{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-bottom:14px;}
+.brk-atur label{display:block;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.11em;
+  text-transform:uppercase;color:var(--muted);margin-bottom:5px;}
+.brk-atur select,.brk-atur input{width:100%;background:var(--panel-2);color:var(--text);border:1px solid var(--line);
+  border-radius:8px;padding:8px 10px;font-family:var(--font-body);font-size:12.5px;}
+.brk-atur select:focus,.brk-atur input:focus{outline:none;border-color:var(--accent);}
+/* Ikon pemilih tanggal bawaan peramban hitam pekat — tak terbaca di tema gelap. */
+html[data-tema="gelap"] .brk-atur input[type=date]::-webkit-calendar-picker-indicator{filter:invert(.7);}
+
+.brk-rupa{width:44px;height:44px;border-radius:8px;border:1px solid var(--line);overflow:hidden;flex:none;
+  display:grid;place-items:center;background:var(--panel-2);}
+.brk-rupa img{width:100%;height:100%;object-fit:cover;display:block;}
+.brk-rupa span{font-family:var(--font-mono);font-size:9px;letter-spacing:.06em;color:var(--muted);}
+.brk-nama{display:flex;gap:10px;align-items:center;}
+.brk-nama > span:last-child{min-width:0;}
+.brk-nama .n{display:block;font-size:12.5px;font-weight:500;word-break:break-word;}
+.brk-nama .j{display:block;font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-top:2px;}
+td select.brk-kat{background:var(--panel-2);color:var(--text);border:1px solid var(--line);border-radius:6px;
+  padding:4px 6px;font-family:var(--font-mono);font-size:10.5px;}
+.brk-buang{background:none;border:1px solid var(--line);color:var(--muted);border-radius:7px;
+  padding:4px 9px;cursor:pointer;font-family:var(--font-mono);font-size:10.5px;transition:.16s;}
+.brk-buang:hover{border-color:var(--fail);color:var(--fail);}
+
+/* ---------- Kelola akun ----------
+   Kartu ubahnya lapisan tetap di atas halaman, bukan panel yang menyisip di
+   dalam tabel. Mengubah peran atau unit sebuah akun bukan pekerjaan sambil
+   lalu: satu akun sekali waktu, dengan sisa layar diredupkan, jadi tidak ada
+   baris sebelah yang tanpa sengaja ikut tersunting. */
+.pil{font-family:var(--font-mono);font-size:10px;letter-spacing:.06em;padding:2px 8px;border-radius:20px;
+  display:inline-block;white-space:nowrap;border:1px solid var(--line);color:var(--muted);}
+.pil.admin{background:rgba(229,72,77,.13);color:var(--fail);border-color:rgba(229,72,77,.4);}
+.pil.pejabat{background:rgba(255,179,0,.13);color:var(--warn);border-color:rgba(255,179,0,.4);}
+.pil.teknisi{background:rgba(41,182,246,.13);color:var(--accent);border-color:rgba(41,182,246,.4);}
+/* Dua peran satu unit. Warnanya diambil dari peran terdekat di atas dan di
+   bawahnya — admin unit condong ke merah administrator, PIC ke biru teknisi —
+   supaya urutan wewenangnya terbaca dari warnanya, bukan cuma dari tulisannya. */
+.pil.adminunit{background:rgba(229,72,77,.10);color:#e8836f;border-color:rgba(229,72,77,.28);}
+.pil.pic{background:rgba(41,182,246,.10);color:#7cc5e8;border-color:rgba(41,182,246,.28);}
+.pil.aktif-ya{background:rgba(46,204,113,.13);color:var(--ok);border-color:rgba(46,204,113,.4);}
+.pil.awas{background:rgba(229,72,77,.13);color:var(--fail);border-color:rgba(229,72,77,.4);}
+.pil.aktif-tidak{opacity:.75;}
+/* Baris akun nonaktif diredupkan, bukan disembunyikan — yang dinonaktifkan
+   justru yang paling perlu terlihat saat memutuskan siapa yang boleh dihapus. */
+tr.akun-mati td:not(:last-child){opacity:.55;}
+.unit-pil{display:flex;flex-wrap:wrap;gap:4px;}
+
+.lapis-ubah{position:fixed;inset:0;z-index:180;display:none;place-items:center;padding:24px;
+  background:rgba(0,0,0,.72);backdrop-filter:blur(3px);overflow:auto;}
+.lapis-ubah.buka{display:grid;}
+/* Tingginya dibatasi dan badannya yang digulir — SELURUH kartu, bukan cuma
+   kartu impor seperti dulu. Lapisnya memusatkan isinya (place-items:center),
+   dan isi yang lebih tinggi daripada layar pada tata letak seperti itu menjulur
+   ke ATAS juga: bagiannya yang di atas titik pusat tidak bisa dicapai dengan
+   menggulir sama sekali. Kartu peralatan yang berisi sebelas isian persis
+   sepanjang itu, dan yang hilang di atas justru kotak foto papan nama. */
+.kartu-ubah{width:min(520px,100%);background:var(--panel);border:1px solid var(--line);border-radius:14px;
+  box-shadow:0 26px 60px rgba(0,0,0,.55);overflow:hidden;
+  display:flex;flex-direction:column;max-height:calc(100vh - 48px);}
+.kartu-ubah .badan{overflow:auto;flex:1;}
+/* Kartu impor: isinya pratinjau selebar sebulan, jadi lebarnya mengikuti layar. */
+.kartu-ubah.lebar{width:min(1040px,100%);}
+/* Kartu data unit: sebelas isian pendek. Dalam satu lajur ia jadi kartu
+   sepanjang dua layar; dua lajur membuatnya terbaca sekali pandang. */
+.kartu-ubah.data{width:min(720px,100%);}
+.kartu-ubah .kepala{display:flex;justify-content:space-between;align-items:center;gap:10px;
+  padding:13px 16px;border-bottom:1px solid var(--line);background:var(--panel-2);}
+.kartu-ubah .kepala h3{font-size:14px;}
+.kartu-ubah .kepala .ket{font-family:var(--font-mono);font-size:10.5px;color:var(--muted);}
+.kartu-ubah .badan{padding:15px 16px;}
+.kartu-ubah .kaki{display:flex;justify-content:flex-end;gap:9px;flex-wrap:wrap;
+  padding:12px 16px;border-top:1px solid var(--line);background:var(--panel-2);}
+
+.isian{margin-bottom:13px;}
+/* Isian pendek berjajar dua lajur selama masih muat. minmax(215px,1fr) yang
+   memutuskannya, bukan lebar layar: kartu ini juga dipakai di tablet. */
+.isian-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(245px,1fr));gap:0 14px;}
+.isian-grid > .penuh{grid-column:1/-1;}
+/* Isian yang baru saja diisikan dari foto papan nama. Ditandai supaya yang
+   perlu diperiksa terlihat tanpa harus mengingat mana yang diketik sendiri. */
+.isian input.dari-foto,.isian select.dari-foto{border-color:var(--accent);
+  background:linear-gradient(var(--accent-dim),var(--accent-dim)),var(--panel-2);}
+.isian > label{display:block;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.11em;
+  text-transform:uppercase;color:var(--muted);margin-bottom:5px;}
+.isian input,.isian select,.isian textarea{width:100%;background:var(--panel-2);color:var(--text);
+  border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-family:var(--font-body);font-size:12.5px;}
+.isian textarea{font-family:var(--font-mono);font-size:11.5px;line-height:1.6;resize:vertical;}
+.isian input:focus,.isian select:focus,.isian textarea:focus{outline:none;border-color:var(--accent);}
+.isian input:disabled,.isian select:disabled{opacity:.5;cursor:not-allowed;}
+
+/* Baris pengatur di kartu impor: empat kendali yang dipakai berbarengan sambil
+   melihat pratinjau di bawahnya, jadi berjajar selama masih muat. */
+.imp-atur{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;
+  align-items:end;margin-top:16px;padding-top:16px;border-top:1px solid var(--line);}
+.imp-centang{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);
+  line-height:1.45;cursor:pointer;}
+.imp-centang input{width:15px;height:15px;flex:none;accent-color:var(--accent);}
+.isian .bantu{font-size:11px;color:var(--muted);line-height:1.55;margin-top:5px;}
+/* Pratinjau papan nama dan hasil bacaannya. Teks mentah disembunyikan di
+   dalam <details>: ia perlu ada supaya yang salah baca bisa diperbaiki, tapi
+   tidak perlu memenuhi kartu setiap kali. */
+.pn-pratinjau{display:flex;align-items:center;gap:10px;margin-top:9px;padding:8px 10px;
+  border:1px solid var(--line);border-radius:9px;background:var(--panel-2);}
+.pn-pratinjau img{width:74px;height:52px;object-fit:cover;border-radius:6px;flex:none;
+  background:var(--panel);}
+.pn-pratinjau span{font-family:var(--font-mono);font-size:10.5px;color:var(--muted);
+  overflow:hidden;text-overflow:ellipsis;}
+.pn-mentah{margin-top:8px;}
+.pn-mentah summary{font-family:var(--font-mono);font-size:10.5px;color:var(--muted);cursor:pointer;}
+.pn-mentah pre{margin-top:7px;padding:9px 11px;background:var(--panel-2);border:1px solid var(--line);
+  border-radius:8px;font-family:var(--font-mono);font-size:11px;line-height:1.6;color:var(--text);
+  white-space:pre-wrap;max-height:190px;overflow:auto;}
+
+/* Pemilih gambar kartu peralatan: ilustrasi di kiri, foto unit di bawahnya. */
+.gambar-atur{display:flex;gap:9px;align-items:center;flex-wrap:wrap;}
+/* display:flex di atas mengalahkan bawaan display:none milik atribut hidden.
+   Tanpa baris ini, baris "Baca ulang foto ini" sudah terpampang sebelum ada
+   satu foto pun yang dimasukkan. */
+.gambar-atur[hidden]{display:none;}
+.gambar-atur select{flex:1;min-width:150px;}
+.gambar-pilih{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px;}
+.gambar-pilih:empty{display:none;}
+.gambar-cip{padding:0;border:2px solid var(--line);border-radius:9px;background:var(--panel-2);
+  cursor:pointer;overflow:hidden;line-height:0;transition:border-color .15s;}
+.gambar-cip img{width:74px;height:50px;object-fit:cover;display:block;}
+.gambar-cip:hover{border-color:var(--accent);}
+.gambar-cip.terpilih{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-dim);}
+/* Foto yang menggantikan ilustrasi di kartu peralatan. Rasio dan potongannya
+   dibuat sama persis dengan adegan vektornya supaya kartunya tidak berubah
+   tinggi saat gambarnya ditukar. */
+.bingkai-foto{width:100%;height:100%;object-fit:cover;display:block;}
+
+/* Foto dokumentasi yang sudah tertambat pada satu baris peralatan. */
+.foto-lampir{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:9px;}
+.foto-lampir:empty{display:none;}
+.foto-cip{display:inline-flex;align-items:center;gap:7px;padding:4px 8px 4px 4px;
+  border:1px solid var(--line);border-radius:20px;background:var(--panel-2);
+  font-family:var(--font-mono);font-size:10px;color:var(--muted);max-width:100%;}
+.foto-cip img{width:26px;height:26px;object-fit:cover;border-radius:50%;flex:none;}
+.foto-cip button{background:none;border:0;color:var(--muted);cursor:pointer;font-size:12px;padding:0 2px;}
+.foto-cip button:hover{color:var(--fail);}
+
+.kotak-unit{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:6px;
+  border:1px solid var(--line);border-radius:9px;padding:9px 10px;background:var(--panel-2);}
+.kotak-unit.mati{opacity:.45;pointer-events:none;}
+.kotak-unit label{display:flex;align-items:center;gap:7px;font-size:12px;cursor:pointer;}
+.kotak-unit input{width:auto;accent-color:var(--accent);}
+
+/* Wilayah hapus sengaja dipisah dan diberi garis merah: satu-satunya tombol di
+   seluruh aplikasi ini yang membuang sesuatu di E-Logbook untuk selamanya. */
+.bahaya{border:1px solid rgba(229,72,77,.4);border-radius:10px;padding:11px 13px;margin-top:4px;
+  background:rgba(229,72,77,.05);}
+.bahaya .jdl{font-family:var(--font-display);font-size:12.5px;font-weight:600;color:var(--fail);}
+.bahaya p{font-size:11.5px;color:var(--muted);line-height:1.6;margin:5px 0 9px;}
+.bahaya input{width:100%;background:var(--panel-2);color:var(--text);border:1px solid var(--line);
+  border-radius:8px;padding:7px 10px;font-family:var(--font-mono);font-size:12px;margin-bottom:9px;}
+.btn.bahaya-tombol{background:none;border:1px solid var(--fail);color:var(--fail);}
+.btn.bahaya-tombol:hover{background:var(--fail);color:#fff;}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none;filter:none;}
+
+.modul-baris{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;}
+.modul{border:1px solid var(--line);border-radius:12px;padding:13px 14px;background:var(--panel);}
+.modul.jalan{border-color:var(--accent);background:linear-gradient(160deg,rgba(41,182,246,.09),var(--panel));}
+.modul .st{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);}
+.modul.jalan .st{color:var(--accent);}
+.modul h4{font-size:13.5px;margin-top:5px;}
+.modul p{font-size:11.5px;color:var(--muted);margin:5px 0 0;line-height:1.5;}
+
+.btn{background:var(--accent);color:var(--accent-teks);border:0;border-radius:9px;padding:9px 15px;cursor:pointer;
+  font-family:var(--font-display);font-size:12.5px;font-weight:600;text-decoration:none;display:inline-block;transition:.18s;}
+.btn:hover{filter:brightness(1.12);transform:translateY(-1px);}
+.btn.garis{background:none;border:1px solid var(--line);color:var(--text);}
+.btn.garis:hover{border-color:var(--accent);color:var(--accent);}
+.btn.kecil{padding:6px 11px;font-size:11.5px;}
+
+/* Baris tombol di atas daftar peralatan dan sparepart. Keterangannya di kiri
+   supaya tombolnya tetap di kanan sekalipun kalimatnya panjang; di layar sempit
+   keduanya menumpuk, tombol lebih dulu tidak akan terbaca sebagai judul. */
+/* Saringan daftar akun. Dulu ini ada di dalam E-Logbook; sejak Kelola Akun
+   pindah ke sini, saringannya ikut — mencari satu orang di antara seluruh
+   pegawai teknik tanpa saringan berarti menggulung tabel sampai ketemu. */
+.saring{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;}
+.saring .isian{margin-bottom:0;flex:1;min-width:150px;}
+.saring .isian.lebar{flex:2;min-width:190px;}
+.saring .btn{flex:0 0 auto;}
+.ringkas-unit{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px;}
+.ringkas-unit button{background:var(--panel-2);border:1px solid var(--line);color:var(--muted);
+  border-radius:20px;padding:5px 11px;font-size:11.5px;cursor:pointer;font-family:var(--font-body);
+  transition:border-color .16s,color .16s;}
+.ringkas-unit button:hover{border-color:var(--accent);color:var(--text);}
+.ringkas-unit button b{color:var(--text);font-family:var(--font-mono);font-size:12px;margin-right:3px;}
+.ringkas-unit button.terpilih{border-color:var(--accent);color:var(--accent);}
+.ringkas-unit button.terpilih b{color:var(--accent);}
+.ringkas-unit button.awas{border-color:rgba(229,72,77,.45);}
+.ringkas-unit button.awas b{color:var(--fail);}
+
+.atur-data{display:flex;justify-content:space-between;align-items:center;gap:12px;
+  flex-wrap:wrap;margin-bottom:14px;}
+.atur-data .ket{color:var(--muted);font-size:12px;font-family:var(--font-mono);}
+.atur-data .tombol{display:flex;gap:8px;flex-wrap:wrap;}
+
+/* ---------- Kegiatan berkala ---------- */
+.bkl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:13px;}
+.bkl-kartu{border:1px solid var(--line);border-left:3px solid var(--line);border-radius:12px;
+  background:var(--panel);padding:13px 14px;box-shadow:var(--bayang);}
+.bkl-kartu.aman{border-left-color:var(--ok);}
+.bkl-kartu.awas{border-left-color:var(--warn);}
+.bkl-kartu.bahaya{border-left-color:var(--fail);}
+.bkl-atas{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;}
+.bkl-kapan{font-size:10.5px;color:var(--muted);}
+.bkl-kartu h4{font-size:13.5px;line-height:1.35;}
+.bkl-kartu p{margin:6px 0 0;font-size:12px;color:var(--muted);line-height:1.55;}
+.bkl-kaki{display:flex;justify-content:space-between;align-items:center;gap:9px;flex-wrap:wrap;
+  margin-top:11px;padding-top:10px;border-top:1px solid var(--line);}
+.bkl-status{font-family:var(--font-mono);font-size:10.5px;color:var(--muted);line-height:1.5;}
+.bkl-status.aman{color:var(--ok);} .bkl-status.awas{color:var(--warn);} .bkl-status.bahaya{color:var(--fail);}
+/* Baris sunting kegiatan: berjajar selama muat, menumpuk begitu tidak. */
+.bkl-sunting{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;padding:11px 0;
+  border-bottom:1px solid var(--line);}
+.bkl-sunting:last-child{border-bottom:none;}
+/* ---------- Kotak Masuk ---------- */
+/* Satu baris per pekerjaan. Berjajar di layar lebar, menumpuk begitu tidak —
+   kolom kanan berisi status dan tombol, dan itu yang paling dulu kehabisan
+   tempat. */
+.kmk{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;
+  border:1px solid var(--line);border-left:3px solid var(--line);border-radius:10px;
+  padding:11px 13px;background:var(--panel-2);}
+.kmk.saya{border-left-color:var(--accent);}
+.kmk.beres{border-left-color:var(--ok);opacity:.72;}
+.kmk-kiri{flex:1 1 320px;min-width:0;display:grid;gap:5px;}
+.kmk-jd{display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:13px;line-height:1.35;}
+.kmk-rn{font-size:11.5px;color:var(--muted);line-height:1.55;}
+.kmk-orang-baris{font-size:11.5px;color:var(--muted);display:flex;align-items:center;
+  gap:6px;flex-wrap:wrap;line-height:1.6;}
+.kmk-orang{display:inline-flex;align-items:center;gap:5px;padding:1px 7px;border-radius:20px;
+  background:var(--kaca);border:1px solid var(--line);font-size:11px;color:var(--text);}
+/* Nama Anda sendiri ditegaskan: di unit berisi delapan orang, baris penerima
+   terbaca sebagai kabut kalau tidak ada satu pun yang menonjol. */
+.kmk-orang.saya{border-color:var(--accent);color:var(--accent);font-weight:600;}
+.kmk-orang .mono{font-size:9.5px;opacity:.7;}
+.kmk-samar{color:var(--muted);font-style:italic;}
+.kmk-kanan{display:grid;gap:7px;justify-items:flex-end;text-align:right;}
+.kmk-tombol{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end;}
+a.btn.kecil{text-decoration:none;display:inline-flex;align-items:center;}
+@media (max-width:640px){
+  .kmk-kanan{justify-items:flex-start;text-align:left;width:100%;}
+  .kmk-tombol{justify-content:flex-start;}
+}
+
+/* Penanda kegiatan di baris atas tabel jadwal. */
+.bkl-titik{display:inline-grid;place-items:center;min-width:15px;height:15px;border-radius:8px;
+  font-family:var(--font-mono);font-size:9px;line-height:1;padding:0 3px;}
+.bkl-titik.mingguan{background:rgba(46,204,113,.2);color:var(--ok);}
+.bkl-titik.bulanan{background:rgba(255,179,0,.2);color:var(--warn);}
+tr.jdw-berkala td{background:var(--zebra);}
+tr.jdw-berkala .jdw-nama{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--muted);}
+
+/* ---------- Personel dan sertifikat ---------- */
+.sert-baris{display:flex;flex-wrap:wrap;gap:5px;}
+.sert-pil{font-size:11px;padding:3px 9px;border-radius:20px;border:1px solid var(--line);
+  color:var(--muted);white-space:nowrap;background:var(--panel-2);}
+.sert-pil b{color:var(--text);font-weight:600;}
+.sert-pil .mono{font-size:10px;opacity:.8;}
+.sert-pil.aman{border-color:rgba(46,204,113,.4);}
+.sert-pil.awas{border-color:rgba(255,179,0,.5);color:var(--warn);}
+.sert-pil.awas b{color:var(--warn);}
+.sert-pil.bahaya{border-color:rgba(229,72,77,.5);color:var(--fail);background:rgba(229,72,77,.08);}
+.sert-pil.bahaya b{color:var(--fail);}
+.sert-sisa{font-family:var(--font-mono);font-size:11.5px;color:var(--muted);}
+.sert-sisa.awas{color:var(--warn);} .sert-sisa.bahaya{color:var(--fail);font-weight:600;}
+.sert-sunting{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;padding:11px 0;
+  border-bottom:1px solid var(--line);}
+.sert-sunting:last-of-type{border-bottom:none;}
+html[data-tema="gelap"] .sert-sunting input[type=date]::-webkit-calendar-picker-indicator{filter:invert(.7);}
+
+/* ---------- Perlu Perhatian di beranda ---------- */
+.hal-baris{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:11px;}
+.hal{display:grid;gap:4px;text-align:left;border:1px solid var(--line);border-left:3px solid var(--muted);
+  border-radius:11px;background:var(--panel-2);padding:11px 13px;cursor:pointer;transition:.16s;}
+.hal:hover{border-color:var(--accent);transform:translateY(-2px);}
+/* Kartu yang tidak menuju ke mana pun — sertifikat orang yang unitnya belum
+   ditetapkan. Tetap ditampilkan, tapi tidak berpura-pura bisa ditekan. */
+.hal:not([data-hal-unit]){cursor:default;}
+.hal:not([data-hal-unit]):hover{border-color:var(--line);transform:none;}
+.hal.awas{border-left-color:var(--warn);} .hal.bahaya{border-left-color:var(--fail);}
+.hal .cip{justify-self:start;}
+.hal .jd{font-family:var(--font-display);font-size:13px;font-weight:600;line-height:1.35;}
+.hal .rn{font-size:11.5px;color:var(--muted);line-height:1.5;}
+.hal-kosong{color:var(--muted);font-size:12.5px;line-height:1.7;}
+
+/* ---------- Lonceng pemberitahuan ---------- */
+.lonceng-bungkus{position:relative;display:flex;}
+.lonceng-angka{position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;padding:0 4px;
+  border-radius:9px;background:var(--fail);color:#fff;font-family:var(--font-mono);font-size:9.5px;
+  display:grid;place-items:center;line-height:1;border:1.5px solid var(--panel);}
+/* display:grid di atas mengalahkan bawaan display:none milik atribut hidden,
+   jadi lencananya tetap terpampang merah bertuliskan 0 saat tidak ada
+   pemberitahuan sama sekali — persis kebalikan dari yang dimaksudkannya. */
+.lonceng-angka[hidden]{display:none;}
+#tombolLonceng.ada{border-color:var(--fail);color:var(--fail);}
+/* Panelnya BUKAN anak dari tombolnya, dan itu bukan kerapian melainkan syarat.
+   Sebagai anak kepala halaman ia tidak pernah terlihat utuh, karena dua hal di
+   atasnya sekaligus:
+     · header.konsol punya overflow:hidden — panel yang menjulur ke bawah
+       kepala dipotong tepat di garis bawahnya
+     · .konsol-isi punya z-index:1, dan itu membuat konteks penumpukan sendiri.
+       Di dalamnya z-index:150 tidak berarti apa-apa terhadap dunia luar: yang
+       diadu dengan rel navigasi (z-index:50) adalah induknya yang bernilai 1,
+       jadi panelnya selalu kalah dan tampil DI BELAKANG rel.
+   Karena itu ia duduk di akar dokumen bersama lapis-lapis kartu, dengan
+   position:fixed, dan letaknya dihitung dari tombolnya tiap kali dibuka —
+   lihat loncengLetakkan(). */
+.lonceng{position:fixed;top:0;left:0;z-index:170;width:min(340px,88vw);
+  background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--bayang);
+  display:none;overflow:hidden;}
+.lonceng.buka{display:block;}
+.lonceng-kepala{padding:10px 13px;border-bottom:1px solid var(--line);background:var(--panel-2);
+  font-family:var(--font-mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);}
+.lonceng-isi{max-height:min(60vh,420px);overflow:auto;}
+.lonceng-butir{display:grid;gap:3px;width:100%;text-align:left;background:none;border:none;
+  border-bottom:1px solid var(--line);border-left:3px solid transparent;padding:11px 13px;cursor:pointer;
+  color:inherit;font-family:inherit;transition:background .15s;}
+.lonceng-butir:hover{background:var(--kaca);}
+.lonceng-butir:last-child{border-bottom:none;}
+.lonceng-butir.awas{border-left-color:var(--warn);}
+.lonceng-butir.bahaya{border-left-color:var(--fail);}
+.lonceng-butir .jd{font-size:12.5px;font-weight:600;line-height:1.35;}
+.lonceng-butir .rn{font-size:11px;color:var(--muted);line-height:1.5;}
+.lonceng-kosong{padding:14px 13px;font-size:12px;color:var(--muted);line-height:1.65;}
+
+.catatan{border-left:3px solid var(--accent);background:var(--kaca);border-radius:0 9px 9px 0;
+  padding:11px 14px;font-size:12px;color:var(--muted);line-height:1.6;margin-top:16px;}
+.catatan b{color:var(--text);}
+
+#pesan{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);z-index:120;
+  background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--warn);border-radius:10px;
+  padding:11px 16px;font-size:12.5px;box-shadow:var(--bayang);opacity:0;transition:.25s;pointer-events:none;}
+#pesan.tampil{opacity:1;transform:translateX(-50%) translateY(0);}
+

@@ -1,0 +1,39 @@
+/* =====================================================================
+   4. UBIN, PANEL, TABEL
+   ===================================================================== */
+.ubin-baris{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-top:22px;}
+.ubin{position:relative;border:1px solid var(--line);border-radius:13px;padding:15px 16px;background:var(--panel);
+  transition:transform .22s,box-shadow .22s;box-shadow:0 4px 0 -1px var(--panel-2),0 8px 0 -2px var(--line),var(--bayang);}
+.ubin:hover{transform:translateY(-4px);box-shadow:0 8px 0 -1px var(--panel-2),0 14px 0 -2px var(--line),0 22px 34px rgba(0,0,0,.42);}
+.ubin .label{font-family:var(--font-mono);font-size:10px;letter-spacing:.13em;color:var(--muted);text-transform:uppercase;}
+.ubin .angka{font-family:var(--font-display);font-size:32px;font-weight:700;line-height:1.05;margin-top:8px;}
+.ubin .sub{font-size:11.5px;color:var(--muted);margin-top:3px;}
+.ubin.merah .angka{color:var(--fail);} .ubin.kuning .angka{color:var(--warn);}
+.ubin.hijau .angka{color:var(--ok);}   .ubin.biru .angka{color:var(--accent);}
+
+.grid2{display:grid;grid-template-columns:1.55fr 1fr;gap:16px;align-items:start;}
+.panel{border:1px solid var(--line);border-radius:13px;background:var(--panel);overflow:hidden;box-shadow:var(--bayang);}
+.panel > .kepala{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:12px 15px;border-bottom:1px solid var(--line);background:var(--panel-2);}
+.panel > .kepala h3{font-size:13.5px;}
+.panel > .kepala .ket{font-family:var(--font-mono);font-size:10.5px;color:var(--muted);}
+.panel .badan{padding:14px 15px;}
+
+table{width:100%;border-collapse:collapse;font-size:12.5px;}
+th{font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);
+  text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);white-space:nowrap;position:sticky;top:0;background:var(--panel-2);}
+td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top;}
+tbody tr:nth-child(even){background:var(--zebra);}
+tbody tr:hover{background:var(--kaca);}
+.mono{font-family:var(--font-mono);font-size:11.5px;}
+.gulir{max-height:400px;overflow:auto;}
+
+.tag{font-family:var(--font-mono);font-size:10px;padding:2px 8px;border-radius:20px;display:inline-block;white-space:nowrap;}
+.tag.open{background:rgba(229,72,77,.14);color:var(--fail);border:1px solid rgba(229,72,77,.4);}
+.tag.proses{background:rgba(255,179,0,.14);color:var(--warn);border:1px solid rgba(255,179,0,.4);}
+.tag.closed{background:rgba(46,204,113,.14);color:var(--ok);border:1px solid rgba(46,204,113,.4);}
+
+.umur{display:flex;align-items:center;gap:7px;}
+.umur .batang{height:5px;border-radius:3px;background:var(--line);width:60px;overflow:hidden;flex:none;}
+.umur .batang i{display:block;height:100%;border-radius:3px;}
+

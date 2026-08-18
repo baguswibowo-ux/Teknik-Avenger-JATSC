@@ -1,0 +1,82 @@
+/* =====================================================================
+   TABLET DAN HP
+
+   Layar ini dipakai sambil berdiri di depan rak, bukan cuma di meja. Yang
+   dijaga di bawah ini tiga hal, dan urutannya memang itu:
+
+   1. Tidak ada tombol yang terpotong keluar layar. Yang tidak terlihat sama
+      dengan tidak ada — dan yang paling gampang hilang justru yang paling
+      kanan, yaitu Keluar dan lonceng.
+   2. Halaman tidak pernah bergeser mendatar. Tabel selebar sebulan digulir di
+      dalam kotaknya sendiri, bukan dengan menyeret seluruh halaman.
+   3. Sasaran sentuh tidak lebih kecil daripada ujung jari.
+   ===================================================================== */
+
+@media (max-width:1000px){ .grid2{grid-template-columns:1fr;} }
+
+/* Tablet tegak ke bawah: kepala konsol pecah jadi dua baris — merek di atas,
+   jam beserta tombolnya di bawah. Dijejalkan dalam satu baris, keduanya
+   sama-sama menyusut sampai tidak terbaca. */
+@media (max-width:820px){
+  .konsol-isi{padding:12px 16px;gap:12px;}
+  .brand{min-width:calc(100% - 56px);}
+  .jam{width:100%;justify-content:flex-start;gap:10px;}
+  .jam .blok{text-align:left;}
+  /* Kartu akun mendorong tombol-tombol ke tepi kanan, jadi panel lonceng yang
+     berlabuh di kanan tombolnya tidak pernah keluar layar di sebelah kiri. */
+  .jam .kartu-akun{margin-right:auto;}
+  .kepala-unit .ikon-unit{width:72px;height:46px;}
+  .rel button{padding:12px 12px;font-size:12.5px;}
+}
+
+@media (max-width:620px){
+  .konsol-isi{padding:11px 14px;} main{padding:16px 14px 60px;}
+  .orbit{height:300px;} .jam .blok:first-child{display:none;}
+  .jam .nilai{font-size:15px;}
+  /* Nama panjang tidak boleh melebarkan barisnya sampai tombolnya terdorong
+     ke baris sendiri-sendiri. */
+  .kartu-akun{min-width:0;max-width:52vw;}
+  .kartu-akun .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .lapis-ubah{padding:12px;}
+  .kartu-ubah{max-height:calc(100vh - 24px);}
+  .kartu-ubah .kepala,.kartu-ubah .kaki{padding:11px 13px;}
+  .kartu-ubah .badan{padding:13px;}
+  .kartu-ubah .kaki .btn{flex:1;}
+  .ubin-baris{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;}
+  .ubin{padding:13px 13px;} .ubin .angka{font-size:26px;}
+  .hal-baris,.bkl-grid{grid-template-columns:1fr;}
+  .alat-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:11px;}
+  .foto-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));}
+  .judul-seksi h2{font-size:16px;}
+  /* Sasaran sentuh: 38px sudah cukup untuk ibu jari, dan subtab yang digulir
+     mendatar perlu jarak antar tombol supaya tidak salah tekan saat menggeser. */
+  .subtab{gap:8px;} .subtab button{min-height:40px;padding:0 13px;}
+  .btn.kecil{padding:8px 12px;}
+  .atur-data .tombol{width:100%;} .atur-data .tombol .btn{flex:1;}
+  /* Panel lonceng menempel ke tepi layar, bukan menggantung 340px dari sebuah
+     tombol yang lebarnya 34px. */
+  .lonceng{width:min(340px,calc(100vw - 28px));}
+  .saring .isian{min-width:100%;}
+  .saring .isian.lebar{min-width:100%;}
+}
+
+/* Tabel jadwal dan tabel personel sama-sama lebih lebar daripada layar HP.
+   Keduanya sudah digulir di dalam kotaknya; yang ditipiskan di sini kolom
+   namanya yang melekat di kiri, supaya masih ada ruang tersisa untuk isinya. */
+@media (max-width:560px){
+  /* Dipersempit, bukan disembunyikan: baris penanda kegiatan berkala memakai
+     colspan pada kolom nama, dan menghilangkan kolom peran dengan display:none
+     akan menggeser seluruh baris itu sejauh satu tanggal. */
+  table.jdw th.jdw-nama,table.jdw td.jdw-nama{max-width:104px;}
+  table.jdw th.jdw-peran,table.jdw td.jdw-peran{max-width:62px;}
+  .imp-atur{grid-template-columns:1fr;}
+  .bkl-sunting .isian,.sert-sunting .isian{min-width:100%!important;}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.001s!important;animation-iteration-count:1!important;transition-duration:.01s!important;}
+  /* Aturan di atas akan melompatkan pita ke akhir animasinya — separuh isinya
+     hilang di atas layar. Untuk pita, animasinya dimatikan sama sekali dan
+     daftarnya dikembalikan menjadi daftar biasa yang bisa digulir sendiri. */
+  .jalur{animation:none!important;transform:none!important;}
+  .tiker{overflow-y:auto;}
+}
