@@ -3,6 +3,9 @@
 Sasaran: menaikkan E-Logbook versi terakhir ke Vercel dengan database Supabase
 yang **sudah ada**, tanpa satu baris pun data lama berubah.
 
+Avenger tetap berjalan di server kantor — diputuskan 18 Agu 2026, alasannya di
+Bagian 6. Yang naik ke Vercel hanya E-Logbook.
+
 Dokumen ini memakai penanda `<ref>`, `<url>`, dan `<kunci>` — jangan pernah
 tulis nilai aslinya di sini. Repositori ini publik.
 
@@ -121,7 +124,8 @@ E-Logbook punya `vercel.json` dan `api/index.js` sendiri di dalam `elogbook/`,
 jadi ia jadi **proyek Vercel tersendiri**.
 
 1. Vercel → **Add New… → Project** → impor repositori ini.
-2. **Root Directory: `elogbook`** ← ini yang membedakannya dari proyek Avenger.
+2. **Root Directory: `elogbook`** ← wajib. Repositori ini berisi dua aplikasi;
+   tanpa ini yang naik adalah Avenger, yang justru tidak ingin dinaikkan.
 3. Framework Preset: **Other**. Build Command dikosongkan.
 4. Isi Environment Variables (Production **dan** Preview):
 
@@ -132,7 +136,7 @@ jadi ia jadi **proyek Vercel tersendiri**.
 | `SUPABASE_URL` | `https://<ref>.supabase.co` | ya, untuk unggahan berkas |
 | `SUPABASE_SERVICE_KEY` | service_role key | ya, untuk unggahan berkas |
 | `ELOGBOOK_BUCKET` | `elogbook` | tidak (ini bawaannya) |
-| `ELOGBOOK_SECURE_COOKIE` | `1` | ya, karena HTTPS |
+| `ELOGBOOK_SECURE_COOKIE` | — | **jangan diisi**, lihat 5.1 |
 | `PGSSLMODE` | `require` | dianjurkan |
 | `PGPOOL_MAX` | `1` | dianjurkan |
 
@@ -151,7 +155,7 @@ wadah kecil; koneksi langsung akan kehabisan jatah.
 
 ## Bagian 4 — Pastikan data lama utuh
 
-Kerjakan sebelum menyentuh Avenger.
+Kerjakan sebelum mengarahkan Avenger di kantor ke alamat baru (Bagian 5).
 
 1. Vercel → Deployments → Runtime Logs. Cold start pertama harus bersih. Kalau
    ada `[db-pg] gagal…`, berhenti dan baca pesannya — jangan lanjut.
@@ -168,28 +172,66 @@ snapshot Bagian 0.2.
 
 ---
 
-## Bagian 5 — Deploy Avenger
+## Bagian 5 — Avenger tetap di kantor
 
-1. Vercel → **Add New… → Project** → impor repositori yang **sama**.
-2. **Root Directory: `.`** (biarkan di akar).
-3. Environment Variables:
+**Diputuskan 18 Agu 2026: Avenger tidak ikut naik ke Vercel.** Sebabnya ada di
+Bagian 6. Yang naik hanya E-Logbook; Avenger tetap berjalan di server kantor
+seperti sekarang, dan tinggal diarahkan ke alamat Vercel.
 
-| Nama | Nilai |
-|---|---|
-| `ELOGBOOK_ASAL` | `https://<elogbook>.vercel.app` |
-| `ELOGBOOK_TAUTAN` | `https://<elogbook>.vercel.app` |
+Sunting `.env` di server kantor:
+
+```
+ELOGBOOK_ASAL=https://<elogbook>.vercel.app
+ELOGBOOK_TAUTAN=https://<elogbook>.vercel.app
+```
 
 `ELOGBOOK_ASAL` dipakai server Avenger untuk meneruskan `/api/*`.
-`ELOGBOOK_TAUTAN` dipakai halaman untuk menaruh tautan "buka E-Logbook".
+`ELOGBOOK_TAUTAN` dipakai halaman untuk tombol "Buka E-Logbook".
 
-4. **Deploy.**
+**Keduanya wajib diisi, bukan salah satu.** Tanpa `ELOGBOOK_TAUTAN`, halaman
+merangkai tautannya sendiri dari `portElogbook`, dan `new URL(ASAL).port` pada
+alamat `https://` bernilai kosong sehingga jatuh ke `80` — tombolnya akan
+menunjuk ke port yang salah. Dengan `ELOGBOOK_TAUTAN` terisi, angka port itu
+tidak pernah dipakai (`public/js/15-tautan-elogbook.js:36`).
 
-Cookie sesi ikut terbawa: peramban hanya bicara ke domain Avenger, dan penerus
-di `server.js` sudah meneruskan `Set-Cookie` lewat `getSetCookie()`.
+Lalu nyalakan ulang Avenger. Jangan pakai `npm start` di server kantor: itu
+menyalakan E-Logbook lokal di port 3000 juga, yang sejak sekarang tidak dipakai
+siapa pun. Jalankan `node server.js` saja.
+
+### 5.1 Jangan pasang `ELOGBOOK_SECURE_COOKIE`
+
+Ini konsekuensi langsung dari keputusan di atas, dan satu-satunya hal yang bisa
+mematahkan seluruh rangkaian ini tanpa pesan salah.
+
+Peramban pemakai hanya bicara ke Avenger di kantor — alamatnya `http://`, bukan
+`https://`. Penerus di `server.js:138` meneruskan `Set-Cookie` apa adanya. Kalau
+cookie itu membawa flag `Secure`, peramban **membuangnya** karena halaman yang
+menerimanya bukan https. Akibatnya: login tampak terkirim, tidak ada pesan
+salah, tapi tidak ada sesi yang tersimpan dan setiap permintaan berikutnya
+kembali anonim.
+
+Jadi di Vercel, biarkan `ELOGBOOK_SECURE_COOKIE` **tidak diisi sama sekali**.
+Tabel di Bagian 3 sudah disesuaikan.
+
+Harganya jujur saja: cookie sesi lewat di dalam jaringan kantor tanpa terenkripsi.
+Itu keadaan yang sama dengan sekarang, bukan kemunduran. Kalau suatu saat Avenger
+di kantor sudah di balik https, barulah pasang `ELOGBOOK_SECURE_COOKIE=1` — dan
+pasang keduanya bersamaan, jangan salah satu.
+
+### 5.2 Penahan login di serverless
+
+`gagalLogin` di `elogbook/server.js:162` adalah `Map` di memori, dan `req.ip`
+dibaca tanpa `trust proxy`. Di Vercel tiap wadah punya `Map` sendiri, jadi
+hitungan 8 percobaan gagal per 5 menit **melemah** — tersebar antar wadah, bukan
+terkumpul. Ditambah semua permintaan lewat penerus Avenger terlihat sebagai satu
+alamat, angka itu tidak lagi berarti "per orang".
+
+Tidak menghalangi deploy, dan tidak berubah dari keadaan sekarang. Dicatat di
+sini supaya tidak disangka penahan itu masih seketat namanya.
 
 ---
 
-## Bagian 6 — Yang harus Anda tahu tentang Avenger di cloud
+## Bagian 6 — Kenapa Avenger tidak ikut naik
 
 **Modul milik Avenger sendiri tidak akan bisa menyimpan di Vercel.**
 
@@ -205,21 +247,32 @@ menghalanginya di Vercel:
 Yang lewat E-Logbook (Logbook, Daily Check, Monitoring, DS Test, LTK, isu,
 lampiran, lembar berkala) **aman** — semuanya di Supabase.
 
-Tiga pilihan, tinggal dipilih:
+Tiga pilihan pernah ditimbang:
 
-- **Avenger tetap di kantor**, E-Logbook di Vercel. Paling cepat, tidak ada yang
-  perlu ditulis ulang. Avenger di kantor menunjuk `ELOGBOOK_ASAL` ke alamat Vercel.
-- **Naikkan juga penyimpanan Avenger ke Supabase** — tujuh modul pindah dari
-  `data/*.json` ke tabel. Pekerjaan tersendiri, belum dikerjakan.
-- **Avenger di cloud sebagai baca-saja** untuk sementara, penyuntingan tetap di
-  kantor. Perlu diberitahukan ke pemakai, kalau tidak mereka akan menyangka
-  simpanannya berhasil.
+- **Avenger tetap di kantor** ← **yang dipilih.** Paling cepat, tidak ada yang
+  perlu ditulis ulang, dan tidak ada satu pun modul yang berubah perilakunya.
+- Naikkan juga penyimpanan Avenger ke Supabase — tujuh modul pindah dari
+  `data/*.json` ke tabel. Pekerjaan tersendiri, belum dikerjakan. Ini jalan
+  yang benar kalau suatu saat Avenger memang harus bisa dibuka dari luar kantor.
+- Avenger di cloud sebagai baca-saja. Ditolak: pemakai akan menyangka
+  simpanannya berhasil, dan itu lebih buruk daripada tidak ada sama sekali.
+
+Yang berubah bagi pemakai: **tidak ada.** Avenger tetap di alamat yang sama,
+tetap bisa menyimpan, hanya sumber datanya yang sekarang di Vercel.
+
+Yang perlu diingat: **Avenger sekarang bergantung pada internet kantor.** Kalau
+sambungan keluar putus, penerus di `server.js:111` gagal dan halaman jatuh ke
+data contoh. Di server kantor pasang `DATA_CONTOH=0` supaya keadaan itu terlihat
+sebagai kerusakan, bukan angka karangan yang menyamar jadi kenyataan.
 
 ---
 
 ## Bagian 7 — Kalau harus mundur
 
-Kode: Vercel → Deployments → deployment lama → **Promote to Production**.
+Kode: Vercel → Deployments → deployment E-Logbook lama → **Promote to Production**.
+Avenger tidak perlu disentuh — ia tidak pernah naik. Untuk memutusnya dari
+Vercel, kembalikan `ELOGBOOK_ASAL` di `.env` kantor ke `http://127.0.0.1:3000`
+dan nyalakan lagi E-Logbook lokal.
 
 Database: tabel `berkala` berdiri sendiri, tidak ada foreign key ke tabel mana
 pun, jadi membuangnya tidak menyentuh data lama.
@@ -237,4 +290,6 @@ Tabel lama tidak perlu dipulihkan — tidak ada langkah di atas yang mengubahnya
 - `elogbook/elogbook_schema.sql` masih 0 byte. Tidak dipakai saat runtime, jadi
   tidak menghalangi deploy — tapi berarti belum ada satu berkas yang merekam
   skema utuhnya.
-- Modul milik Avenger, lihat Bagian 6.
+- Penyimpanan modul milik Avenger masih di `data/*.json`. Bukan penghalang:
+  Avenger sengaja tetap di kantor (Bagian 5 dan 6). Baru jadi pekerjaan kalau
+  Avenger suatu saat harus bisa dibuka dari luar kantor.
