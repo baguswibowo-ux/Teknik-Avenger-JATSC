@@ -936,6 +936,17 @@ function periodeSekarang(jenis, d = new Date()) {
 
 const BERKALA_JENIS = new Set(['mingguan', 'bulanan', 'triwulan', 'semesteran', 'tahunan']);
 
+/* Rombongan yang mengerjakan. Kosong berarti siapa pun yang berdinas hari itu,
+   dan itulah keadaan seluruh kegiatan yang sudah tersimpan sebelum kolom ini
+   ada — jadi kolomnya boleh tidak disebut sama sekali dan artinya tetap sama
+   dengan perilaku lama.
+
+   Hanya dua, bukan seluruh kode dinas. Yang membedakan pekerjaan berkala cuma
+   siang atau malam; huruf gedung dan pecahan P/S tidak pernah menentukan siapa
+   yang memegang pekerjaannya. Kembarannya rombonganShift() di
+   public/js/02-kode-dinas.js. */
+const BERKALA_SHIFT = new Set(['', 'PS', 'M']);
+
 /* Dari mana tanda "sudah dikerjakan" datang. Kosong berarti ditandai orang di
    layar dashboard, seperti sejak awal; sisanya dibuktikan lembar yang sudah
    diisi di E-Logbook, dan sebutannya dipakai untuk menyusun penolakan di
@@ -1015,7 +1026,12 @@ function rapikanKegiatan(k, adaId) {
     ket:  String(k?.ket  || '').trim().slice(0, 400),
     // Kegiatan lama tidak punya kolom ini dan tetap dibaca — tanpa sumber
     // berarti ditandai manual, yaitu perilaku sebelumnya.
-    sumber: BERKALA_SUMBER.has(k?.sumber) ? (k.sumber || '') : ''
+    sumber: BERKALA_SUMBER.has(k?.sumber) ? (k.sumber || '') : '',
+    // Rombongan yang mengerjakan: 'PS', 'M', atau kosong untuk siapa pun yang
+    // berdinas. Nilai asing dijatuhkan jadi kosong, bukan ditolak: yang salah
+    // di sini hanya membuat pekerjaannya berlaku untuk semua orang, dan itu
+    // lebih baik daripada seluruh daftar unit gagal disimpan.
+    shift: BERKALA_SHIFT.has(k?.shift) ? (k.shift || '') : ''
   };
 }
 

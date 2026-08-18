@@ -48,6 +48,24 @@ const HARI_NAMA = [
 ];
 const hariNama = (n) => T(...(HARI_NAMA[Math.min(6, Math.max(0, Number(n) - 1))] || HARI_NAMA[0]));
 
+/* Rombongan yang mengerjakan, di samping harinya. Yang mengerjakan pekerjaan
+   berkala adalah orang yang kebetulan berdinas, dan "berdinas hari Senin" masih
+   menyebut dua rombongan yang tidak pernah bertemu: yang masuk pagi sampai
+   siang, dan yang masuk malam. Menyebut salah satunya membuat pekerjaan ini
+   punya pemilik yang jelas.
+
+   Kosong tetap sah dan tetap jadi bawaan. Pekerjaan yang memang boleh
+   dikerjakan siapa saja yang ada tidak perlu dipaksa memilih, dan seluruh
+   kegiatan yang sudah tersimpan sebelum kolom ini ada memang ada di keadaan
+   itu. Daftarnya kembaran BERKALA_SHIFT di server.js; nama rombongannya
+   diambil dari ROMBONGAN_NAMA di 02-kode-dinas.js supaya tidak ada dua tempat
+   yang menamai hal yang sama. */
+const BERKALA_SHIFT = ['', 'PS', 'M'];
+const bklShiftNama = (s) => s && ROMBONGAN_NAMA[s]
+  ? T(...ROMBONGAN_NAMA[s]) : T('Semua shift','Any shift');
+/** Rombongan kegiatan ini, dirapikan. Nilai asing dibaca sebagai kosong. */
+const bklShift = (k) => BERKALA_SHIFT.includes(k?.shift) ? (k.shift || '') : '';
+
 /* Kegiatan contoh, dipakai saat belum ada apa pun yang tersimpan. Bukan sekadar
    pengisi layar: modul yang dibuka pertama kali dalam keadaan kosong tidak
    memperlihatkan apa pun tentang bentuknya, dan yang pertama kali membukanya
@@ -56,11 +74,17 @@ const BERKALA_CONTOH = {
   radtel: [
     // Hari 1, 3, 6 = Senin, Rabu, Sabtu. Tandanya tidak dicentang di sini —
     // lihat blok KEGIATAN YANG TANDANYA DATANG DARI E-LOGBOOK.
+    // Hari 1, 3, 6 = Senin, Rabu, Sabtu. Shift PS karena DS Test perlu lawan
+    // bicara di site seberang, dan site itu berpenghuni pada jam kerja.
     { id:'ds', nama:'Pengecekan DS (DS Test)', jenis:'mingguan', hari:[1,3,6], bulan:null, tanggal:null,
-      sumber:'dstest', alat:'',
+      sumber:'dstest', alat:'', shift:'PS',
       ket:'Uji incoming dan outgoing seluruh site. Lembarnya diisi di E-Logbook; tanda di sini mengikutinya.' },
     { id:'k1', nama:'Periksa daya pancar dan VSWR', jenis:'mingguan', hari:2, bulan:null, tanggal:null,
-      alat:'', ket:'Catat hasilnya di logbook. Kalau turun lebih dari 10%, buka trouble.' },
+      alat:'', shift:'PS', ket:'Catat hasilnya di logbook. Kalau turun lebih dari 10%, buka trouble.' },
+    // Yang dikerjakan malam: lalu lintas sepi, jadi memutus kanal satu per satu
+    // tidak mengganggu siapa pun.
+    { id:'k4', nama:'Restart terjadwal CWP', jenis:'mingguan', hari:7, bulan:null, tanggal:null,
+      alat:'', shift:'M', ket:'Malam Minggu, saat lalu lintas paling sepi. Satu posisi dulu, pastikan naik lagi.' },
     { id:'k2', nama:'Bersihkan filter pendingin shelter', jenis:'bulanan', hari:null, bulan:null, tanggal:5,
       alat:'', ket:'' },
     { id:'k3', nama:'Kalibrasi ulang power meter', jenis:'triwulan', hari:null, bulan:3, tanggal:10,
@@ -650,6 +674,12 @@ function bklIsi(unit){
                 }).join('')}</div>`
             : `<input type="number" min="1" max="28" data-bkl="${i}" data-kolom="tanggal"
                  value="${Number(k.tanggal) || 1}">`}</div>
+        <div class="isian" style="margin-bottom:0;min-width:130px">
+          <label>${T('Shift','Shift')}</label>
+          <select data-bkl="${i}" data-kolom="shift">${BERKALA_SHIFT.map(s=>
+            `<option value="${s}"${bklShift(k) === s ? ' selected' : ''}>${
+              esc(bklShiftNama(s))}</option>`).join('')}
+          </select></div>
         <div class="isian" style="margin-bottom:0;min-width:200px">
           <label>${T('Tanda selesai','Completion mark')}</label>
           <select data-bkl="${i}" data-kolom="sumber">${bklPilihanSumber(unit, k).map(o=>
@@ -666,7 +696,17 @@ function bklIsi(unit){
     return kepala + `<div class="panel"><div class="badan">${baris || `
       <div style="color:var(--muted);font-size:12.5px">${
         T('Belum ada kegiatan. Tekan Tambah kegiatan.','No jobs yet. Press Add a job.')}</div>`}</div></div>
-      <div class="catatan"><b>${T('Tanggal 29, 30, dan 31 sengaja tidak ada.',
+      <div class="catatan"><b>${T('Shift menentukan lonceng siapa yang berbunyi.',
+        'The shift decides whose bell rings.')}</b> ${
+        T('Pekerjaan ber-shift PS hanya diberitahukan ke yang berdinas pagi–siang, dan Malam '
+        + 'hanya ke yang berdinas malam. Biarkan "Semua shift" kalau memang boleh dikerjakan '
+        + 'siapa saja yang ada — itu yang berlaku untuk semua kegiatan yang sudah tersimpan '
+        + 'sebelumnya. Menandai selesai tetap boleh dilakukan siapa pun; yang disaring hanya '
+        + 'pemberitahuannya.',
+          'A job on PS is only announced to the day crew, and Malam only to the night crew. Leave it '
+        + 'on "Any shift" if anyone on duty may do it — that is what applies to every job saved '
+        + 'before this. Ticking a job off is still open to anyone; only the notification is filtered.')}
+        <br><b>${T('Tanggal 29, 30, dan 31 sengaja tidak ada.',
         'The 29th, 30th, and 31st are deliberately missing.')}</b> ${
         T('Bulan Februari tidak punya ketiganya, dan pekerjaan yang jatuh pada tanggal yang tidak ada '
         + 'tidak akan pernah muncul sama sekali. Pilih tanggal 28 ke bawah.',
@@ -706,6 +746,8 @@ function bklIsi(unit){
       <div class="bkl-atas">
         <span class="cip ${bklRupaJenis(k.jenis)}">${esc(bklJenisNama(k.jenis).toUpperCase())}</span>
         ${bklCipSumber(unit, k)}
+        ${bklShift(k) ? `<span class="cip bkl-shift" title="${
+          T('Dikerjakan rombongan ini','Done by this crew')}">${esc(bklShiftNama(bklShift(k)))}</span>` : ''}
         <span class="mono bkl-kapan">${esc(bklKapan(k))}</span>
       </div>
       <h4>${esc(k.nama)}</h4>
@@ -827,7 +869,7 @@ function bklPasang(unit){
   const sunting = kotak.querySelector('#bklSunting');
   if(sunting) sunting.addEventListener('click', ()=>{
     BKL.draf = bklDaftar(unit).map(k=>({ ...k }));
-    if(!BKL.draf.length) BKL.draf.push({ id:'', nama:'', jenis:'mingguan', hari:[1], bulan:1, tanggal:1, sumber:'', ket:'', alat:'' });
+    if(!BKL.draf.length) BKL.draf.push({ id:'', nama:'', jenis:'mingguan', hari:[1], bulan:1, tanggal:1, sumber:'', shift:'', ket:'', alat:'' });
     BKL.sunting = true; BKL.unit = unit;
     bklGambar();
   });
@@ -839,7 +881,7 @@ function bklPasang(unit){
 
   const tambah = kotak.querySelector('#bklTambah');
   if(tambah) tambah.addEventListener('click', ()=>{
-    BKL.draf.push({ id:'', nama:'', jenis:'mingguan', hari:[1], bulan:1, tanggal:1, sumber:'', ket:'', alat:'' });
+    BKL.draf.push({ id:'', nama:'', jenis:'mingguan', hari:[1], bulan:1, tanggal:1, sumber:'', shift:'', ket:'', alat:'' });
     bklGambar();
   });
 
@@ -882,6 +924,7 @@ function bklPasang(unit){
           ? Math.min(BERKALA_PANJANG[k.jenis], Math.max(1, Number(k.bulan) || 1)) : null,
         tanggal: k.jenis === 'mingguan' ? null : Math.min(28, Math.max(1, Number(k.tanggal) || 1)),
         sumber: BERKALA_SUMBER[k.sumber] ? (k.sumber || '') : '',
+        shift: bklShift(k),
         alat: k.alat || '', ket: String(k.ket || '').trim()
       }))
       .filter(k=>k.nama);
@@ -940,7 +983,7 @@ function bklPasang(unit){
   kotak.querySelectorAll('[data-bkl-buang]').forEach(b=>{
     b.addEventListener('click', ()=>{
       BKL.draf.splice(Number(b.dataset.bklBuang), 1);
-      if(!BKL.draf.length) BKL.draf.push({ id:'', nama:'', jenis:'mingguan', hari:[1], bulan:1, tanggal:1, sumber:'', ket:'', alat:'' });
+      if(!BKL.draf.length) BKL.draf.push({ id:'', nama:'', jenis:'mingguan', hari:[1], bulan:1, tanggal:1, sumber:'', shift:'', ket:'', alat:'' });
       bklGambar();
     });
   });

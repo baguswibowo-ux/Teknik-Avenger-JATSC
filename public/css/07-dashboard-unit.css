@@ -355,8 +355,15 @@ tr.akun-mati td:not(:last-child){opacity:.55;}
 .bkl-kartu.aman{border-left-color:var(--ok);}
 .bkl-kartu.awas{border-left-color:var(--warn);}
 .bkl-kartu.bahaya{border-left-color:var(--fail);}
-.bkl-atas{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;}
-.bkl-kapan{font-size:10.5px;color:var(--muted);}
+/* Cip-cipnya berkumpul di kiri, keterangan kapan didorong ke kanan lewat
+   margin, bukan space-between. Jumlah cip di baris ini berubah-ubah — jenis
+   selalu ada, sumber dan shift kadang-kadang — dan space-between akan
+   membagikan sisa ruang ke sela antar cip, jadi jarak antar kartu di kolom
+   yang sama tidak pernah sejajar. */
+.bkl-atas{display:flex;justify-content:flex-start;align-items:center;gap:8px;margin-bottom:8px;
+  flex-wrap:wrap;}
+.bkl-kapan{font-size:10.5px;color:var(--muted);margin-left:auto;}
+.cip.bkl-shift{color:var(--accent);border-color:var(--accent);}
 .bkl-kartu h4{font-size:13.5px;line-height:1.35;}
 .bkl-kartu p{margin:6px 0 0;font-size:12px;color:var(--muted);line-height:1.55;}
 .bkl-kaki{display:flex;justify-content:space-between;align-items:center;gap:9px;flex-wrap:wrap;

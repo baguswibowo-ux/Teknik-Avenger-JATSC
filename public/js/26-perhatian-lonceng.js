@@ -48,6 +48,25 @@ function unitDinasSaya(){
     .filter(kode=>dinasUnit(kode).some(s=>s.o.some(o=>namaSaya(o.n))));
 }
 
+/**
+ * Rombongan tempat akun ini berdinas hari ini di satu unit — 'PS', 'M', atau
+ * keduanya kalau namanya kebetulan tertulis di dua petak.
+ *
+ * Kosong punya dua sebab yang tidak dibedakan di sini: orangnya memang tidak
+ * berdinas, atau kode dinasnya tidak dikenal SHIFT. Yang memanggil menangani
+ * keduanya sama — tidak menyaring — karena lonceng yang diam gara-gara kode
+ * asing di lembar jadwal jauh lebih buruk daripada lonceng yang salah alamat.
+ */
+function rombonganSaya(unit){
+  const punya = new Set();
+  dinasUnit(unit).forEach(s=>{
+    if(!s.o.some(o=>namaSaya(o.n))) return;
+    const g = rombonganShift(s.k);
+    if(g) punya.add(g);
+  });
+  return punya;
+}
+
 /** Pemberitahuan pribadi untuk akun yang sedang masuk. */
 function notifSaya(){
   const keluar = [];
@@ -74,8 +93,14 @@ function notifSaya(){
     }));
 
   unitDinasSaya().forEach(unit=>{
+    const punya = rombonganSaya(unit);
     bklJatuhTempo(unit).forEach(({ k, sisa })=>{
       if(sisa > 1) return;      // yang masih jauh bukan urusan dinas hari ini
+      // Pekerjaan yang menyebut rombongan hanya dibunyikan ke rombongan itu.
+      // Yang tidak menyebut apa-apa tetap dibunyikan ke semua yang berdinas —
+      // itu perilaku sejak awal, dan seluruh kegiatan lama ada di keadaan itu.
+      const shift = bklShift(k);
+      if(shift && punya.size && !punya.has(shift)) return;
       keluar.push({
         rupa: sisa < 0 ? 'bahaya' : 'awas',
         judul: sisa < 0
@@ -83,8 +108,8 @@ function notifSaya(){
               `${bklJenisNama(k.jenis)} job ${-sisa} days overdue`)
           : T(`Pekerjaan ${bklJenisNama(k.jenis).toLowerCase()} jatuh tempo${sisa === 0 ? ' hari ini' : ' besok'}`,
               `${bklJenisNama(k.jenis)} job due ${sisa === 0 ? 'today' : 'tomorrow'}`),
-        rinci: `${k.nama} · ${namaUnit(unit)} · ${T('Anda berdinas hari ini di unit ini',
-                                                    'you are on duty in this unit today')}`,
+        rinci: `${k.nama} · ${namaUnit(unit)}${shift ? ' · ' + bklShiftNama(shift) : ''} · ${
+          T('Anda berdinas hari ini di unit ini', 'you are on duty in this unit today')}`,
         layar: 'unit', unit, sub: 'berkala',
         urut: sisa - 100      // pekerjaan hari ini didahulukan daripada sertifikat
       });

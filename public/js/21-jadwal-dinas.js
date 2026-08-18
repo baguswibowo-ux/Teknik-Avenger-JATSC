@@ -192,7 +192,10 @@ function jdwTabel(unit){
     ${Array.from({length:hariN}, (_,i)=>{
       const keg = bklPadaHari(unit, bulan, i + 1);
       if(!keg.length) return `<td class="${i+1===hariIni?'jdw-hari-ini':''}"></td>`;
-      const judul = keg.map(k=>k.nama).join(' · ');
+      // Shift ikut disebut di tooltip, bukan digambar sebagai titik terpisah:
+      // barisnya cuma setinggi satu sel per tanggal, dan memecahnya jadi dua
+      // titik akan membuat tabel sebulan penuh sulit dibaca sekilas.
+      const judul = keg.map(k=>k.nama + (bklShift(k) ? ` (${bklShiftNama(bklShift(k))})` : '')).join(' · ');
       const mingguan = keg.some(k=>k.jenis === 'mingguan');
       return `<td class="${i+1===hariIni?'jdw-hari-ini':''}" title="${esc(judul)}">
         <span class="bkl-titik ${mingguan?'mingguan':'bulanan'}">${keg.length > 1 ? keg.length : '●'}</span></td>`;

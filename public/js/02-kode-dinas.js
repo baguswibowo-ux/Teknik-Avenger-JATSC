@@ -43,6 +43,23 @@ const SHIFT = {
 /* Urutan pita di panel Cakupan 24 Jam, dari yang paling lebar. */
 const URUT_PITA = ['PS','M','P','S'];
 
+/* Dua rombongan, lebih kasar daripada pita. Kegiatan berkala dikerjakan
+   rombongan siang atau rombongan malam, dan tidak pernah lebih halus dari itu:
+   hari yang dipecah P (00–07) dan S (07–13) tetap dikerjakan orang-orang yang
+   sama dengan hari yang utuh PS, cuma dibagi dua. Karena itu P dan S ikut PS,
+   bukan berdiri sendiri.
+
+   Huruf gedungnya sengaja tidak ikut. Pekerjaan berkala melekat pada peralatan
+   di unitnya, bukan pada gedung tempat orangnya duduk — memisahkan PSJ dari PSN
+   akan membuat satu pekerjaan yang sama harus ditulis dua kali. */
+const ROMBONGAN_NAMA = { PS:['PS','Day'], M:['Malam','Night'] };
+
+/** Rombongan satu kode dinas: 'PS', 'M', atau '' kalau kodenya tidak dikenal. */
+const rombonganShift = (kode) => {
+  const p = SHIFT[kode] && SHIFT[kode].pita;
+  return !p ? '' : p === 'M' ? 'M' : 'PS';
+};
+
 /**
  * Jam satu kode dinas dalam UTC, sebagai { mulai, sampai }.
  *

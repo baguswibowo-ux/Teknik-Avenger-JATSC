@@ -489,13 +489,45 @@ triwulan pertama, Mei untuk triwulan kedua, dan seterusnya — jadi ia benar-ben
 berulang tiap tiga bulan. Kunci periodenya dihitung ulang di server saat
 menandai selesai, tidak diterima dari peramban.
 
+### Shift yang mengerjakan
+
+Selain harinya, tiap kegiatan boleh menyebut **shift**: kolom *Shift* dengan
+tiga pilihan.
+
+| Shift | Yang diberi tahu | Kode dinas yang terhitung |
+| --- | --- | --- |
+| *(Semua shift)* | siapa pun yang berdinas hari itu | semua |
+| PS | rombongan pagi–siang | `PSJ`, `PSN`, `PS`, dan hari yang dipecah `P` + `S` |
+| Malam | rombongan malam | `MJ`, `MN`, `M` |
+
+Alasannya: “berdinas hari Senin” masih menyebut dua rombongan yang tidak pernah
+bertemu. Pekerjaan yang hanya bisa dikerjakan saat lalu lintas sepi — restart
+terjadwal, misalnya — tidak ada gunanya dibunyikan ke yang pulang jam satu
+siang.
+
+Huruf gedungnya sengaja tidak ikut. Pekerjaan berkala melekat pada peralatan di
+unitnya, bukan pada gedung tempat orangnya duduk; memisahkan `PSJ` dari `PSN`
+hanya akan membuat satu pekerjaan yang sama harus ditulis dua kali. Hari yang
+dipecah `P` (00–07) dan `S` (07–13) tetap dihitung PS — orangnya sama, cuma
+dibagi dua.
+
+Yang disaring **hanya loncengnya**. Menandai selesai tetap terbuka untuk siapa
+pun yang sudah masuk, sama seperti sebelumnya. Kalau kode dinas di lembar
+jadwal tidak dikenal sama sekali, penyaringnya dilewati dan loncengnya tetap
+berbunyi: diam gara-gara kode asing jauh lebih buruk daripada bunyi yang salah
+alamat.
+
+Kegiatan yang tersimpan sebelum kolom ini ada terbaca sebagai *Semua shift*,
+jadi tidak ada yang berubah sampai ada yang mengisinya.
+
 Muncul di empat tempat, dan itu memang gunanya:
 
 - **tabel jadwal dinas** — baris penanda di atas nama-nama, jadi tanggal yang
-  ada pekerjaannya terlihat sambil mencari nama sendiri
+  ada pekerjaannya terlihat sambil mencari nama sendiri; shiftnya disebut di
+  tooltip petaknya
 - **beranda** — panel *Perlu Perhatian*, yang lewat jatuh tempo lebih dulu
 - **lonceng tiap akun** — hanya untuk yang namanya tercantum di dinas hari itu,
-  di unit tempat pekerjaannya jatuh tempo
+  di unit tempat pekerjaannya jatuh tempo, dan hanya kalau shiftnya cocok
 - **Kotak Masuk** — seluruh kejadian periode berjalan beserta tujuannya, lihat
   bagian di bawah
 
