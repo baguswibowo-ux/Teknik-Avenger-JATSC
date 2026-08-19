@@ -121,8 +121,18 @@ async function requireAuth(req, res, next) {
 }
 
 const isAdmin = (user) => user?.role === 'admin';
-/** Pejabat hanya boleh melihat. Yang boleh menambah data cuma admin dan teknisi. */
-const bolehMenulis = (user) => user?.role === 'admin' || user?.role === 'teknisi';
+
+/**
+ * Yang boleh menambah data. Ditulis sebagai daftar peran yang BOLEH, bukan
+ * "asal bukan pejabat": peran baru harus disebut namanya di sini sebelum bisa
+ * mengisi apa pun, dan itu keputusan yang pantas diambil sadar-sadar.
+ *
+ * adminunit dan pic ikut karena di dalam E-Logbook keduanya memang berperilaku
+ * seperti teknisi — yang membedakannya adalah haknya di Dashboard Fasilitas
+ * Teknik, bukan di sini. Lihat catatan ROLE_VALID di db.js.
+ */
+const PERAN_TULIS = new Set(['admin', 'adminunit', 'pic', 'teknisi']);
+const bolehMenulis = (user) => PERAN_TULIS.has(user?.role);
 
 /**
  * Satu-satunya perubahan data yang boleh dilakukan pejabat: membubuhkan tanda

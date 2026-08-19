@@ -7,7 +7,10 @@
 function adminAktif(){ return userSaatIni?.role === 'admin'; }
 /** Pejabat hanya melihat: seluruh unit terbuka, tapi tidak ada tombol menambah. */
 function pejabatAktif(){ return userSaatIni?.role === 'pejabat'; }
-function bolehMenulis(){ return adminAktif() || userSaatIni?.role === 'teknisi'; }
+/* Sepadan dengan PERAN_TULIS di server.js — kalau keduanya berselisih, yang
+   kalah adalah layar: tombolnya tampil lalu permintaannya ditolak 403. */
+const PERAN_TULIS = new Set(['admin', 'adminunit', 'pic', 'teknisi']);
+function bolehMenulis(){ return PERAN_TULIS.has(userSaatIni?.role); }
 
 /** Menyunting catatan yang sudah tersimpan: admin, atau pembuat aslinya
     sendiri — bukan sekadar siapa saja yang boleh menulis di unit itu. */

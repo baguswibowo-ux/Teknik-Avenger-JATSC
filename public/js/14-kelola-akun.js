@@ -710,7 +710,47 @@ async function simpanUbahan(asal){
   if(pass)                                           kerja.push(['setUserPassword', [asal.username, pass]]);
 
   if(!kerja.length){ pesan(T('Tidak ada yang diubah.','Nothing was changed.')); return; }
-  for(const [fn, args] of kerja) await adminApi(fn, ...args);
+
+  /* Antrean ini berhenti pada kegagalan pertama, dan memang harus begitu —
+     langkah berikutnya berangkat dari keadaan yang gagal dibuat langkah
+     sebelumnya. Yang tidak boleh adalah berhentinya diam-diam.
+
+     Pernah terjadi persis begitu: setUserRole menolak peran yang belum dikenal
+     E-Logbook, antreannya putus di situ, dan setUserUnit yang menyusul tidak
+     pernah berjalan. Yang terbaca di layar cuma "Role tidak dikenal." — tidak
+     ada yang mengatakan bahwa unitnya ikut tidak tersimpan, jadi selama
+     berhari-hari orangnya mengira unitnya sudah pindah padahal belum. */
+  const NAMA_LANGKAH = {
+    setUserRole:     T('peran','role'),
+    setUserUnit:     T('unit','unit'),
+    setUserNama:     T('nama','name'),
+    setUserAktif:    T('status aktif','active status'),
+    setUserPassword: T('password','password')
+  };
+  const sebut = (daftar) => daftar.map(([fn]) => NAMA_LANGKAH[fn] || fn).join(', ');
+
+  for(let i = 0; i < kerja.length; i++){
+    const [fn, args] = kerja[i];
+    try{
+      await adminApi(fn, ...args);
+    }catch(e){
+      const gagal = NAMA_LANGKAH[fn] || fn;
+      const tersimpan = kerja.slice(0, i);
+      const belum = kerja.slice(i + 1);
+      const potong = [
+        T('Gagal menyimpan ' + gagal + ': ', 'Could not save the ' + gagal + ': ') + (e && e.message || e),
+        tersimpan.length
+          ? T('Yang sudah tersimpan: ' + sebut(tersimpan) + '.',
+              'Already saved: ' + sebut(tersimpan) + '.')
+          : T('Belum ada satu pun perubahan yang tersimpan.','Nothing has been saved yet.'),
+        belum.length
+          ? T('Yang BELUM tersimpan dan perlu diulang: ' + sebut(belum) + '.',
+              'NOT saved and needs retrying: ' + sebut(belum) + '.')
+          : ''
+      ].filter(Boolean).join(' ');
+      throw new Error(potong);
+    }
+  }
   pesan(T(kerja.length + ' perubahan tersimpan untuk ' + asal.username + '.',
           kerja.length + ' change(s) saved for ' + asal.username + '.'));
 }

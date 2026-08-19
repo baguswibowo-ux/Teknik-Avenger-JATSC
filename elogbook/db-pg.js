@@ -403,14 +403,28 @@ export async function hapusUser(username) {
 }
 
 /**
- * admin   — kendali penuh, termasuk menghapus dan mengelola akun
- * pejabat — melihat seluruh unit; satu-satunya perubahan yang boleh dilakukannya
- *           adalah membubuhkan tanda tangannya pada petak yang masih kosong
- * teknisi — hanya menambah, dan hanya pada unit yang diberikan kepadanya
+ * admin     — kendali penuh, termasuk menghapus dan mengelola akun
+ * pejabat   — melihat seluruh unit; satu-satunya perubahan yang boleh dilakukannya
+ *             adalah membubuhkan tanda tangannya pada petak yang masih kosong
+ * adminunit — administrator yang wilayahnya satu unit: mengisi, mengubah,
+ *             menghapus, dan membaca log aktivitas — semuanya hanya di unitnya
+ * pic       — penanggung jawab satu unit: mengisi dan mengubah, tidak menghapus
+ * teknisi   — hanya menambah, dan hanya pada unit yang diberikan kepadanya
+ *
+ * Daftar ini WAJIB sama persis dengan yang di db.js. Dua peran di tengah dulu
+ * hanya ditambahkan di sana dan lapisan ini tertinggal — akibatnya bukan
+ * sekadar peran yang tidak bisa diberikan. setUserRole menolak dengan "Role
+ * tidak dikenal.", sementara Kelola Akun di dashboard mengirim peran lebih
+ * dulu lalu unit; lemparan itu menghentikan antreannya sebelum unitnya sempat
+ * tersimpan. Yang terlihat orang: unit yang dipilih tidak pernah berubah dan
+ * akunnya tetap mendarat di unit lamanya. SQLite dipakai di laptop, Postgres di
+ * produksi — jadi selisih dua kata ini hanya rusak setelah dideploy.
  */
-export const ROLE_VALID = ['admin', 'pejabat', 'teknisi'];
+export const ROLE_VALID = ['admin', 'pejabat', 'adminunit', 'pic', 'teknisi'];
 
-/** Peran yang boleh membuka seluruh unit tanpa perlu diberi satu per satu. */
+/** Peran yang boleh membuka seluruh unit tanpa perlu diberi satu per satu.
+    adminunit dan pic sengaja TIDAK di sini: seluruh gunanya justru terletak
+    pada wilayahnya yang satu unit. */
 export const SEMUA_UNIT = ['admin', 'pejabat'];
 
 export async function setRole(username, role) {
