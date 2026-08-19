@@ -1284,7 +1284,12 @@ function rapikanPersonel(p, adaId) {
     // orangnya sendiri dan bukan cuma ke papan pengumuman bersama.
     username: String(p?.username || '').trim().toLowerCase().slice(0, 32),
     jabatan: String(p?.jabatan || '').trim().slice(0, 80),
-    sertifikat: (Array.isArray(p?.sertifikat) ? p.sertifikat : []).slice(0, 30).map((s) => ({
+    /* Tiap sertifikat punya id sendiri sejak berkas bukti bisa ditempelkan
+       padanya. Menunjuknya lewat nomor urut tidak cukup: satu baris yang
+       dihapus menggeser seluruh sisanya, dan bukti lisensi berpindah menempel
+       ke sertifikat orang yang sama tapi yang lain. */
+    sertifikat: (Array.isArray(p?.sertifikat) ? p.sertifikat : []).slice(0, 30).map((s, i) => ({
+      id: String(s?.id || '').trim().slice(0, 40).replace(/[^A-Za-z0-9_-]/g, '') || ('s' + (i + 1)),
       jenis:  String(s?.jenis  || 'Sertifikat').trim().slice(0, 40),
       nama:   String(s?.nama   || '').trim().slice(0, 120),
       nomor:  String(s?.nomor  || '').trim().slice(0, 60),
@@ -2199,6 +2204,293 @@ app.delete('/dokumen/:unit/:id', dokumenHidup, async (req, res) => {
     res.json({ ok: true });
   } catch (e) {
     console.error('[dokumen] gagal menghapus:', e);
+    res.status(500).json({ error: 'Gagal menghapus: ' + (e?.message || e) });
+  }
+});
+
+/* =====================================================================
+   BUKTI SERTIFIKAT PERSONEL — berkasnya, bukan cuma nomornya
+
+   Sampai sekarang satu baris sertifikat cuma memuat jenis, nama, nomor,
+   rating, dan dua tanggal. Yang ditanya orang pertama kali saat lisensi
+   diperiksa bukan itu, melainkan "mana pindaiannya" — dan jawabannya selama
+   ini ada di folder pribadi masing-masing.
+
+   Bentuk simpanannya sengaja dibuat sama persis dengan rak dokumen unit:
+   berkas di luar public/, nama di disk = <id><ekstensi> bukan nama aslinya,
+   dan satu-satunya jalan mengambilnya lewat rute yang menuntut sesi. Yang
+   berbeda cuma kunci raknya — di sana kode unit, di sini id orangnya.
+
+   LEBIH TERTUTUP DARIPADA DOKUMEN UNIT, DAN ITU DISENGAJA. Daftar dokumen unit
+   terbuka tanpa masuk karena yang berdinas perlu tahu ada SOP apa. Daftar ini
+   tidak: nama berkasnya sendiri sudah menyebut jenis lisensi dan sering nomor
+   serinya, dan itu identitas orang — hal yang sama yang membuat nomor lisensi
+   disamarkan untuk yang belum masuk di GET /personel.
+
+   Yang boleh mengunggah: yang boleh mengubah data personel unit itu. Yang
+   boleh menghapus: administrator — sama dengan bagian data personel lainnya.
+   ===================================================================== */
+
+const PSN_DIR  = path.join(DATA_DIR, 'personel-berkas');
+const PSN_JSON = path.join(PSN_DIR, 'daftar.json');
+
+/** Rak berkas satu orang. Bentuknya sama dengan dokBaris, ditambah `sert` —
+    id baris sertifikat yang dibuktikannya, atau kosong kalau berdiri sendiri. */
+const psnBerkasBaris = (b) => ({
+  id:       String(b.id || ''),
+  sert:     String(b.sert || '').slice(0, 40),
+  berkas:   String(b.berkas || ''),
+  nama:     String(b.nama || '').slice(0, 200),
+  jenis:    String(b.jenis || '').slice(0, 120),
+  ukuran:   Number(b.ukuran) || 0,
+  waktu:    String(b.waktu || ''),
+  oleh:     String(b.oleh || ''),
+  olehNama: String(b.olehNama || '')
+});
+
+/**
+ * Penjaga bersama untuk keempat rute yang menulis.
+ *
+ * Mengembalikan { user, orang } atau null sesudah menuliskan sendiri jawaban
+ * penolakannya. Orangnya ikut dicari di sini, bukan di tiap rute: pagar unit
+ * berdiri di atas unit ORANGNYA, dan tanpa barisnya tidak ada unit yang bisa
+ * dijadikan pagar.
+ */
+async function psnPenjagaIsi(req, res) {
+  const id = String(req.params.id || '').trim().slice(0, 40).replace(/[^A-Za-z0-9_-]/g, '');
+  if (!id) { res.status(400).json({ error: 'Penanda personel tidak sah.' }); return null; }
+
+  if (!DOK_TULIS) {
+    res.status(503).json({
+      error: 'Berkas tidak bisa disimpan di lingkungan ini: penyimpanannya tidak permanen, '
+           + 'jadi yang diunggah akan hilang dengan sendirinya.'
+    });
+    return null;
+  }
+
+  const user = await siapa(req);
+  if (!user) { res.status(401).json({ error: 'Masuk dengan akun E-Logbook Anda dulu.' }); return null; }
+
+  const orang = (await bacaJson(PERSONEL_JSON, [])).find((p) => p.id === id);
+  if (!orang) { res.status(404).json({ error: 'Personel tidak ada dalam daftar.' }); return null; }
+
+  if (!(await bolehIsi(user, 'personel')) || !bolehUnit(user, orang.unit)) {
+    res.status(403).json({
+      error: bolehUnit(user, orang.unit)
+        ? 'Peran akun Anda tidak diberi hak mengubah data personel.'
+        : 'Akun Anda tidak memegang unit orang ini, jadi berkasnya tidak bisa Anda isi.'
+    });
+    return null;
+  }
+  return { user, orang, id };
+}
+
+/** Rak seluruh orang. Menuntut sesi — alasannya di kepala blok ini. */
+app.get('/personel/berkas', async (req, res) => {
+  if (!(await siapa(req))) {
+    return res.status(401).json({ error: 'Masuk dengan akun E-Logbook Anda dulu.' });
+  }
+  res.json({ berkas: await bacaJson(PSN_JSON, {}), bisaTulis: DOK_TULIS });
+});
+
+/** Minta izin unggah langsung. Bentuknya sama dengan /dokumen/:unit/siap, dan
+    alasannya sama: batas 4.500.000 byte di Vercel. Pindaian sertifikat A4
+    berwarna lewat dengan mudah di atas angka itu. */
+app.post('/personel/:id/berkas/siap', badanDinas, async (req, res) => {
+  const penjaga = await psnPenjagaIsi(req, res);
+  if (!penjaga) return;
+
+  const nama = String(req.body?.nama || '').trim();
+  const ext = dokEkstensi(nama);
+  if (!ext) {
+    return res.status(400).json({
+      error: 'Jenis berkas ini tidak diterima. Yang boleh: '
+           + [...DOK_EXT].map((x) => x.slice(1).toUpperCase()).join(', ') + '.'
+    });
+  }
+  const ukuran = Number(req.body?.ukuran);
+  if (!Number.isFinite(ukuran) || ukuran <= 0) {
+    return res.status(400).json({ error: 'Ukuran berkas tidak disebut.' });
+  }
+  if (ukuran > DOK_BATAS) {
+    return res.status(413).json({ error: `Berkas lebih dari ${Math.round(DOK_BATAS / 1024 / 1024)} MB.` });
+  }
+
+  const bid = crypto.randomBytes(8).toString('hex');
+  const berkas = bid + ext;
+  try {
+    const url = await urlUnggahBertanda(path.join(PSN_DIR, penjaga.id, berkas));
+    if (!url) return res.json({ langsung: false });
+    res.json({ langsung: true, id: bid, berkas, url });
+  } catch (e) {
+    console.error('[personel] gagal meminta izin unggah:', e);
+    res.status(502).json({ error: 'Simpanan tidak memberi izin unggah. Coba lagi sebentar lagi.' });
+  }
+});
+
+/** Catat berkas yang sudah mendarat lewat URL bertanda tangan. */
+app.post('/personel/:id/berkas/catat', badanDinas, async (req, res) => {
+  const penjaga = await psnPenjagaIsi(req, res);
+  if (!penjaga) return;
+
+  const nama = String(req.body?.nama || '').trim();
+  const ext = dokEkstensi(nama);
+  if (!ext) return res.status(400).json({ error: 'Jenis berkas ini tidak diterima.' });
+
+  const bid = String(req.body?.id || '');
+  if (!/^[0-9a-f]{16}$/.test(bid)) {
+    return res.status(400).json({ error: 'Penanda unggahan tidak sah.' });
+  }
+  const berkas = bid + ext;
+  const jalur = path.join(PSN_DIR, penjaga.id, berkas);
+
+  try {
+    // Ukurannya dibaca dari simpanan, bukan dari angka yang dikirim layar:
+    // unggahan yang putus di tengah mendarat lebih kecil daripada yang
+    // dijanjikan, dan catatan yang berbohong soal itu lebih buruk daripada
+    // tidak mencatat sama sekali.
+    const ukuran = await ukuranBiner(jalur);
+    if (!ukuran) {
+      return res.status(404).json({
+        error: 'Berkasnya tidak ada di simpanan — unggahannya mungkin terputus. Coba ulangi.'
+      });
+    }
+    if (ukuran > DOK_BATAS) {
+      await hapusBiner(jalur);
+      return res.status(413).json({ error: `Berkas lebih dari ${Math.round(DOK_BATAS / 1024 / 1024)} MB.` });
+    }
+    res.json({ ok: true, baris: await psnBerkasSimpan(penjaga, { id: bid, berkas, nama, ukuran, req }) });
+  } catch (e) {
+    console.error('[personel] gagal mencatat unggahan langsung:', e);
+    res.status(500).json({ error: 'Gagal mencatat berkas: ' + (e?.message || e) });
+  }
+});
+
+/** Unggah base64 — jalur kantor, dan cadangan kalau Storage tidak menjawab. */
+app.post('/personel/:id/berkas', badanGaleri, async (req, res) => {
+  const penjaga = await psnPenjagaIsi(req, res);
+  if (!penjaga) return;
+
+  const nama = String(req.body?.nama || '').trim();
+  const ext = dokEkstensi(nama);
+  if (!ext) {
+    return res.status(400).json({
+      error: 'Jenis berkas ini tidak diterima. Yang boleh: '
+           + [...DOK_EXT].map((x) => x.slice(1).toUpperCase()).join(', ') + '.'
+    });
+  }
+
+  const isi = Buffer.from(String(req.body?.isi || ''), 'base64');
+  if (!isi.length) return res.status(400).json({ error: 'Isi berkas kosong.' });
+  if (isi.length > DOK_BATAS) {
+    return res.status(413).json({ error: `Berkas lebih dari ${Math.round(DOK_BATAS / 1024 / 1024)} MB.` });
+  }
+
+  try {
+    const bid = crypto.randomBytes(8).toString('hex');
+    const berkas = bid + ext;
+    await tulisBiner(path.join(PSN_DIR, penjaga.id, berkas), isi);
+    res.json({
+      ok: true,
+      baris: await psnBerkasSimpan(penjaga, { id: bid, berkas, nama, ukuran: isi.length, req })
+    });
+  } catch (e) {
+    console.error('[personel] gagal menyimpan berkas:', e);
+    res.status(500).json({ error: 'Gagal menyimpan berkas: ' + (e?.message || e) });
+  }
+});
+
+/** Satu-satunya tempat rak ditulis — dipakai kedua jalur unggah di atas. */
+async function psnBerkasSimpan(penjaga, { id, berkas, nama, ukuran, req }) {
+  const rak = await bacaJson(PSN_JSON, {});
+  const milik = rak[penjaga.id] || (rak[penjaga.id] = []);
+  const baris = psnBerkasBaris({
+    id, berkas, nama,
+    sert: req.body?.sert,
+    jenis: req.body?.jenis,
+    ukuran,
+    waktu: new Date().toISOString(),
+    oleh: penjaga.user.username,
+    olehNama: penjaga.user.nama || penjaga.user.username
+  });
+  milik.unshift(baris);
+  await tulisJson(PSN_JSON, rak);
+  /* Yang disebut di log nama berkasnya, bukan nomor lisensinya — alasan yang
+     sama dengan PUT /personel: log aktivitas tidak boleh jadi pintu belakang
+     yang membocorkan apa yang sengaja disamarkan di rute utamanya. */
+  await catat(penjaga.user, {
+    modul: 'personel', aksi: 'unggah', unit: penjaga.orang.unit || '',
+    rincian: `${penjaga.orang.nama} · ${nama}`
+  });
+  return baris;
+}
+
+/**
+ * Ambil satu berkas.
+ *
+ * Cukup sudah masuk, tidak harus pemegang unitnya — sama dengan dokumen unit.
+ * Yang memeriksa lisensi orang lain saat menyusun jadwal memang perlu
+ * membukanya, dan pagar unit di dashboard ini memang menjaga menulis, bukan
+ * melihat.
+ */
+app.get('/personel/:id/berkas/:bid', async (req, res) => {
+  const id = String(req.params.id || '').trim().slice(0, 40).replace(/[^A-Za-z0-9_-]/g, '');
+  if (!id || !dokIdSah(req.params.bid)) {
+    return res.status(400).json({ error: 'Permintaan tidak sah.' });
+  }
+
+  const user = await siapa(req);
+  if (!user) {
+    return res.status(401).json({ error: 'Masuk dengan akun E-Logbook Anda dulu untuk membuka berkas.' });
+  }
+
+  const rak = await bacaJson(PSN_JSON, {});
+  const baris = (rak[id] || []).find((b) => b.id === req.params.bid);
+  if (!baris) return res.status(404).json({ error: 'Berkas tidak ada dalam daftar.' });
+
+  try {
+    const isi = await bacaBiner(path.join(PSN_DIR, id, baris.berkas));
+    if (!isi) return res.status(404).json({ error: 'Berkasnya tidak ada lagi di simpanan.' });
+    res.setHeader('Content-Disposition', `inline; filename="${dokNamaAman(baris.nama)}"`);
+    res.type(isi.mime).send(isi.buf);
+  } catch (e) {
+    console.error('[personel] gagal mengambil berkas:', e);
+    res.status(502).json({ error: 'Simpanan berkas tidak terjawab. Coba lagi sebentar lagi.' });
+  }
+});
+
+/** Keluarkan satu berkas. Berkasnya ikut dihapus — daftar yang kosong
+    sementara berkasnya menumpuk cuma menyisakan sampah tak terlihat. */
+app.delete('/personel/:id/berkas/:bid', async (req, res) => {
+  const penjaga = await psnPenjagaIsi(req, res);
+  if (!penjaga) return;
+  if (!dokIdSah(req.params.bid)) return res.status(400).json({ error: 'Permintaan tidak sah.' });
+
+  if (!(await bolehHapus(penjaga.user, 'personel'))) {
+    return res.status(403).json({
+      error: 'Menghapus bukti sertifikat hanya bisa dilakukan administrator. '
+           + 'Mengunggah yang baru tetap boleh — yang lama tinggal berdampingan.'
+    });
+  }
+
+  try {
+    const rak = await bacaJson(PSN_JSON, {});
+    const milik = rak[penjaga.id] || [];
+    const i = milik.findIndex((b) => b.id === req.params.bid);
+    if (i < 0) return res.status(404).json({ error: 'Berkas tidak ada dalam daftar.' });
+
+    const [baris] = milik.splice(i, 1);
+    if (milik.length) rak[penjaga.id] = milik; else delete rak[penjaga.id];
+    await tulisJson(PSN_JSON, rak);
+    await hapusBiner(path.join(PSN_DIR, penjaga.id, baris.berkas));
+
+    await catat(penjaga.user, {
+      modul: 'personel', aksi: 'hapus-berkas', unit: penjaga.orang.unit || '',
+      rincian: `${penjaga.orang.nama} · ${baris.nama}`
+    });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[personel] gagal menghapus berkas:', e);
     res.status(500).json({ error: 'Gagal menghapus: ' + (e?.message || e) });
   }
 });

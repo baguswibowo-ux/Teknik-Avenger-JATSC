@@ -430,6 +430,23 @@ tr.jdw-berkala .jdw-nama{font-family:var(--font-mono);font-size:9.5px;letter-spa
 .sert-sunting:last-of-type{border-bottom:none;}
 html[data-tema="gelap"] .sert-sunting input[type=date]::-webkit-calendar-picker-indicator{filter:invert(.7);}
 
+/* Bukti sertifikat. Garis pemisahnya pindah ke pembungkus: berkas yang
+   menempel pada satu baris harus terlihat berada DI DALAM baris itu, bukan
+   mengambang di antara dua baris yang berbeda orang sertifikatnya. */
+.sert-bungkus{border-bottom:1px solid var(--line);}
+.sert-bungkus:last-of-type{border-bottom:none;}
+.sert-bungkus .sert-sunting{border-bottom:none;padding-bottom:4px;}
+.psn-berkas{display:flex;flex-wrap:wrap;gap:7px;align-items:center;padding:0 0 11px;}
+.psn-berkas-ket{font-size:11px;color:var(--muted);}
+.psn-cip{display:inline-flex;align-items:center;gap:5px;padding:3px 7px;border-radius:7px;
+  border:1px solid var(--line);background:var(--kaca);max-width:100%;}
+.psn-cip a{font-size:11px;color:var(--text);text-decoration:none;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;max-width:260px;}
+.psn-cip a:hover{text-decoration:underline;}
+.psn-cip-buang{background:none;border:0;color:var(--muted);cursor:pointer;font-size:11px;padding:0 1px;}
+.psn-cip-buang:hover{color:var(--fail);}
+.psn-lampiran{font-family:var(--font-mono);font-size:10.5px;color:var(--muted);}
+
 /* ---------- Perlu Perhatian di beranda ---------- */
 .hal-baris{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:11px;}
 .hal{display:grid;gap:4px;text-align:left;border:1px solid var(--line);border-left:3px solid var(--muted);

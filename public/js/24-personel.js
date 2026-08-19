@@ -114,6 +114,7 @@ async function psnMuat(){
     PSN.daftar = (j && Array.isArray(j.personel)) ? j.personel : [];
     PSN.boleh  = !!(j && j.boleh);
     PSN.masuk  = !!(j && j.masuk);
+    await psnBerkasMuat();
   }catch(e){
     console.warn('Data personel tidak bisa diambil:', e && e.message || e);
     PSN.daftar = []; PSN.boleh = false;
@@ -204,6 +205,10 @@ function psnBaris(p){
          <br><span class="mono" style="color:var(--muted);font-size:10.5px">${
            tglRingkas(terdekat.s.berlaku)}</span>`
       : `<span class="mono" style="color:var(--muted)">—</span>`}</td>
+    <td>${(PSN.berkas[p.id] || []).length
+      ? `<span class="psn-lampiran" title="${T('bukti terlampir','attachments')}">${
+          (PSN.berkas[p.id] || []).length} ${T('bukti','files')}</span>`
+      : '<span class="mono" style="color:var(--muted)">—</span>'}</td>
     <td style="text-align:right">${PSN.boleh
       ? `<button class="btn garis kecil" data-psn="${esc(p.id)}">${T('Ubah','Edit')}</button>` : ''}</td>
   </tr>`;
@@ -212,7 +217,8 @@ function psnBaris(p){
 const psnKepalaTabel = () => `<thead><tr>
   <th>${T('Nama','Name')}</th><th>${T('Jabatan','Position')}</th>
   <th>${T('Lisensi, rating, sertifikat','Licences, ratings, certificates')}</th>
-  <th>${T('Paling dekat habis','Nearest expiry')}</th><th></th></tr></thead>`;
+  <th>${T('Paling dekat habis','Nearest expiry')}</th>
+  <th>${T('Bukti','Proof')}</th><th></th></tr></thead>`;
 
 /** Isi subtab Personel untuk satu unit. */
 function psnIsi(unit){
@@ -268,7 +274,7 @@ function psnIsi(unit){
       </div>
       <div class="gulir" style="max-height:none"><table id="tblPersonel">${psnKepalaTabel()}<tbody>${
         tampil.length ? tampil.map(psnBaris).join('')
-        : `<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">${
+        : `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">${
             orang.length
               ? T('Tidak ada yang cocok dengan saringan itu.','Nothing matches that filter.')
               : T('Belum ada personel terdaftar di unit ini.','No personnel on record in this unit yet.')
@@ -360,7 +366,8 @@ function psnPasang(){
 /* ---------- Kartu ubah personel ---------- */
 
 const psnBarisSert = (s, i) => `
-  <div class="sert-sunting" data-sert="${i}">
+  <div class="sert-bungkus" data-sert="${i}">
+  <div class="sert-sunting">
     <div class="isian" style="margin-bottom:0;min-width:120px">
       <label>${T('Jenis','Kind')}</label>
       <select data-sk="${i}" data-kolom="jenis">${SERT_JENIS.map(j=>
@@ -385,6 +392,8 @@ const psnBarisSert = (s, i) => `
       <input type="date" data-sk="${i}" data-kolom="berlaku" value="${esc(s.berlaku || '')}"></div>
     <button class="btn garis kecil" data-sert-buang="${i}"
       title="${T('Hapus baris ini','Delete this row')}">✕</button>
+  </div>
+  ${psnBerkasCip(PSN.dibuka, s)}
   </div>`;
 
 function psnBuka(asal, unitBawaan){
@@ -426,6 +435,8 @@ function psnGambarKartu(){
       : `<div style="color:var(--muted);font-size:12.5px;padding:6px 0">${
           T('Belum ada. Tekan Tambah baris.','None yet. Press Add a row.')}</div>`}
 
+    ${psnBerkasLepas(p)}
+
     ${p.id ? `<div class="bahaya" style="margin-top:18px">
       <div class="jdl">${T('Hapus personel ini','Delete this person')}</div>
       <p>${T('Baris ini beserta seluruh sertifikatnya dibuang. Akun E-Logbook-nya tidak ikut terhapus.',
@@ -447,9 +458,14 @@ function psnGambarKartu(){
     });
   });
   el('btnTambahSert').addEventListener('click', ()=>{
-    PSN.dibuka.sertifikat.push({ jenis:'Lisensi', nama:'', nomor:'', rating:'', terbit:'', berlaku:'' });
+    /* id dibuat di sini, bukan menunggu server: begitu barisnya ada di layar
+       ia sudah bisa dilampiri bukti, dan bukti butuh sesuatu untuk ditunjuk. */
+    PSN.dibuka.sertifikat.push({ id:'s' + Date.now().toString(36),
+      jenis:'Lisensi', nama:'', nomor:'', rating:'', terbit:'', berlaku:'' });
     psnGambarKartu();
   });
+  psnBerkasPasang();
+
   const hapus = el('btnHapusPersonel');
   if(hapus) hapus.addEventListener('click', async ()=>{
     if(!confirm(T(`Hapus ${PSN.dibuka.nama} dari daftar personel?`,
@@ -516,3 +532,208 @@ el('btnSimpanPersonel').addEventListener('click', async ()=>{
    mati bersama isi subtab Personel yang digambar ulang tiap kali, jadi
    pendengarnya ikut dipasang di psnPasang(). */
 
+/* ---------- Bukti sertifikat: berkas yang menempel pada barisnya ----------
+
+   Baris sertifikat selama ini cuma memuat nomor dan tanggal. Yang ditanya
+   pertama kali saat lisensi diperiksa adalah pindaiannya, dan itu selama ini
+   tinggal di folder pribadi masing-masing — tidak ikut ke mana-mana waktu
+   orangnya cuti atau pindah unit.
+
+   Berkasnya menempel pada satu baris sertifikat lewat id barisnya, bukan lewat
+   nomor urut: satu baris yang dihapus menggeser sisanya, dan bukti lisensi
+   akan berpindah menempel ke sertifikat yang lain tanpa ada yang menyentuhnya.
+
+   Yang belum tersimpan tidak bisa dilampiri. Orang baru belum punya id di
+   server, dan berkas yang diunggah ke id yang belum ada tidak punya tempat
+   untuk mendarat. Kartunya mengatakan itu, bukan menawarkan tombol yang gagal. */
+
+const PSN_EXT_SAH = /\.(pdf|docx?|xlsx?|pptx?|odt|ods|odp|rtf|txt|csv|md|jpe?g|png|webp|gif|bmp|tiff?|zip|rar|7z|dwg|dxf)$/i;
+
+/** Rak berkas seluruh orang: id personel -> array baris. */
+PSN.berkas = {};
+PSN.berkasBisaTulis = true;
+
+/** Berkas milik satu baris sertifikat. */
+const psnBerkasSert = (orangId, sertId) =>
+  (PSN.berkas[orangId] || []).filter(b => (b.sert || '') === sertId);
+
+async function psnBerkasMuat(){
+  if(!SRV.aktif) return;
+  try{
+    const r = await srvFetch('/personel/berkas', {}, 10000);
+    // 401 sebelum masuk bukan kerusakan — raknya memang tertutup sampai ada sesi.
+    if(r.status === 401){ PSN.berkas = {}; return; }
+    const j = await r.json().catch(()=>null);
+    if(!r.ok || !j) throw new Error((j && j.error) || ('server menjawab ' + r.status));
+    PSN.berkas = j.berkas || {};
+    if(typeof j.bisaTulis === 'boolean') PSN.berkasBisaTulis = j.bisaTulis;
+  }catch(e){
+    console.warn('Rak berkas personel tidak terbaca:', e && e.message || e);
+    PSN.berkas = {};
+  }
+}
+
+/**
+ * Unggah satu bukti.
+ *
+ * Dua jalan, dan yang dipakai ditentukan server — persis seperti rak dokumen
+ * unit. Di Vercel berkasnya pergi langsung ke simpanan lewat URL bertanda
+ * tangan, karena badan permintaan ke fungsi di sana berhenti di 4.500.000 byte
+ * dan pindaian sertifikat A4 berwarna lewat dengan mudah di atas itu.
+ */
+async function psnBerkasKirim(orangId, f, sertId){
+  const r0 = await srvFetch(`/personel/${encodeURIComponent(orangId)}/berkas/siap`, {
+    method:'POST', headers:{ 'Content-Type':'application/json' },
+    body: JSON.stringify({ nama:f.name, ukuran:f.size })
+  }, 15000);
+  const siap = await r0.json().catch(()=>({}));
+  if(!r0.ok) throw new Error(siap.error || 'server menjawab ' + r0.status);
+
+  if(siap.langsung){
+    // fetch polos, bukan srvFetch: 25 MB lewat jaringan lambat bisa melampaui
+    // batas waktu apa pun yang pantas dipasang untuk API biasa.
+    const taruh = await fetch(siap.url, {
+      method:'PUT',
+      headers:{ 'Content-Type': f.type || 'application/octet-stream' },
+      body: f
+    });
+    if(!taruh.ok) throw new Error('gagal menaruh berkas di simpanan (' + taruh.status + ')');
+    const r = await srvFetch(`/personel/${encodeURIComponent(orangId)}/berkas/catat`, {
+      method:'POST', headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({ id:siap.id, nama:f.name, jenis:f.type || '', sert:sertId })
+    }, 30000);
+    const j = await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(j.error || 'server menjawab ' + r.status);
+    return j.baris;
+  }
+
+  const isi = await berkasBase64(f);
+  const r = await srvFetch(`/personel/${encodeURIComponent(orangId)}/berkas`, {
+    method:'POST', headers:{ 'Content-Type':'application/json' },
+    body: JSON.stringify({ nama:f.name, jenis:f.type || '', sert:sertId, isi })
+  }, 120000);
+  const j = await r.json().catch(()=>({}));
+  if(r.status === 413 && !j.error){
+    throw new Error(T('terlalu besar untuk dikirim lewat jalur ini','too large for this upload path'));
+  }
+  if(!r.ok) throw new Error(j.error || 'server menjawab ' + r.status);
+  return j.baris;
+}
+
+/** Cip berkas di bawah satu baris sertifikat, beserta tombol lampir. */
+function psnBerkasCip(orang, s){
+  if(!SRV.aktif){
+    return `<div class="psn-berkas"><span class="psn-berkas-ket">${
+      T('Bukti berkas hanya ada saat tersambung ke server.',
+        'Attachments only exist when connected to the server.')}</span></div>`;
+  }
+  if(!orang.id){
+    return `<div class="psn-berkas"><span class="psn-berkas-ket">${
+      T('Simpan dulu orangnya, baru buktinya bisa dilampirkan.',
+        'Save the person first, then attachments can be added.')}</span></div>`;
+  }
+  const milik = psnBerkasSert(orang.id, s.id || '');
+  return `<div class="psn-berkas">
+    ${milik.map(b=>`<span class="psn-cip">
+      <a href="/personel/${esc(orang.id)}/berkas/${esc(b.id)}" target="_blank" rel="noopener"
+        title="${esc(b.nama)} · ${brkUkuran(b.ukuran)}">${esc(brkEkstensi(b.nama))} · ${esc(b.nama)}</a>
+      ${BOLEH_HAPUS.personel
+        ? `<button class="psn-cip-buang" data-brk-buang="${esc(b.id)}"
+             title="${T('Hapus berkas ini','Delete this file')}">✕</button>` : ''}
+    </span>`).join('')}
+    ${PSN.berkasBisaTulis
+      ? `<button class="btn garis kecil" data-brk-lampir="${esc(s.id || '')}">${
+          milik.length ? T('Tambah bukti','Add proof') : T('Lampirkan bukti','Attach proof')}</button>`
+      : `<span class="psn-berkas-ket">${T('Unggahan dimatikan di lingkungan ini.',
+                                          'Uploads are off in this environment.')}</span>`}
+  </div>`;
+}
+
+/** Pendengar tombol lampir dan hapus di kartu personel. */
+function psnBerkasPasang(){
+  const badan = el('badanPersonel'); if(!badan) return;
+  const orang = PSN.dibuka; if(!orang) return;
+
+  badan.querySelectorAll('[data-brk-lampir]').forEach(t=>{
+    t.addEventListener('click', ()=>{
+      const pilih = document.createElement('input');
+      pilih.type = 'file';
+      pilih.multiple = true;
+      pilih.addEventListener('change', async ()=>{
+        const daftar = [...pilih.files].filter(f=>PSN_EXT_SAH.test(f.name));
+        if(!daftar.length){
+          pesan(T('Jenis berkas itu tidak diterima.','That file type is not accepted.'));
+          return;
+        }
+        t.disabled = true;
+        const asal = t.textContent;
+        const gagal = [];
+        let sudah = 0;
+        for(const f of daftar){
+          if(f.size > BRK_BATAS){ gagal.push(f.name + ': ' + T('lebih dari 25 MB','over 25 MB')); continue; }
+          t.textContent = T(`Mengunggah ${sudah + 1}/${daftar.length}...`,
+                            `Uploading ${sudah + 1}/${daftar.length}...`);
+          try{ await psnBerkasKirim(orang.id, f, t.dataset.brkLampir); sudah++; }
+          catch(e){ gagal.push(f.name + ': ' + (e && e.message || e)); }
+        }
+        t.disabled = false; t.textContent = asal;
+        // Satu kali baca ulang untuk seluruh kiriman: yang dijawab server rak
+        // seluruh orang, dan mengambilnya berulang tidak menambah apa pun.
+        if(sudah) await psnBerkasMuat();
+        psnGambarKartu();
+        if(gagal.length) pesan(T('Gagal mengunggah: ','Upload failed: ') + gagal.join('; '));
+        else if(sudah)   pesan(T(`${sudah} berkas terlampir.`, `${sudah} files attached.`));
+      });
+      pilih.click();
+    });
+  });
+
+  badan.querySelectorAll('[data-brk-buang]').forEach(t=>{
+    t.addEventListener('click', async ()=>{
+      if(!confirm(T('Hapus berkas bukti ini dari server?','Delete this attachment from the server?'))) return;
+      try{
+        const r = await srvFetch(
+          `/personel/${encodeURIComponent(orang.id)}/berkas/${encodeURIComponent(t.dataset.brkBuang)}`,
+          { method:'DELETE' }, 15000);
+        const j = await r.json().catch(()=>({}));
+        if(!r.ok) throw new Error(j.error || 'server menjawab ' + r.status);
+        await psnBerkasMuat();
+        psnGambarKartu();
+      }catch(e){
+        pesan(T('Gagal menghapus: ','Could not delete: ') + (e && e.message || e));
+      }
+    });
+  });
+}
+
+/**
+ * Berkas yang tidak menempel pada baris sertifikat mana pun.
+ *
+ * Ada dua cara ia lahir, dan keduanya wajar: baris sertifikat yang dihapus
+ * meninggalkan buktinya, dan bukti yang dilampirkan ke baris baru lalu
+ * kartunya ditutup dengan Batal menempel pada baris yang tidak pernah
+ * tersimpan. Tanpa panel ini berkasnya tetap ada di server tapi tidak muncul
+ * di mana pun — memakan ruang, tidak bisa dibuka, tidak bisa dihapus.
+ */
+function psnBerkasLepas(orang){
+  if(!SRV.aktif || !orang.id) return '';
+  const idSert = new Set((orang.sertifikat || []).map(s=>s.id || ''));
+  const lepas = (PSN.berkas[orang.id] || []).filter(b=>!idSert.has(b.sert || ''));
+  if(!lepas.length) return '';
+  return `<div class="atur-data" style="margin:16px 0 6px">
+      <span class="ket">${lepas.length} ${
+        T('berkas tidak menempel pada baris mana pun','files attached to no row')}</span>
+    </div>
+    <div class="psn-berkas">
+      ${lepas.map(b=>`<span class="psn-cip">
+        <a href="/personel/${esc(orang.id)}/berkas/${esc(b.id)}" target="_blank" rel="noopener"
+          title="${esc(b.nama)} · ${brkUkuran(b.ukuran)}">${esc(brkEkstensi(b.nama))} · ${esc(b.nama)}</a>
+        ${BOLEH_HAPUS.personel
+          ? `<button class="psn-cip-buang" data-brk-buang="${esc(b.id)}"
+               title="${T('Hapus berkas ini','Delete this file')}">✕</button>` : ''}
+      </span>`).join('')}
+    </div>
+    <div style="font-size:11px;color:var(--muted);padding:0 0 8px">${
+      T('Sisa dari baris sertifikat yang sudah dihapus, atau dari baris yang batal disimpan.',
+        'Left over from a deleted certificate row, or from a row whose save was cancelled.')}</div>`;
+}

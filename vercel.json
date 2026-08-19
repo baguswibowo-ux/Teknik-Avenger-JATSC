@@ -11,6 +11,7 @@
     { "source": "/aktivitas", "destination": "/api/index" },
     { "source": "/hak", "destination": "/api/index" },
     { "source": "/personel", "destination": "/api/index" },
+    { "source": "/personel/(.*)", "destination": "/api/index" },
     { "source": "/dinas/(.*)", "destination": "/api/index" },
     { "source": "/berkala", "destination": "/api/index" },
     { "source": "/berkala/(.*)", "destination": "/api/index" },
