@@ -3,6 +3,8 @@
   "regions": ["sin1"],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index" },
+    { "source": "/uploads", "destination": "/api/index" },
+    { "source": "/uploads/(.*)", "destination": "/api/index" },
     { "source": "/galeri/(.*)", "destination": "/api/index" },
     { "source": "/logo/(.*)", "destination": "/api/index" },
     { "source": "/foto/(.*)", "destination": "/api/index" },
