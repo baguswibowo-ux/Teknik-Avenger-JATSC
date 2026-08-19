@@ -342,8 +342,22 @@ export async function urlUnggahBertanda(jalur) {
     throw new Error('Gagal meminta izin unggah (' + res.status + '): ' + await res.text());
   }
   const data = await res.json();
-  // Supabase menjawab jalur relatif ('/object/upload/sign/...'), bukan URL utuh.
-  return SUPABASE_URL + '/storage/v1' + data.url;
+
+  /* Dua bentuk jawaban yang sama-sama pernah dipakai Supabase: 'url' berisi
+     jalur relatif ('/object/upload/sign/...?token=...'), atau 'token' saja yang
+     harus dirangkai sendiri. Keduanya diterima — versi Storage di proyek ini
+     tidak bisa saya uji dari komputer tanpa service key, dan bertaruh pada satu
+     bentuk berarti kegagalannya baru terasa saat orang mengunggah dokumen. */
+  const relatif = data?.url
+    || (data?.token
+        ? '/object/upload/sign/' + BUCKET + '/'
+          + kunciDari(jalur).split('/').map(encodeURIComponent).join('/')
+          + '?token=' + encodeURIComponent(data.token)
+        : null);
+  if (!relatif) {
+    throw new Error('Jawaban izin unggah tidak dikenali: ' + JSON.stringify(data).slice(0, 200));
+  }
+  return relatif.startsWith('http') ? relatif : SUPABASE_URL + '/storage/v1' + relatif;
 }
 
 /**
