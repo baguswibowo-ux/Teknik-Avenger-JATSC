@@ -1,0 +1,30 @@
+# Apa yang TIDAK ikut naik ke Vercel dari folder ini.
+#
+# Berkas ini ada karena `npx vercel` TIDAK membaca .gitignore — ia mengunggah
+# isi folder apa adanya. Akar repo sudah punya .vercelignore sejak galeri foto
+# pegawai terlanjur naik ke deployment dan bisa dibuka siapa saja yang tahu
+# nama berkasnya. Folder ini tidak punya, padahal ia Root Directory proyek
+# Vercel `e-log-book-server` — jadi lubang yang sama masih terbuka di sini,
+# dan isinya lebih berat.
+#
+# Ingat bentuk kerusakannya: berkas statis diperiksa SEBELUM rewrites, jadi
+# `{ "source": "/(.*)", "destination": "/api" }` di vercel.json tidak menahan
+# apa pun. Berkas yang ikut terunggah disajikan Vercel langsung, melewati
+# seluruh pemeriksaan sesi di server.js.
+
+# Basis data SQLite: seluruh akun, perannya, dan sidik sandinya. Di produksi
+# yang berlaku Postgres di Supabase — berkas ini bukan cuma tidak diperlukan
+# di sana, ia tidak boleh ada di sana.
+data/
+
+# Tanda tangan teknisi dan pejabat, satu berkas per tanda tangan. Di produksi
+# lampirannya tinggal di Supabase Storage dan hanya bisa diambil lewat rute
+# yang menuntut sesi.
+uploads/
+
+node_modules/
+.git/
+.claude/
+*.log
+.env
+.env.*
