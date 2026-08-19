@@ -1878,6 +1878,15 @@ app.get('/_info', (_req, res) => {
     // ELOGBOOK_TAUTAN dipakai hanya kalau alamatnya memang lain sendiri.
     tautanElogbook: process.env.ELOGBOOK_TAUTAN || null,
     portElogbook: TERUS ? Number(new URL(ASAL).port || 80) : null,
+    /* Ke mana simpanan menulis. Bukan rahasia — ia cuma menyebut jalurnya,
+       bukan alamat atau kuncinya.
+
+       Ini yang paling menentukan dan paling tidak terlihat: kalau AVENGER_DB
+       tidak sampai ke deployment, aplikasinya tetap menjawab 200 di semua
+       halaman, cuma isinya kosong. Tanpa baris ini, satu-satunya cara
+       membedakan "belum ada datanya" dari "melihat ke tempat yang salah"
+       adalah menebak. */
+    simpanan: DI_TABEL ? 'tabel' : 'berkas',
     // Dua kemampuan yang tidak selalu ada, supaya halaman tidak menawarkan
     // tombol yang pasti gagal. Menebaknya dari sisi peramban tidak mungkin:
     // gagalnya baru ketahuan setelah tombolnya terlanjur ditekan.
