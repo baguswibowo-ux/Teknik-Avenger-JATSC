@@ -551,6 +551,25 @@ Kalau dibalik, yang terdaftar menjawab 401 sementara yang tidak menjawab 404 —
 selisih dua angka itu sudah cukup untuk menebak-nebak nama berkas dari luar
 sampai ketemu, dan nama foto di sini memuat kode unit serta tanggal.
 
+#### Menambah rute Express saja tidak cukup di Vercel
+
+Ini terlewat waktu langkah C ditulis, dan baru ketahuan di produksi: rute
+`/foto/:unit/:berkas` sudah ada di `server.js`, tapi `vercel.json` **tidak punya
+rewrite untuknya**. Akibatnya Vercel mencari `/foto/...` sebagai berkas statis di
+`public/` — yang kosong, karena `public/foto/` diabaikan `.gitignore` — lalu
+menjawab 404. Rutenya tidak pernah dipanggil sama sekali.
+
+Di server kantor ini mustahil terlihat: di sana Express memegang **semua** jalur,
+jadi rute apa pun langsung jalan. Di Vercel, daftar `rewrites` di `vercel.json`
+adalah penjaga pintunya — apa pun yang tidak tercantum di situ tidak pernah
+sampai ke aplikasi.
+
+Jadi aturannya: **setiap kali menambah jalur baru yang dilayani `server.js`,
+tambahkan juga sumbernya di `rewrites`.** Yang sekarang tercantum: `/api/*`,
+`/galeri/*`, `/logo/*`, `/foto/*`, `/aktivitas`, `/hak`, `/personel`,
+`/dinas/*`, `/berkala`, `/berkala/*`, `/unitdb`, `/unitdb/*`, `/dokumen`,
+`/dokumen/*`, `/_info`.
+
 ### 8.5 Langkah D — tiga penjaga, dikerjakan 19 Agu 2026
 
 Ketiganya berhenti bertanya "apakah ini Vercel" dan mulai bertanya "apakah ini
