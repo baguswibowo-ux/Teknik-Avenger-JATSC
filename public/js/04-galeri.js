@@ -56,9 +56,13 @@ const MODUL = [
   { st:'Rencana', stEn:'Planned', nama:'Sparepart', namaEn:'Spare Parts',
     ket:'Persediaan, batas minimum, dan pemakaian yang tersambung ke logbook.',
     ketEn:'Stock, minimum thresholds, and consumption wired into the logbook.' },
-  { st:'Rencana', stEn:'Planned', nama:'Sejarah Peralatan', namaEn:'Equipment History',
-    ket:'Satu garis waktu per peralatan, dirangkai dari logbook, isu, dan LTK.',
-    ketEn:'One timeline per piece of equipment, assembled from the logbook, issues, and LTK.' },
+  { st:'Sudah jalan', stEn:'Running', jalan:true, nama:'Sejarah Peralatan', namaEn:'Equipment History',
+    ket:'Satu garis waktu per peralatan, ditulis di kartu alatnya dan tersimpan di server. '
+      + 'Merangkainya sendiri dari logbook, isu, dan LTK masih di depan — itu perlu kolom penanda '
+      + 'peralatan di ketiganya.',
+    ketEn:'One timeline per piece of equipment, written on its card and stored on the server. '
+      + 'Assembling it automatically from the logbook, issues, and LTK is still ahead — that needs an '
+      + 'equipment field in all three.' },
   { st:'Rencana', stEn:'Planned', nama:'Galeri Foto Peralatan', namaEn:'Equipment Photo Gallery',
     ket:'Foto tiap fasilitas beserta lokasinya, dipakai sebagai wajah beranda.',
     ketEn:'A photo of each facility with its location, used as the face of the home screen.' },

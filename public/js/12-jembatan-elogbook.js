@@ -254,6 +254,7 @@ async function srvMuat(){
   // bukan dari E-Logbook. Kegagalannya tidak menggagalkan pemuatan — layarnya
   // tetap hidup, hanya daftarnya yang belum terisi.
   await unitdbMuat();
+  await sjrMuat();
   await dokMuat();
 }
 

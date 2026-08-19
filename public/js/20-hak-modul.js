@@ -18,7 +18,7 @@
    ======================================================================= */
 
 const HAK_KUNCI = 'avenger.hak';
-const HAK_MODUL = ['dinas','berkala','personel','peralatan','sparepart','dokumen','galeri'];
+const HAK_MODUL = ['dinas','berkala','personel','peralatan','sparepart','sejarah','dokumen','galeri'];
 const HAK_PERAN = ['admin','pejabat','adminunit','pic','teknisi'];
 const HAK_NAMA  = {
   dinas:     ['Jadwal Dinas','Duty Roster'],
@@ -26,6 +26,7 @@ const HAK_NAMA  = {
   personel:  ['Data Personel','Personnel Records'],
   peralatan: ['Daftar Peralatan','Equipment List'],
   sparepart: ['Sparepart','Spare Parts'],
+  sejarah:   ['Sejarah Peralatan','Equipment History'],
   dokumen:   ['Dokumen','Documents'],
   galeri:    ['Galeri Foto','Photo Gallery']
 };
@@ -46,6 +47,10 @@ const hakBawaan = () => ({
      server.js: ia daftar induk yang ditunjuk modul lain lewat id. */
   peralatan: { peran:['admin'],                                          petugas:[] },
   sparepart: { peran:['admin','adminunit','pic','teknisi'],              petugas:[] },
+  /* Sejarah alat dibuka sampai teknisi walau daftar alatnya tidak — yang
+     menuliskan apa yang terjadi pada alat adalah yang berdinas di depannya.
+     Alasan lengkapnya di HAK_BAWAAN server.js. */
+  sejarah:   { peran:['admin','pejabat','adminunit','pic','teknisi'],     petugas:[] },
   dokumen:   { peran:['admin','adminunit','pic','teknisi'],              petugas:[] },
   galeri:    { peran:['admin','adminunit','pic','teknisi'],              petugas:[] }
 });

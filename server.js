@@ -460,7 +460,7 @@ async function siapa(req) {
    --------------------------------------------------------------------- */
 
 const MODUL_HAK = ['dinas', 'berkala', 'personel',
-                   'peralatan', 'sparepart', 'dokumen', 'galeri'];
+                   'peralatan', 'sparepart', 'sejarah', 'dokumen', 'galeri'];
 
 const PERAN_SAH = ['admin', 'pejabat', 'adminunit', 'pic', 'teknisi'];
 
@@ -477,7 +477,7 @@ const PERAN_HAPUS = new Set(['admin', 'adminunit']);
    hak, misalnya — penjagaan unit tidak berlaku karena tidak ada unit yang
    bisa dijadikan pagar. */
 const MODUL_PER_UNIT = new Set(['dinas', 'berkala', 'peralatan', 'sparepart',
-                                'dokumen', 'galeri']);
+                                'sejarah', 'dokumen', 'galeri']);
 
 /* Bawaan kalau hak.json belum ada.
 
@@ -500,6 +500,13 @@ const HAK_BAWAAN = {
   personel:  { peran: ['admin', 'adminunit', 'pic', 'teknisi'],        petugas: [] },
   peralatan: { peran: ['admin'],                                       petugas: [] },
   sparepart: { peran: ['admin', 'adminunit', 'pic', 'teknisi'],        petugas: [] },
+  /* Sejarah peralatan berhenti di teknisi, tidak ikut daftar induknya yang
+     administrator. Keduanya memang menunjuk peralatan yang sama, tapi yang
+     dijaga berbeda: mengganti nama atau membuang satu baris peralatan
+     menggeser layar orang lain, sementara menuliskan apa yang terjadi pada
+     alat itu adalah pekerjaan orang yang sedang berdinas di depannya. Kalau
+     ia harus menunggu administrator, riwayatnya tidak akan pernah terisi. */
+  sejarah:   { peran: ['admin', 'pejabat', 'adminunit', 'pic', 'teknisi'], petugas: [] },
   dokumen:   { peran: ['admin', 'adminunit', 'pic', 'teknisi'],        petugas: [] },
   galeri:    { peran: ['admin', 'adminunit', 'pic', 'teknisi'],        petugas: [] }
 };
@@ -1542,6 +1549,166 @@ app.put('/unitdb/:modul/:unit', badanDinas, async (req, res) => {
   } catch (e) {
     console.error(`[${modul}] gagal menyimpan:`, e);
     res.status(500).json({ error: 'Gagal menyimpan: ' + (e?.message || e) });
+  }
+});
+
+/* =====================================================================
+   SEJARAH PERALATAN — garis waktu per alat
+
+   Sampai sekarang isinya TIDAK datang dari mana pun: SEJARAH di
+   public/js/03-suntingan-unit.js adalah tiga daftar yang ditulis tangan
+   sebagai contoh, berkunci id alat — tx, grx, acp. Karena id itu juga dipakai
+   peralatan sungguhan, contoh itu ikut muncul di produksi dan terbaca seolah
+   riwayat betulan, lengkap dengan tanggal dan nama vendor yang tidak pernah
+   ada. Itu yang dibereskan blok ini: yang tampil sekarang isi simpanan,
+   dan yang di berkas contoh tinggal di jalur data contoh saja.
+
+   Rencana jangka panjangnya tetap seperti yang tertulis di daftar modul:
+   satu garis waktu yang DIRANGKAI dari logbook, isu, dan LTK. Itu belum bisa
+   sekarang — tidak ada satu pun baris logbook di E-Logbook yang menyebut id
+   peralatan, jadi tidak ada yang bisa dirangkai. Yang bisa dikerjakan hari ini
+   adalah menuliskannya sendiri, dan bentuk simpanannya sengaja dibuat sama
+   dengan yang nanti akan dihasilkan perangkaian itu: satu baris = satu
+   kejadian, bertanggal, bertingkat perhatian. Kalau nanti logbook bisa
+   menyebut peralatan, barisnya tinggal ditambahkan dari sana.
+
+   Berkunci unit lalu id alat, bukan id alat saja: id hanya unik di dalam
+   unitnya (lihat idBaris), jadi 'tx' milik Radkom dan 'tx' milik unit lain
+   adalah dua alat yang berbeda.
+   ===================================================================== */
+
+const SEJARAH_JSON = path.join(DATA_DIR, 'sejarah.json');
+const SEJARAH_WARNA = new Set(['', 'kuning', 'merah']);
+
+/** Satu kejadian, dirapikan. idnya ditetapkan pemanggil, bukan di sini —
+    pemberian id harus melihat yang sudah tersimpan, dan fungsi ini tidak
+    tahu apa-apa tentang itu.
+
+    Tanggal boleh kosong: kejadian lama yang tanggal pastinya sudah tidak ada
+    yang ingat tetap lebih berharga tercatat daripada tidak. Yang tanpa
+    tanggal jatuh ke ekor urutan, dan layar menyebutnya apa adanya. */
+function rapikanKejadian(k, id) {
+  const judul = String(k?.judul || '').trim().slice(0, 120);
+  if (!judul) return null;
+  return {
+    id,
+    tgl: tglSah(k?.tgl),
+    // Kosong = kejadian biasa, kuning = perlu diperhatikan, merah = gangguan.
+    warna: SEJARAH_WARNA.has(k?.warna) ? (k.warna || '') : '',
+    judul,
+    rinci: String(k?.rinci || '').trim().slice(0, 1000),
+    /* Ketiganya ditimpa rutenya dari sesi yang sedang berjalan — yang
+       dikirim layar tidak pernah dipakai. Tetap dirapikan di sini supaya
+       bentuk barisnya lengkap walau pemanggil lain suatu saat lupa. */
+    oleh: String(k?.oleh || '').trim().slice(0, 32),
+    olehNama: String(k?.olehNama || '').trim().slice(0, 80),
+    dicatat: tglJamSah(k?.dicatat)
+  };
+}
+
+/** Seluruh sejarah, semua unit. Terbuka seperti daftar peralatannya sendiri —
+    yang berdinas perlu tahu apa yang pernah terjadi pada alat di depannya. */
+app.get('/sejarah', async (_req, res) => {
+  res.json({ sejarah: await bacaJson(SEJARAH_JSON, {}), bisaTulis: DINAS_TULIS });
+});
+
+/**
+ * Ganti garis waktu satu alat.
+ *
+ * Dikirim utuh per alat, bentuk yang sama dengan kegiatan berkala dan database
+ * unit — jadi pagar hapusnya juga sama: baris yang hilang dari kiriman dicari
+ * lewat id, karena tanpa itu siapa pun yang boleh menyimpan bisa membuang
+ * baris orang lain cukup dengan tidak menyertakannya.
+ */
+app.put('/sejarah/:unit/:alat', badanDinas, async (req, res) => {
+  const unit = String(req.params.unit || '').toLowerCase();
+  const alat = String(req.params.alat || '').trim().slice(0, 40).replace(/[^A-Za-z0-9_-]/g, '');
+  if (!unitSah(unit) || !alat) return res.status(400).json({ error: 'Permintaan tidak sah.' });
+  if (!DINAS_TULIS) {
+    return res.status(503).json({
+      error: 'Sejarah peralatan tidak bisa disimpan di lingkungan ini: penyimpanannya tidak permanen.'
+    });
+  }
+
+  const user = await siapa(req);
+  if (!user) return res.status(401).json({ error: 'Masuk dengan akun E-Logbook Anda dulu.' });
+  if (!(await bolehIsi(user, 'sejarah', unit))) {
+    return res.status(403).json({
+      error: bolehUnit(user, unit)
+        ? 'Peran akun Anda tidak diberi hak menulis sejarah peralatan.'
+        : 'Akun Anda tidak memegang unit ini, jadi sejarah alatnya tidak bisa Anda tulis.'
+    });
+  }
+
+  try {
+    const semua = await bacaJson(SEJARAH_JSON, {});
+    const perUnit = semua[unit] || {};
+    const sebelum = new Map((perUnit[alat] || []).map((k) => [k.id, k]));
+
+    /* Pemberian id melihat yang SUDAH tersimpan, bukan cuma yang sekiriman.
+       Kalau tidak: baris baru yang dikirim di urutan pertama akan diberi 'h1',
+       menabrak baris lama yang kebetulan bernama sama — dan tabrakan itu tidak
+       terlihat sebagai kesalahan. Ia terbaca sebagai penyuntingan: baris lama
+       tertimpa isinya, penjaga hapus tidak menyala karena idnya memang ada di
+       kiriman, dan pencatat aslinya ikut menempel pada kejadian yang bukan
+       miliknya. Layar ini mengirim baris baru di urutan pertama, jadi ini
+       bukan kemungkinan yang jauh. */
+    const mentah = (Array.isArray(req.body?.sejarah) ? req.body.sejarah : []).slice(0, 200);
+    const bersihId = (x) => String(x || '').trim().slice(0, 40).replace(/[^A-Za-z0-9_-]/g, '');
+    const dipakai = new Set(sebelum.keys());
+    for (const k of mentah) { const id = bersihId(k?.id); if (id) dipakai.add(id); }
+
+    const diklaim = new Set();
+    const daftar = mentah.map((k) => {
+      let id = bersihId(k?.id);
+      if (!id || diklaim.has(id)) {
+        let n = 1;
+        do { id = 'h' + n++; } while (dipakai.has(id));
+        dipakai.add(id);
+      }
+      diklaim.add(id);
+      return rapikanKejadian(k, id);
+    }).filter(Boolean)
+      // Diurutkan di sini, bukan di layar: yang membaca berikutnya belum tentu
+      // layar ini — dan garis waktu yang urutannya tergantung siapa yang
+      // menampilkannya bukan garis waktu.
+      .sort((a, b) => String(b.tgl).localeCompare(String(a.tgl)));
+
+    /* Siapa yang mencatat ditetapkan DI SINI, bukan diterima dari layar.
+       Kalau diterima, satu permintaan yang dirangkai tangan bisa menuliskan
+       nama siapa pun di bawah kejadian apa pun — dan riwayat peralatan dibaca
+       bertahun-tahun sesudahnya, saat tidak ada lagi yang ingat.
+
+       Baris yang sudah ada mempertahankan pencatat aslinya: membetulkan salah
+       ketik pada kejadian tahun lalu tidak membuat yang membetulkan jadi orang
+       yang menyaksikannya. */
+    const sekarang = new Date().toISOString();
+    for (const k of daftar) {
+      const lama = sebelum.get(k.id);
+      k.oleh     = lama ? lama.oleh     : user.username;
+      k.olehNama = lama ? lama.olehNama : (user.nama || user.username);
+      k.dicatat  = lama ? lama.dicatat  : sekarang;
+    }
+
+    const lamaId = new Set(sebelum.keys());
+    for (const k of daftar) lamaId.delete(k.id);
+    if (lamaId.size && !(await bolehHapus(user, 'sejarah', unit))) {
+      return res.status(403).json({
+        error: `Menghapus kejadian (${lamaId.size} baris hilang dari daftar) hanya bisa `
+             + 'dilakukan administrator. Menambah dan mengubah tetap boleh.'
+      });
+    }
+
+    if (daftar.length) perUnit[alat] = daftar; else delete perUnit[alat];
+    if (Object.keys(perUnit).length) semua[unit] = perUnit; else delete semua[unit];
+    await tulisJson(SEJARAH_JSON, semua);
+    await catat(user, {
+      modul: 'sejarah', aksi: 'tulis', unit, rincian: `${alat} · ${daftar.length} kejadian`
+    });
+    res.json({ ok: true, jumlah: daftar.length, sejarah: daftar });
+  } catch (e) {
+    console.error('[sejarah] gagal menyimpan:', e);
+    res.status(500).json({ error: 'Gagal menyimpan sejarah: ' + (e?.message || e) });
   }
 });
 

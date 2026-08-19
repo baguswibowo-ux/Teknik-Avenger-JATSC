@@ -33,9 +33,10 @@
   tampil data contoh.
 
   Jadwal dinas milik dashboard ini sendiri: tersimpan di server ini (data/),
-  bukan di E-Logbook, dan berlaku baik tersambung maupun tidak. Peralatan,
-  sparepart, dan sejarah peralatan masih contoh walau sudah tersambung —
-  modulnya memang belum ada di E-Logbook, dan itu ditandai di layar.
+  bukan di E-Logbook, dan berlaku baik tersambung maupun tidak. Begitu juga
+  peralatan, sparepart, dan sejarah peralatan — modulnya memang belum ada di
+  E-Logbook, jadi tempatnya di sini. Yang tampil sebagai contoh cuma saat
+  halaman berjalan tanpa server, dan itu ditandai di layar.
   Rinciannya di blok JEMBATAN E-LOGBOOK, dekat kaki berkas.
 
   Alur yang dicontohkan:
@@ -553,13 +554,15 @@
       >Posisi E-Logbook yang sekarang di dalam rencana dashboard.</span></div>
   <div class="pemisah"></div>
   <div class="modul-baris" id="modulBaris"></div>
-  <div class="catatan" data-en="<b>The order I would suggest.</b> Duty Roster first — it is the smallest, and it
-    brings the home screen to life immediately. Then Spare Parts, because its data stands on its own.
-    Equipment History last: it only turns out well once the logbook, issues, and LTK carry a field
-    naming the equipment.">
-    <b>Urutan yang saya sarankan.</b> Jadwal Dinas lebih dulu — paling kecil, dan langsung membuat
-    beranda hidup. Lalu Sparepart, karena datanya berdiri sendiri. Sejarah Peralatan paling akhir:
-    hasilnya baru bagus kalau logbook, isu, dan LTK sudah punya kolom penanda peralatan.
+  <div class="catatan" data-en="<b>Equipment History is written by hand for now.</b> Each event is typed on the
+    equipment card — date, level, what happened — and stored on this server. Assembling it automatically
+    from the logbook, issues, and LTK is still ahead, and it only becomes possible once those carry a
+    field naming the equipment. What is written by hand today does not go to waste: it has the same
+    shape as what that assembly would produce.">
+    <b>Sejarah Peralatan untuk sekarang ditulis tangan.</b> Tiap kejadian diketik di kartu peralatannya —
+    tanggal, tingkat, apa yang terjadi — dan tersimpan di server ini. Merangkainya sendiri dari logbook,
+    isu, dan LTK masih di depan, dan baru mungkin kalau ketiganya sudah punya kolom penanda peralatan.
+    Yang ditulis tangan sekarang tidak terbuang: bentuknya sama dengan yang akan dihasilkan perangkaian itu.
   </div>
   <div style="margin-top:20px;display:flex;gap:10px;flex-wrap:wrap">
     <a class="btn" href="#" data-elogbook data-en="Open E-Logbook as it is today">Buka E-Logbook yang sekarang</a>
@@ -774,6 +777,7 @@
 <script src="/js/30-papan-nama.js"></script>
 <script src="/js/31-gambar-kartu.js"></script>
 <script src="/js/32-dokumen-unit.js"></script>
+<script src="/js/34-sejarah-alat.js"></script>
 <script src="/js/33-mulai.js"></script>
 </body>
 </html>

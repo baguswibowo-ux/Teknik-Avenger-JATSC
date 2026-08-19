@@ -103,7 +103,17 @@ const LOGBOOK_UMUM = [
   { tgl:'2026-08-12', jam:'14:10', dinas:'Siang', uraian:'Serah terima dinas berjalan normal', pj:'—' }
 ];
 
-const SEJARAH = {
+/* Sejarah dan spek di bawah ini DATA CONTOH, dan namanya sekarang mengatakan
+   begitu. Dulu keduanya bernama SEJARAH dan SPEK saja, dibaca langsung oleh
+   kartu peralatan — dan karena kuncinya id alat (tx, grx, acp) yang juga
+   dipakai peralatan sungguhan, isinya ikut muncul di layar unit yang sudah
+   tersambung ke server. Yang terbaca orang di sana adalah riwayat lengkap
+   dengan tanggal, vendor, dan nomor seri yang tidak pernah ada.
+
+   Yang sungguhan sekarang tinggal di server — lihat 34-sejarah-alat.js dan
+   blok SEJARAH PERALATAN di server.js. Kedua daftar ini cuma dipakai saat
+   halaman berjalan dengan data contoh. */
+const SEJARAH_CONTOH = {
   tx:[
     { tgl:'2026-07-24', warna:'merah', judul:'Daya pancar TX 118.75 turun', rinci:'Turun ±40%. Dialihkan ke transmitter cadangan dalam 6 menit. PA menunggu sparepart.' },
     { tgl:'2026-03-12', warna:'', judul:'Kalibrasi tahunan', rinci:'Pengukuran daya, frekuensi, dan modulasi seluruh kanal A/G. Semua dalam batas.' },
@@ -122,7 +132,7 @@ const SEJARAH = {
     { tgl:'2020-02-11', warna:'', judul:'Instalasi awal', rinci:'Pemasangan empat unit AC presisi ruang equipment.' }
   ]
 };
-const SPEK = {
+const SPEK_CONTOH = {
   tx:{ 'Merk / Tipe':'R&S Series4200', 'Serial':'RS-4200-JKT-11', 'Tahun Pasang':'2019', 'Umur':'7 tahun', 'Kalibrasi Berikut':'12 Mar 2027' },
   grx:{ 'Merk / Tipe':'Garex 300 VSCS', 'Serial':'GRX-300-JTS-04', 'Tahun Pasang':'2021', 'Umur':'5 tahun', 'Kalibrasi Berikut':'20 Jan 2027' },
   acp:{ 'Merk / Tipe':'Stulz CyberAir 3', 'Serial':'STZ-CA3-08', 'Tahun Pasang':'2020', 'Umur':'6 tahun', 'Servis Berikut':'18 Okt 2026' }

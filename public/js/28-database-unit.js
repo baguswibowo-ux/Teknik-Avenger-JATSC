@@ -792,21 +792,14 @@ function gambarRinciAlat(){
   const kotak = el('rinciAlat'); if(!kotak) return;
   const alat = (PERALATAN[unitDibuka] || []).find(a=>a.id === alatDipilih);
   if(!alat){ kotak.innerHTML = ''; return; }
-  const riwayat = SEJARAH[alat.id];
-  const spek = SPEK[alat.id];
+  /* Spek contoh hanya dipakai kalau memang sedang berjalan dengan data contoh.
+     Kuncinya id alat, dan id itu — tx, grx, acp — juga dipakai peralatan
+     sungguhan, jadi di layar yang tersambung ia dulu menempel di atas papan
+     nama yang betulan: nomor seri karangan tercetak di atas nomor seri asli.
+     Sejarahnya kena hal yang sama, dan sekarang dipegang 34-sejarah-alat.js. */
+  const spek = SRV.aktif ? null : SPEK_CONTOH[alat.id];
   kotak.innerHTML = `<div class="grid2">
-    <div class="panel"><div class="kepala"><h3>${T('Sejarah','History')} — ${esc(alat.nama)}</h3>
-      <span class="ket">${T('terbaru di atas','newest first')}</span></div>
-      <div class="badan">${riwayat ? `<div class="riwayat">${riwayat.map(b=>`
-        <div class="butir ${b.warna}"><div class="tgl">${tglRingkas(b.tgl)}</div>
-          <div class="kepala-butir">${esc(b.judul)}</div>
-          <div class="rinci">${esc(b.rinci)}</div></div>`).join('')}</div>`
-        : `<div style="color:var(--muted);font-size:12.5px;line-height:1.7">
-             ${T('Riwayat peralatan ini belum diisi pada contoh. Di aplikasi sungguhan isinya dirangkai '
-                 + 'dari baris logbook, isu, dan LTK yang sudah menyebut peralatan ini.',
-                 'The history for this equipment has not been filled in on the sample. In the real '
-                 + 'application it is assembled from the logbook, issue, and LTK rows that name it.')}</div>`}
-      </div></div>
+    ${sjrPanel(unitDibuka, alat)}
     <div class="panel"><div class="kepala"><h3>${T('Identitas','Identity')}</h3>
       <span style="display:flex;gap:7px;align-items:center">
         ${bolehSuntingDb('peralatan') ? `<button class="btn garis kecil"
@@ -833,5 +826,6 @@ function gambarRinciAlat(){
           esc(f)}</span>`).join('')}</div>` : ''}
       </div></div>
   </div>`;
+  sjrPasang(unitDibuka, alat);
 }
 
