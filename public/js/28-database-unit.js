@@ -596,6 +596,73 @@ const FOTO_EXT_SAH = /\.(jpe?g|png|webp)$/i;
 const FOTO_BATAS_KLIEN = 15 * 1024 * 1024;
 
 /**
+ * Batas badan permintaan di Vercel: 4.500.000 byte. Angka itu diukur langsung
+ * ke produksi, bukan dikutip dari dokumentasi — 4.403.170 byte lolos, 4.505.570
+ * byte dijawab 413 sebelum fungsinya sempat berjalan.
+ *
+ * Yang dikirim adalah base64 (⁴⁄₃ dari berkas) di dalam bungkus JSON, jadi
+ * berkas asli yang benar-benar muat cuma ±3,2 MB — jauh di bawah 15 MB yang
+ * dijanjikan layar. Foto kamera ponsel hampir selalu di atas itu.
+ *
+ * Di kantor batas ini tidak ada sama sekali: Express menerima 60 MB. Jadi
+ * pengecilan di bawah dikerjakan menurut ukuran, bukan menurut "sedang di
+ * Vercel atau tidak" — foto kecil tetap dikirim apa adanya di kedua tempat,
+ * dan yang besar diperkecil di kedua tempat juga. Satu perilaku, bukan dua.
+ */
+const FOTO_SASARAN_BADAN = 3600000;   // panjang base64, disisakan ruang untuk bungkus JSON
+const FOTO_SISI_MAKS     = 2048;      // masih cukup untuk membaca tulisan di layar alat
+
+/** Bitmap dari sebuah berkas gambar. createImageBitmap kalau ada — ia bekerja
+    di luar utas utama sehingga layar tidak membeku; Image sebagai cadangan. */
+async function gambarDari(berkas){
+  if(window.createImageBitmap) return await createImageBitmap(berkas);
+  return await new Promise((selesai, gagal)=>{
+    const url = URL.createObjectURL(berkas);
+    const g = new Image();
+    g.onload  = ()=>{ URL.revokeObjectURL(url); selesai(g); };
+    g.onerror = ()=>{ URL.revokeObjectURL(url); gagal(new Error('gambar tidak terbaca')); };
+    g.src = url;
+  });
+}
+
+/**
+ * Perkecil foto sampai muat, atau null kalau memang sudah muat sejak awal.
+ *
+ * Hasilnya selalu JPEG — pemanggilnya wajib ikut mengganti akhiran nama jadi
+ * .jpg, kalau tidak berkas PNG akan tersimpan dengan isi JPEG dan peramban
+ * yang membukanya nanti bingung sendiri.
+ *
+ * Mutu diturunkan bertahap, bukan langsung ke yang paling rendah: foto alat
+ * sering dipakai untuk membaca angka di layar atau nomor seri, dan 0,85 masih
+ * menyimpan itu sementara 0,55 sudah mulai mengaburkannya.
+ */
+async function kecilkanFoto(berkas){
+  if(berkas.size * 4 / 3 <= FOTO_SASARAN_BADAN) return null;
+
+  const gambar = await gambarDari(berkas);
+  const skala  = Math.min(1, FOTO_SISI_MAKS / Math.max(gambar.width, gambar.height));
+  const lebar  = Math.max(1, Math.round(gambar.width  * skala));
+  const tinggi = Math.max(1, Math.round(gambar.height * skala));
+
+  const kanvas = document.createElement('canvas');
+  kanvas.width = lebar; kanvas.height = tinggi;
+  kanvas.getContext('2d').drawImage(gambar, 0, 0, lebar, tinggi);
+  if(gambar.close) gambar.close();
+
+  let terkecil = null;
+  for(const mutu of [0.85, 0.75, 0.65, 0.55]){
+    const blob = await new Promise(s=>kanvas.toBlob(s, 'image/jpeg', mutu));
+    if(!blob) break;
+    terkecil = blob;
+    if(blob.size * 4 / 3 <= FOTO_SASARAN_BADAN) return blob;
+  }
+  // Sudah mentok dan masih kebesaran. Yang terkecil tetap dikembalikan supaya
+  // pemeriksaan di kirimFoto yang menolaknya — dengan pesan yang menyebut
+  // angka, bukan 413 telanjang dari Vercel.
+  return terkecil;
+}
+
+/**
  * Isi satu berkas sebagai base64 tanpa kepala 'data:...;base64,' di depannya.
  *
  * Base64 lewat FileReader, bukan multipart: bentuknya sama dengan lampiran di
@@ -613,13 +680,26 @@ async function kirimFoto(unit, berkas, nama, ket, tgl){
   if(berkas.size > FOTO_BATAS_KLIEN) throw new Error('lebih dari 15 MB');
   if(!FOTO_EXT_SAH.test(nama)) throw new Error('hanya .jpg, .png, atau .webp');
 
+  const kecil = await kecilkanFoto(berkas);
+  if(kecil){ berkas = kecil; nama = nama.replace(FOTO_EXT_SAH, '.jpg'); }
+
   const isi = await berkasBase64(berkas);
+  if(isi.length > FOTO_SASARAN_BADAN){
+    throw new Error(T('masih terlalu besar setelah dikecilkan — coba potong fotonya dulu',
+                      'still too large after shrinking — try cropping it first'));
+  }
 
   const r = await fetch('/galeri/' + encodeURIComponent(unit), {
     method:'POST', headers:{ 'Content-Type':'application/json' },
     body: JSON.stringify({ berkas:nama, ket:ket || '', tgl:tgl || '', isi })
   });
   const j = await r.json().catch(()=>({}));
+  // 413 dari Vercel berbadan teks biasa, bukan JSON, jadi j.error kosong dan
+  // pesannya akan jatuh jadi "server menjawab 413" — angka telanjang yang tidak
+  // memberi tahu pemakai apa pun. Disebut sendiri supaya ada artinya.
+  if(r.status === 413 && !j.error){
+    throw new Error(T('ditolak server karena terlalu besar', 'rejected by the server — too large'));
+  }
   if(!r.ok) throw new Error(j.error || 'server menjawab ' + r.status);
   return j;
 }

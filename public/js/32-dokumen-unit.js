@@ -50,15 +50,66 @@ function dokSebabTolak(){
   return '';
 }
 
-/** Unggah satu berkas ke server. Batas waktunya panjang: 25 MB lewat jaringan
-    kantor bisa memakan lebih dari delapan detik yang jadi bawaan srvFetch. */
+/** Minta izin unggah langsung. Jawabannya menentukan jalan mana yang dipakai. */
+async function dokSiap(unit, f){
+  const r = await srvFetch('/dokumen/' + encodeURIComponent(unit) + '/siap', {
+    method:'POST', headers:{ 'Content-Type':'application/json' },
+    body: JSON.stringify({ nama:f.name, ukuran:f.size })
+  }, 15000);
+  const j = await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(j.error || 'server menjawab ' + r.status);
+  return j;
+}
+
+/**
+ * Unggah satu berkas ke server.
+ *
+ * Ada dua jalan, dan yang dipakai ditentukan server — bukan ditebak di sini
+ * dari alamat halaman. Kalau '/siap' menjawab { langsung:true }, berkasnya
+ * pergi langsung ke simpanan tanpa melewati server sama sekali; itu satu-satunya
+ * cara melewati batas 4.500.000 byte yang Vercel pasang pada badan permintaan,
+ * dan tanpanya janji 25 MB di layar mustahil ditepati. Kalau ia menjawab
+ * { langsung:false } — begitulah di kantor — berkasnya dikirim base64 seperti
+ * dulu, yang di sana memang tidak berbatas.
+ *
+ * Batas waktunya panjang: 25 MB lewat jaringan kantor bisa memakan lebih dari
+ * delapan detik yang jadi bawaan srvFetch.
+ */
 async function dokKirim(unit, f, kategori, alat){
+  const siap = await dokSiap(unit, f);
+
+  if(siap && siap.langsung){
+    // Sengaja fetch polos, bukan srvFetch: berkas 25 MB lewat jaringan lambat
+    // bisa melampaui batas waktu apa pun yang pantas dipasang untuk API biasa.
+    const taruh = await fetch(siap.url, {
+      method:'PUT',
+      headers:{ 'Content-Type': f.type || 'application/octet-stream' },
+      body: f
+    });
+    if(!taruh.ok) throw new Error('gagal menaruh berkas di simpanan (' + taruh.status + ')');
+
+    const r = await srvFetch('/dokumen/' + encodeURIComponent(unit) + '/catat', {
+      method:'POST', headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({ id:siap.id, nama:f.name, jenis:f.type || '', kategori, alat })
+    }, 30000);
+    const j = await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(j.error || 'server menjawab ' + r.status);
+    return j.baris;
+  }
+
   const isi = await berkasBase64(f);
   const r = await srvFetch('/dokumen/' + encodeURIComponent(unit), {
     method:'POST', headers:{ 'Content-Type':'application/json' },
     body: JSON.stringify({ nama:f.name, jenis:f.type || '', kategori, alat, isi })
   }, 120000);
   const j = await r.json().catch(()=>({}));
+  // 413 dari Vercel berbadan teks biasa, jadi j.error kosong dan pesannya akan
+  // jatuh jadi "server menjawab 413" — angka telanjang yang tidak memberi tahu
+  // pemakai apa pun tentang apa yang harus ia lakukan.
+  if(r.status === 413 && !j.error){
+    throw new Error(T('terlalu besar untuk dikirim lewat jalur ini',
+                      'too large for this upload path'));
+  }
   if(!r.ok) throw new Error(j.error || 'server menjawab ' + r.status);
   return j.baris;
 }

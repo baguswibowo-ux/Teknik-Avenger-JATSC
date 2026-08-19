@@ -29,6 +29,7 @@ import { fileURLToPath } from 'node:url';
 import {
   bacaJson, tulisJson, DI_TABEL,
   hapusJson, tulisBiner, bacaBiner, hapusBiner, mimeDari,
+  urlUnggahBertanda, ukuranBiner,
   BISA_TULIS_JSON, BISA_TULIS_BINER
 } from './simpanan.js';
 
@@ -1731,22 +1732,160 @@ app.get('/dokumen/:unit/:id', async (req, res) => {
   }
 });
 
-/** Unggah satu berkas. Bentuk badannya sama dengan galeri: base64 di dalam JSON. */
-app.post('/dokumen/:unit', dokumenHidup, badanGaleri, async (req, res) => {
-  const unit = String(req.params.unit || '').toLowerCase();
-  if (!unitSah(unit)) return res.status(400).json({ error: 'Kode unit tidak sah.' });
+/**
+ * Penjaga yang sama untuk ketiga rute unggah dokumen. Mengembalikan pemakainya,
+ * atau null sesudah menuliskan sendiri jawaban penolakannya — jadi pemanggil
+ * cukup berhenti tanpa perlu tahu penolakan mana yang terjadi.
+ */
+async function dokPenjagaIsi(req, res, unit) {
+  if (!unitSah(unit)) { res.status(400).json({ error: 'Kode unit tidak sah.' }); return null; }
 
   const user = await siapa(req);
   if (!user) {
-    return res.status(401).json({ error: 'Masuk dengan akun E-Logbook Anda dulu.' });
+    res.status(401).json({ error: 'Masuk dengan akun E-Logbook Anda dulu.' });
+    return null;
   }
   if (!(await bolehIsi(user, 'dokumen', unit))) {
-    return res.status(403).json({
+    res.status(403).json({
       error: bolehUnit(user, unit)
         ? 'Peran akun Anda tidak diberi hak mengisi dokumen unit.'
         : 'Akun Anda tidak memegang unit ini, jadi dokumennya tidak bisa Anda isi.'
     });
+    return null;
   }
+  return user;
+}
+
+/* =====================================================================
+   UNGGAH LANGSUNG — dua langkah, dan berkasnya tidak lewat sini
+
+   Vercel membatasi badan permintaan ke fungsi serverless di 4.500.000 byte
+   dan tidak menyediakan cara menaikkannya. Dikirim sebagai base64 di dalam
+   JSON, itu berarti berkas asli hanya ±3,2 MB yang muat — sementara layar rak
+   dokumen menjanjikan 25 MB. Selama berkasnya harus melewati fungsi ini,
+   janji itu mustahil ditepati, dan yang didapat pemakai adalah 413 telanjang
+   dari Vercel sebelum satu baris pun kode di sini sempat berjalan.
+
+   Jadi berkasnya tidak dilewatkan. '/siap' memeriksa hak dan menentukan nama
+   objeknya, lalu menjawab URL bertanda tangan berumur pendek; peramban menaruh
+   berkasnya langsung ke Storage. '/catat' memasukkannya ke daftar — dengan
+   ukuran yang dibaca dari simpanan, bukan dari angka yang dikirim layar.
+
+   Yang sengaja tidak dijaga: berkas yang sudah mendarat tapi '/catat'-nya tidak
+   pernah datang akan tinggal di bucket tanpa tercatat. Ia tidak muncul di layar
+   dan tidak merusak apa pun selain memakan ruang. Membereskannya butuh penyapu
+   berkala, dan itu pekerjaan tersendiri yang belum ada — disebut di sini supaya
+   tidak ditemukan orang lain sebagai kejutan.
+
+   Di kantor jalur ini tidak terpakai: '/siap' menjawab { langsung:false } dan
+   layar kembali ke unggahan base64 biasa, yang di sana memang tidak berbatas.
+   ===================================================================== */
+
+app.post('/dokumen/:unit/siap', dokumenHidup, badanDinas, async (req, res) => {
+  const unit = String(req.params.unit || '').toLowerCase();
+  const user = await dokPenjagaIsi(req, res, unit);
+  if (!user) return;
+
+  const nama = String(req.body?.nama || '').trim();
+  const ext = dokEkstensi(nama);
+  if (!ext) {
+    return res.status(400).json({
+      error: 'Jenis berkas ini tidak diterima. Yang boleh: '
+           + [...DOK_EXT].map((x) => x.slice(1).toUpperCase()).join(', ') + '.'
+    });
+  }
+
+  /* Ukuran di sini masih angka dari layar, jadi ia hanya dipakai untuk menolak
+     lebih awal — bukan untuk dicatat. Yang dicatat nanti dibaca dari simpanan. */
+  const ukuran = Number(req.body?.ukuran);
+  if (!Number.isFinite(ukuran) || ukuran <= 0) {
+    return res.status(400).json({ error: 'Ukuran berkas tidak disebut.' });
+  }
+  if (ukuran > DOK_BATAS) {
+    return res.status(413).json({ error: `Berkas lebih dari ${Math.round(DOK_BATAS / 1024 / 1024)} MB.` });
+  }
+
+  const id = crypto.randomBytes(8).toString('hex');
+  const berkas = id + ext;
+  try {
+    const url = await urlUnggahBertanda(path.join(DOK_DIR, unit, berkas));
+    // Tidak ada Storage yang bisa dituju — di kantor memang begitu, dan itu
+    // bukan kegagalan. Layar akan memakai jalur base64 yang lama.
+    if (!url) return res.json({ langsung: false });
+    res.json({ langsung: true, id, berkas, url });
+  } catch (e) {
+    console.error('[dokumen] gagal meminta izin unggah:', e);
+    res.status(502).json({ error: 'Simpanan tidak memberi izin unggah. Coba lagi sebentar lagi.' });
+  }
+});
+
+app.post('/dokumen/:unit/catat', dokumenHidup, badanDinas, async (req, res) => {
+  const unit = String(req.params.unit || '').toLowerCase();
+  const user = await dokPenjagaIsi(req, res, unit);
+  if (!user) return;
+
+  const nama = String(req.body?.nama || '').trim();
+  const ext = dokEkstensi(nama);
+  if (!ext) {
+    return res.status(400).json({
+      error: 'Jenis berkas ini tidak diterima. Yang boleh: '
+           + [...DOK_EXT].map((x) => x.slice(1).toUpperCase()).join(', ') + '.'
+    });
+  }
+
+  /* Penanda harus persis seperti yang dibuat '/siap'. Tanpa syarat ini, isinya
+     bisa dipakai menunjuk nama objek lain di dalam folder unit ini. */
+  const id = String(req.body?.id || '');
+  if (!/^[0-9a-f]{16}$/.test(id)) {
+    return res.status(400).json({ error: 'Penanda unggahan tidak sah.' });
+  }
+  const berkas = id + ext;
+  const jalur = path.join(DOK_DIR, unit, berkas);
+
+  try {
+    /* Sekaligus dua hal: bukti bahwa berkasnya memang mendarat, dan ukuran
+       sebenarnya. Unggahan yang putus di tengah mendarat lebih kecil daripada
+       yang dijanjikan layar, dan catatan yang berbohong soal itu lebih buruk
+       daripada tidak mencatat sama sekali. */
+    const ukuran = await ukuranBiner(jalur);
+    if (!ukuran) {
+      return res.status(404).json({
+        error: 'Berkasnya tidak ada di simpanan — unggahannya mungkin terputus. Coba ulangi.'
+      });
+    }
+    if (ukuran > DOK_BATAS) {
+      await hapusBiner(jalur);
+      return res.status(413).json({ error: `Berkas lebih dari ${Math.round(DOK_BATAS / 1024 / 1024)} MB.` });
+    }
+
+    const daftar = await bacaJson(DOK_JSON, {});
+    const isiUnit = daftar[unit] || (daftar[unit] = []);
+    const baris = dokBaris({
+      id, berkas, nama,
+      jenis: req.body?.jenis,
+      ukuran,
+      kategori: req.body?.kategori,
+      alat: req.body?.alat,
+      waktu: new Date().toISOString(),
+      oleh: user.username,
+      olehNama: user.nama || user.username
+    });
+    isiUnit.unshift(baris);
+    await tulisJson(DOK_JSON, daftar);
+
+    await catat(user, { modul: 'dokumen', aksi: 'unggah', unit, rincian: nama });
+    res.json({ ok: true, baris, jumlah: isiUnit.length });
+  } catch (e) {
+    console.error('[dokumen] gagal mencatat unggahan langsung:', e);
+    res.status(500).json({ error: 'Gagal mencatat berkas: ' + (e?.message || e) });
+  }
+});
+
+/** Unggah satu berkas. Bentuk badannya sama dengan galeri: base64 di dalam JSON. */
+app.post('/dokumen/:unit', dokumenHidup, badanGaleri, async (req, res) => {
+  const unit = String(req.params.unit || '').toLowerCase();
+  const user = await dokPenjagaIsi(req, res, unit);
+  if (!user) return;
 
   const nama = String(req.body?.nama || '').trim();
   const ext = dokEkstensi(nama);

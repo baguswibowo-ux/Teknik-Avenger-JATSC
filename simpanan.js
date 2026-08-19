@@ -316,6 +316,56 @@ export async function bacaBiner(jalur) {
   };
 }
 
+/**
+ * Izin sekali pakai supaya peramban bisa menaruh satu berkas ke bucket
+ * SENDIRI, tanpa isinya melewati server ini.
+ *
+ * Ini satu-satunya jalan keluar dari batas 4.500.000 byte yang Vercel pasang
+ * pada badan permintaan ke fungsi serverless — batas yang tidak bisa dinaikkan
+ * lewat konfigurasi apa pun. Selama berkas harus melewati fungsi, dokumen 25 MB
+ * mustahil; begitu ia pergi langsung ke Storage, batas itu tidak berlaku lagi.
+ *
+ * Yang dikembalikan adalah URL bertanda tangan berumur pendek untuk SATU nama
+ * objek yang sudah ditentukan server. Service key tidak ikut ke peramban, dan
+ * pemakai tidak bisa memilih sendiri nama objeknya — dua hal yang membuat ini
+ * aman dibagikan. null berarti jalur ini memang tidak tersedia (di kantor
+ * berkas ditulis ke disk, tidak ada Storage yang bisa dituju).
+ */
+export async function urlUnggahBertanda(jalur) {
+  if (!BINER_DI_STORAGE) return null;
+  const res = await fetch(
+    SUPABASE_URL + '/storage/v1/object/upload/sign/' + BUCKET + '/'
+      + kunciDari(jalur).split('/').map(encodeURIComponent).join('/'),
+    { method: 'POST', headers: { ...kepalaStorage(), 'Content-Type': 'application/json' }, body: '{}' }
+  );
+  if (!res.ok) {
+    throw new Error('Gagal meminta izin unggah (' + res.status + '): ' + await res.text());
+  }
+  const data = await res.json();
+  // Supabase menjawab jalur relatif ('/object/upload/sign/...'), bukan URL utuh.
+  return SUPABASE_URL + '/storage/v1' + data.url;
+}
+
+/**
+ * Ukuran satu berkas biner menurut simpanan, atau null kalau ia tidak ada.
+ *
+ * Dipakai sesudah unggah langsung: yang dicatat harus ukuran berkas yang
+ * benar-benar mendarat, bukan angka yang dikirim layar. Angka dari layar bisa
+ * salah tanpa ada yang berniat jahat — unggahan yang putus di tengah mendarat
+ * lebih kecil daripada yang dijanjikan — dan catatan yang berbohong soal itu
+ * lebih buruk daripada tidak mencatat sama sekali.
+ */
+export async function ukuranBiner(jalur) {
+  if (!DI_TABEL) {
+    try { return (await fs.stat(jalur)).size; } catch { return null; }
+  }
+  if (!BINER_DI_STORAGE) return null;
+  const res = await fetch(objek(jalur), { method: 'HEAD', headers: kepalaStorage() });
+  if (!res.ok) return null;
+  const n = Number(res.headers.get('content-length'));
+  return Number.isFinite(n) ? n : null;
+}
+
 /** Hapus satu berkas biner. Yang memang sudah tidak ada bukan kegagalan. */
 export async function hapusBiner(jalur) {
   if (!DI_TABEL) {
