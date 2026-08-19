@@ -5,7 +5,7 @@
   "description": "E-Logbook New JATSC — server mandiri (Node + SQLite), pengganti Google Apps Script + Spreadsheet",
   "type": "module",
   "engines": {
-    "node": ">=22.5.0"
+    "node": "24.x"
   },
   "scripts": {
     "start": "node server.js",

@@ -724,6 +724,18 @@ per keluaran fungsi. Pada penagihan Active CPU setelan ini diabaikan Vercel, jad
 membuat seolah ada batas yang sudah diatur padahal tidak ada. Dicabut.
 `maxDuration: 30` tetap: yang itu masih dihormati.
 
+**Keduanya ada dua kali: sekali di akar, sekali di `elogbook/`.** Proyek Vercel
+E-Logbook dibangun dari repo yang sama dengan Root Directory `elogbook/`, jadi
+ia punya `package.json` dan `vercel.json` sendiri — dan keduanya membawa
+penyakit yang sama, `">=22.5.0"` dan `"memory": 1024`. Dibereskan dengan cara
+yang persis sama. Kalau nanti muncul peringatan serupa, periksa kedua tempat:
+membereskan satu tidak menyentuh yang lain sama sekali.
+
+Ikut disamakan: `engines` di kedua `package-lock.json`. npm menyalin medan itu
+ke lockfile, jadi kalau cuma `package.json` yang disunting, `npm install`
+pertama yang dijalankan orang lain akan menulis ulang lockfile-nya dan
+memunculkan diff yang tidak ada yang minta.
+
 ---
 
 ---
