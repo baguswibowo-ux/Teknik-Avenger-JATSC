@@ -190,7 +190,41 @@ function brkTebakKategori(nama, jenis){
   return 'Lainnya';
 }
 
+/* Saringan rak dokumen.
+
+   Rak yang tersimpan di server tidak berhenti tumbuh: SOP, manual, sertifikat
+   kalibrasi, dan berita acara satu unit menumpuk bertahun-tahun di satu tabel
+   yang urutannya cuma "terbaru di atas". Yang dicari orang hampir selalu satu
+   jenis — "mana SOP-nya", "mana manual alat ini" — dan tanpa saringan
+   pencariannya dimulai dengan menggulir.
+
+   Kategorinya sudah ada sejak awal di tiap baris, ditebak dari nama berkas dan
+   bisa diganti lewat kolomnya. Yang belum ada cuma cara membacanya balik, dan
+   itu yang ditambahkan di sini. Tidak ada bentuk data baru.
+
+   Disimpan di luar gambarBerkas() supaya pilihan saringan tidak hilang tiap
+   kali daftarnya digambar ulang — dan digambar ulang terjadi tiap satu berkas
+   selesai diunggah. */
+const BRK_SARING = { kat:'', alat:'', cari:'' };
+
 const brkDaftar = () => BERKAS[unitDibuka] || (BERKAS[unitDibuka] = []);
+
+/** Lolos saringan yang sedang dipasang? */
+function brkLolos(b){
+  if(BRK_SARING.kat && (b.kategori || 'Lainnya') !== BRK_SARING.kat) return false;
+  if(BRK_SARING.alat){
+    // '-' berarti "yang tidak dikaitkan ke peralatan mana pun" — kotak yang
+    // paling sering dicari sesudah kategori, karena ke situlah berkas yang
+    // masuk buru-buru mendarat.
+    if(BRK_SARING.alat === '-' ? b.alat : b.alat !== BRK_SARING.alat) return false;
+  }
+  if(BRK_SARING.cari){
+    const q = BRK_SARING.cari.toLowerCase();
+    const isi = [b.nama, b.kategori, b.olehNama, b.oleh].filter(Boolean).join(' ').toLowerCase();
+    if(!isi.includes(q)) return false;
+  }
+  return true;
+}
 
 async function brkTambah(daftarFile){
   if(!unitDibuka || !daftarFile || !daftarFile.length) return;
@@ -288,8 +322,9 @@ function brkLencana(){
 
 function gambarBerkas(){
   const kotak = el('daftarBerkas'); if(!kotak) return;
-  const isi = BERKAS[unitDibuka] || [];
-  if(!isi.length){
+  const semua = BERKAS[unitDibuka] || [];
+  const isi = semua.filter(brkLolos);
+  if(!semua.length){
     kotak.innerHTML = `<div class="badan" style="color:var(--muted);font-size:12.5px;line-height:1.7">
       ${T('Belum ada berkas di unit ini. Tarik berkas ke kotak di atas, atau tekan kotaknya '
           + 'untuk memilih dari komputer.',
@@ -298,9 +333,51 @@ function gambarBerkas(){
     return;
   }
   const alatUnit = PERALATAN[unitDibuka] || [];
+
+  /* Angka di tiap pilihan kategori dihitung dari SELURUH rak, bukan dari yang
+     sedang tampil: pilihan yang menunjukkan "(0)" memberi tahu bahwa tidak ada
+     gunanya ditekan, dan itu tidak akan terlihat kalau angkanya ikut menyusut
+     bersama saringannya sendiri. */
+  const hitung = (k) => semua.filter(b => (b.kategori || 'Lainnya') === k).length;
+  const saring = `<div class="badan" style="padding-bottom:0">
+    <div class="saring">
+      <div class="isian"><label for="fKatBerkas">${T('Kategori','Category')}</label>
+        <select id="fKatBerkas">
+          <option value="">${T('Semua','All')} (${semua.length})</option>
+          ${BRK_KATEGORI.map(k=>`<option value="${esc(k)}"${
+            k===BRK_SARING.kat?' selected':''}>${esc(brkKategoriNama(k))} (${hitung(k)})</option>`).join('')}
+        </select></div>
+      <div class="isian"><label for="fAlatBerkas">${T('Peralatan','Equipment')}</label>
+        <select id="fAlatBerkas">
+          <option value="">${T('Semua','All')}</option>
+          <option value="-"${BRK_SARING.alat==='-'?' selected':''}>${
+            T('— tidak dikaitkan —','— not linked —')}</option>
+          ${alatUnit.map(a=>`<option value="${esc(a.id)}"${
+            a.id===BRK_SARING.alat?' selected':''}>${esc(a.nama)}</option>`).join('')}
+        </select></div>
+      <div class="isian lebar"><label for="fCariBerkas">${T('Cari nama berkas','Search file name')}</label>
+        <input type="text" id="fCariBerkas" autocomplete="off" spellcheck="false"
+          value="${esc(BRK_SARING.cari || '')}" placeholder="${
+          T('mis. kalibrasi, 2026, Santoso','e.g. calibration, 2026, Santoso')}"></div>
+    </div>
+    <div style="font-size:11.5px;color:var(--muted);padding:0 0 10px">${
+      isi.length === semua.length
+        ? T(`${semua.length} berkas`, `${semua.length} files`)
+        : T(`${isi.length} dari ${semua.length} berkas tampil`,
+            `${isi.length} of ${semua.length} files shown`)}</div>
+  </div>`;
+
+  if(!isi.length){
+    kotak.innerHTML = saring + `<div class="badan" style="color:var(--muted);font-size:12.5px">${
+      T('Tidak ada berkas yang cocok dengan saringan itu.',
+        'No files match that filter.')}</div>`;
+    brkPasangSaring();
+    return;
+  }
+
   // Pembungkus yang bisa digulir: enam kolom tidak muat di lebar HP, dan .panel
   // memotong apa pun yang lewat. Tanpa ini kolom Keluarkan hilang di layar kecil.
-  kotak.innerHTML = `<div class="gulir" style="max-height:none">
+  kotak.innerHTML = saring + `<div class="gulir" style="max-height:none">
     <table><thead><tr><th>${T('Berkas','File')}</th><th>${T('Kategori','Category')}</th>
       <th>${T('Peralatan','Equipment')}</th><th>${T('Ukuran','Size')}</th>
       <th>${T('Ditambahkan','Added')}</th><th></th></tr></thead><tbody>${isi.map(b=>{
@@ -331,6 +408,8 @@ function gambarBerkas(){
       </div></td></tr>`;
   }).join('')}</tbody></table></div>`;
 
+  brkPasangSaring();
+
   kotak.querySelectorAll('[data-buang]').forEach(t =>
     t.addEventListener('click', () => brkBuang(t.dataset.buang)));
   kotak.querySelectorAll('[data-kat]').forEach(s =>
@@ -355,6 +434,24 @@ function gambarBerkas(){
         pesan(T('Kategori gagal disimpan: ','Category could not be saved: ') + (e && e.message || e));
       }
     }));
+}
+
+/** Pendengar tiga kotak saringan. Dipasang ulang tiap gambarBerkas(),
+    karena ketiganya ikut lahir dan mati bersama isinya. */
+function brkPasangSaring(){
+  const kat = el('fKatBerkas');
+  if(kat) kat.addEventListener('change', ()=>{ BRK_SARING.kat = kat.value; gambarBerkas(); });
+  const alat = el('fAlatBerkas');
+  if(alat) alat.addEventListener('change', ()=>{ BRK_SARING.alat = alat.value; gambarBerkas(); });
+  const cari = el('fCariBerkas');
+  if(cari) cari.addEventListener('input', ()=>{
+    BRK_SARING.cari = cari.value.trim();
+    gambarBerkas();
+    // Menggambar ulang mengganti kotaknya, jadi kursornya harus dikembalikan —
+    // tanpa ini mengetik huruf kedua sudah tidak mungkin.
+    const baru = el('fCariBerkas');
+    if(baru){ baru.focus(); baru.setSelectionRange(baru.value.length, baru.value.length); }
+  });
 }
 
 /** Dipanggil sekali tiap gambarUnit(), setelah innerHTML-nya diganti. */
