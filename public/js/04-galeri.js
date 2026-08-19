@@ -5,10 +5,17 @@
    itu sebabnya blok ini berada di luar CONTOH. Tidak ikut diganti saat
    halaman tersambung ke server — E-Logbook belum punya modul galeri.
 
-   Isinya TIDAK ditulis di berkas ini, melainkan dibaca dari
-   public/foto/daftar.json — berkas yang sama yang ditulis ulang server tiap
-   ada foto baru diunggah. Kalau daftarnya ikut dikeraskan di sini, unggahan
-   dari layar tidak akan pernah terlihat sampai kodenya disunting tangan.
+   Isinya TIDAK ditulis di berkas ini, melainkan diminta ke server lewat
+   /galeri/daftar — indeks yang sama yang ditulis ulang tiap ada foto baru
+   diunggah. Kalau daftarnya ikut dikeraskan di sini, unggahan dari layar tidak
+   akan pernah terlihat sampai kodenya disunting tangan.
+
+   Dulu jalurnya /foto/daftar.json, dan itu patah di Vercel dengan cara yang
+   tidak kelihatan: ada berkas statis bernama persis itu di deployment — ikut
+   terunggah dari komputer kantor waktu deploy lewat CLI — dan berkas statis
+   diperiksa lebih dulu daripada rewrite. Jadi yang dijawab selalu salinan beku
+   dari kantor, bukan indeks yang sungguhan. Lihat blok GALERI FOTO di
+   server.js.
 
    Foto yang berkasnya belum ada tidak merusak apa pun: ubinnya tetap tampil
    sebagai tombol "pilih berkas" (lihat gambarGaleri), jadi daftarnya boleh
@@ -23,7 +30,7 @@ async function muatGaleri(){
   try{
     // cache:'no-store' — daftarnya berubah tiap unggahan, dan salinan lama di
     // cache peramban membuat foto yang baru masuk seolah tidak tersimpan.
-    const r = await fetch('/foto/daftar.json', { cache:'no-store' });
+    const r = await fetch('/galeri/daftar', { cache:'no-store' });
     if(r.ok) FOTO = await r.json();
   }catch(e){
     console.warn('Daftar galeri tidak terbaca:', e && e.message || e);

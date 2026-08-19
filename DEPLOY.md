@@ -567,9 +567,76 @@ sampai ke aplikasi.
 
 Jadi aturannya: **setiap kali menambah jalur baru yang dilayani `server.js`,
 tambahkan juga sumbernya di `rewrites`.** Yang sekarang tercantum: `/api/*`,
-`/galeri/*`, `/logo/*`, `/foto/*`, `/aktivitas`, `/hak`, `/personel`,
-`/dinas/*`, `/berkala`, `/berkala/*`, `/unitdb`, `/unitdb/*`, `/dokumen`,
-`/dokumen/*`, `/_info`.
+`/uploads`, `/uploads/*`, `/galeri/*`, `/logo/*`, `/foto/*`, `/aktivitas`,
+`/hak`, `/personel`, `/personel/*`, `/dinas/*`, `/berkala`, `/berkala/*`,
+`/sejarah`, `/sejarah/*`, `/unitdb`, `/unitdb/*`, `/dokumen`, `/dokumen/*`,
+`/_info`.
+
+#### Yang sebenarnya terjadi pada galeri: berkas statis mengalahkan rewrite
+
+Diperiksa langsung ke produksi 19 Agu 2026, dan hasilnya membatalkan dugaan di
+bawah. `/foto/daftar.json` **tidak** dijawab 404. Ia dijawab **200**, dengan
+kepala `X-Vercel-Cache: HIT`, `Accept-Ranges: bytes`, dan `Etag` — kepala
+berkas statis, bukan jawaban Express. Isinya indeks galeri tertanggal 17 Agustus
+dari komputer kantor.
+
+Sebabnya: **`npx vercel` tidak membaca `.gitignore`.** Deploy dari komputer
+kantor karena itu ikut mengunggah `public/foto/` — indeksnya dan fotonya — dan
+menaruhnya di deployment sebagai berkas statis. Dan di Vercel **berkas statis
+diperiksa lebih dulu daripada `rewrites`**, jadi rute mana pun yang jalurnya
+bertabrakan dengan berkas di `public/` tidak akan pernah dipanggil.
+
+Dua akibatnya, dan keduanya sudah berjalan diam-diam:
+
+1. **Galeri produksi beku.** Yang dibaca layar salinan statis dari kantor.
+   Unggahan baru berhasil betulan — 200, berkasnya mendarat di Storage,
+   indeksnya diperbarui di tabel — tapi tidak ada satu pun yang membaca indeks
+   itu. Yang dilaporkan pemakai: "berhasil, tapi fotonya tidak muncul", berulang
+   kali, tanpa satu pun galat di mana pun.
+2. **Pemeriksaan sesi pada foto terlewati.** `/foto/radtel/radtel-20260816-…jpg`
+   menjawab `200 image/jpeg` 8,28 MB tanpa cookie apa pun, sementara nama
+   karangan menjawab 401 dari aplikasi. Yang terlanjur terunggah disajikan
+   Vercel langsung; rute yang menuntut sesi berdiri di belakangnya dan tidak
+   pernah kebagian. Seluruh alasan di 8.4 — "foto unit menuntut sesi" — batal
+   untuk berkas-berkas itu.
+
+Dibereskan dua lapis, dan keduanya perlu:
+
+- **`.vercelignore` di akar.** Menutup sebabnya: `public/foto/`, `data/`, dan
+  `uploads/` tidak lagi ikut naik. Berkas ini tidak ada sebelumnya, dan
+  ketiadaannya yang membuat CLI mengunggah semuanya.
+- **Indeks galeri pindah ke `GET /galeri/daftar`.** Menutup kelasnya: di bawah
+  `/galeri/` tidak ada dan tidak akan pernah ada berkas di `public/` yang bisa
+  membayanginya, apa pun yang terlanjur terunggah nanti. Rute
+  `/foto/daftar.json` yang sempat ditambahkan dicabut lagi — jalur itu memang
+  tidak pernah bisa diandalkan.
+
+**Foto yang terlanjur terbuka masih terbuka sampai ada deploy berikutnya.**
+Menambah `.vercelignore` saja tidak mencabut berkas dari deployment yang sudah
+berjalan; yang mencabutnya deployment baru yang tidak lagi memuatnya.
+
+Aturan yang lahir dari sini, dan ia berlaku untuk seluruh proyek Vercel:
+**jalur mana pun yang dilayani aplikasi tidak boleh punya berkas senama di
+`public/`.** Rewrite bukan penjaga pintu terdepan — sistem berkas yang di depan.
+
+#### Dugaan pertama yang keliru, disimpan supaya tidak diulang
+
+Sebelum produksi diperiksa, sebabnya saya duga begini: `/foto/(.*)` memang ada
+di rewrites, tapi `server.js` cuma punya `/foto/:unit/:berkas` (dua ruas),
+sedangkan indeksnya diminta di `/foto/daftar.json` (satu ruas) — jadi ia lewat
+sampai `express.static`, tidak menemukan apa pun karena `public/foto/`
+diabaikan `.gitignore`, lalu 404.
+
+Rangkaiannya masuk akal dan seluruhnya salah. Yang tidak saya periksa satu
+anggapan yang terasa terlalu jelas untuk diperiksa: bahwa yang diabaikan
+`.gitignore` tidak ada di deployment. Ia ada — CLI tidak membaca berkas itu.
+Satu `curl` ke produksi menyelesaikannya dalam satu langkah, dan seharusnya
+itu yang pertama dikerjakan, bukan pembacaan kode yang ketiga.
+
+**Kalau gejalanya cuma muncul di produksi, tanya produksi.** Kepala jawabannya
+menyebutkan sendiri siapa yang menjawab: `X-Vercel-Cache` dan `Etag` berarti
+berkas statis, badan JSON berarti aplikasi, `NOT_FOUND` berarti tidak ada yang
+mengaku.
 
 ### 8.5 Langkah D — tiga penjaga, dikerjakan 19 Agu 2026
 

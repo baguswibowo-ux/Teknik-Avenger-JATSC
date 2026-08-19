@@ -1,0 +1,36 @@
+# Apa yang TIDAK ikut naik ke Vercel.
+#
+# Berkas ini ada karena satu kejadian yang nyata, bukan sebagai kerapian.
+# `npx vercel` mengunggah isi folder apa adanya dan TIDAK membaca .gitignore.
+# Jadi deploy dari komputer kantor ikut membawa public/foto/ — galeri berisi
+# wajah pegawai — dan menaruhnya di deployment sebagai berkas statis.
+#
+# Dua akibatnya, dan keduanya sudah terjadi:
+#
+#   1. Berkas statis diperiksa SEBELUM rewrites. public/foto/daftar.json yang
+#      ikut terunggah karena itu membayangi rute indeks galeri di server.js:
+#      seluruh galeri produksi beku pada keadaan komputer kantor hari deploy,
+#      dan tiap unggahan baru berhasil tanpa pernah terlihat.
+#
+#   2. Foto yang ikut terunggah disajikan Vercel langsung, tanpa melewati
+#      aplikasi — jadi pemeriksaan sesi di rute /foto/:unit/:berkas terlewati
+#      sama sekali, dan fotonya bisa dibuka siapa pun yang tahu namanya.
+#
+# Daftar di bawah karena itu bukan penghematan ukuran. Yang di sini memang
+# tidak boleh ada di deployment.
+
+# Galeri: wajah pegawai di ruang terbatas. Di produksi fotonya tinggal di
+# Supabase Storage dan hanya bisa diambil lewat rute yang menuntut sesi.
+public/foto/
+
+# Simpanan kantor. Di produksi yang berlaku tabel avenger_state; salinan disk
+# ini isinya bisa lebih tua, dan yang lebih tua tidak boleh diam-diam menang.
+data/
+uploads/
+
+node_modules/
+.git/
+.claude/
+*.log
+.env
+.env.*

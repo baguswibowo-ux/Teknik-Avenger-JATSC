@@ -212,6 +212,43 @@ function galeriHidup(_req, res, next) {
   });
 }
 
+/**
+ * Indeks galeri — foto apa saja yang ada, beserta keterangannya.
+ *
+ * DI BAWAH /galeri/, BUKAN /foto/daftar.json, DAN ITU BUKAN SOAL RAPI-RAPIAN.
+ *
+ * Layar dulu membacanya di /foto/daftar.json, dan di Vercel jalur itu tidak
+ * pernah sampai ke sini. Bukan karena rewrite-nya kurang — `/foto/(.*)` sudah
+ * terdaftar — melainkan karena **berkas statis diperiksa lebih dulu daripada
+ * rewrite**. Deploy lewat `npx vercel` ikut mengunggah public/foto/ dari
+ * komputer kantor (CLI tidak membaca .gitignore, dan .vercelignore belum ada),
+ * jadi ada berkas statis bernama persis itu di deployment — dan ia menang.
+ *
+ * Yang terbaca pemakai: seluruh galeri produksi beku pada keadaan komputer
+ * kantor hari itu. Unggahan baru berhasil betulan — 200, berkasnya mendarat di
+ * Storage, indeksnya diperbarui di tabel — tapi tidak ada satu pun yang
+ * membaca indeks itu, jadi tidak ada yang berubah di layar. "Berhasil tapi
+ * fotonya tidak muncul", berulang kali, tanpa satu pun galat.
+ *
+ * .vercelignore menutup sebabnya. Jalur ini menutup KELASNYA: di bawah
+ * /galeri/ tidak ada dan tidak akan pernah ada berkas di public/ yang bisa
+ * membayanginya, apa pun yang terlanjur terunggah nanti.
+ *
+ * Sesinya dituntut hanya di jalur tabel — sama persis dengan syarat fotonya
+ * sendiri di bawah, supaya jalur kantor tidak berubah sedikit pun.
+ */
+app.get('/galeri/daftar', async (req, res) => {
+  if (DI_TABEL && !(await siapa(req))) {
+    return res.status(401).json({
+      error: 'Masuk dengan akun E-Logbook Anda dulu untuk melihat daftar galeri.'
+    });
+  }
+  // Indeksnya berubah tiap unggahan, dan salinan lama di cache peramban membuat
+  // foto yang baru masuk seolah tidak tersimpan.
+  res.set('Cache-Control', 'no-store');
+  res.json(await bacaDaftar());
+});
+
 app.post('/galeri/:unit', galeriHidup, badanGaleri, async (req, res) => {
   const unit = String(req.params.unit || '').toLowerCase();
   if (!unitSah(unit)) return res.status(400).json({ error: 'Kode unit tidak sah.' });

@@ -74,7 +74,11 @@ function bukaDashboard(){
       gambarDinas();
       if(unitDibuka && subtabAktif === 'dinas') jdwGambar();
       gambarAkun();     // panel hak di tab Kelola Akun ikut isinya
-      await Promise.all([bklMuat(), psnMuat()]);
+      /* Daftar galeri ikut ditarik ULANG di sini, bukan cuma sekali saat halaman
+         dibuka. Di jalur tabel indeksnya menuntut sesi, jadi tarikan pertama —
+         yang terjadi jauh sebelum ada yang masuk — dijawab 401 dan galerinya
+         tinggal kosong sampai halaman disegarkan. */
+      await Promise.all([bklMuat(), psnMuat(), muatGaleri()]);
       gambarUbin(); gambarPerhatian(); gambarLonceng(); gambarPersonel();
       if(unitDibuka) gambarUnit();
     })
