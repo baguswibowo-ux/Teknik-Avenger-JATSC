@@ -11,6 +11,11 @@
  *   HOST                     alamat bind (default 0.0.0.0 = semua antarmuka)
  *   ELOGBOOK_SECURE_COOKIE   set 1 kalau diakses lewat HTTPS
  *   ELOGBOOK_SESSION_DAYS    umur sesi login (default 30 hari)
+ *   AVENGER_TAUTAN           alamat Dashboard Fasilitas Teknik untuk tombol
+ *                            pulang. Wajib begitu aplikasi ini tidak lagi di
+ *                            port sebelah dashboard — di Vercel, misalnya.
+ *                            Kosong: tombolnya disembunyikan, bukan menunjuk
+ *                            alamat yang salah.
  */
 
 import express from 'express';
@@ -966,6 +971,25 @@ if (PAKAI_POSTGRES) {
     setHeaders: (res) => res.setHeader('Cache-Control', 'private, max-age=604800')
   }));
 }
+
+/**
+ * Alamat Dashboard Fasilitas Teknik, untuk tombol pulang di kepala halaman.
+ *
+ * Disajikan sebagai skrip kecil, bukan ditanam di index.html: berkas itu sama
+ * untuk semua pemasangan, sedangkan alamat dashboard berbeda di tiap tempat.
+ * Di kantor ia port sebelah; di Vercel ia domain yang sama sekali lain.
+ *
+ * Kosong berarti "tidak diketahui" — dan layar yang menerimanya memilih
+ * menyembunyikan tombolnya daripada menunjuk alamat yang salah. Sebelum ini
+ * variabelnya dibaca layar tapi tidak pernah diisi siapa pun, jadi tombol
+ * pulang selalu jatuh ke tebakan port 3100: benar di kantor, dan menggantung
+ * tanpa pesan apa pun di Vercel.
+ */
+app.get('/avenger-tautan.js', (req, res) => {
+  res.type('application/javascript');
+  res.setHeader('Cache-Control', 'no-store');
+  res.send('window.AVENGER_TAUTAN = ' + JSON.stringify(process.env.AVENGER_TAUTAN || '') + ';\n');
+});
 
 app.use(express.static(path.join(ROOT, 'public'), { extensions: ['html'] }));
 

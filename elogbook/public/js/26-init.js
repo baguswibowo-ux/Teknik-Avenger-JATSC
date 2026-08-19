@@ -141,10 +141,29 @@ function bukaTabDariTautan(){
 function pasangTautanDashboard(){
   const a = document.getElementById('tautanDashboard');
   if(!a) return;
-  const alamat = (typeof window.AVENGER_TAUTAN === 'string' && window.AVENGER_TAUTAN)
-    ? window.AVENGER_TAUTAN
-    : `${location.protocol}//${location.hostname}:3100`;
-  a.href = alamat;
+
+  const disetel = (typeof window.AVENGER_TAUTAN === 'string' && window.AVENGER_TAUTAN)
+    ? window.AVENGER_TAUTAN : '';
+  if(disetel){ a.href = disetel; return; }
+
+  /* Tanpa AVENGER_TAUTAN, satu-satunya tebakan yang masuk akal adalah port
+     sebelah di komputer yang sama. Itu benar di kantor dan PASTI salah di
+     layanan seperti Vercel, yang tidak punya port 3100 sama sekali — tombolnya
+     lalu menggantung tanpa pesan apa pun, dan pemakai terjebak di sini.
+
+     Jadi tebakan itu hanya dipakai kalau halaman ini memang sedang disajikan
+     dari alamat berport atau alamat lokal. Kalau tidak, tombolnya
+     disembunyikan: tidak ada tombol lebih jujur daripada tombol yang dipencet
+     lalu diam. */
+  const lokal = !!location.port
+    || location.hostname === 'localhost'
+    || /^127\.|^10\.|^192\.168\.|^172\.(1[6-9]|2\d|3[01])\./.test(location.hostname);
+
+  if(lokal){ a.href = `${location.protocol}//${location.hostname}:3100`; return; }
+
+  a.hidden = true;
+  console.warn('[dashboard] AVENGER_TAUTAN belum diisi, jadi tombol pulang disembunyikan '
+             + 'daripada menunjuk port 3100 yang tidak ada di alamat ini.');
 }
 
 window.addEventListener('load', ()=>{ terapkanBahasa(); pasangTautanDashboard(); mulai(); });

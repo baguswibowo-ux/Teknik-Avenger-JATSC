@@ -184,6 +184,7 @@ jadi ia jadi **proyek Vercel tersendiri**.
 | `SUPABASE_SERVICE_KEY` | service_role key | ya, untuk unggahan berkas |
 | `ELOGBOOK_BUCKET` | `elogbook` | tidak (ini bawaannya) |
 | `ELOGBOOK_SECURE_COOKIE` | lihat 5.1 dan 8.1 | **belum beres**, lihat 3.2 |
+| `AVENGER_TAUTAN` | alamat Avenger di Vercel | **ya**, kalau tidak tombol pulang mati |
 | `PGSSLMODE` | `require` | dianjurkan |
 | `PGPOOL_MAX` | `1` | dianjurkan |
 
