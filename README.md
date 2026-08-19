@@ -43,7 +43,7 @@ data/                (di luar git — isinya nama pegawai, repositori ini publik
   berkala.json       daftar pekerjaan berulang per unit — mingguan sampai tahunan
   berkala-selesai.json  catatan sudah-dikerjakan, satu baris per periode
   personel.json      lisensi, rating, sertifikat, dan masa berlakunya
-  peralatan.json     daftar peralatan per unit — berisi contoh sampai diganti
+  peralatan.json     daftar peralatan per unit
   sparepart.json     stok sparepart per unit
   aktivitas.json     log siapa mengubah apa, 400 baris terakhir
   dokumen/           berkas dokumen unit + daftar.json keterangannya
@@ -126,13 +126,11 @@ yang harus dijawab sebelum boleh mengetik username, padahal jawabannya hampir
 selalu sama. Yang tersisa satu baris status yang mengatakan apa yang sedang
 berlaku — server terjawab atau tidak, sesi masih hidup atau tidak.
 
-**Data contoh bukan pilihan lagi, melainkan keadaan.** Ia berlaku kalau memang
-tidak ada E-Logbook di belakang halaman ini — demo di luar jaringan kantor,
-salinan etalase, atau server yang kebetulan mati. Begitu servernya terjawab,
-data contoh tidak pernah muncul. Di server kantor, tempat E-Logbook memang
-selalu ada, matikan jatuhannya sekalian dengan `DATA_CONTOH=0`: di sana server
-yang diam adalah kerusakan yang pantas terlihat, dan kartunya mengatakan begitu
-alih-alih menawarkan angka karangan.
+**Data contoh sudah tidak ada sama sekali.** Dulu ia berlaku kalau E-Logbook
+tidak terjawab, dan sempat pula ada saklarnya (`DATA_CONTOH=0`) untuk mematikan
+jatuhan itu di server kantor. Keduanya sudah dibuang bersama datanya. Server
+yang diam sekarang selalu terlihat sebagai server yang diam — bukan sebagai
+layar penuh angka karangan yang tidak bisa dibedakan dari yang nyata.
 
 **Tidak ada daftar akun di kartu masuk.** Pernah ada — deret tombol berisi
 seluruh username yang sedang aktif, tinggal ditekan untuk mengisi kolom — dan
@@ -249,9 +247,9 @@ dan servernya harus terjawab. Semuanya diperiksa **ulang** di server — yang di
 layar cuma kenyamanan, termasuk pesan "username itu sudah dipakai" yang memang
 datang dari sana.
 
-Tanpa server E-Logbook terjangkau, formulirnya mengatakan apa adanya:
-pendaftaran menulis ke basis data E-Logbook, dan tidak ada gunanya berpura-pura
-bisa dilakukan pada data contoh.
+Tanpa server E-Logbook terjangkau, tautan pendaftarannya dilepas sama sekali —
+bukan sekadar dimatikan. Pendaftaran menulis ke basis data E-Logbook, dan
+tautan mati cuma menimbulkan pertanyaan yang tidak ada jawabannya.
 
 ### Panggung 3D di kartu masuk
 
@@ -281,14 +279,7 @@ Administrator dan pejabat tidak pernah punya daftar unit — perannya sudah
 memberi seluruh unit sekaligus — jadi mereka dikumpulkan di pilihan **Akun semua
 unit**, bukan diulang di tiap unit.
 
-Pada **data contoh**, tab ini bekerja atas daftar **akun contoh** yang tersimpan
-di peramban (`localStorage`), bukan akun sungguhan, supaya alurnya bisa dicoba
-penuh tanpa server. Aturannya sengaja ditiru persis dari yang ditegakkan server,
-jadi yang dicoba bukan versi yang lebih longgar. Password tidak disimpan sama
-sekali di jalur ini: pada data contoh sandinya memang tidak pernah diperiksa.
-Sisa bagian ini berlaku waktu tersambung ke E-Logbook.
-
-Akunnya tetap milik E-Logbook. Dashboard ini tidak menyimpan akun sendiri dan
+Akunnya milik E-Logbook. Dashboard ini tidak menyimpan akun sendiri dan
 tidak membuka basis datanya; untuk urusan akun tidak ada satu pun berkas
 E-Logbook yang disunting. Yang dipakai hanya fungsi administrator yang sudah
 ada di API-nya (`listUsers`, `addUser`,
@@ -310,23 +301,23 @@ tersimpan di E-Logbook hanya sidik acaknya. Yang tersedia cuma menggantinya.
 
 ### Kalau E-Logbook mati
 
-Pemeriksaan `/api/me` gagal dan halaman jatuh ke **data contoh** — semuanya
-karangan, dan pita di puncak layar menulis `PROTOTIPE` supaya tidak ada yang
-mengira angkanya nyata. Dengan `DATA_CONTOH=0` ia tidak jatuh ke mana-mana:
-kartu masuk mengatakan servernya tidak terjawab dan berhenti di situ, yang benar
-untuk server kantor.
+Pemeriksaan `/api/me` gagal, kartu masuk mengatakan servernya tidak terjawab,
+dan berhenti di situ. Tidak ada ke mana-mana untuk dijatuhi.
 
-### Yang belum nyata walau sudah tersambung
+Dulu ada: halaman jatuh ke data contoh, dengan pita `PROTOTIPE` di puncak layar
+sebagai penandanya, dan `DATA_CONTOH=0` untuk mematikan jatuhan itu di server
+kantor. Data contohnya sudah dibuang seluruhnya, jadi perilaku yang dulu harus
+dinyalakan dengan saklar itu sekarang satu-satunya yang ada.
 
-**Sejarah peralatan** masih data contoh sekalipun sudah tersambung — ia
-dirangkai dari logbook, isu, dan LTK, dan ketiganya belum punya kolom yang
-menyebut peralatan mana. Layarnya menandai ini terang-terangan di tiap tempat
-yang terpengaruh.
+### Modul yang milik dashboard ini, bukan E-Logbook
 
-Jadwal dinas, kegiatan berkala, data personel, **daftar peralatan**, dan
-sparepart **bukan** termasuk: kelimanya milik dashboard ini sendiri dan
-tersimpan di servernya, jadi nyata baik tersambung maupun tidak. Yang ditanyakan ke E-Logbook hanya siapa Anda, untuk
-menentukan boleh mengisi atau tidak.
+Jadwal dinas, kegiatan berkala, personel, **daftar peralatan**, sparepart,
+sejarah peralatan, dokumen, dan galeri semuanya tersimpan di server dashboard
+ini. Yang ditanyakan ke E-Logbook hanya siapa Anda, untuk menentukan boleh
+mengisi atau tidak.
+
+Dari E-Logbook sendiri datang tiga hal: daftar unit, isu (jadi papan trouble),
+dan catatan logbook.
 
 ## Jadwal dinas
 
@@ -393,12 +384,8 @@ menyembunyikan tombolnya di halaman cuma kenyamanan.
 **Di mana tersimpan.** `data/dinas.json` di server dashboard ini — bukan di
 E-Logbook, yang memang tidak punya modul ini.
 
-Dalam **data contoh** tidak ada sesi E-Logbook yang bisa ditanyai, jadi hak per
-perannya dihitung di peramban itu sendiri dan hasilnya tinggal di
-`localStorage`. Layarnya mengatakan ini apa adanya.
-
-Unit yang belum punya jadwal tampil **kosong** saat tersambung, bukan diisi nama
-karangan — sama seperti cuplikan logbook yang kosong.
+Unit yang belum punya jadwal tampil **kosong**, bukan diisi nama karangan —
+sama seperti cuplikan logbook yang kosong.
 
 ### Impor dari Excel, PDF, CSV, atau tempelan
 
@@ -681,12 +668,11 @@ Siapa yang boleh menyunting berbeda di antara keduanya, dan itu disengaja.
 menunjuk barisnya lewat `id`, jadi satu baris yang diganti nama atau dibuang
 menggeser layar orang lain. Bawaan itu bisa dibuka lagi dari matriks hak.
 
-`data/peralatan.json` sudah berisi daftar contoh untuk kedelapan unit — Garex
-dan Neptuno di Radtel, ILS dan DVOR di PPABN, dan seterusnya. Isinya sama
-dengan daftar contoh yang tampil tanpa server, dan tujuannya supaya layar
-peralatan tidak pernah dijumpai kosong sama sekali. Ganti isinya dengan alat
-yang sebenarnya begitu datanya siap; `data/` tidak ikut git, jadi tiap
-pemasangan memegang isinya sendiri.
+`data/peralatan.json` di pemasangan yang baru berisi daftar awal untuk kedelapan
+unit — Garex dan Neptuno di Radtel, ILS dan DVOR di PPABN, dan seterusnya —
+supaya layar peralatan tidak dijumpai kosong sama sekali di hari pertama. Ganti
+isinya dengan alat yang sebenarnya begitu datanya siap; `data/` tidak ikut git,
+jadi tiap pemasangan memegang isinya sendiri.
 
 #### Foto sebagai ganti ilustrasi
 
@@ -823,12 +809,6 @@ Mengeluarkan: administrator saja, dan berkasnya ikut terhapus dari server.
 Membuka: siapa pun yang sudah masuk. Penjagaannya di server; kotak unggahnya
 memang padam sendiri kalau akun itu tidak berhak, tapi itu cuma kenyamanan.
 
-**Dengan data contoh**, berkasnya tidak dikirim ke mana pun — kembali ke
-perilaku lama, object URL di memori tab yang hilang saat disegarkan. Itu
-disengaja: salinan etalase tidak punya server, dan tab yang cuma bisa
-memperlihatkan daftar kosong tidak memperlihatkan apa pun tentang bentuk
-alurnya. Barisnya ditandai *tab ini saja*, dan kartunya mengatakan begitu.
-
 Di Vercel dan sejenisnya penyimpanannya tidak permanen, jadi unggahnya
 dimatikan dengan sebabnya — bukan 500 dari `fs.writeFile` yang tidak berarti
 apa-apa bagi pemakai. Sama seperti galeri dan jadwal dinas.
@@ -844,9 +824,9 @@ Sumbernya dua, dan bedanya penting:
   hak, logo, dan galeri. Ditulis `server.js` ke `data/aktivitas.json` dengan
   identitas dari sesi E-Logbook yang sungguhan, jadi berlaku untuk semua orang
   dan tidak bisa dikarang dari peramban. Terbaca hanya oleh yang sudah masuk.
-- **peramban ini** — apa pun yang disunting tanpa server, waktu halaman jatuh
-  ke data contoh. Catatannya tinggal di `localStorage` bersama datanya, dan
-  barisnya diberi tanda supaya tidak disangka berlaku bersama.
+- **peramban ini** — modul yang belum dicatat server. Catatannya tinggal di
+  `localStorage`, dan barisnya diberi tanda supaya tidak disangka berlaku
+  bersama.
 
 Yang dicatat hanya **perbuatannya** — modul, unit, dan sepotong keterangan —
 bukan isi datanya. Nomor lisensi tidak pernah ikut masuk ke sini. Berkasnya
@@ -864,8 +844,8 @@ organisasi, bukan istilah.
 
 Kotak di kiri nama unit, di kepala Database Unit. Bawaannya **ilustrasi vektor**
 yang dibangkitkan halaman ini sendiri menurut jenis unitnya — menara untuk
-Radtel, antena untuk Radkom, dan seterusnya. Bagus untuk contoh, tapi ia bukan
-gambar unit yang sebenarnya.
+Radtel, antena untuk Radkom, dan seterusnya. Cukup sebagai penanda, tapi ia
+bukan gambar unit yang sebenarnya.
 
 **Administrator bisa menggantinya dari layar.** Tekan kotaknya (tulisan *Pilih
 gambar* muncul saat kursor lewat), pilih berkasnya, selesai — gambarnya
@@ -948,7 +928,6 @@ Lewat environment variable, atau salin `.env.example` jadi `.env`:
 | `ELOGBOOK_TAUTAN` | —                     | alamat E-Logbook untuk tombol "Buka E-Logbook", kalau bukan hostname yang sama |
 | `ELOGBOOK_PORT` | `3000`                  | port E-Logbook yang dinyalakan `npm start`  |
 | `GALERI_MATI`   | —                       | set `1` untuk mematikan unggah dan hapus foto |
-| `DATA_CONTOH`   | `1`                     | set `0` supaya halaman tidak pernah jatuh ke data contoh |
 
 Satu lagi milik E-Logbook, dipasang di `elogbook/.env`:
 
@@ -960,25 +939,23 @@ Satu lagi milik E-Logbook, dipasang di `elogbook/.env`:
 aplikasi baca-saja dan yang tertulis ke `/tmp` hilang begitu fungsinya selesai.
 Jadwal dinas ikut aturan yang sama: bisa dibaca di sana, tidak bisa disimpan.
 
-`DATA_CONTOH` sengaja **tidak** ditebak dari `VERCEL`: salinan etalase justru
-satu-satunya yang hidup dari data contoh, jadi menebaknya dari sana persis
-terbalik. Yang perlu dimatikan server kantor, dan itu keputusan yang diketik,
-bukan ditebak.
+`DATA_CONTOH` pernah ada di tabel ini — set `0` supaya halaman tidak pernah
+jatuh ke data contoh. Data contohnya sudah dibuang, jadi tidak ada lagi yang
+membacanya; variabel yang terlanjur terpasang boleh dibiarkan.
 
 `GET /_info` menjawab setelan yang sedang dipakai — berguna untuk memastikan
-servernya menunjuk ke E-Logbook yang benar. Empat kolomnya —
-`galeriBisaTulis`, `dokumenBisaTulis`, `dataContoh`, dan `elogbookTerjangkau` —
-dipakai halaman untuk tidak menawarkan sesuatu yang pasti gagal: keempatnya
-tidak bisa ditebak dari sisi peramban, gagalnya baru ketahuan setelah tombolnya
-terlanjur ditekan.
+servernya menunjuk ke E-Logbook yang benar. Tiga kolomnya — `galeriBisaTulis`,
+`dokumenBisaTulis`, dan `elogbookTerjangkau` — dipakai halaman untuk tidak
+menawarkan sesuatu yang pasti gagal: ketiganya tidak bisa ditebak dari sisi
+peramban, gagalnya baru ketahuan setelah tombolnya terlanjur ditekan.
 
 ## Deploy ke Vercel
 
-Yang naik ke Vercel adalah **etalase**: seluruh isinya data contoh. Bukan pilihan
-gaya — E-Logbook hidup di jaringan kantor yang tertutup, dan dari Vercel
-`127.0.0.1:3000` menunjuk ke kontainer Vercel itu sendiri. Selama E-Logbook belum
-diganti Supabase sebagai sumber data, versi yang ter-deploy tidak akan pernah
-punya data nyata.
+Bagian ini sudah dilewati keadaan, dan yang berlaku sekarang ada di
+[DEPLOY.md](DEPLOY.md). Ringkasnya: sejak 19 Agustus 2026 kedua aplikasi hidup
+di Vercel dengan Supabase sebagai simpanannya, jadi yang ter-deploy memegang
+data yang sungguhan — bukan etalase. Yang tertulis di bawah ini berasal dari
+masa sebelum itu dan dibiarkan sebagai catatan sejarah.
 
 Berkas yang mengurus itu:
 
@@ -993,15 +970,9 @@ panggilan data menunggu 30 detik sampai batas waktu penerusan habis, baru gagal.
 Galeri mati dengan sendirinya di sana lewat deteksi `VERCEL`.
 
 Halaman menyesuaikan diri tanpa perlu diberi tahu: tombol **Buka E-Logbook**
-tidak dipasang karena tidak ada alamat yang masuk akal untuk dituju, kotak
-unggah foto dan dokumen diganti keterangan, dan tombol hapus tidak digambar. Yang tersisa
-berjalan penuh dengan data contoh — termasuk tab Kelola Akun, suntingan
-peralatan dan sparepart, dan sakelar bahasa, karena ketiganya hidup di peramban
-pengunjung dan tidak menuntut apa pun dari server.
-
-**Belum pernah benar-benar di-deploy.** Kedua keadaan di atas diuji dengan
-menjalankan `GALERI_MATI=1 ELOGBOOK_MATI=1 npm start` di komputer sendiri, bukan
-di Vercel.
+tidak dipasang kalau tidak ada alamat yang masuk akal untuk dituju, kotak unggah
+foto dan dokumen diganti keterangan kalau simpanannya tidak permanen, dan tombol
+hapus tidak digambar untuk yang tidak berhak.
 
 ## Asal-usul
 

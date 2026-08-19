@@ -366,9 +366,10 @@ Yang berubah bagi pemakai: **tidak ada.** Avenger tetap di alamat yang sama,
 tetap bisa menyimpan, hanya sumber datanya yang sekarang di Vercel.
 
 Yang perlu diingat: **Avenger sekarang bergantung pada internet kantor.** Kalau
-sambungan keluar putus, penerus di `server.js:111` gagal dan halaman jatuh ke
-data contoh. Di server kantor pasang `DATA_CONTOH=0` supaya keadaan itu terlihat
-sebagai kerusakan, bukan angka karangan yang menyamar jadi kenyataan.
+sambungan keluar putus, penerus di `server.js:111` gagal dan kartu masuk
+mengatakan servernya tidak terjawab. Dulu ia jatuh ke data contoh dan
+`DATA_CONTOH=0` yang menahannya; data contohnya sudah dibuang seluruhnya, jadi
+kerusakan itu sekarang selalu terlihat sebagai kerusakan.
 
 ---
 
@@ -698,7 +699,6 @@ Bagian 8 belum selesai. Yang belum:
 | `AVENGER_BUCKET` | `avenger` | tidak (ini bawaannya) |
 | `ELOGBOOK_ASAL` | alamat E-Logbook di Vercel | ya |
 | `ELOGBOOK_TAUTAN` | alamat yang sama | ya — lihat Bagian 5 |
-| `DATA_CONTOH` | `0` | dianjurkan |
 
 3. **`ELOGBOOK_SECURE_COOKIE=1` di kedua proyek, bersamaan.** Sampai langkah ini,
    yang berlaku tetap 3.2: hapus atau isi `0`.
