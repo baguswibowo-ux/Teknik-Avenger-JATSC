@@ -703,6 +703,29 @@ Bagian 8 belum selesai. Yang belum:
 3. **`ELOGBOOK_SECURE_COOKIE=1` di kedua proyek, bersamaan.** Sampai langkah ini,
    yang berlaku tetap 3.2: hapus atau isi `0`.
 
+### 8.8 Tiga peringatan build, dibereskan 19 Agu 2026
+
+Build lolos, tapi log-nya menyalakan tiga baris kuning. Ketiganya soal
+konfigurasi, bukan kode, dan pantas ditutup daripada dibiarkan jadi bising yang
+lama-lama tidak dibaca lagi.
+
+**1. `engines.node` berupa rentang.** `">=20.6.0"` berarti Vercel akan
+memindahkan produksi ke Node major berikutnya begitu ia keluar — sendiri, tanpa
+satu pun baris kode berubah, dan pertama kali ketahuannya lewat galat yang tidak
+ada hubungannya dengan yang baru saja di-deploy. Sekarang dipatok `"24.x"`,
+bentuk yang memang dianjurkan Vercel. Angkanya bukan asal: Node di komputer
+pengembang v24.19.0, jadi patokan ini sekalian menyamakan produksi dengan tempat
+kodenya diuji. Menaikkannya nanti disengaja — satu baris, sesudah dicoba lokal
+lebih dulu.
+
+**2 dan 3. `memory` di `vercel.json`.** Muncul dua kali karena disebut sekali
+per keluaran fungsi. Pada penagihan Active CPU setelan ini diabaikan Vercel, jadi
+`"memory": 1024` yang terpasang tidak pernah berlaku — dan yang lebih buruk, ia
+membuat seolah ada batas yang sudah diatur padahal tidak ada. Dicabut.
+`maxDuration: 30` tetap: yang itu masih dihormati.
+
+---
+
 ---
 
 ## Yang belum siap
