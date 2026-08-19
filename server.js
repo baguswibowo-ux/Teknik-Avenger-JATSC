@@ -24,9 +24,13 @@
 
 import express from 'express';
 import path from 'node:path';
-import fs from 'node:fs/promises';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import {
+  bacaJson, tulisJson, DI_TABEL,
+  hapusJson, tulisBiner, bacaBiner, hapusBiner, mimeDari,
+  BISA_TULIS_JSON, BISA_TULIS_BINER
+} from './simpanan.js';
 
 try { process.loadEnvFile?.(); } catch { /* tidak ada .env: pakai bawaan */ }
 
@@ -37,13 +41,18 @@ const HOST  = process.env.HOST || '0.0.0.0';
 const ASAL  = (process.env.ELOGBOOK_ASAL || 'http://127.0.0.1:3000').replace(/\/+$/, '');
 const TERUS = process.env.ELOGBOOK_MATI !== '1';
 
-/* Di lingkungan tanpa penyimpanan tetap — Vercel dan sejenisnya — berkas
-   aplikasi bersifat baca-saja dan yang tertulis ke /tmp hilang begitu fungsinya
-   selesai. Galeri karena itu dimatikan di sana, dengan jawaban yang menjelaskan
-   sebabnya, bukan 500 dari fs.writeFile yang tidak berarti apa-apa bagi pemakai.
+/* Galeri dulu dimatikan begitu VERCEL terpasang, dengan alasan yang benar:
+   di sana berkas aplikasi baca-saja dan yang tertulis ke /tmp hilang begitu
+   fungsinya selesai. Jawaban yang menjelaskan itu tetap lebih baik daripada
+   500 dari fs.writeFile yang tidak berarti apa-apa bagi pemakai.
 
-   Bisa dipaksa lewat GALERI_MATI=1 untuk mencobanya di komputer sendiri. */
-const GALERI = process.env.GALERI_MATI !== '1' && !process.env.VERCEL;
+   Yang berubah: pertanyaannya bukan lagi "apakah ini Vercel" melainkan "apakah
+   fotonya benar-benar bisa disimpan". Sejak Supabase Storage jadi salah satu
+   jawabannya, keduanya tidak lagi sama — dan yang tahu jawabannya simpanan.js,
+   bukan tebakan dari nama satu environment variable.
+
+   Bisa dipaksa mati lewat GALERI_MATI=1 untuk mencobanya di komputer sendiri. */
+const GALERI = process.env.GALERI_MATI !== '1' && BISA_TULIS_BINER;
 
 /* Data contoh: angka karangan yang menyatu di halaman, supaya seluruh alurnya
    bisa dicoba tanpa server. Berguna sebelum dipasang di kantor dan di salinan
@@ -184,24 +193,12 @@ function berkasSah(nama) {
   return n;
 }
 
-async function bacaDaftar() {
-  try {
-    return JSON.parse(await fs.readFile(FOTO_JSON, 'utf8'));
-  } catch {
-    return {};   // belum ada, atau rusak: mulai dari kosong
-  }
-}
-
-/**
- * Tulis lewat berkas sementara lalu rename. rename di dalam satu volume
- * bersifat atomik, jadi daftar.json tidak pernah tertangkap separuh tertulis
- * kalau prosesnya mati di tengah jalan.
- */
-async function tulisDaftar(daftar) {
-  const sementara = FOTO_JSON + '.tmp';
-  await fs.writeFile(sementara, JSON.stringify(daftar, null, 2) + '\n', 'utf8');
-  await fs.rename(sementara, FOTO_JSON);
-}
+/* Dulu sepasang fungsi sendiri yang membaca dan menulis daftar.json langsung ke
+   disk. Sekarang lewat simpanan.js seperti sebelas dokumen lainnya: indeks foto
+   tidak punya alasan menempuh jalur yang berbeda dari fotonya sendiri, dan
+   kalau keduanya berbeda jalur, salah satu bisa tertinggal. */
+const bacaDaftar = () => bacaJson(FOTO_JSON, {});
+const tulisDaftar = (daftar) => tulisJson(FOTO_JSON, daftar);
 
 const badanGaleri = express.json({ limit: '60mb' });
 
@@ -246,8 +243,7 @@ app.post('/galeri/:unit', galeriHidup, badanGaleri, async (req, res) => {
   }
 
   try {
-    await fs.mkdir(path.join(FOTO_DIR, unit), { recursive: true });
-    await fs.writeFile(path.join(FOTO_DIR, unit, nama), isi);
+    await tulisBiner(path.join(FOTO_DIR, unit, nama), isi);
 
     const daftar = await bacaDaftar();
     const isiUnit = daftar[unit] || (daftar[unit] = []);
@@ -305,7 +301,7 @@ app.delete('/galeri/:unit/:berkas', galeriHidup, async (req, res) => {
     }
     daftar[unit] = isiUnit.filter(f => f.berkas !== nama);
     await tulisDaftar(daftar);
-    await fs.rm(path.join(FOTO_DIR, unit, nama), { force: true });
+    await hapusBiner(path.join(FOTO_DIR, unit, nama));
     await catat(user, { modul: 'galeri', aksi: 'hapus', unit, rincian: nama });
     res.json({ ok: true });
   } catch (e) {
@@ -339,26 +335,20 @@ const DINAS_JSON    = path.join(DATA_DIR, 'dinas.json');
 const PETUGAS_JSON  = path.join(DATA_DIR, 'dinas-petugas.json');
 const HAK_JSON      = path.join(DATA_DIR, 'hak.json');
 
-/* Penyimpanan tetap tidak ada di Vercel dan sejenisnya — alasan yang sama
-   dengan galeri. Di sana jadwalnya bisa dibaca, tapi tidak bisa disimpan. */
-const DINAS_TULIS = !process.env.VERCEL;
+/* Jadwal dinas cuma butuh dokumen JSON, tidak butuh berkas biner — jadi ia
+   sudah bisa disimpan di Vercel begitu jalur tabel menyala, lebih dulu daripada
+   galeri dan dokumen yang masih menunggu Storage. */
+const DINAS_TULIS = BISA_TULIS_JSON;
 
 const bulanSah = (b) => /^\d{4}-(0[1-9]|1[0-2])$/.test(String(b || ''));
 
-async function bacaJson(berkas, bawaan) {
-  try {
-    return JSON.parse(await fs.readFile(berkas, 'utf8'));
-  } catch {
-    return bawaan;   // belum ada, atau rusak: mulai dari kosong
-  }
-}
+/* bacaJson dan tulisJson pindah ke simpanan.js. Yang berubah cuma tempatnya
+   menulis — berkas di server kantor, tabel avenger_state di Supabase kalau
+   AVENGER_DB=postgres. Bentuk panggilannya persis sama, jadi tidak satu pun
+   dari ketiga puluh lima pemanggil di bawah perlu tahu yang mana yang berlaku.
 
-async function tulisJson(berkas, isi) {
-  await fs.mkdir(path.dirname(berkas), { recursive: true });
-  const sementara = berkas + '.tmp';
-  await fs.writeFile(sementara, JSON.stringify(isi, null, 2) + '\n', 'utf8');
-  await fs.rename(sementara, berkas);
-}
+   Alasan lengkapnya, termasuk kenapa satu tabel kunci-nilai dan bukan tabel
+   per modul, ada di kepala simpanan.js. */
 
 /**
  * Siapa yang mengirim permintaan ini, menurut E-Logbook.
@@ -746,7 +736,7 @@ app.put('/hak', badanDinas, async (req, res) => {
     // Berkas lama sudah dilebur ke dalam hak.json oleh bacaHak(); membiarkannya
     // hidup berarti nama yang baru dicabut muncul kembali pada pembacaan
     // berikutnya. Dihapus setelah penggantinya benar-benar tertulis.
-    await fs.rm(PETUGAS_JSON, { force: true });
+    await hapusJson(PETUGAS_JSON);
     await catat(user, {
       modul: 'hak', aksi: 'ubah',
       rincian: MODUL_HAK.map((m) => `${m}: ${hak[m].peran.join('/') || '—'}`
@@ -867,7 +857,7 @@ app.put('/dinas/petugas', badanDinas, async (req, res) => {
     hak.dinas.petugas = [...new Set((Array.isArray(req.body?.petugas) ? req.body.petugas : [])
       .map((u) => String(u || '').trim().toLowerCase()).filter(namaSah))];
     await tulisJson(HAK_JSON, hak);
-    await fs.rm(PETUGAS_JSON, { force: true });
+    await hapusJson(PETUGAS_JSON);
     await catat(user, {
       modul: 'hak', aksi: 'ubah',
       rincian: `petugas jadwal dinas: ${hak.dinas.petugas.length} nama`
@@ -1562,14 +1552,13 @@ app.post('/logo/:unit', galeriHidup, badanGaleri, async (req, res) => {
 
   const nama = unit + ext;
   try {
-    await fs.mkdir(LOGO_DIR, { recursive: true });
     // Logo lama dengan ekstensi berbeda harus pergi, kalau tidak dua berkas
     // untuk satu unit tertinggal dan yang lama tidak pernah terpakai lagi.
     const daftar = await bacaLogo();
     if (daftar[unit] && daftar[unit].berkas && daftar[unit].berkas !== nama) {
-      await fs.rm(path.join(LOGO_DIR, daftar[unit].berkas), { force: true });
+      await hapusBiner(path.join(LOGO_DIR, daftar[unit].berkas));
     }
-    await fs.writeFile(path.join(LOGO_DIR, nama), isi);
+    await tulisBiner(path.join(LOGO_DIR, nama), isi);
     daftar[unit] = { berkas: nama, jam: new Date().toISOString() };
     await tulisJson(LOGO_JSON, daftar);
     await catat(user, { modul: 'logo', aksi: 'ganti', unit, rincian: nama });
@@ -1593,7 +1582,7 @@ app.delete('/logo/:unit', galeriHidup, async (req, res) => {
   try {
     const daftar = await bacaLogo();
     if (!daftar[unit]) return res.status(404).json({ error: 'Unit ini memang belum punya logo.' });
-    await fs.rm(path.join(LOGO_DIR, daftar[unit].berkas), { force: true });
+    await hapusBiner(path.join(LOGO_DIR, daftar[unit].berkas));
     delete daftar[unit];
     await tulisJson(LOGO_JSON, daftar);
     await catat(user, { modul: 'logo', aksi: 'hapus', unit, rincian: '' });
@@ -1649,8 +1638,11 @@ const DOK_EXT = new Set([
 
 /* Alasannya sama dengan galeri dan jadwal dinas: di Vercel dan sejenisnya yang
    tertulis ke disk hilang begitu fungsinya selesai. Lebih baik menolak dengan
-   sebabnya daripada menerima berkas yang diam-diam menguap. */
-const DOK_TULIS = !process.env.VERCEL;
+   sebabnya daripada menerima berkas yang diam-diam menguap.
+
+   Sejak berkasnya bisa mendarat di Supabase Storage, yang ditanyakan bukan lagi
+   nama lingkungannya melainkan apakah simpanan binernya benar-benar ada. */
+const DOK_TULIS = BISA_TULIS_BINER;
 
 function dokumenHidup(_req, res, next) {
   if (DOK_TULIS) return next();
@@ -1725,12 +1717,18 @@ app.get('/dokumen/:unit/:id', async (req, res) => {
   /* Jalurnya dirangkai dari id yang sudah lolos /^[a-f0-9]{16}$/ dan dari
      ekstensi yang sudah lolos daftar putih waktu diunggah, bukan dari apa pun
      yang dibawa permintaan ini. Tidak ada bagian nama yang datang dari luar. */
-  res.setHeader('Content-Disposition', `inline; filename="${dokNamaAman(baris.nama)}"`);
-  res.sendFile(path.join(DOK_DIR, unit, baris.berkas), (e) => {
-    if (!e || res.headersSent) return;
-    console.error('[dokumen] gagal mengirim:', e);
-    res.status(404).json({ error: 'Berkasnya tidak ada lagi di server.' });
-  });
+  try {
+    const berkas = await bacaBiner(path.join(DOK_DIR, unit, baris.berkas));
+    if (!berkas) return res.status(404).json({ error: 'Berkasnya tidak ada lagi di server.' });
+    res.setHeader('Content-Disposition', `inline; filename="${dokNamaAman(baris.nama)}"`);
+    res.type(berkas.mime).send(berkas.buf);
+  } catch (e) {
+    /* Berkas yang hilang sudah dijawab 404 di atas. Sampai di sini artinya
+       simpanannya yang tidak terjawab, dan itu bukan 404 — mengatakan
+       "tidak ada" pada berkas yang sebenarnya ada cuma menyesatkan. */
+    console.error('[dokumen] gagal mengambil:', e);
+    res.status(502).json({ error: 'Simpanan dokumen tidak terjawab. Coba lagi sebentar lagi.' });
+  }
 });
 
 /** Unggah satu berkas. Bentuk badannya sama dengan galeri: base64 di dalam JSON. */
@@ -1768,8 +1766,7 @@ app.post('/dokumen/:unit', dokumenHidup, badanGaleri, async (req, res) => {
   try {
     const id = crypto.randomBytes(8).toString('hex');
     const berkas = id + ext;
-    await fs.mkdir(path.join(DOK_DIR, unit), { recursive: true });
-    await fs.writeFile(path.join(DOK_DIR, unit, berkas), isi);
+    await tulisBiner(path.join(DOK_DIR, unit, berkas), isi);
 
     const daftar = await bacaJson(DOK_JSON, {});
     const isiUnit = daftar[unit] || (daftar[unit] = []);
@@ -1853,7 +1850,7 @@ app.delete('/dokumen/:unit/:id', dokumenHidup, async (req, res) => {
 
     daftar[unit] = isiUnit.filter((b) => b.id !== baris.id);
     await tulisJson(DOK_JSON, daftar);
-    await fs.rm(path.join(DOK_DIR, unit, baris.berkas), { force: true });
+    await hapusBiner(path.join(DOK_DIR, unit, baris.berkas));
 
     await catat(user, { modul: 'dokumen', aksi: 'hapus', unit, rincian: baris.nama });
     res.json({ ok: true });
@@ -1899,6 +1896,67 @@ app.get('/_info', (_req, res) => {
   });
 });
 
+/* =====================================================================
+   FOTO DI JALUR TABEL
+
+   Di server kantor foto ada di public/foto/ dan express.static di bawah yang
+   menyajikannya — tidak ada yang berubah di sana, dan rute ini tidak dipasang
+   sama sekali.
+
+   Di jalur tabel fotonya tidak ada di disk, jadi ia harus diambilkan dari
+   Storage. Rute ini dipasang SEBELUM express.static supaya ia yang menjawab.
+
+   SATU HAL YANG BERUBAH ARTINYA, DAN PANTAS DIKATAKAN TERANG-TERANGAN
+
+   Selama Avenger di kantor, /foto/ terbuka tanpa masuk — dan itu tidak apa-apa,
+   karena yang bisa menjangkaunya cuma orang di dalam jaringan kantor. Begitu
+   Avenger pindah ke Vercel, rute yang sama terbuka untuk seluruh internet.
+   Bucket yang privat TIDAK menutup itu: privat cuma menghalangi jalan langsung
+   ke Supabase, sedangkan rute ini berdiri di depannya.
+
+   Karena isinya wajah pegawai di ruang terbatas, di jalur tabel foto unit
+   MENUNTUT SESI. Logo unit tidak — ia memang lambang yang untuk dilihat, dan
+   menutupnya cuma membuat kop halaman rusak bagi yang belum masuk.
+
+   Kalau suatu saat galeri memang ingin terbuka untuk umum, itu keputusan
+   tersendiri yang pantas diambil sadar-sadar, bukan diwarisi diam-diam dari
+   cara berkasnya kebetulan disajikan. */
+if (DI_TABEL) {
+  app.get('/foto/:unit/:berkas', async (req, res) => {
+    const unit = String(req.params.unit || '').toLowerCase();
+    const logo = unit === '_logo';
+    if (!logo && !unitSah(unit)) return res.status(400).json({ error: 'Kode unit tidak sah.' });
+
+    /* Sesi diperiksa SEBELUM daftarnya dibuka, dan urutan itu bukan kebetulan.
+       Kalau dibalik, yang terdaftar menjawab 401 sementara yang tidak menjawab
+       404 — dan selisih dua angka itu sudah cukup untuk menebak-nebak nama
+       berkas dari luar sampai ketemu. Nama foto di sini memuat kode unit dan
+       tanggal, jadi yang bocor bukan cuma "ada berkas". */
+    if (!logo && !(await siapa(req))) {
+      return res.status(401).json({
+        error: 'Masuk dengan akun E-Logbook Anda dulu untuk melihat foto unit.'
+      });
+    }
+
+    /* Yang disajikan hanya yang memang terdaftar. Tanpa syarat ini, rute ini
+       jadi jalan membaca objek apa pun di dalam bucket dengan menebak namanya. */
+    const nama = path.basename(String(req.params.berkas || ''));
+    const terdaftar = logo
+      ? Object.values(await bacaJson(LOGO_JSON, {})).some((l) => l && l.berkas === nama)
+      : ((await bacaDaftar())[unit] || []).some((f) => f.berkas === nama);
+    if (!terdaftar) return res.status(404).json({ error: 'Foto tidak ada dalam daftar.' });
+
+    try {
+      const berkas = await bacaBiner(path.join(FOTO_DIR, unit, nama));
+      if (!berkas) return res.status(404).json({ error: 'Berkasnya tidak ada lagi di simpanan.' });
+      res.type(berkas.mime || mimeDari(nama)).send(berkas.buf);
+    } catch (e) {
+      console.error('[foto] gagal mengambil:', e);
+      res.status(502).json({ error: 'Simpanan foto tidak terjawab.' });
+    }
+  });
+}
+
 app.use(express.static(path.join(ROOT, 'public'), { extensions: ['html'] }));
 
 /* =====================================================================
@@ -1918,6 +1976,12 @@ if (dijalankanLangsung) {
     console.log(TERUS
       ? `Data E-Logbook diteruskan ke ${ASAL}`
       : 'Penerusan E-Logbook dimatikan — halaman memakai data contoh.');
+    /* Ke mana simpanan menulis adalah hal yang paling mahal kalau salah dan
+       paling tidak terlihat kalau tidak dikatakan: jadwal yang tersimpan ke
+       tempat yang keliru baru ketahuan waktu orang lain tidak melihatnya. */
+    console.log(DI_TABEL
+      ? 'Simpanan modul Avenger: tabel avenger_state di Postgres.'
+      : `Simpanan modul Avenger: berkas di ${DATA_DIR}`);
     if (!GALERI) console.log('Galeri dimatikan — penyimpanan tidak permanen.');
   });
 }
