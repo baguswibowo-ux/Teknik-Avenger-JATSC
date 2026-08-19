@@ -31,7 +31,6 @@ const SJR_WARNA = [
 
 /** Garis waktu satu alat, terbaru di atas. Larik kosong kalau belum ada. */
 function sjrUntuk(unit, alatId){
-  if(!SRV.aktif) return (SEJARAH_CONTOH[alatId] || []).map((k, i)=>({ id:'c'+i, ...k }));
   return ((SJR.isi[unit] || {})[alatId] || []);
 }
 
@@ -50,9 +49,7 @@ async function sjrMuat(){
 }
 
 /** Boleh menulis sejarah alat di unit yang sedang dibuka? */
-const sjrBolehTulis = () => SRV.aktif
-  ? (SJR.bisaTulis && bolehSuntingDb('sejarah'))
-  : true;    // data contoh: suntingannya cuma di layar, dan itu memang gunanya
+const sjrBolehTulis = () => SJR.bisaTulis && bolehSuntingDb('sejarah');
 
 /* ---------- Menggambar ---------- */
 
@@ -143,9 +140,7 @@ function sjrPanel(unit, alat){
                      'Press Write to record its first event.')
                  : T('Yang boleh menulisnya ditentukan per peran di Kelola Akun.',
                      'Who may write it is decided per role under Manage Accounts.')}</div>`
-  }${SRV.aktif ? '' : `<div class="catatan" style="margin-top:12px">${
-      T('Ini data contoh. Suntingannya tidak dikirim ke mana pun dan hilang saat halaman disegarkan.',
-        'This is sample data. Edits go nowhere and vanish when the page is refreshed.')}</div>`}
+  }
   </div></div>`;
 }
 
@@ -193,14 +188,6 @@ async function sjrSimpan(unit, alat){
   // Baris tanpa judul dibuang tanpa berkata apa-apa: menekan Tambah kejadian
   // lalu berubah pikiran bukan kesalahan yang perlu dilaporkan.
   const daftar = SJR.sunting.daftar.filter(k=>String(k.judul || '').trim());
-
-  if(!SRV.aktif){
-    // Data contoh: suntingannya tinggal di layar ini saja, dan panelnya sudah
-    // mengatakan begitu. Tidak ada yang perlu dikirim.
-    SEJARAH_CONTOH[alat.id] = daftar.map(({ id:_buang, ...sisa })=>sisa);
-    SJR.sunting = null; gambarRinciAlat();
-    return;
-  }
 
   tombol.disabled = true;
   try{

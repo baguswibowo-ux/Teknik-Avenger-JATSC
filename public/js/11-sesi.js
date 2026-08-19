@@ -18,7 +18,6 @@ function simpanSesi(){
   const layar = document.querySelector('.layar.aktif');
   try{
     sessionStorage.setItem(SESI_KUNCI, JSON.stringify({
-      mode:  SRV.aktif ? 'server' : 'contoh',
       user:  akun.user,
       layar: layar ? layar.id.slice(2) : 'beranda',
       unit:  unitDibuka
@@ -47,20 +46,9 @@ async function pulihkanSesi(){
   const s = bacaSesi();
   if(!s) return;
   try{
-    if(s.mode === 'server'){
-      if(!SRV.ada || !SRV.sesi) return lupakanSesi();
-      segarkanKartuMasuk();
-      await srvMuat();
-    }else{
-      // Sesi data contoh tidak dipulihkan di lingkungan yang memang tidak punya
-      // data contoh: penandanya bisa saja tertinggal dari sebelum dideploy.
-      if(!KEMAMPUAN.dataContoh) return lupakanSesi();
-      const c = akunContohMuat().find(x=>x.username.toLowerCase() === String(s.user).toLowerCase());
-      if(!c || !c.aktif) return lupakanSesi();
-      segarkanKartuMasuk();
-      pakaiContoh();
-      akun = akunDariContoh(c);
-    }
+    if(!SRV.ada || !SRV.sesi) return lupakanSesi();
+    segarkanKartuMasuk();
+    await srvMuat();
   }catch(e){
     console.warn('Sesi sebelumnya tidak bisa dipulihkan:', e && e.message || e);
     return lupakanSesi();

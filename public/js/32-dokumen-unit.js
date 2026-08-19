@@ -8,34 +8,22 @@
    data/dokumen/, di luar public/, hanya bisa diambil setelah masuk. Lihat blok
    DOKUMEN UNIT di server.js.
 
-   Dua jalan hidup berdampingan, dan bedanya bukan bentuk daftarnya melainkan
-   ke mana byte-nya pergi:
-
-     tersambung   diunggah ke server, tinggal di sana, dan kembali sendiri
-                  waktu halaman dibuka lagi
-     data contoh  seperti dulu — object URL di memori tab, hilang saat
-                  disegarkan, dan kartunya mengatakan begitu
-
-   Yang kedua sengaja dipertahankan: salinan etalase tidak punya server, dan
-   tab yang cuma bisa memperlihatkan daftar kosong tidak memperlihatkan apa pun
-   tentang bentuk alurnya. Baris lokal ditandai .lokal, dan itu satu-satunya
-   yang membedakan keduanya di sisa berkas ini.
+   Berkas yang masuk diunggah ke server, tinggal di sana, dan kembali sendiri
+   waktu halaman dibuka lagi. Dulu ada jalan kedua di sebelahnya — object URL
+   di memori tab, untuk data contoh — dan barisnya ditandai .lokal. Data
+   contohnya sudah dibuang, jadi jalan itu ikut pergi: sekarang tiap baris di
+   daftar ini benar-benar ada di server.
 
    Berkas yang masuk lewat layar ini tetap tidak pernah sampai ke E-Logbook —
    bukan ke basis datanya, bukan ke uploads/ miliknya, bukan pula ke servernya.
    ======================================================================= */
 const BERKAS = {};                       // kode unit -> array berkas, terbaru di atas
 const BRK_BATAS = 25 * 1024 * 1024;      // 25 MB; sama dengan batas di server
-let brkNomor = 0;
-
-/** Berkas yang masuk akan pergi ke server, bukan tinggal di memori tab? */
-const dokKeServer = () => SRV.aktif;
 
 /** Kenapa berkas tidak bisa diunggah, dalam satu kalimat — atau '' kalau bisa.
     Diperiksa di layar supaya penolakannya datang sebelum berkasnya terlanjur
     dibaca jadi base64; yang menolak sungguhan tetap server. */
 function dokSebabTolak(){
-  if(!dokKeServer()) return '';
   if(!KEMAMPUAN.dokumenTulis){
     return T('Menyimpan dokumen dimatikan di lingkungan ini — penyimpanannya tidak permanen.',
              'Saving documents is off in this environment — its storage is not permanent.');
@@ -238,48 +226,27 @@ async function brkTambah(daftarFile){
   const pKat   = el('brkKat');
   const alat   = pAlat && pAlat.value ? pAlat.value : '';
   const paksa  = pKat && pKat.value ? pKat.value : '';
-  const keServer = dokKeServer();
   let masuk = 0; const gemuk = [], gagal = [];
 
   for(const f of daftarFile){
     if(f.size > BRK_BATAS){ gemuk.push(f.name); continue; }
     const kategori = paksa || brkTebakKategori(f.name, f.type || '');
-    if(keServer){
-      try{ await dokKirim(unitDibuka, f, kategori, alat); masuk++; }
-      catch(e){ gagal.push(f.name + ': ' + (e && e.message || e)); }
-    }else{
-      // Jalan lama, dan sekarang hanya untuk data contoh: object URL di memori
-      // tab. Ditandai .lokal supaya sisa berkas ini tahu barisnya tidak punya
-      // apa pun di server untuk dihapus atau diubah.
-      brkDaftar().unshift({
-        id: 'brk' + (++brkNomor),
-        nama: f.name,
-        jenis: f.type || '',
-        ukuran: f.size,
-        waktu: new Date().toISOString(),
-        olehNama: akun ? akun.nama : '—',
-        oleh: akun ? akun.user : '—',
-        kategori, alat, lokal: true,
-        url: URL.createObjectURL(f)
-      });
-      masuk++;
-    }
+    try{ await dokKirim(unitDibuka, f, kategori, alat); masuk++; }
+    catch(e){ gagal.push(f.name + ': ' + (e && e.message || e)); }
   }
 
   // Satu kali baca ulang untuk seluruh kiriman, bukan sekali per berkas:
   // yang dijawab server daftar seluruh unit, dan mengambilnya berulang kali
   // tidak menambah apa pun selain perjalanan.
-  if(keServer && masuk) await dokMuat();
+  if(masuk) await dokMuat();
   gambarBerkas(); brkLencana();
 
   if(gagal.length)      pesan(T('Gagal mengunggah: ','Upload failed: ') + gagal.join('; '));
   else if(gemuk.length) pesan(T(`${gemuk.length} berkas dilewati — lebih dari ${brkUkuran(BRK_BATAS)}.`,
                                 `${gemuk.length} files skipped — larger than ${brkUkuran(BRK_BATAS)}.`));
-  else if(masuk)        pesan(keServer
-    ? T(`${masuk} berkas tersimpan di dokumen ${namaUnit(unitDibuka)}.`,
-        `${masuk} files saved to ${namaUnit(unitDibuka)} documents.`)
-    : T(`${masuk} berkas masuk ke daftar ${namaUnit(unitDibuka)} — di tab ini saja.`,
-        `${masuk} files added to the ${namaUnit(unitDibuka)} list — in this tab only.`));
+  else if(masuk)        pesan(
+    T(`${masuk} berkas tersimpan di dokumen ${namaUnit(unitDibuka)}.`,
+      `${masuk} files saved to ${namaUnit(unitDibuka)} documents.`));
 }
 
 async function brkBuang(id){
@@ -287,16 +254,7 @@ async function brkBuang(id){
   const i = kotak.findIndex(b => b.id === id); if(i < 0) return;
   const b = kotak[i];
 
-  if(b.lokal){
-    URL.revokeObjectURL(b.url);             // tanpa ini berkasnya menetap di memori
-    kotak.splice(i, 1);
-    gambarBerkas(); brkLencana();
-    pesan(T(`"${b.nama}" dikeluarkan dari daftar.`, `"${b.nama}" removed from the list.`));
-    return;
-  }
-
-  // Yang tersimpan di server dihapus sungguhan, jadi ditanya dulu. Baris lokal
-  // tidak ditanya: yang hilang di sana cuma satu baris di tab ini.
+  // Berkasnya dihapus sungguhan dari server, jadi ditanya dulu.
   if(!confirm(T(`Keluarkan "${b.nama}" dari dokumen unit ini?\n\nBerkasnya ikut dihapus dari server.`,
                 `Remove "${b.nama}" from this unit's documents?\n\nThe file is deleted from the server too.`))) return;
   try{
@@ -400,8 +358,7 @@ function gambarBerkas(){
       <td>${nmAlat ? esc(nmAlat)
         : '<span class="mono" style="color:var(--muted)">—</span>'}</td>
       <td><span class="mono">${brkUkuran(b.ukuran)}</span></td>
-      <td><span class="mono" style="color:var(--muted)">${jam} · ${esc(b.olehNama || b.oleh)}${
-        b.lokal ? ' · ' + esc(T('tab ini saja','this tab only')) : ''}</span></td>
+      <td><span class="mono" style="color:var(--muted)">${jam} · ${esc(b.olehNama || b.oleh)}</span></td>
       <td><div style="display:flex;gap:6px;justify-content:flex-end">
         <a class="btn garis kecil" href="${b.url}" target="_blank" rel="noopener">${T('Buka','Open')}</a>
         <button class="brk-buang" data-buang="${b.id}">${T('Keluarkan','Remove')}</button>
@@ -418,7 +375,6 @@ function gambarBerkas(){
       if(!b) return;
       const lama = b.kategori;
       b.kategori = s.value;
-      if(b.lokal) return;
       /* Yang tersimpan di server ikut diubah di sana. Kalau ditolak, pilihannya
          dikembalikan ke yang lama — kotak yang menunjukkan sesuatu yang tidak
          tersimpan akan membuat orang mengira pekerjaannya sudah aman. */

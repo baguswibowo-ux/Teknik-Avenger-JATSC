@@ -23,24 +23,24 @@
   di tempatnya, tetap jalan sendiri, dan tidak ada satu berkas pun miliknya yang
   disunting dari sini. Yang diambil hanya API-nya.
 
-  DUA SUMBER DATA, dipilih di kartu masuk:
-    · DATA CONTOH      — blok DATA di bawah, semuanya karangan
-    · SERVER E-LOGBOOK — daftar unit, isu (jadi papan trouble), dan catatan
-                         logbook diambil lewat API server yang sudah ada
-  Panggilannya tetap ke /api/* pada asal yang sama; server.js di akar proyek
-  yang meneruskannya ke E-Logbook (bawaan http://127.0.0.1:3000). Kalau server
-  itu mati, pemeriksaannya gagal dan pilihan servernya padam sendiri — yang
-  tampil data contoh.
+  SATU SUMBER DATA. Daftar unit, isu (jadi papan trouble), dan catatan logbook
+  diambil dari API E-Logbook lewat /api/* pada asal yang sama; server.js di akar
+  proyek yang meneruskannya (bawaan http://127.0.0.1:3000). Kalau server itu
+  mati, halaman ini mengatakannya — tidak ada lagi data contoh untuk menutupi.
 
-  Jadwal dinas milik dashboard ini sendiri: tersimpan di server ini (data/),
-  bukan di E-Logbook, dan berlaku baik tersambung maupun tidak. Begitu juga
-  peralatan, sparepart, dan sejarah peralatan — modulnya memang belum ada di
-  E-Logbook, jadi tempatnya di sini. Yang tampil sebagai contoh cuma saat
-  halaman berjalan tanpa server, dan itu ditandai di layar.
+  Dulu ada sumber kedua: satu blok DATA berisi peralatan, sparepart, trouble,
+  jadwal, cuplikan logbook, dan lima akun tiruan, semuanya karangan. Ia berguna
+  selama dashboard ini belum punya server sendiri. Sesudah punya, yang tersisa
+  cuma risikonya — angka karangan yang tidak bisa dibedakan dari yang nyata oleh
+  yang membacanya — jadi seluruhnya dibuang.
+
+  Modul milik dashboard ini sendiri, tersimpan di server ini (data/) dan bukan
+  di E-Logbook: jadwal dinas, kegiatan berkala, personel, peralatan, sparepart,
+  sejarah peralatan, dokumen, dan galeri.
   Rinciannya di blok JEMBATAN E-LOGBOOK, dekat kaki berkas.
 
-  Alur yang dicontohkan:
-    1. Layar masuk           — konsol CNS/ATM dengan bandara 3D, akun contoh
+  Alurnya:
+    1. Layar masuk           — konsol CNS/ATM dengan bandara 3D, akun E-Logbook
     2. Dashboard umum        — sama untuk semua akun: trouble dan dinas SEMUA unit
     3. Dashboard unit        — baru di sini peran akun menentukan apa yang terbuka
 
@@ -190,10 +190,9 @@
                setelah masuk — bukan pertanyaan yang harus dijawab sebelum
                boleh mengetik username.
 
-               Data contoh juga bukan pilihan lagi melainkan keadaan: ia berlaku
-               kalau memang tidak ada server di belakang halaman ini. Begitu
-               dideploy, tidak ada lagi data contoh untuk dipilih — lihat
-               KEMAMPUAN.dataContoh. -->
+               Data contoh sudah tidak ada sama sekali, jadi tidak ada pula
+               keadaan ketiga yang perlu dijelaskan di sini: server terjawab
+               atau tidak. -->
           <div id="kmBagianDash">
            <div id="kmPanelMasuk">
             <div class="km-sumber">
@@ -430,11 +429,11 @@
     </div>
   </div>
 
-  <div class="catatan" data-en="<b>The boundary this page demonstrates.</b> Down to this line every account
+  <div class="catatan" data-en="<b>The boundary that applies here.</b> Down to this line every account
     sees the same thing — trouble and duty rosters across all units, so that whoever comes on shift
     knows what is still hanging in the next unit. Roles only start to matter in
     <b>Unit Database</b>: units this account may not open are padlocked in the ring above.">
-    <b>Batas yang dicontohkan di sini.</b> Sampai baris ini, semua akun melihat hal yang sama —
+    <b>Batas yang berlaku di sini.</b> Sampai baris ini, semua akun melihat hal yang sama —
     trouble dan dinas seluruh unit, supaya siapa pun yang masuk dinas tahu apa yang sedang
     menggantung di unit sebelah. Yang membedakan peran baru terasa di
     <b>Database Unit</b>: unit yang tidak boleh dibuka akun ini bergembok di cincin atas.
@@ -745,9 +744,8 @@
   </div>
 </div>
 
-<script src="/js/01-data-contoh.js"></script>
+<script src="/js/01-unit-dan-dinas.js"></script>
 <script src="/js/02-kode-dinas.js"></script>
-<script src="/js/03-suntingan-unit.js"></script>
 <script src="/js/04-galeri.js"></script>
 <script src="/js/05-ilustrasi.js"></script>
 <script src="/js/06-panggung-3d.js"></script>

@@ -1,9 +1,8 @@
 /* =======================================================================
    GALERI FOTO — dokumentasi kegiatan per unit
 
-   BUKAN data contoh: berkasnya foto sungguhan di public/foto/<unit>/, dan
-   itu sebabnya blok ini berada di luar CONTOH. Tidak ikut diganti saat
-   halaman tersambung ke server — E-Logbook belum punya modul galeri.
+   Fotonya sungguhan, di public/foto/<unit>/. Galerinya milik dashboard ini,
+   bukan E-Logbook — di sana modulnya memang belum ada.
 
    Isinya TIDAK ditulis di berkas ini, melainkan diminta ke server lewat
    /galeri/daftar — indeks yang sama yang ditulis ulang tiap ada foto baru

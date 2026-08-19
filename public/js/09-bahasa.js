@@ -59,19 +59,17 @@ const unitBoleh = () => UNIT.filter(u=>bolehBuka(u.kode));
 /**
  * Petak dinas hari ini untuk satu unit.
  *
- * Tiga sumber, berurutan: jadwal bulanan yang memang sudah diisi orang (modul
- * Jadwal Dinas di bawah), lalu — hanya dalam data contoh — daftar karangan di
- * CONTOH, lalu petak kosong menurut kode dinas baku.
+ * Dua sumber saja sekarang: jadwal bulanan yang memang sudah diisi orang
+ * (modul Jadwal Dinas di bawah), lalu petak kosong menurut kode dinas baku.
+ * Di antara keduanya dulu ada daftar nama karangan; ia sudah dibuang.
  *
- * Saat tersambung ke server, unit yang belum punya jadwal tampil KOSONG, bukan
- * diisi nama karangan: alasannya sama dengan cuplikan logbook di layar unit.
- * Nama orang yang tidak pernah ada, terpampang sebagai "berdinas hari ini",
- * jauh lebih buruk daripada petak yang jujur kosong.
+ * Unit yang belum punya jadwal karena itu tampil KOSONG — alasannya sama
+ * dengan cuplikan logbook di layar unit. Nama orang yang tidak pernah ada,
+ * terpampang sebagai "berdinas hari ini", jauh lebih buruk daripada petak
+ * yang jujur kosong.
  */
 function dinasUnit(kode){
-  const nyata = dinasHariIni(kode);
-  if(nyata) return nyata;
-  return SRV.aktif ? petakBaku(kode) : (DINAS[kode] || petakBaku(kode));
+  return dinasHariIni(kode) || petakBaku(kode);
 }
 
 function pesan(teks){

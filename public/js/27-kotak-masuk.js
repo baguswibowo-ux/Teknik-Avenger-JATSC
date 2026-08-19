@@ -90,11 +90,9 @@ function gambarKotakMasuk(){
   const n = kotakUntukSaya().length;
   if(lencana){ lencana.textContent = n; lencana.hidden = !n; }
 
-  el('ketKotak').textContent = SRV.aktif
-    ? T(`Periode berjalan · pekan ${periodeKini('mingguan')}`,
-        `Current period · week ${periodeKini('mingguan')}`)
-    : T('Data contoh — jadwal dinas dan kegiatannya tersimpan di peramban ini saja.',
-        'Sample data — the roster and its jobs live in this browser only.');
+  el('ketKotak').textContent =
+    T(`Periode berjalan · pekan ${periodeKini('mingguan')}`,
+      `Current period · week ${periodeKini('mingguan')}`);
 
   el('saringKotak').innerHTML = [
     ['saya',  T(`Untuk saya (${milikSaya.length})`, `For me (${milikSaya.length})`)],

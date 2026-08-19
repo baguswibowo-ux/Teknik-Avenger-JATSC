@@ -544,24 +544,17 @@ function kmBangunPanggung(){
 }
 
 /* Blok SESI di rel kiri mengikuti kolom username, jadi sebelum menekan Masuk
-   pun sudah terlihat akun mana yang akan dipakai dan perannya apa. Dalam mode
-   server yang ditampilkan sesi E-Logbook yang sebenarnya, bukan akun contoh —
-   dua daftar akun yang berbeda tidak boleh tercampur di satu tempat. */
+   pun sudah terlihat akun mana yang akan dipakai dan perannya apa. Yang
+   ditampilkan sesi E-Logbook yang sebenarnya — dulu ada cabang kedua untuk
+   akun contoh, dan dua daftar akun yang berbeda tidak pernah pantas tercampur
+   di satu tempat. */
 function kmSegarkanSesi(){
   const u = el('iUser').value.trim().toLowerCase();
   let a = null, sumber = '';
-  if(SRV.mode === 'server'){
-    if(SRV.sesi && SRV.sesi.username.toLowerCase() === u){
-      a = { nama: SRV.sesi.nama || SRV.sesi.username,
-            peran: PERAN_SERVER[SRV.sesi.role] || SRV.sesi.role || 'Pengguna' };
-      sumber = 'SESI SERVER AKTIF';
-    }
-  }else{
-    const c = akunContohMuat().find(x=>x.username.toLowerCase() === u);
-    if(c){
-      a = { nama: c.nama || c.username, peran: c.peran || PERAN_SERVER[c.role] || c.role || 'Pengguna' };
-      sumber = c.aktif ? 'SIAP MASUK · TEKAN MASUK' : 'AKUN NONAKTIF · TIDAK BISA MASUK';
-    }
+  if(SRV.sesi && SRV.sesi.username.toLowerCase() === u){
+    a = { nama: SRV.sesi.nama || SRV.sesi.username,
+          peran: PERAN_SERVER[SRV.sesi.role] || SRV.sesi.role || 'Pengguna' };
+    sumber = 'SESI SERVER AKTIF';
   }
   el('kmSesi').classList.toggle('km-siap', !!a);
   el('kmSesiInisial').textContent = a ? inisial(a.nama) : '—';

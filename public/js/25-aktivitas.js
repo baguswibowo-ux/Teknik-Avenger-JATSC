@@ -87,7 +87,7 @@ function aktLokalSimpan(){
  * membaca datanya sesudah itu tidak akan pernah tahu.
  */
 function aktCatat(modul, aksi, unit, rincian){
-  if(SRV.aktif && AKT_SERVER.has(modul)) return;   // server sudah mencatatnya
+  if(AKT_SERVER.has(modul)) return;   // server sudah mencatatnya
   // Catatan lama dibaca dulu. Tanpa ini, penyuntingan pertama sebelum layar
   // Aktivitas pernah dibuka akan menimpa seluruh riwayat dengan satu baris.
   if(!AKT.dimuat){ AKT.lokal = aktLokalMuat(); AKT.dimuat = true; }
@@ -108,7 +108,6 @@ async function aktMuat(){
   AKT.lokal = aktLokalMuat();
   AKT.dimuat = true;
   AKT.kabar = '';
-  if(!SRV.aktif){ AKT.server = []; return; }
   try{
     const r = await srvFetch('/aktivitas?batas=200', {}, 10000);
     const j = await r.json().catch(()=>null);
@@ -156,11 +155,9 @@ function gambarAktivitas(){
   const orang = new Set(semua.map(a=>a.oleh).filter(x=>x && x !== '—')).size;
   const saya = semua.filter(a=>akun && a.oleh === akun.user).length;
 
-  el('ketAktivitas').textContent = SRV.aktif
-    ? T('Dicatat server untuk seluruh pemakai, ditambah suntingan yang hanya hidup di peramban ini.',
-        'Recorded by the server for every user, plus edits that live only in this browser.')
-    : T('Data contoh — yang tercatat di sini hanya perbuatan Anda sendiri di peramban ini.',
-        'Sample data — what is recorded here is only your own actions in this browser.');
+  el('ketAktivitas').textContent =
+    T('Dicatat server untuk seluruh pemakai, ditambah suntingan yang hanya hidup di peramban ini.',
+      'Recorded by the server for every user, plus edits that live only in this browser.');
   el('ketAktivitasJam').textContent = T(`${semua.length} catatan`, `${semua.length} entries`);
 
   el('ubinAktivitas').innerHTML =

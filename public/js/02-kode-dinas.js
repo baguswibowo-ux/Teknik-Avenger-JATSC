@@ -32,9 +32,9 @@ const SHIFT = {
      di sini supaya jamnya dan warnanya betul kalau terlanjur terisi. */
   'PS':   { mulai:0,  sampai:12, warna:'var(--ok)',     nama:'Pagi–Siang',      pita:'PS' },
   'M':    { mulai:12, sampai:24, warna:'var(--muted)',  nama:'Malam',           pita:'M', malam:true },
-  /* Nama lama, dari sebelum kode JATSC/New dipakai. Masih ada di data contoh
-     dan di jadwal yang terlanjur diisi; membuangnya akan mengosongkan petak
-     dinas keduanya tanpa ada yang tahu sebabnya. */
+  /* Nama lama, dari sebelum kode JATSC/New dipakai. Masih ada di jadwal yang
+     terlanjur diisi dengannya; membuangnya akan mengosongkan petak dinas
+     bulan-bulan itu tanpa ada yang tahu sebabnya. */
   'Pagi':  { mulai:0,  sampai:7,  warna:'var(--accent)', nama:'Pagi',  pita:'P', geser:true },
   'Siang': { mulai:7,  sampai:13, warna:'var(--warn)',   nama:'Siang', pita:'S', geser:true },
   'Malam': { mulai:12, sampai:24, warna:'var(--muted)',  nama:'Malam', pita:'M', malam:true }
@@ -89,22 +89,8 @@ const labelUtc = (j) => `${jamPad(j.mulai)}–${jamPad(j.sampai)} UTC`;
 /** "07:00–19:00 WIB" — untuk yang membaca sambil melihat jam dinding. */
 const labelWib = (j) => `${jamWib(j.mulai)}–${jamWib(j.sampai)} WIB`;
 
-const PART = [
-  { nama:'Power Amplifier VHF 50W', pn:'PA-50-VHF-R3', unit:'radkom', rak:'A-01', stok:2, min:2, satuan:'pcs', pakai:'2026-06-18' },
-  { nama:'Modul Catu Daya Garex', pn:'GRX-PSU-300', unit:'radtel', rak:'A-04', stok:1, min:2, satuan:'pcs', pakai:'2026-07-02' },
-  { nama:'Panel Jack Headset CWP', pn:'GRX-JCK-07', unit:'radtel', rak:'A-05', stok:0, min:2, satuan:'pcs', pakai:'2026-08-04' },
-  { nama:'Headset Operator CWP', pn:'HS-CWP-02', unit:'radtel', rak:'A-06', stok:5, min:3, satuan:'pcs', pakai:'2026-08-04' },
-  { nama:'Hard Disk Recording 4TB', pn:'NPT-HDD-4T', unit:'radtel', rak:'A-07', stok:3, min:2, satuan:'pcs', pakai:'2026-05-09' },
-  { nama:'Kabel Coax RG-214 (rol)', pn:'RG214-100M', unit:'radkom', rak:'B-02', stok:3, min:1, satuan:'rol', pakai:'2026-05-27' },
-  { nama:'Konektor N-Type', pn:'CON-N-50', unit:'radkom', rak:'B-03', stok:12, min:8, satuan:'pcs', pakai:'2026-07-14' },
-  { nama:'Baterai UPS 12V 100Ah', pn:'UPS-BAT-12100', unit:'listrikmekanik', rak:'C-01', stok:8, min:6, satuan:'pcs', pakai:'2026-07-19' },
-  { nama:'Filter Udara AC Presisi', pn:'ACP-FLT-24', unit:'listrikmekanik', rak:'C-03', stok:0, min:4, satuan:'pcs', pakai:'2026-07-30' },
-  { nama:'Oli Mesin Genset (drum)', pn:'OIL-15W40-D', unit:'listrikmekanik', rak:'C-05', stok:2, min:1, satuan:'drum', pakai:'2026-07-05' },
-  { nama:'Hard Disk Server 2TB', pn:'HDD-ENT-2T', unit:'amhsadps', rak:'D-02', stok:4, min:2, satuan:'pcs', pakai:'2026-04-11' },
-  { nama:'Kartu Extractor Radar', pn:'RDR-EXT-C4', unit:'pengamatan', rak:'D-05', stok:1, min:1, satuan:'pcs', pakai:'2026-02-14' },
-  { nama:'Modul Receiver DME', pn:'DME-RX-M2', unit:'ppabn', rak:'B-05', stok:1, min:1, satuan:'pcs', pakai:'2026-03-22' },
-  { nama:'Lampu Obstruction LED', pn:'OBS-LED-R', unit:'gedungkeamanan', rak:'E-01', stok:2, min:4, satuan:'pcs', pakai:'2026-06-05' },
-  { nama:'Kamera CCTV Dome', pn:'CCTV-DM-4M', unit:'gedungkeamanan', rak:'E-02', stok:3, min:2, satuan:'pcs', pakai:'2026-08-12' },
-  { nama:'Modul I/O FDPS', pn:'FDP-IO-12', unit:'fdpsrdps', rak:'D-08', stok:2, min:2, satuan:'pcs', pakai:'2026-06-30' }
-];
+/* Daftar sparepart. Kosong di sini, dan itu disengaja: isinya datang dari
+   /unitdb pada server dashboard ini. Sebelum ada yang masuk, yang benar
+   memang belum ada apa-apa. */
+const PART = [];
 

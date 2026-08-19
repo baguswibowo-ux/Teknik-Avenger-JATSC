@@ -31,31 +31,11 @@ el('btnMasuk').addEventListener('click', masuk);
 el('iPass').addEventListener('keydown', e=>{ if(e.key === 'Enter') masuk(); });
 el('iUser').addEventListener('keydown', e=>{ if(e.key === 'Enter') masuk(); });
 
-async function masuk(){
-  if(SRV.mode === 'contoh') masukContoh();
-  else await masukServer();
-}
-
-function masukContoh(){
-  const u = el('iUser').value.trim().toLowerCase();
-  const c = akunContohMuat().find(x=>x.username.toLowerCase() === u);
-  /* Dulu pesannya menunjuk "daftar akun contoh di bawah". Daftar itu sudah
-     dibuang, jadi nama-namanya disebut di sini — pesan yang menyuruh melihat
-     sesuatu yang tidak ada lebih buruk daripada tidak ada pesan. */
-  if(!c){
-    const ada = akunContohMuat().filter(x=>x.aktif).map(x=>x.username).join(', ');
-    pesan(T('Akun tidak dikenal. Yang ada di data contoh: ' + ada + '.',
-            'Unknown account. Sample data has: ' + ada + '.'));
-    return;
-  }
-  // Nonaktif harus benar-benar berarti tidak bisa masuk, juga di data contoh —
-  // kalau tidak, tombol Nonaktifkan di tab Kelola Akun tidak membuktikan apa pun.
-  if(!c.aktif){ pesan(T('Akun ' + c.username + ' dinonaktifkan dan tidak bisa masuk.',
-    'Account ' + c.username + ' is deactivated and cannot sign in.')); return; }
-  pakaiContoh();
-  akun = akunDariContoh(c);
-  bukaDashboard();
-}
+/* Satu jalan masuk saja sekarang: akun E-Logbook yang sungguhan. Dulu ada
+   dua, dan yang kedua memakai daftar akun tiruan di peramban — berguna untuk
+   etalase di luar jaringan kantor, tapi sesudah dideploy ia cuma jadi pintu
+   yang membuka layar berisi angka karangan. */
+function masuk(){ return masukServer(); }
 
 function bukaDashboard(){
   el('layarMasuk').classList.add('pergi');

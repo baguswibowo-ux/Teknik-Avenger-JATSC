@@ -7,12 +7,12 @@
    server.js di akar proyek yang meneruskannya ke E-Logbook. Bagi browser
    semuanya satu asal, jadi tidak ada urusan CORS dan cookie sesinya ikut.
    Dibuka lewat file:// atau server statis lain (tanpa penerusan itu),
-   pemeriksaannya gagal dan kartu masuknya jatuh ke data contoh sendiri.
+   pemeriksaannya gagal dan kartu masuknya mengatakan servernya tidak terjawab.
 
    Tiga hal yang datang dari E-Logbook: daftar unit, isu (jadi papan trouble),
-   dan catatan logbook. Peralatan, sparepart, dan sejarah peralatan tetap
-   contoh — modulnya memang belum ada di sana, dan itu ditandai terang-terangan
-   di layar supaya tidak ada yang mengira angkanya nyata.
+   dan catatan logbook. Peralatan, sparepart, sejarah peralatan, personel,
+   jadwal dinas, kegiatan berkala, dokumen, dan galeri tidak ada di sana —
+   modul-modul itu milik dashboard ini dan tersimpan di servernya sendiri.
 
    Jadwal dinas bukan salah satunya: modul itu milik dashboard ini dan
    tersimpan di servernya sendiri. Yang ditanyakan ke E-Logbook cuma siapa
@@ -37,22 +37,16 @@
    sebelum boleh mengetik username. Sekarang masuk berarti satu hal: mendarat
    di dashboard ini. E-Logbook dibuka dari tombolnya di kepala dashboard.
 
-   Yang tersisa SRV.mode, dan ia DITURUNKAN, bukan dipilih:
-
-     ada server        → 'server', data sungguhan dari E-Logbook
-     tidak ada server  → 'contoh', tapi hanya kalau data contoh memang masih
-                         ada di salinan ini
-
-   Data contoh untuk demo di luar jaringan kantor, sebelum dideploy. Di
-   lingkungan deploy ia tidak ada sama sekali: server yang mengatakannya lewat
-   /_info, bukan halaman ini yang menebak. Di sana, server yang tidak terjawab
-   adalah kerusakan yang pantas terlihat — bukan alasan menampilkan angka
-   karangan yang bisa disangka nyata.                                        */
+   Data contoh pun sudah tidak ada. Ia dulu berlaku kalau E-Logbook tidak
+   terjawab, dan gunanya memang nyata: etalase di luar jaringan kantor, sebelum
+   ada servernya. Sesudah kedua aplikasi hidup di produksi, yang tersisa dari
+   kegunaan itu tinggal risikonya — server yang diam dijawab dengan layar penuh
+   angka karangan, dan yang membacanya tidak punya cara membedakannya dari yang
+   nyata. Sekarang server yang diam terlihat sebagai server yang diam.       */
 
 const SRV = {
   ada:   false,   // server E-Logbook menjawab di alamat yang sama
   sesi:  null,    // { username, nama, role } kalau cookie sesinya masih hidup
-  mode:  'contoh',// sumber data yang sedang dipilih: 'contoh' | 'server'
   aktif: false,   // data yang sedang tampil benar-benar dari server
   unit:  [],      // kode unit yang berhasil diambil
   jam:   null     // kapan data itu diambil
@@ -68,10 +62,9 @@ const PERAN_SERVER_EN = { admin:'Administrator', pejabat:'Officer / Manager',
 const PERAN_URUT = ['teknisi', 'pic', 'adminunit', 'pejabat', 'admin'];
 /** Sebutan peran menurut bahasa yang sedang dipilih. */
 const peranTampil = (role) => (BHS === 'en' ? PERAN_SERVER_EN : PERAN_SERVER)[role] || role;
-/** Sebutan peran akun yang sedang masuk. Akun contoh membawa sebutan khasnya
-    sendiri ("Admin Faskompen"); yang dari server memakai sebutan umum. */
+/** Sebutan peran akun yang sedang masuk. */
 const peranAkun = () => (BHS === 'en' && akun && akun.peranEn) ? akun.peranEn : (akun ? akun.peran : '');
-const ADEGAN_UNIT = Object.fromEntries(CONTOH.UNIT.map(u=>[u.kode, u.adegan]));
+const ADEGAN_UNIT = Object.fromEntries(UNIT_KERANGKA.map(u=>[u.kode, u.adegan]));
 
 /** Ambil bagian tanggal dari apa pun bentuk kiriman server ('2026-08-14', ISO penuh). */
 const isoTgl = (x) => { const m = String(x||'').match(/\d{4}-\d{2}-\d{2}/); return m ? m[0] : ''; };
@@ -113,25 +106,15 @@ async function srvPeriksa(){
   segarkanKartuMasuk();
 }
 
-/** Modenya diturunkan dari keadaan, bukan dari pilihan orang. Data contoh cuma
-    berlaku kalau memang tidak ada server DAN salinan ini memang masih
-    membawanya — di lingkungan deploy, keduanya tidak pernah terpenuhi. */
-function modeSekarang(){
-  return SRV.ada || !KEMAMPUAN.dataContoh ? 'server' : 'contoh';
-}
-
 /** Kartu masuk digambar ulang mengikuti keadaan: ada server atau tidak, ada
     sesi yang masih hidup atau tidak. Dulu bernama pilihTujuan() dan menerima
     tujuan sebagai argumen; sekarang tidak ada yang perlu dipilih. */
 function segarkanKartuMasuk(){
-  SRV.mode = modeSekarang();
-  const server = SRV.mode === 'server';
-
-  el('iUser').placeholder = server ? 'username E-Logbook Anda' : 'mis. radtel';
-  el('iPass').placeholder = server
-    ? (SRV.sesi ? 'kosongkan — sesi Anda masih aktif' : 'password akun E-Logbook')
-    : 'prototipe — tidak diperiksa';
-  el('btnMasuk').textContent = server && SRV.sesi
+  el('iUser').placeholder = 'username E-Logbook Anda';
+  el('iPass').placeholder = SRV.sesi
+    ? 'kosongkan — sesi Anda masih aktif'
+    : 'password akun E-Logbook';
+  el('btnMasuk').textContent = SRV.sesi
     ? 'Lanjutkan sebagai ' + (SRV.sesi.nama || SRV.sesi.username)
     : 'Masuk';
 
@@ -139,7 +122,7 @@ function segarkanKartuMasuk(){
      masih hidup. Yang sudah diputus tidak meninggalkan apa-apa — kolomnya
      tetap kosong, dan orang berikutnya di komputer yang sama tidak menemukan
      nama siapa pun di sana. Yang sedang diketik tidak pernah ditimpa. */
-  if(!el('iUser').value && !userDiketik && server && SRV.sesi){
+  if(!el('iUser').value && !userDiketik && SRV.sesi){
     el('iUser').value = SRV.sesi.username;
   }
 
@@ -158,21 +141,13 @@ function segarkanKartuMasuk(){
 function srvKet(teks, rupa){
   const k = el('ketSumber');
   if(!teks){
-    if(!SRV.ada && !KEMAMPUAN.dataContoh){
-      // Lingkungan deploy tanpa server: tidak ada data contoh untuk dijatuhi,
-      // jadi ini kerusakan yang pantas dikatakan apa adanya. Menawarkan angka
-      // karangan di sini justru yang berbahaya — di sana orang mengira
-      // angkanya nyata.
-      teks = 'Server E-Logbook tidak terjawab, dan salinan ini tidak membawa data contoh. '
-           + 'Coba lagi sebentar lagi, atau hubungi yang mengurus servernya.';
-      rupa = 'km-awas';
-    }else if(!SRV.ada){
-      // Dua sebab yang berbeda, dan saran "jalankan servernya" hanya masuk akal
-      // untuk salah satunya. Salinan yang berdiri sendiri di luar kantor memang
-      // tidak punya E-Logbook di belakangnya — di sana itu bukan kerusakan.
+    if(!SRV.ada){
+      // Tidak ada lagi data contoh untuk dijatuhi, dan itu disengaja: server
+      // yang diam adalah kerusakan yang pantas terlihat. Sarannya saja yang
+      // berbeda, menurut ada tidaknya E-Logbook yang bisa dinyalakan sendiri.
       teks = KEMAMPUAN.elogbook
-        ? 'Server E-Logbook tidak terjawab — yang tampil data contoh. Nyalakan servernya (npm start) untuk memakai data nyata.'
-        : 'Salinan ini berdiri sendiri, tanpa E-Logbook di belakangnya. Seluruh isinya data contoh.';
+        ? 'Server E-Logbook tidak terjawab. Nyalakan servernya (npm start), lalu coba lagi.'
+        : 'Server E-Logbook tidak terjawab. Coba lagi sebentar lagi, atau hubungi yang mengurus servernya.';
       rupa = 'km-awas';
     }else if(SRV.sesi){
       teks = 'Sesi E-Logbook aktif sebagai ' + (SRV.sesi.nama || SRV.sesi.username) +

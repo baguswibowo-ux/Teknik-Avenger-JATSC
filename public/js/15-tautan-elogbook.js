@@ -17,7 +17,7 @@ let TAUTAN_ELOGBOOK = '';
    bisa ditebak dari sisi peramban — gagalnya baru ketahuan setelah tombolnya
    terlanjur ditekan, dan itu terlambat. Bawaannya "ada", supaya server lama
    yang belum menjawab kedua kolom ini tetap berperilaku seperti sebelumnya. */
-const KEMAMPUAN = { galeriTulis:true, dokumenTulis:true, elogbook:true, dataContoh:true };
+const KEMAMPUAN = { galeriTulis:true, dokumenTulis:true, elogbook:true };
 
 async function muatTautanElogbook(){
   let port = 3000;
@@ -27,7 +27,6 @@ async function muatTautanElogbook(){
       const j = await r.json();
       if(typeof j.galeriBisaTulis === 'boolean')    KEMAMPUAN.galeriTulis = j.galeriBisaTulis;
       if(typeof j.dokumenBisaTulis === 'boolean')   KEMAMPUAN.dokumenTulis = j.dokumenBisaTulis;
-      if(typeof j.dataContoh === 'boolean')         KEMAMPUAN.dataContoh   = j.dataContoh;
       if(typeof j.elogbookTerjangkau === 'boolean') KEMAMPUAN.elogbook    = j.elogbookTerjangkau;
       // /_info datang setelah srvPeriksa() sempat menulis baris statusnya, jadi
       // barisnya digambar ulang di sini — kalau tidak, saran "jalankan servernya"

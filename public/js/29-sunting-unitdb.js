@@ -11,17 +11,6 @@
    di atas.
    ======================================================================= */
 
-const catatanSuntingan = () => `<div class="catatan"><b>${
-  T('Suntingan tersimpan di peramban ini saja.','Edits are stored in this browser only.')}</b>
-  ${T('Peralatan dan sparepart belum punya modul di E-Logbook, jadi tidak ada tempat mengirimkan '
-      + 'perubahannya. Yang Anda ubah di sini tersimpan di komputer dan peramban yang sedang dipakai — '
-      + 'tidak ikut berpindah ke komputer lain, dan tidak terlihat oleh orang lain. Tombol '
-      + '<b>Kembalikan ke bawaan</b> di tab Peralatan membuang seluruh suntingan itu sekaligus.',
-      'Equipment and spare parts have no module in E-Logbook yet, so there is nowhere to send the '
-      + 'changes. What you edit here is stored on the computer and browser in front of you — it does '
-      + 'not travel to another machine, and nobody else sees it. The <b>Reset to defaults</b> button '
-      + 'on the Equipment tab discards all of those edits at once.')}</div>`;
-
 const adeganPilihan = () => [
   ['antena',T('Antena / tiang','Antenna / mast')], ['radar','Radar'], ['ils','ILS'],
   ['server',T('Server / rak','Server / rack')], ['kontrol',T('Ruang kontrol','Control room')],

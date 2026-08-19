@@ -36,158 +36,11 @@ const bolehKelolaAkun = () => !!akun && akun.role === 'admin';
 const SEMUA_UNIT_PERAN = ['admin', 'pejabat'];
 const samaIsi = (a, b) => a.length === b.length && a.every(k => b.includes(k));
 
-/* -----------------------------------------------------------------------
-   AKUN CONTOH YANG BENAR-BENAR BISA DIKELOLA
-
-   Tanpa ini, tab Kelola Akun cuma bisa dicoba oleh yang punya server
-   E-Logbook di belakangnya — dan salinan etalase justru tidak punya. Yang
-   dilakukan blok ini menyediakan daftar akun tiruan di peramban, lengkap
-   dengan aturan yang persis sama dengan yang ditegakkan server, supaya yang
-   dicoba orang di data contoh bukan versi yang lebih longgar dari aslinya:
-   administrator aktif terakhir tetap tidak bisa diturunkan, teknisi tetap
-   wajib punya unit, dan akun yang masih aktif tetap tidak bisa dihapus.
-
-   Password tidak disimpan sama sekali. Dalam data contoh sandinya memang tidak
-   pernah diperiksa, jadi menyimpannya hanya akan berarti menaruh sesuatu yang
-   berbau kredensial di localStorage tanpa satu pun gunanya. Panjangnya tetap
-   diperiksa supaya pesan salahnya sama dengan yang sungguhan.
-   ----------------------------------------------------------------------- */
-const AKUN_KUNCI = 'avenger.akun.contoh';
-
-const akunContohBawaan = () => AKUN.map(a=>({
-  username: a.user,
-  nama:     a.nama,
-  role:     a.role,
-  peran:    a.peran,
-  peranEn:  a.peranEn,
-  unit:     a.unit === 'semua' ? [] : [...a.unit],
-  aktif:    true
-}));
-
-let USERS_CONTOH = null;
-
-function akunContohMuat(){
-  if(USERS_CONTOH) return USERS_CONTOH;
-  try{
-    const s = JSON.parse(localStorage.getItem(AKUN_KUNCI) || 'null');
-    USERS_CONTOH = (Array.isArray(s) && s.length) ? s : akunContohBawaan();
-  }catch(e){
-    USERS_CONTOH = akunContohBawaan();
-  }
-  return USERS_CONTOH;
-}
-
-function akunContohSimpan(){
-  try{ localStorage.setItem(AKUN_KUNCI, JSON.stringify(USERS_CONTOH)); }
-  catch(e){ console.warn('Daftar akun contoh tidak bisa disimpan:', e && e.message || e); }
-}
-
-/** Bentuk akun yang dipakai dashboard, dari satu baris daftar akun contoh. */
-const akunDariContoh = (c) => ({
-  user:    c.username,
-  nama:    c.nama || c.username,
-  role:    c.role,
-  peran:   c.peran   || PERAN_SERVER[c.role]    || c.role || 'Pengguna',
-  peranEn: c.peranEn || PERAN_SERVER_EN[c.role] || c.role || 'User',
-  unit:    SEMUA_UNIT_PERAN.includes(c.role) ? 'semua' : [...(c.unit || [])]
-});
-
-/**
- * Tiruan fungsi administrator E-Logbook untuk data contoh. Nama fungsi dan
- * bentuk argumennya sengaja sama persis dengan yang di sana, jadi seluruh layar
- * Kelola Akun tidak perlu tahu sedang bicara dengan yang mana.
- */
-function akunContohApi(fn, args){
-  const daftar = akunContohMuat();
-  const cari   = (u) => daftar.find(x=>x.username.toLowerCase() === String(u || '').toLowerCase());
-  const saya   = String(akun && akun.user || '').toLowerCase();
-  const adminHidup = () => daftar.filter(x=>x.role === 'admin' && x.aktif).length;
-  const gagal  = (t) => { throw new Error(t); };
-  const wajib  = (u) => cari(u) || gagal('Akun ' + u + ' tidak ada.');
-
-  switch(fn){
-    case 'listUsers':
-      // Salinan, bukan aslinya: tabel tidak boleh bisa mengubah simpanan
-      // hanya karena seseorang menyentuh objek barisnya.
-      return daftar.map(u=>({ ...u, unit:[...(u.unit || [])] }));
-
-    case 'addUser': {
-      const { username, password, nama, role, unit } = args[0] || {};
-      const nm = String(username || '').toLowerCase();
-      if(!/^[a-z0-9._-]{3,32}$/.test(nm)) gagal('Username 3–32 karakter, hanya huruf kecil, angka, titik, garis bawah, atau strip.');
-      if(cari(nm)) gagal('Username ' + nm + ' sudah dipakai.');
-      if(String(password || '').length < 6) gagal('Password minimal 6 karakter.');
-      const semua = SEMUA_UNIT_PERAN.includes(role);
-      if(!semua && !(unit || []).length) gagal('Pilih minimal satu unit logbook untuk akun teknisi.');
-      daftar.push({ username:nm, nama:nama || nm, role, unit: semua ? [] : [...unit], aktif:true });
-      break;
-    }
-
-    case 'setUserNama':
-      wajib(args[0]).nama = String(args[1] || '');
-      break;
-
-    case 'setUserRole': {
-      const u = wajib(args[0]);
-      const baru = args[1];
-      if(u.username.toLowerCase() === saya && baru !== 'admin'){
-        gagal('Peran akun sendiri tidak bisa diturunkan sendiri.');
-      }
-      if(u.role === 'admin' && u.aktif && baru !== 'admin' && adminHidup() <= 1){
-        gagal('Ini administrator aktif terakhir — perannya tidak boleh diturunkan.');
-      }
-      u.role = baru;
-      // Sebutan bawaan ikut peran barunya; sebutan khas seperti "Admin
-      // Faskompen" tidak masuk akal lagi setelah perannya bukan admin.
-      u.peran   = PERAN_SERVER[baru]    || baru;
-      u.peranEn = PERAN_SERVER_EN[baru] || baru;
-      if(SEMUA_UNIT_PERAN.includes(baru)) u.unit = [];
-      break;
-    }
-
-    case 'setUserUnit': {
-      const u = wajib(args[0]);
-      const unit = args[1] || [];
-      if(!SEMUA_UNIT_PERAN.includes(u.role) && !unit.length){
-        gagal('Akun teknisi harus punya minimal satu unit logbook.');
-      }
-      u.unit = [...unit];
-      break;
-    }
-
-    case 'setUserAktif': {
-      const u = wajib(args[0]);
-      const hidup = !!args[1];
-      if(u.username.toLowerCase() === saya && !hidup) gagal('Akun sendiri tidak bisa dinonaktifkan.');
-      if(!hidup && u.role === 'admin' && adminHidup() <= 1){
-        gagal('Ini administrator aktif terakhir — tidak boleh dinonaktifkan.');
-      }
-      u.aktif = hidup;
-      break;
-    }
-
-    case 'setUserPassword':
-      wajib(args[0]);
-      if(String(args[1] || '').length < 6) gagal('Password minimal 6 karakter.');
-      break;   // tidak ada yang disimpan: data contoh tidak memeriksa sandi
-
-    case 'deleteUser': {
-      const u = wajib(args[0]);
-      if(u.aktif) gagal('Hanya akun yang sudah nonaktif yang boleh dihapus.');
-      daftar.splice(daftar.indexOf(u), 1);
-      break;
-    }
-
-    default:
-      gagal('Fungsi ' + fn + ' tidak tersedia pada data contoh.');
-  }
-
-  akunContohSimpan();
-  return null;
-}
-
-/** Satu pintu untuk kedua sumber: server E-Logbook, atau daftar akun contoh. */
-const adminApi = (fn, ...args) => SRV.aktif ? srvApi(fn, ...args) : akunContohApi(fn, args);
+/** Panggil fungsi administrator di E-Logbook. Dulu ada dua sumber di sini —
+    server, atau daftar akun tiruan di peramban untuk data contoh — dan tabel
+    Kelola Akun sengaja tidak tahu sedang bicara dengan yang mana. Tiruannya
+    sudah dibuang: satu-satunya gudang akun adalah E-Logbook. */
+const adminApi = (fn, ...args) => srvApi(fn, ...args);
 
 /**
  * Siapa boleh membuka log aktivitas.
@@ -210,12 +63,6 @@ function pasangTabAkun(){
   const bolehAkt = bolehAktivitas();
   el('relAktivitas').hidden = !bolehAkt;
   if(!bolehAkt && el('l-aktivitas').classList.contains('aktif')) pindahLayar('beranda');
-  // Daftar akun server datang bersama data lainnya di srvMuat(); yang contoh
-  // tidak pernah diambil dari mana pun, jadi diisi di sini.
-  if(boleh && !SRV.aktif){
-    USERS = akunContohApi('listUsers');
-    USERS_JAM = new Date();
-  }
   // Yang sedang membuka layar ini lalu kehilangan haknya — keluar, misalnya —
   // tidak boleh ditinggal menatap tabel yang tak berlaku lagi.
   if(!boleh && el('l-akun').classList.contains('aktif')) pindahLayar('beranda');
@@ -295,13 +142,10 @@ function gambarSaringAkun(){
 function gambarAkun(){
   if(!bolehKelolaAkun()) return;
 
-  // Layar yang sama melayani dua dunia yang berbeda akibatnya. Bedanya harus
-  // terbaca sebelum ada yang menekan apa pun, bukan disimpulkan belakangan.
-  el('ketAkunSumber').textContent = SRV.aktif
-    ? T('Akun E-Logbook, diurus dari sini.','E-Logbook accounts, managed from here.')
-    : T('Akun contoh — hanya di peramban ini.','Sample accounts — this browser only.');
-  el('catatanAkun').innerHTML = SRV.aktif
-    ? T(`<b>Yang disentuh dan yang tidak.</b> Layar ini tidak menyimpan akun sendiri dan tidak
+  el('ketAkunSumber').textContent =
+    T('Akun E-Logbook, diurus dari sini.','E-Logbook accounts, managed from here.');
+  el('catatanAkun').innerHTML =
+    T(`<b>Yang disentuh dan yang tidak.</b> Layar ini tidak menyimpan akun sendiri dan tidak
          membuka basis data E-Logbook. Yang dipakai hanya fungsi administrator yang memang sudah
          ada di API-nya, dipanggil lewat penerusan yang sama dengan data lainnya — jadi tidak ada
          satu berkas pun di E-Logbook yang berubah karena layar ini.
@@ -314,21 +158,7 @@ function gambarAkun(){
          not one file in E-Logbook changes because of this screen.
          Passwords can never be read from here, only replaced.
          Deactivating an account ends its session without removing anything; the logbook entries it
-         once made stay put, even after the account itself is deleted.`)
-    : T(`<b>Ini akun contoh, bukan akun sungguhan.</b> Daftarnya tersimpan di peramban ini saja
-         dan tidak pernah sampai ke E-Logbook. Yang bisa dicoba di sini bentuk alur dan
-         penjagaannya: aturan yang berlaku sama persis dengan yang ditegakkan server —
-         administrator aktif terakhir tidak bisa diturunkan atau dinonaktifkan, akun sendiri
-         tidak bisa diturunkan sendiri, teknisi wajib punya minimal satu unit, dan hanya akun
-         nonaktif yang boleh dihapus. Password tidak disimpan sama sekali: pada data contoh
-         sandinya memang tidak diperiksa, jadi akun apa pun di daftar ini bisa dipakai masuk
-         dengan sandi apa pun.`,
-        `<b>These are sample accounts, not real ones.</b> The list is stored in this browser alone and
-         never reaches E-Logbook. What can be tried here is the shape of the flow and its guards: the
-         rules are exactly those the server enforces — the last active administrator cannot be demoted
-         or deactivated, an account cannot demote itself, a technician must hold at least one unit, and
-         only a deactivated account may be deleted. Passwords are not stored at all: on sample data the
-         password is never checked, so any account in this list can sign in with any password.`);
+         once made stay put, even after the account itself is deleted.`);
 
   const total = USERS.length;
   const hidup = USERS.filter(u=>u.aktif).length;
@@ -540,8 +370,7 @@ function isiKartuAkun(u){
 
   el('judulKartuAkun').textContent = baru ? T('Tambah akun','Add account') : T('Ubah akun','Edit account');
   el('ketKartuAkun').textContent   = baru
-    ? (SRV.aktif ? T('akun baru di E-Logbook','new account in E-Logbook')
-                 : T('akun contoh baru','new sample account')) : u.username;
+    ? T('akun baru di E-Logbook','new account in E-Logbook') : u.username;
   el('btnSimpanAkun').textContent  = baru ? T('Buat akun','Create account') : T('Simpan perubahan','Save changes');
 
   const kotakHapus = (!baru && !diri) ? `
@@ -615,15 +444,11 @@ function isiKartuAkun(u){
       <input type="password" id="aPass" autocomplete="new-password"
         placeholder="${baru ? T('minimal 6 karakter','at least 6 characters')
                             : T('kosongkan bila tidak diganti','leave empty to keep it')}">
-      <div class="bantu">${SRV.aktif
-        ? T('Password lama tidak bisa dilihat dari mana pun, termasuk dari sini — yang tersimpan di '
-            + 'E-Logbook hanya sidik acaknya.',
-            'The old password cannot be read from anywhere, this screen included — E-Logbook stores '
-            + 'only its hash.')
-        : T('Pada data contoh sandinya tidak diperiksa dan tidak disimpan sama sekali; panjangnya tetap '
-            + 'diperiksa supaya alurnya sama dengan yang sungguhan.',
-            'On sample data the password is neither checked nor stored at all; its length is still '
-            + 'validated so the flow matches the real one.')}</div></div>
+      <div class="bantu">${
+        T('Password lama tidak bisa dilihat dari mana pun, termasuk dari sini — yang tersimpan di '
+          + 'E-Logbook hanya sidik acaknya.',
+          'The old password cannot be read from anywhere, this screen included — E-Logbook stores '
+          + 'only its hash.')}</div></div>
 
     ${kotakHapus}`;
 

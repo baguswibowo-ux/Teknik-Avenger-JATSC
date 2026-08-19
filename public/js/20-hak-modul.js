@@ -17,7 +17,6 @@
    seharusnya membetulkannya.
    ======================================================================= */
 
-const HAK_KUNCI = 'avenger.hak';
 const HAK_MODUL = ['dinas','berkala','personel','peralatan','sparepart','sejarah','dokumen','galeri'];
 const HAK_PERAN = ['admin','pejabat','adminunit','pic','teknisi'];
 const HAK_NAMA  = {
@@ -37,8 +36,10 @@ const HAK_NAMA  = {
 const HAK_PERAN_HAPUS = ['admin','adminunit'];
 
 /* Sama persis dengan HAK_BAWAAN di server.js. Disalin, bukan diambil dari sana:
-   data contoh berjalan tanpa server sama sekali, dan bawaan yang berbeda antara
-   keduanya akan membuat modul yang sama terasa punya aturan yang berbeda-beda. */
+   ia dipakai hakRapi() untuk melengkapi modul yang tidak disebut jawaban
+   server, dan sebagai tebakan awal sebelum jawaban itu datang. Bawaan yang
+   berbeda antara keduanya akan membuat modul yang sama terasa punya aturan
+   yang berganti-ganti sendiri. */
 const hakBawaan = () => ({
   dinas:     { peran:['admin','pejabat','adminunit'],                    petugas:[] },
   berkala:   { peran:['admin','pejabat','adminunit','pic','teknisi'],    petugas:[] },
@@ -62,8 +63,8 @@ const BOLEH = Object.fromEntries(HAK_MODUL.map(m=>[m, false]));
     jauh lebih banyak daripada yang boleh menghapus. */
 const BOLEH_HAPUS = Object.fromEntries(HAK_MODUL.map(m=>[m, false]));
 
-/** Boleh menghapus di modul ini, menurut yang diketahui halaman. Dipakai untuk
-    data contoh dan sebagai tebakan awal; jawaban server menimpanya. */
+/** Boleh menghapus di modul ini, menurut yang diketahui halaman. Tebakan awal
+    saja; jawaban server menimpanya. */
 const hakHapusHitung = (modul) =>
   !!akun && HAK_PERAN_HAPUS.includes(akun.role) && hakHitung(modul);
 
@@ -78,8 +79,7 @@ const hakHapusHitung = (modul) =>
  * Ini soal tombol digambar atau tidak. Yang menolak sungguhan tetap server,
  * dan halaman tidak pernah jadi tempat penjagaannya.
  */
-const bolehSuntingDb = (modul) =>
-  (SRV.aktif ? !!BOLEH[modul] : hakHitung(modul)) && bolehBuka(unitDibuka);
+const bolehSuntingDb = (modul) => !!BOLEH[modul] && bolehBuka(unitDibuka);
 
 function hakRapi(mentah){
   const bawaan = hakBawaan();
@@ -96,18 +96,8 @@ function hakRapi(mentah){
   return hasil;
 }
 
-function hakLokalMuat(){
-  try{ return hakRapi(JSON.parse(localStorage.getItem(HAK_KUNCI) || 'null')); }
-  catch(e){ return hakBawaan(); }
-}
-function hakLokalSimpan(){
-  try{ localStorage.setItem(HAK_KUNCI, JSON.stringify(HAK)); }
-  catch(e){ console.warn('Daftar hak tidak bisa disimpan di peramban:', e && e.message || e); }
-}
-
-/** Jawaban dari HAK yang sedang dipegang halaman. Dipakai apa adanya di data
-    contoh; dalam mode server yang berlaku tetap jawaban server, dan ini cuma
-    untuk menggambar layar sebelum jawabannya datang. */
+/** Jawaban dari HAK yang sedang dipegang halaman. Yang berlaku tetap jawaban
+    server; ini cuma untuk menggambar layar sebelum jawabannya datang. */
 const hakHitung = (modul) => {
   if(!akun) return false;
   if(akun.role === 'admin') return true;
@@ -129,12 +119,6 @@ const hakSebab = (modul) => T(
  * berganti, dan jawabannya toh tidak berubah di tengah sesi.
  */
 async function hakMuat(){
-  if(!SRV.aktif){
-    HAK = hakLokalMuat();
-    HAK_MODUL.forEach(m=>{ BOLEH[m] = hakHitung(m); BOLEH_HAPUS[m] = hakHapusHitung(m); });
-    JDW.bisaTulis = true;
-    return;
-  }
   try{
     const r = await srvFetch('/dinas/saya', {}, 8000);
     const j = await r.json().catch(()=>null);
@@ -178,11 +162,6 @@ async function hakMuat(){
 }
 
 async function hakSimpan(){
-  if(!SRV.aktif){
-    hakLokalSimpan();
-    HAK_MODUL.forEach(m=>{ BOLEH[m] = hakHitung(m); BOLEH_HAPUS[m] = hakHapusHitung(m); });
-    return;
-  }
   const r = await srvFetch('/hak', {
     method:'PUT', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ hak: HAK })
   }, 10000);

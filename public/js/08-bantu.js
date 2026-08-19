@@ -1,9 +1,12 @@
 /* =======================================================================
    BANTU
    ======================================================================= */
-/* Tanggal acuan umur trouble. Dipatok supaya data contoh selalu terbaca
-   masuk akal; diganti tanggal hari ini begitu datanya datang dari server. */
-let HARI_INI = new Date('2026-08-14T00:00:00');
+/* Tanggal acuan umur trouble. Dulu dipatok pada satu hari di Agustus 2026
+   supaya umur trouble karangan selalu terbaca masuk akal. Data karangannya
+   sudah tidak ada, jadi patokannya kembali ke hari yang sebenarnya —
+   srvPasang() tetap menyetelnya ulang tiap kali data server datang, karena
+   halaman yang dibiarkan terbuka semalaman akan mengukur dari kemarin. */
+let HARI_INI = new Date(new Date().toDateString());
 const el  = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const umurHari = (iso) => Math.max(0, Math.round((HARI_INI - new Date(iso+'T00:00:00'))/86400000));

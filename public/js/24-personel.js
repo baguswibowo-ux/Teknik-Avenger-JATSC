@@ -17,47 +17,11 @@
    tanpanya, data ini cuma daftar nama yang tidak tahu harus memberi tahu siapa.
    ======================================================================= */
 
-const PERSONEL_KUNCI = 'avenger.personel';
 const SERT_AWAS = 60;                 // hari sebelum habis, saat peringatannya menyala
 const SERT_JENIS = ['Lisensi','Rating','Sertifikat','Medical','Lainnya'];
 const SERT_JENIS_EN = { 'Lisensi':'Licence','Rating':'Rating','Sertifikat':'Certificate',
   'Medical':'Medical','Lainnya':'Other' };
 const sertJenisNama = (j) => BHS === 'en' ? (SERT_JENIS_EN[j] || j) : j;
-
-/* Personel contoh — alasannya sama dengan kegiatan berkala: modul yang dibuka
-   pertama kali dalam keadaan kosong tidak memperlihatkan apa pun tentang
-   bentuknya. Tanggalnya dihitung dari hari ini, bukan ditulis mati, supaya
-   contoh "hampir habis" tetap hampir habis kapan pun berkas ini dibuka. */
-const geserHari = (n) => {
-  const d = new Date(); d.setDate(d.getDate() + n);
-  return d.toISOString().slice(0,10);
-};
-const personelContoh = () => [
-  { id:'p1', nama:'B. Santoso', unit:'radtel', username:'radtel', jabatan:'Teknisi Radtel',
-    sertifikat:[
-      { jenis:'Lisensi', nama:'ATSEP Licence', nomor:'ATSEP/2019/0417', rating:'COM · Radio Telephony',
-        terbit:geserHari(-1400), berlaku:geserHari(41) },
-      { jenis:'Rating', nama:'Rating Radio Telephony', nomor:'RT-0417', rating:'Level 3',
-        terbit:geserHari(-700), berlaku:geserHari(310) }
-    ] },
-  { id:'p2', nama:'A. Rahman', unit:'radkom', username:'radkom', jabatan:'Teknisi Radkom',
-    sertifikat:[
-      { jenis:'Lisensi', nama:'ATSEP Licence', nomor:'ATSEP/2018/0219', rating:'COM · Voice Switching',
-        terbit:geserHari(-1900), berlaku:geserHari(-12) }
-    ] },
-  { id:'p3', nama:'D. Prasetyo', unit:'listrikmekanik', username:'listrik', jabatan:'Teknisi Listrik',
-    sertifikat:[
-      { jenis:'Sertifikat', nama:'K3 Listrik', nomor:'K3L/2024/118', rating:'',
-        terbit:geserHari(-500), berlaku:geserHari(220) },
-      { jenis:'Medical', nama:'Medical Check-up', nomor:'', rating:'',
-        terbit:geserHari(-330), berlaku:geserHari(35) }
-    ] },
-  { id:'p4', nama:'M. Fauzi', unit:'', username:'pejabat', jabatan:'Manager Teknik',
-    sertifikat:[
-      { jenis:'Lisensi', nama:'ATSEP Licence', nomor:'ATSEP/2012/0088', rating:'SUR · Radar',
-        terbit:geserHari(-2600), berlaku:geserHari(600) }
-    ] }
-];
 
 const PSN = {
   daftar:  [],
@@ -88,25 +52,7 @@ function sertPerhatian(){
 
 /* ---------- Ambil dan simpan ---------- */
 
-function psnLokalMuat(){
-  try{
-    const s = JSON.parse(localStorage.getItem(PERSONEL_KUNCI) || 'null');
-    if(Array.isArray(s) && s.length) return s;
-  }catch(e){ /* rusak: pakai contoh */ }
-  return personelContoh();
-}
-function psnLokalSimpan(){
-  try{ localStorage.setItem(PERSONEL_KUNCI, JSON.stringify(PSN.daftar)); }
-  catch(e){ console.warn('Data personel tidak bisa disimpan di peramban:', e && e.message || e); }
-}
-
 async function psnMuat(){
-  if(!SRV.aktif){
-    PSN.daftar = psnLokalMuat();
-    PSN.boleh = BOLEH.personel;
-    PSN.masuk = true;
-    return;
-  }
   try{
     const r = await srvFetch('/personel', {}, 10000);
     const j = await r.json().catch(()=>null);
@@ -122,11 +68,6 @@ async function psnMuat(){
 }
 
 async function psnSimpan(aksi, orang){
-  if(!SRV.aktif){
-    psnLokalSimpan();
-    aktCatat('personel', aksi || 'ubah', (orang && orang.unit) || '', (orang && orang.nama) || '');
-    return;
-  }
   const r = await srvFetch('/personel', {
     method:'PUT', headers:{ 'Content-Type':'application/json' },
     body: JSON.stringify({ personel: PSN.daftar })
@@ -306,11 +247,8 @@ function psnIsi(unit){
         + 'all units — and in that person’s own notification bell. That is why every row has an E-Logbook '
         + 'account column. A row without an account still counts on the home screen, but there is nobody '
         + 'to tell privately.')}
-      ${SRV.aktif
-        ? (PSN.masuk ? '' : T('Nomor lisensinya disamarkan sampai Anda masuk.',
-                              'Licence numbers stay masked until you sign in.'))
-        : T('Ini data contoh, tersimpan di peramban ini saja.',
-            'This is sample data, stored in this browser only.')}</div>`;
+      ${PSN.masuk ? '' : T('Nomor lisensinya disamarkan sampai Anda masuk.',
+                           'Licence numbers stay masked until you sign in.')}</div>`;
 }
 
 /** Gambar ulang subtab Personel unit yang sedang dibuka. */
@@ -412,7 +350,7 @@ function psnBuka(asal, unitBawaan){
 function psnGambarKartu(){
   const p = PSN.dibuka;
   const akunPilihan = [['', T('— tidak dikaitkan —','— not linked —')]]
-    .concat((USERS.length ? USERS : akunContohMuat()).map(u=>[u.username, `${u.nama || u.username} · ${u.username}`]));
+    .concat(USERS.map(u=>[u.username, `${u.nama || u.username} · ${u.username}`]));
 
   el('badanPersonel').innerHTML =
     `<div class="imp-atur" style="margin-top:0;padding-top:0;border-top:none">
@@ -558,7 +496,6 @@ const psnBerkasSert = (orangId, sertId) =>
   (PSN.berkas[orangId] || []).filter(b => (b.sert || '') === sertId);
 
 async function psnBerkasMuat(){
-  if(!SRV.aktif) return;
   try{
     const r = await srvFetch('/personel/berkas', {}, 10000);
     // 401 sebelum masuk bukan kerusakan — raknya memang tertutup sampai ada sesi.
@@ -622,11 +559,6 @@ async function psnBerkasKirim(orangId, f, sertId){
 
 /** Cip berkas di bawah satu baris sertifikat, beserta tombol lampir. */
 function psnBerkasCip(orang, s){
-  if(!SRV.aktif){
-    return `<div class="psn-berkas"><span class="psn-berkas-ket">${
-      T('Bukti berkas hanya ada saat tersambung ke server.',
-        'Attachments only exist when connected to the server.')}</span></div>`;
-  }
   if(!orang.id){
     return `<div class="psn-berkas"><span class="psn-berkas-ket">${
       T('Simpan dulu orangnya, baru buktinya bisa dilampirkan.',
@@ -716,7 +648,7 @@ function psnBerkasPasang(){
  * di mana pun — memakan ruang, tidak bisa dibuka, tidak bisa dihapus.
  */
 function psnBerkasLepas(orang){
-  if(!SRV.aktif || !orang.id) return '';
+  if(!orang.id) return '';
   const idSert = new Set((orang.sertifikat || []).map(s=>s.id || ''));
   const lepas = (PSN.berkas[orang.id] || []).filter(b=>!idSert.has(b.sert || ''));
   if(!lepas.length) return '';

@@ -55,23 +55,15 @@ const TERUS = process.env.ELOGBOOK_MATI !== '1';
    Bisa dipaksa mati lewat GALERI_MATI=1 untuk mencobanya di komputer sendiri. */
 const GALERI = process.env.GALERI_MATI !== '1' && BISA_TULIS_BINER;
 
-/* Data contoh: angka karangan yang menyatu di halaman, supaya seluruh alurnya
-   bisa dicoba tanpa server. Berguna sebelum dipasang di kantor dan di salinan
-   etalase; berbahaya sesudahnya, karena yang membaca layar di lingkungan
-   sungguhan berhak menganggap yang tertulis di sana nyata.
+/* DATA_CONTOH pernah ada di sini: saklar yang memutuskan boleh tidaknya halaman
+   JATUH ke angka karangan waktu E-Logbook diam. Bawaannya menyala, dan di
+   server kantor ia dimatikan.
 
-   Sejak pemilih TUJUAN dibuang, data contoh bukan lagi sesuatu yang dipilih
-   orang: ia cuma berlaku kalau E-Logbook memang tidak terjawab. Yang diputuskan
-   di sini karena itu satu hal saja — boleh tidak halaman ini JATUH ke data
-   contoh waktu servernya diam.
-
-   Bawaannya boleh, karena itu yang benar untuk salinan etalase dan untuk
-   mencoba di komputer sendiri. Di server kantor, tempat E-Logbook memang selalu
-   ada, pasang DATA_CONTOH=0: di sana server yang diam adalah kerusakan yang
-   pantas terlihat, bukan alasan menampilkan angka karangan. Sengaja TIDAK
-   ditebak dari VERCEL — etalase justru satu-satunya yang hidup dari data
-   contoh, jadi menebaknya dari sana persis terbalik. */
-const DATA_CONTOH = process.env.DATA_CONTOH !== '0';
+   Data contohnya sendiri sudah dibuang dari halaman, jadi saklarnya tidak punya
+   apa-apa lagi untuk disaklarkan. Yang tersisa cuma satu perilaku, dan itu yang
+   dulu harus dinyalakan dengan DATA_CONTOH=0: server yang diam terlihat sebagai
+   server yang diam. Environment variable-nya boleh tetap terpasang di mana pun
+   ia sudah ada — tidak ada lagi yang membacanya. */
 
 const app = express();
 app.disable('x-powered-by');
@@ -2527,12 +2519,6 @@ app.get('/_info', (_req, res) => {
     // gagalnya baru ketahuan setelah tombolnya terlanjur ditekan.
     galeriBisaTulis: GALERI,
     dokumenBisaTulis: DOK_TULIS,
-    // Boleh tidak halaman ini jatuh ke data contoh waktu E-Logbook diam.
-    // Di server kantor jawabannya tidak: di sana server yang tidak terjawab
-    // adalah kerusakan yang pantas terlihat, bukan alasan menampilkan angka
-    // karangan yang bisa disangka nyata oleh yang membaca.
-    // DATA_CONTOH=0 di server kantor; bawaannya menyala.
-    dataContoh: DATA_CONTOH,
     // Tanpa penerusan, alamat E-Logbook tidak bisa dirangkai dari hostname yang
     // sedang dipakai — di cloud, hostname:3000 menunjuk entah ke mana. Hanya
     // ELOGBOOK_TAUTAN yang berlaku di situ.

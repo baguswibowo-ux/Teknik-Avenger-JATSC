@@ -64,7 +64,7 @@ function bukaUnit(kode){
    ======================================================================= */
 
 const bolehGantiIkon = () =>
-  SRV.aktif && KEMAMPUAN.galeriTulis && !!akun && akun.role === 'admin';
+  KEMAMPUAN.galeriTulis && !!akun && akun.role === 'admin';
 
 /** Kotak gambar unit: yang diunggah kalau ada, ilustrasi kalau belum. */
 function ikonUnitHtml(u){
@@ -159,8 +159,7 @@ function gambarUnit(){
   const part = PART.filter(p=>p.unit === unitDibuka);
   // Saat tersambung, unit yang memang belum punya catatan harus terlihat
   // kosong — bukan diisi cuplikan contoh yang menyamar jadi data nyata.
-  const logUnit = LOGBOOK[unitDibuka];
-  const log = (logUnit && logUnit.length) ? logUnit : (SRV.aktif ? [] : LOGBOOK_UMUM);
+  const log = LOGBOOK[unitDibuka] || [];
   const radkom = unitDibuka === 'radkom';
   const foto = FOTO[unitDibuka] || [];
 
@@ -206,8 +205,6 @@ function gambarUnit(){
         <span class="ket">${alat.length} ${T('peralatan · klik kartu untuk membuka sejarah dan identitasnya',
           'equipment · click a card to open its history and identity')}</span>
         <span class="tombol">
-          ${dbAdaSuntingan() ? `<button class="btn garis kecil" data-db-bawaan>${
-            T('Kembalikan ke bawaan','Reset to defaults')}</button>` : ''}
           ${bolehSuntingDb('peralatan') ? `<button class="btn kecil" data-db-tambah="peralatan">${
             T('Tambah peralatan','Add equipment')}</button>` : ''}
         </span>
@@ -239,11 +236,6 @@ function gambarUnit(){
         <b style="color:var(--text)">${T('Tambah peralatan','Add equipment')}</b>
         ${T('di atas untuk mengisinya.','above to fill it in.')}</div></div>`}
       <div id="rinciAlat" style="margin-top:18px"></div>
-      ${catatanContoh('Daftar peralatan beserta sejarah dan identitasnya belum ada di E-Logbook, '
-        + 'jadi bagian ini tetap contoh walau trouble dan logbook di sebelahnya sudah nyata.',
-        'The equipment list, along with its history and identity, does not exist in E-Logbook yet, '
-        + 'so this part stays sample data even though the trouble and logbook beside it are real.')}
-      ${catatanSuntingan()}
     </div>
 
     <!-- TROUBLE -->
@@ -289,9 +281,6 @@ function gambarUnit(){
           : `<div class="badan" style="color:var(--muted);font-size:12.5px">${
               T('Belum ada sparepart terdaftar untuk unit ini.','No spare parts registered for this unit yet.')}</div>`}
       </div>
-      ${catatanContoh('Modul Sparepart belum ada di E-Logbook — stok di tabel ini karangan.',
-        'The Spare Parts module does not exist in E-Logbook — the stock figures in this table are made up.')}
-      ${catatanSuntingan()}
     </div>
 
     <!-- DINAS — isinya digambar jdwGambar() setelah kerangka ini terpasang,
@@ -442,8 +431,8 @@ function gambarUnit(){
         </div>
         <div id="daftarBerkas"></div>
       </div>
-      <div class="catatan">${SRV.aktif
-        ? `<b>${T('Berkasnya tersimpan di server dashboard ini.','The files are stored on this dashboard server.')}</b>
+      <div class="catatan">${
+        `<b>${T('Berkasnya tersimpan di server dashboard ini.','The files are stored on this dashboard server.')}</b>
             ${T('Menyegarkan halaman tidak menghilangkannya lagi. Tempatnya data/dokumen/ di server ini — '
               + 'bukan di E-Logbook, dan bukan di dalam public/, jadi tidak ada yang bisa mengunduhnya '
               + 'tanpa masuk lebih dulu. Yang boleh menambah ditentukan panel Hak Akses per unit; yang '
@@ -451,16 +440,7 @@ function gambarUnit(){
                 'Refreshing the page no longer empties it. They live in data/dokumen/ on this server — not '
               + 'in E-Logbook, and not inside public/, so nobody can download them without signing in '
               + 'first. Who may add is set per unit in the Access Rights panel; only an administrator may '
-              + 'remove, and the file is deleted from the server with it.')}`
-        : `<b>${T('Pada data contoh, berkasnya tidak dikirim ke mana pun.','On sample data, the files are not sent anywhere.')}</b>
-            ${T('Daftar ini hidup di memori tab peramban saja — menyegarkan halaman mengosongkannya. '
-              + 'Yang bisa dicoba di sini bentuk alurnya: apa yang ditanyakan saat berkas masuk, dan seperti '
-              + 'apa daftarnya setelah terisi. Tersambung ke server, berkasnya benar-benar tersimpan dan '
-              + 'kembali sendiri waktu halaman dibuka lagi.',
-                'This list lives only in the memory of this browser tab — refreshing the page empties it. What '
-              + 'can be tried here is the shape of the flow: what gets asked when a file arrives, and what the '
-              + 'list looks like once filled. Connected to the server, the files really are stored and come '
-              + 'back by themselves when the page is opened again.')}`}
+              + 'remove, and the file is deleted from the server with it.')}`}
       </div>
     </div>`;
 
@@ -792,12 +772,6 @@ function gambarRinciAlat(){
   const kotak = el('rinciAlat'); if(!kotak) return;
   const alat = (PERALATAN[unitDibuka] || []).find(a=>a.id === alatDipilih);
   if(!alat){ kotak.innerHTML = ''; return; }
-  /* Spek contoh hanya dipakai kalau memang sedang berjalan dengan data contoh.
-     Kuncinya id alat, dan id itu — tx, grx, acp — juga dipakai peralatan
-     sungguhan, jadi di layar yang tersambung ia dulu menempel di atas papan
-     nama yang betulan: nomor seri karangan tercetak di atas nomor seri asli.
-     Sejarahnya kena hal yang sama, dan sekarang dipegang 34-sejarah-alat.js. */
-  const spek = SRV.aktif ? null : SPEK_CONTOH[alat.id];
   kotak.innerHTML = `<div class="grid2">
     ${sjrPanel(unitDibuka, alat)}
     <div class="panel"><div class="kepala"><h3>${T('Identitas','Identity')}</h3>
@@ -806,10 +780,8 @@ function gambarRinciAlat(){
           data-db-ubah="peralatan" data-alat="${esc(alat.id)}">${T('Ubah','Edit')}</button>` : ''}
       </span></div>
       <div class="badan"><div class="spek">
-        ${(spek ? Object.entries(spek) : [])
-          .concat([
-            // Yang datang dari papan nama didahulukan atas spek contoh, dan
-            // yang kosong tidak ikut: baris "S/N: —" tidak memberi tahu apa pun.
+        ${[
+            // Yang kosong tidak ikut: baris "S/N: —" tidak memberi tahu apa pun.
             [T('Merk','Make'), alat.merk],
             [T('Tipe','Type'), alat.tipe],
             ['S/N', alat.sn],
@@ -818,7 +790,7 @@ function gambarRinciAlat(){
             [T('Lokasi','Location'), alat.lokasi],
             ['Status', alat.status],
             [T('Dicatat','Recorded'), alat.dibuat ? new Date(alat.dibuat).toLocaleDateString(LOKAL()) : '']
-          ].filter(([,v])=>v && v !== '—'))
+          ].filter(([,v])=>v && v !== '—')
           .map(([k,v])=>`<div><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div></div>`).join('')}
       </div>
       ${(alat.foto || []).length ? `<div class="foto-lampir" style="margin-top:12px">${

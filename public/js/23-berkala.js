@@ -22,7 +22,6 @@
    menandai selesai seluruh daftarnya ikut ditulis ulang.
    ======================================================================= */
 
-const BERKALA_KUNCI = 'avenger.berkala';
 const BERKALA_JENIS = ['mingguan','bulanan','triwulan','semesteran','tahunan'];
 const BERKALA_NAMA = {
   mingguan:   ['Mingguan','Weekly'],
@@ -66,47 +65,6 @@ const bklShiftNama = (s) => s && ROMBONGAN_NAMA[s]
 /** Rombongan kegiatan ini, dirapikan. Nilai asing dibaca sebagai kosong. */
 const bklShift = (k) => BERKALA_SHIFT.includes(k?.shift) ? (k.shift || '') : '';
 
-/* Kegiatan contoh, dipakai saat belum ada apa pun yang tersimpan. Bukan sekadar
-   pengisi layar: modul yang dibuka pertama kali dalam keadaan kosong tidak
-   memperlihatkan apa pun tentang bentuknya, dan yang pertama kali membukanya
-   justru orang yang belum tahu apa yang mau diisikan. */
-const BERKALA_CONTOH = {
-  radtel: [
-    // Hari 1, 3, 6 = Senin, Rabu, Sabtu. Tandanya tidak dicentang di sini —
-    // lihat blok KEGIATAN YANG TANDANYA DATANG DARI E-LOGBOOK.
-    // Hari 1, 3, 6 = Senin, Rabu, Sabtu. Shift PS karena DS Test perlu lawan
-    // bicara di site seberang, dan site itu berpenghuni pada jam kerja.
-    { id:'ds', nama:'Pengecekan DS (DS Test)', jenis:'mingguan', hari:[1,3,6], bulan:null, tanggal:null,
-      sumber:'dstest', alat:'', shift:'PS',
-      ket:'Uji incoming dan outgoing seluruh site. Lembarnya diisi di E-Logbook; tanda di sini mengikutinya.' },
-    { id:'k1', nama:'Periksa daya pancar dan VSWR', jenis:'mingguan', hari:2, bulan:null, tanggal:null,
-      alat:'', shift:'PS', ket:'Catat hasilnya di logbook. Kalau turun lebih dari 10%, buka trouble.' },
-    // Yang dikerjakan malam: lalu lintas sepi, jadi memutus kanal satu per satu
-    // tidak mengganggu siapa pun.
-    { id:'k4', nama:'Restart terjadwal CWP', jenis:'mingguan', hari:7, bulan:null, tanggal:null,
-      alat:'', shift:'M', ket:'Malam Minggu, saat lalu lintas paling sepi. Satu posisi dulu, pastikan naik lagi.' },
-    { id:'k2', nama:'Bersihkan filter pendingin shelter', jenis:'bulanan', hari:null, bulan:null, tanggal:5,
-      alat:'', ket:'' },
-    { id:'k3', nama:'Kalibrasi ulang power meter', jenis:'triwulan', hari:null, bulan:3, tanggal:10,
-      alat:'', ket:'Bulan terakhir tiap triwulan, sesudah laporan bulanan ditutup.' }
-  ],
-  radkom: [
-    { id:'k1', nama:'Uji rekaman suara semua kanal', jenis:'mingguan', hari:1, bulan:null, tanggal:null,
-      alat:'', ket:'' },
-    { id:'k2', nama:'Kalibrasi headset dan mikrofon meja', jenis:'bulanan', hari:null, bulan:null, tanggal:12,
-      alat:'', ket:'' },
-    { id:'k3', nama:'Uji penuh sistem perekam suara', jenis:'semesteran', hari:null, bulan:1, tanggal:15,
-      alat:'', ket:'Bersama pengawas operasi.' }
-  ],
-  listrikmekanik: [
-    { id:'k1', nama:'Uji nyala genset tanpa beban', jenis:'mingguan', hari:5, bulan:null, tanggal:null,
-      alat:'', ket:'Minimal 15 menit. Catat jam operasi dan suhu air.' },
-    { id:'k2', nama:'Periksa level elektrolit baterai UPS', jenis:'bulanan', hari:null, bulan:null, tanggal:3,
-      alat:'', ket:'' },
-    { id:'k3', nama:'Uji beban penuh genset dan serah terima', jenis:'tahunan', hari:null, bulan:8, tanggal:20,
-      alat:'', ket:'Sekali setahun, Agustus. Perlu koordinasi dengan operasi.' }
-  ]
-};
 
 const BKL = {
   kegiatan: {},        // { unit: [kegiatan] }
@@ -276,7 +234,7 @@ const bklSumber = (k) => (k && BERKALA_SUMBER[k.sumber]) || BERKALA_SUMBER[''];
 
 /** Kegiatan ini tandanya sedang benar-benar dibaca dari E-Logbook? Butuh dua
     hal: kegiatannya memang menyebut sumber, DAN ada server untuk dibaca. */
-const bklDariElogbook = (k) => SRV.aktif && !!bklSumber(k).paket;
+const bklDariElogbook = (k) => !!bklSumber(k).paket;
 
 /** Unit ini memang punya formulirnya di E-Logbook? Dijawab dari daftar unit
     yang dikirim server. Selama daftarnya belum ada — data contoh, atau
@@ -508,25 +466,7 @@ function bklKapan(k){
 
 /* ---------- Ambil dan simpan ---------- */
 
-function bklLokalMuat(){
-  try{
-    const s = JSON.parse(localStorage.getItem(BERKALA_KUNCI) || 'null');
-    if(s && s.kegiatan) return s;
-  }catch(e){ /* rusak: pakai contoh */ }
-  return { kegiatan: JSON.parse(JSON.stringify(BERKALA_CONTOH)), selesai:{} };
-}
-function bklLokalSimpan(){
-  try{ localStorage.setItem(BERKALA_KUNCI,
-    JSON.stringify({ kegiatan:BKL.kegiatan, selesai:BKL.selesai })); }
-  catch(e){ console.warn('Kegiatan berkala tidak bisa disimpan di peramban:', e && e.message || e); }
-}
-
 async function bklMuat(){
-  if(!SRV.aktif){
-    const s = bklLokalMuat();
-    BKL.kegiatan = s.kegiatan; BKL.selesai = s.selesai || {};
-    return;
-  }
   try{
     const r = await srvFetch('/berkala', {}, 10000);
     const j = await r.json().catch(()=>null);
@@ -540,12 +480,6 @@ async function bklMuat(){
 }
 
 async function bklSimpanUnit(unit, kegiatan){
-  if(!SRV.aktif){
-    if(kegiatan.length) BKL.kegiatan[unit] = kegiatan; else delete BKL.kegiatan[unit];
-    bklLokalSimpan();
-    aktCatat('berkala', 'atur', unit, `${kegiatan.length} ${T('kegiatan','jobs')}`);
-    return;
-  }
   const r = await srvFetch('/berkala/' + unit, {
     method:'PUT', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ kegiatan })
   }, 12000);
@@ -556,15 +490,6 @@ async function bklSimpanUnit(unit, kegiatan){
 
 async function bklTandai(unit, k, batal, tanggal){
   const kunci = bklKunciTgl(unit, k, tanggal);
-  if(!SRV.aktif){
-    if(batal) delete BKL.selesai[kunci];
-    else BKL.selesai[kunci] = {
-      oleh: akun ? akun.user : '—', nama: akun ? akun.nama : '—', jam: new Date().toISOString()
-    };
-    bklLokalSimpan();
-    aktCatat('berkala', batal ? 'batal-selesai' : 'selesai', unit, k.nama);
-    return;
-  }
   const r = await srvFetch('/berkala/selesai', {
     method:'POST', headers:{ 'Content-Type':'application/json' },
     body: JSON.stringify({ unit, id:k.id, batal: !!batal, tanggal })
@@ -794,26 +719,19 @@ function bklIsi(unit){
      tidak akan pernah datang — bukan karena pekerjaannya belum dilakukan,
      melainkan karena lembarnya memang tidak ada di sana. Dibiarkan diam,
      kartunya akan selamanya merah dan tidak seorang pun tahu sebabnya. */
-  const salahForm = SRV.aktif
-    ? daftar.filter(k=>bklDariElogbook(k) && !bklFormAda(unit, k)) : [];
+  const salahForm = daftar.filter(k=>bklDariElogbook(k) && !bklFormAda(unit, k));
 
   const ketDs = !sumberDipakai.length ? '' : `<div class="catatan"><b>${
     T('Ada kegiatan yang tandanya datang dari E-Logbook.',
-      'Some jobs get their mark from E-Logbook.')}</b> ${SRV.aktif
-    ? T(`Kegiatan bercip ${cipDipakai} tidak dicentang di sini. Tandanya dibaca dari ${lembarDipakai} `
+      'Some jobs get their mark from E-Logbook.')}</b> ${
+      T(`Kegiatan bercip ${cipDipakai} tidak dicentang di sini. Tandanya dibaca dari ${lembarDipakai} `
       + 'yang tersimpan di E-Logbook: begitu lembar hari itu diisi di sana, kartunya berubah '
       + 'sendiri. Kalau tandanya belum muncul padahal pekerjaannya sudah dilakukan, yang belum '
       + 'ada lembarnya — bukan tandanya.',
         `Jobs tagged ${cipDipakai} are not ticked off here. The mark is read from ${lembarDipakai} `
       + 'stored in E-Logbook: as soon as that day\'s sheet is filled in there, the card changes '
       + 'by itself. If the mark is missing even though the work was done, what is missing is the '
-      + 'sheet, not the mark.')
-    : T(`Halaman ini sedang memakai data contoh, jadi tidak ada ${lembarDipakai} untuk dibaca — `
-      + 'kegiatannya jatuh kembali ke tanda manual. Tersambung ke server, tombolnya hilang dan '
-      + 'tandanya mengikuti lembar di E-Logbook.',
-        `This page is on sample data, so there is no ${lembarDipakai} to read — those jobs fall back `
-      + 'to a manual tick. Connected to the server, the button disappears and the mark follows the '
-      + 'sheet in E-Logbook.')}${salahForm.length ? `<br><br><b>${
+      + 'sheet, not the mark.')}${salahForm.length ? `<br><br><b>${
     T('Satu hal yang perlu dibetulkan.','One thing needs fixing.')}</b> ${
     T(`${salahForm.map(k=>'"' + k.nama + '"').join(', ')} menunggu lembar yang tidak dimiliki unit ini di `
       + 'E-Logbook, jadi tandanya tidak akan pernah datang. Ganti sumbernya lewat Atur kegiatan, atau '

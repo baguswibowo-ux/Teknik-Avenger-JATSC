@@ -95,15 +95,12 @@ function bukaKartuData(jenis, asal){
      semua orang dan menunggu server menolak berarti menawarkan sesuatu yang
      pasti gagal — dan pada tombol berwarna bahaya, tawaran itu terbaca sebagai
      izin. Keputusan yang mengikat tetap milik server. */
-  const bolehHapusIni = SRV.aktif ? BOLEH_HAPUS[jenis] : hakHapusHitung(jenis);
+  const bolehHapusIni = BOLEH_HAPUS[jenis];
   const kotakHapus = (baru || !bolehHapusIni) ? '' : `
     <div class="bahaya">
       <div class="jdl">${T('Hapus dari daftar','Delete from the list')}</div>
-      <p>${SRV.aktif
-            ? T('Terhapus dari server untuk semua orang — tidak ada apa pun di E-Logbook yang ikut terhapus.',
-                'Deleted from the server for everyone — nothing in E-Logbook is deleted along with it.')
-            : T('Hanya dari simpanan peramban ini — tidak ada apa pun di E-Logbook yang ikut terhapus.',
-                'From this browser’s storage only — nothing in E-Logbook is deleted along with it.')}
+      <p>${T('Terhapus dari server untuk semua orang — tidak ada apa pun di E-Logbook yang ikut terhapus.',
+             'Deleted from the server for everyone — nothing in E-Logbook is deleted along with it.')}
         ${alatIni ? T('Trouble yang menunjuk peralatan ini tetap ada, tapi kehilangan kaitannya.',
                       'Trouble records pointing at this equipment stay, but lose their link.') : ''}</p>
       <button class="btn bahaya-tombol" id="btnHapusData">${T('Hapus','Delete')}</button>
@@ -242,9 +239,8 @@ async function simpanData(){
     gambarUnit(); gambarUbin(); gambarCincin();
     return;
   }
-  // Saat tersambung, pencatatan dikerjakan server dengan identitas sungguhan;
-  // mencatat di sini juga akan memunculkan satu perbuatan dua kali.
-  if(!SRV.aktif) aktCatat(jenis, asal ? 'ubah' : 'tambah', unit, nilai('dNama'));
+  // Pencatatannya dikerjakan server dengan identitas sungguhan; mencatat di
+  // sini juga akan memunculkan satu perbuatan dua kali.
   tutupKartuData();
   gambarUnit(); gambarUbin(); gambarCincin();
   pesan(asal ? T('Perubahan tersimpan.','Changes saved.') : T('Ditambahkan ke daftar.','Added to the list.'));
@@ -266,7 +262,6 @@ async function hapusData(){
     gambarUnit(); gambarUbin(); gambarCincin();
     return;
   }
-  if(!SRV.aktif) aktCatat(jenis, 'hapus', unit, asal.nama || asal.pn || asal.id);
   tutupKartuData();
   gambarUnit(); gambarUbin(); gambarCincin();
   pesan(T('Dihapus dari daftar.','Deleted from the list.'));
@@ -290,18 +285,6 @@ el('isiUnit').addEventListener('click', e=>{
     return;
   }
 
-  if(e.target.closest('[data-db-bawaan]')){
-    if(!confirm(T('Buang seluruh suntingan peralatan dan sparepart, kembali ke daftar bawaan?',
-                  'Discard every equipment and spare part edit and go back to the default lists?'))) return;
-    dbKembalikan();
-    aktCatat('peralatan', 'kembalikan', unitDibuka,
-      T('seluruh suntingan peralatan dan sparepart dibuang',
-        'all equipment and spare part edits discarded'));
-    alatDipilih = ((PERALATAN[unitDibuka] || [])[0] || {}).id || null;
-    gambarUnit(); gambarUbin(); gambarCincin();
-    pesan(T('Daftar peralatan dan sparepart kembali ke bawaan.',
-            'Equipment and spare part lists are back to their defaults.'));
-  }
 });
 
 el('btnBatalData').addEventListener('click', tutupKartuData);

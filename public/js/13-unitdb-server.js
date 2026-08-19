@@ -49,7 +49,6 @@ async function unitdbMuat(){
  * layar akan membuat orang mengira pekerjaannya sudah aman.
  */
 async function dbSimpanUnit(jenis, unit){
-  if(!SRV.aktif){ dbSimpan(); return true; }
   const modul = jenis === 'peralatan' ? 'peralatan' : 'sparepart';
   const isi = modul === 'peralatan'
     ? (PERALATAN[unit] || [])
@@ -75,21 +74,20 @@ async function dbSimpanUnit(jenis, unit){
 
 /** Terjemahkan jawaban server ke bentuk yang dipakai layar ini. */
 function srvPasang(unitSaya, paket){
-  // Data nyata harus diukur dari hari yang nyata pula; tanggal patokan data
-  // contoh akan membuat umur trouble meleset berbulan-bulan.
+  // Disetel ulang tiap data datang: halaman yang dibiarkan terbuka semalaman
+  // akan mengukur umur trouble dari kemarin kalau tidak.
   HARI_INI = new Date(new Date().toDateString());
 
-  // Daftar unit contoh dipertahankan sebagai kerangka — di dalamnya ada
-  // ilustrasi tiap unit, dan unit yang TIDAK boleh dibuka akun ini pun tetap
-  // perlu terlihat (bergembok), persis seperti di aplikasinya.
+  // Kerangka unit dipakai sebagai dasar — di dalamnya ada ilustrasi tiap unit,
+  // satu-satunya kolom yang memang tidak pernah dijawab server.
   const peta = Object.fromEntries(unitSaya.map(u=>[u.kode, u]));
-  UNIT = CONTOH.UNIT.map(u=>{
+  UNIT = UNIT_KERANGKA.map(u=>{
     const s = peta[u.kode];
     return s ? { ...u, nama:s.nama || u.nama, alat:s.peralatan || u.alat,
                  dinas:(Array.isArray(s.dinas) && s.dinas.length) ? s.dinas : u.dinas } : u;
   });
   // Unit baru di server yang belum dikenal berkas ini tetap ikut tampil.
-  unitSaya.filter(s=>!CONTOH.UNIT.some(u=>u.kode === s.kode)).forEach(s=>UNIT.push({
+  unitSaya.filter(s=>!UNIT_KERANGKA.some(u=>u.kode === s.kode)).forEach(s=>UNIT.push({
     kode:s.kode, nama:s.nama || s.kode, alat:s.peralatan || '—',
     adegan: ADEGAN_UNIT[s.kode] || 'server',
     dinas:(Array.isArray(s.dinas) && s.dinas.length) ? s.dinas : KODE_DINAS
@@ -169,22 +167,4 @@ function srvPasang(unitSaya, paket){
   SRV.jam   = new Date();
 }
 
-/** Kembali ke data contoh — dipakai saat masuk lewat akun contoh. */
-function pakaiContoh(){
-  UNIT = CONTOH.UNIT; TROUBLE = CONTOH.TROUBLE; LOGBOOK = CONTOH.LOGBOOK;
-  // Tanpa server tidak ada lembar apa pun untuk dibaca; kegiatan yang
-  // bersumber E-Logbook jatuh kembali ke tanda manual dengan sendirinya.
-  // Penanda formulir ikut dikosongkan, jadi tombol tautannya juga hilang.
-  BUKTI = {}; UNIT_FORM = {};
-  // Dokumen yang datang dari server ikut dilepas: tautannya menuju endpoint
-  // yang sudah tidak dipakai, dan daftar yang tidak bisa dibuka lebih buruk
-  // daripada daftar kosong. Yang lokal tidak ada di sini — belum ada.
-  Object.keys(BERKAS).forEach(k=>delete BERKAS[k]);
-  HARI_INI = new Date('2026-08-14T00:00:00');
-  SRV.aktif = false; SRV.unit = []; SRV.jam = null;
-}
-
-/** Catatan penanda di layar unit, hanya saat datanya nyata. */
-const catatanContoh = (teks, en) => SRV.aktif
-  ? `<div class="catatan"><b>${T('Masih data contoh.','Still sample data.')}</b> ${T(teks, en)}</div>` : '';
 

@@ -4,20 +4,17 @@
    Yang dijanjikan bagian ini: jadwal bulan yang sedang berjalan bisa dilihat
    siapa saja, dan hanya orang yang ditunjuk yang boleh mengisinya.
 
-   DUA TEMPAT PENYIMPANAN, DAN SEBABNYA
-   Dalam mode server jadwalnya tinggal di server ini (data/dinas.json), karena
-   "semua orang bisa lihat" tidak mungkin dipenuhi oleh sesuatu yang tersimpan
-   di peramban masing-masing. Dalam data contoh — di mana tidak ada sesi
-   E-Logbook sama sekali, jadi tidak ada yang bisa ditanyakan haknya — jadwalnya
-   tinggal di localStorage, seperti suntingan peralatan dan sparepart. Bedanya
-   disebut terang-terangan di layar, bukan disamarkan.
+   DI MANA JADWALNYA TINGGAL
+   Di server ini, data/dinas.json — karena "semua orang bisa lihat" tidak
+   mungkin dipenuhi oleh sesuatu yang tersimpan di peramban masing-masing.
+   Dulu ada tempat kedua, localStorage, untuk jalan tanpa sesi E-Logbook; ia
+   ikut pergi bersama data contoh.
 
    Bentuknya:  { 'YYYY-MM': { <unit>: [ { nama, peran, hari:[...] } ] } }
    hari[] sepanjang jumlah hari bulan itu; isinya kode dinas unit itu, atau ''
    untuk libur.
    ======================================================================= */
 
-const DINAS_LOKAL_KUNCI = 'avenger.dinas';
 
 const bulanKode = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
 const jumlahHari = (bulan) =>
@@ -39,22 +36,10 @@ const JDW = {
   draf:     null     // salinan yang sedang disunting; null di luar mode sunting
 };
 
-/* ---------- Penyimpanan lokal untuk data contoh ---------- */
-
-function jdwLokalMuat(){
-  try{ return JSON.parse(localStorage.getItem(DINAS_LOKAL_KUNCI) || '{}') || {}; }
-  catch(e){ return {}; }
-}
-function jdwLokalSimpan(semua){
-  try{ localStorage.setItem(DINAS_LOKAL_KUNCI, JSON.stringify(semua)); }
-  catch(e){ console.warn('Jadwal dinas tidak bisa disimpan di peramban:', e && e.message || e); }
-}
-
 /* ---------- Ambil dan simpan ---------- */
 
-/** Jadwal satu bulan. Server kalau tersambung, localStorage kalau data contoh. */
+/** Jadwal satu bulan, dari server dashboard ini. */
 async function jdwAmbil(bulan){
-  if(!SRV.aktif) return jdwLokalMuat()[bulan] || {};
   const r = await srvFetch('/dinas/bulan/' + bulan, {}, 10000);
   const j = await r.json().catch(()=>null);
   if(!r.ok) throw new Error((j && j.error) || ('server menjawab ' + r.status));
@@ -81,15 +66,6 @@ async function jdwMuatAwal(){
 }
 
 async function jdwSimpanUnit(bulan, unit, orang){
-  if(!SRV.aktif){
-    const semua = jdwLokalMuat();
-    if(!semua[bulan]) semua[bulan] = {};
-    if(orang.length) semua[bulan][unit] = orang; else delete semua[bulan][unit];
-    jdwLokalSimpan(semua);
-    aktCatat('dinas', orang.length ? 'simpan' : 'kosongkan', unit,
-      `${bulan} · ${orang.length} ${T('orang','people')}`);
-    return;
-  }
   const r = await srvFetch('/dinas/bulan/' + bulan + '/' + unit, {
     method:'PUT', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ orang })
   }, 15000);
@@ -283,22 +259,13 @@ function jdwIsi(unit){
           + 'a day is split into <b>P</b> 00:00–07:00 and <b>S</b> 07:00–13:00, the night moves back to '
           + '13:00–00:00. The cards above carry only the codes this month’s roster actually uses; the rest '
           + 'are not laid out as empty slots.')}</div>`
-    + (SRV.aktif
-        ? `<div class="catatan"><b>${T('Tersimpan di server ini.','Stored on this server.')}</b> ${
-            T('Jadwal yang disimpan di sini terlihat oleh semua orang yang membuka dashboard ini — '
-              + 'itu memang gunanya. Modulnya milik dashboard ini, bukan E-Logbook: yang ditanyakan ke '
-              + 'E-Logbook hanya siapa Anda, untuk menentukan boleh mengisi atau tidak.',
-              'A roster saved here is visible to everyone who opens this dashboard — that is the point. '
-              + 'The module belongs to this dashboard, not to E-Logbook: the only thing asked of E-Logbook '
-              + 'is who you are, to decide whether you may fill it in.')}</div>`
-        : `<div class="catatan"><b>${T('Ini data contoh — tersimpan di peramban ini saja.',
-            'Sample data — stored in this browser only.')}</b> ${
-            T('Tanpa sesi E-Logbook tidak ada server yang bisa ditanyai haknya, jadi hak per peran '
-              + 'dihitung di peramban ini sendiri — cukup untuk mencobanya, dan hasilnya tidak ke '
-              + 'mana-mana. Masuk lewat tujuan Dashboard untuk memakai jadwal yang sungguhan.',
-              'Without an E-Logbook session there is no server to ask about rights, so the per-role '
-              + 'rights are worked out inside this browser — enough to try them out, and the result goes '
-              + 'nowhere. Sign in through the Dashboard destination to use the real roster.')}</div>`);
+    + `<div class="catatan"><b>${T('Tersimpan di server ini.','Stored on this server.')}</b> ${
+        T('Jadwal yang disimpan di sini terlihat oleh semua orang yang membuka dashboard ini — '
+          + 'itu memang gunanya. Modulnya milik dashboard ini, bukan E-Logbook: yang ditanyakan ke '
+          + 'E-Logbook hanya siapa Anda, untuk menentukan boleh mengisi atau tidak.',
+          'A roster saved here is visible to everyone who opens this dashboard — that is the point. '
+          + 'The module belongs to this dashboard, not to E-Logbook: the only thing asked of E-Logbook '
+          + 'is who you are, to decide whether you may fill it in.')}</div>`;
 }
 
 /** Gambar ulang isi subtab saja. */
