@@ -112,7 +112,13 @@ tidak ikut terkirim. Karena diteruskan lewat `server.js`, bagi browser semuanya
 tetap satu asal — blok "Jembatan E-Logbook" di `public/index.html` jalan apa
 adanya, tanpa satu baris pun diubah dari bentuk aslinya.
 
-Jalur yang diteruskan: `/api/*` dan `/uploads/*`.
+Jalur yang diteruskan: `/api/*`, `/uploads/*`, dan `/logbook/*`.
+
+`/logbook/*` yang terakhir menyusul, dan ia menutup celah yang tersisa. Selama
+tombol **Buka E-Logbook** menunjuk host E-Logbook yang sungguhan, data memang
+lewat penerusan tapi HALAMANNYA tidak — pemakainya berpindah asal, dan dengan
+begitu berpindah sesi. Sekarang halamannya ikut diteruskan: prefiks `/logbook`
+dipotong sebelum dikirim ke sana, dan bagi browser tidak pernah ada asal kedua.
 
 ### Masuk dan membuka E-Logbook
 
@@ -198,11 +204,17 @@ tumpukan tab yang tidak pernah ditutup siapa pun. Jalan pulangnya ada: tombol
 **Dashboard Teknik** di kepala E-Logbook kembali ke sini, dan cookie sesinya
 tetap yang sama.
 
-Tombol itu menunjuk E-Logbook **langsung**, bukan lewat penerusan — seluruh aset
-E-Logbook memanggil `/css/` dan `/js/` dari akar, dan akar di sini milik
-dashboard. Alamatnya dirangkai dari hostname yang sedang dipakai peramban
-ditambah port E-Logbook, jadi ikut benar walau dashboard dibuka dari komputer
-lain. Kalau E-Logbook ada di alamat yang lain sendiri, isi `ELOGBOOK_TAUTAN`.
+Tombol itu menunjuk **`/logbook/`** — E-Logbook disajikan lewat server ini, di
+dalam asal yang sama. Itu yang membuat kalimat "cookie sesinya tetap yang sama"
+di atas benar: menyeberang ke host lain berarti menyeberang ke toples cookie
+yang lain, dan di sana pemakainya bisa jadi orang lain — teknisi satu unit di
+dashboard, administrator yang membuka semua unit di E-Logbook. Satu asal
+membuat pertanyaan itu tidak pernah muncul.
+
+Yang membuatnya bisa: aset E-Logbook dipanggil relatif, jadi di `/logbook/`
+semuanya jatuh ke `/logbook/css/…` dan `/logbook/js/…` tanpa menyentuh `/css/`
+dan `/js/` milik dashboard. Penjelasan lengkapnya di `server.js`, di atas
+`JALUR_LOGBOOK`.
 
 **Menunjuk tab tertentu.** Tombol biasa membuka E-Logbook di halaman depannya:
 unit yang terakhir dipakai, tab Logbook. Yang perlu menunjuk lebih jauh memakai
@@ -948,7 +960,7 @@ Lewat environment variable, atau salin `.env.example` jadi `.env`:
 | `HOST`          | `0.0.0.0`               | alamat bind                                 |
 | `ELOGBOOK_ASAL` | `http://127.0.0.1:3000` | alamat server E-Logbook                     |
 | `ELOGBOOK_MATI` | —                       | set `1` untuk memutus penerusan             |
-| `ELOGBOOK_TAUTAN` | —                     | alamat E-Logbook untuk tombol "Buka E-Logbook", kalau bukan hostname yang sama |
+| `ELOGBOOK_TAUTAN` | `/logbook/`           | alamat tombol "Buka E-Logbook". Biarkan kosong — mengisinya memindahkan tombol ke host E-Logbook, berikut sesi yang terbelah |
 | `ELOGBOOK_PORT` | `3000`                  | port E-Logbook yang dinyalakan `npm start`  |
 | `GALERI_MATI`   | —                       | set `1` untuk mematikan unggah dan hapus foto |
 

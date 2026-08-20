@@ -220,18 +220,28 @@ Dua hal lain dari 19 Agu 2026:
   deployment, **bukan** build yang gagal. Sempat disangka error. Uji lewat alamat
   produksi, bukan lewat URL deployment.
 
-### 3.2 `ELOGBOOK_SECURE_COOKIE` masih terpasang — belum beres
+### 3.2 `ELOGBOOK_SECURE_COOKIE` — **SELESAI 20 Agu 2026**
 
-Nilainya tidak terlihat karena bertanda Sensitive. Kode membacanya `=== '1'`
-(`elogbook/server.js:101`), jadi hanya nilai persis `1` yang berbahaya.
+Terpasang `1` di proyek E-Logbook, dan cookie sesinya sekarang memang membawa
+atribut `Secure`. Diperiksa langsung, bukan disimpulkan dari daftar env:
 
-Selama Avenger masih di kantor lewat `http://`, nilai `1` akan membuat login
-**gagal diam-diam** — terkirim, tanpa pesan salah, tanpa sesi. Hapus variabelnya
-atau timpa dengan `0`, lalu redeploy.
+```
+curl -s -i -X POST https://e-log-book-server.vercel.app/api/logout | grep -i set-cookie
+Set-Cookie: elogbook_sesi=; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=0
+```
 
-Begitu Avenger ikut di Vercel dan keduanya `https://`, arahnya berbalik:
-`ELOGBOOK_SECURE_COOKIE=1` justru jadi yang benar, dan wajib dipasang di **kedua**
-proyek bersamaan. Lihat 8.1.
+Jalan ke sana lewat satu jebakan yang pantas dicatat. Pemasangan pertama tidak
+berpengaruh apa pun: nilainya dikirim lewat pipa PowerShell, yang menambahkan
+baris baru sendiri, sedangkan kode membandingkannya persis dengan `'1'`.
+Gagalnya tanpa suara — aplikasi jalan normal, tidak ada galat, dan satu-satunya
+bekasnya adalah atribut yang hilang dari `Set-Cookie`, yang tidak akan dilihat
+siapa pun sampai ada yang memeriksanya. Sekarang nilainya dipangkas dulu sebelum
+dibandingkan (`COOKIE_SECURE` di `elogbook/server.js`), sama seperti
+`ELOGBOOK_COOKIE_DOMAIN` dan `ELOGBOOK_PINTU`.
+
+Yang tetap berlaku: di komputer sendiri lewat `http://`, nilai `1` membuat login
+gagal diam-diam — terkirim, tanpa pesan salah, tanpa sesi. Karena itu variabel
+ini hanya dipasang di Vercel, tidak pernah di `.env` lokal.
 
 ---
 
@@ -737,59 +747,121 @@ ke lockfile, jadi kalau cuma `package.json` yang disunting, `npm install`
 pertama yang dijalankan orang lain akan menulis ulang lockfile-nya dan
 memunculkan diff yang tidak ada yang minta.
 
-### 8.9 Satu domain induk, supaya sesinya satu
+### 8.9 Satu asal, supaya sesinya satu
 
-**Belum dikerjakan — menunggu DNS `avenger-teknik.com`.**
+**Sudah dikerjakan — 20 Agu 2026. Tidak menunggu DNS.**
 
-Gejalanya sudah terlihat dipakai: masuk di dashboard sebagai teknisi Radkom,
-tekan **Buka E-Logbook**, dan yang muncul di sana Bagus sebagai administrator.
+Gejalanya: masuk di dashboard sebagai teknisi Radkom, tekan **Buka E-Logbook**,
+dan yang muncul di sana Bagus sebagai administrator — dengan seluruh unit
+terbuka. Penjagaan unit di E-Logbook tidak bocor (`pastikanUnit` menahan setiap
+permintaan, diuji ulang hari ini); yang keliru adalah **akun** yang dijaganya.
 
 Sebabnya dua asal yang berbeda:
 
 ```
 teknik-avenger-jatsc.vercel.app     ← login mendarat di sini
-e-log-book-server.vercel.app        ← tombol Buka E-Logbook membawa ke sini
+e-log-book-server.vercel.app        ← tombol Buka E-Logbook dulu membawa ke sini
 ```
 
 Login lewat dashboard diteruskan ke E-Logbook dan `Set-Cookie`-nya diteruskan
-balik, tapi cookie itu tersimpan atas nama domain **dashboard**. Cookie sesi
-E-Logbook dibuat tanpa atribut `Domain`, jadi ia terikat pada host yang
-memasangnya, dan domain E-Logbook memegang toples cookienya sendiri — berisi
-sesi siapa pun yang terakhir login langsung di peramban itu, berumur 30 hari.
+balik, tapi cookie itu tersimpan atas nama domain **dashboard**. Domain
+E-Logbook memegang toples cookienya sendiri — berisi sesi siapa pun yang
+terakhir login langsung di peramban itu, berumur 30 hari.
 
 Yang membuatnya lebih dari sekadar merepotkan: penulis catatan diambil dari
 sesi (`user.username, user.nama` → `DiinputOleh`, `dibuat_oleh`). Selama tab itu
-memakai sesi orang lain, **catatan yang diisi tercatat atas nama orang itu.** Di
-komputer yang dipakai bergantian satu ruangan, itu salah catat pada dokumen
-operasional, bukan sekadar salah tampil.
+memakai sesi orang lain, **catatan yang diisi tercatat atas nama orang itu.**
 
-Mekanismenya sudah ada di kode dan menunggu dinyalakan:
+#### Kenapa bukan cookie berdomain induk
 
-| Langkah | Di mana | Isi |
-| --- | --- | --- |
-| 1 | DNS registrar | `avenger-teknik.com` diarahkan ke Vercel |
-| 2 | Vercel, proyek E-Logbook | tambahkan domain `logbook.avenger-teknik.com` |
-| 3 | Vercel, proyek Avenger | tambahkan domain `app.avenger-teknik.com` |
-| 4 | env E-Logbook | `ELOGBOOK_COOKIE_DOMAIN=avenger-teknik.com` |
-| 5 | env E-Logbook | `AVENGER_TAUTAN=https://app.avenger-teknik.com` |
-| 6 | env Avenger | `ELOGBOOK_ASAL` dan `ELOGBOOK_TAUTAN` → `https://logbook.avenger-teknik.com` |
-| 7 | env kedua proyek | `ELOGBOOK_SECURE_COOKIE=1` — lihat 3.2 |
+Rencana sebelumnya `ELOGBOOK_COOKIE_DOMAIN=avenger-teknik.com`. Itu **tidak bisa
+dipakai di `*.vercel.app`**, dan bukan karena belum dicoba: `vercel.app` ada di
+[Public Suffix List](https://publicsuffix.org/), sederajat dengan `co.id`.
+Peramban menolak `Domain=vercel.app` persis seperti ia menolak `Domain=co.id` —
+kalau tidak, satu situs di sana bisa memasang cookie untuk seluruh tetangganya.
+Tidak ada nilai yang sah untuk diisi, dan tidak akan ada selama alamatnya masih
+bawaan Vercel.
 
-Nilai langkah 4 adalah domain **induk**, bukan subdomain E-Logbook. Cookie hanya
-boleh menyebut domain yang mencakup host pengirimnya; kalau salah, peramban
-membuangnya tanpa bersuara — login kelihatan berhasil lalu permintaan
-berikutnya dijawab 401, dan tidak ada galat di log mana pun.
+#### Yang dipakai: asalnya yang disatukan
 
-`SameSite=Lax` sengaja dipertahankan. Perpindahan antar subdomain pada domain
-terdaftar yang sama terhitung same-site, jadi cookienya tetap ikut terkirim.
-`None` hanya akan melonggarkan penjagaan tanpa menambah satu pun kemampuan.
+Seluruh E-Logbook disajikan lewat dashboard di **`/logbook/`**. Bagi peramban
+hanya ada satu asal, satu toples cookie, satu sesi — peran dan unit yang berlaku
+di dashboard adalah yang berlaku di E-Logbook, tanpa perlu disamakan siapa pun.
 
-Sesudah langkah 1–7, alamat `*.vercel.app` sebaiknya berhenti diedarkan: ia
-tetap hidup dan tetap punya toples cookienya sendiri, jadi selama masih ada yang
-memakainya, gejala di atas masih bisa muncul untuk orang itu.
+| Bagian | Di mana |
+| --- | --- |
+| Penerusan `/logbook/*` → E-Logbook, prefiksnya dipotong | `server.js`, di atas `JALUR_LOGBOOK` |
+| Pengalihan `/logbook` → `/logbook/` | `server.js`, `app.all(JALUR_LOGBOOK, …)` |
+| Rewrite Vercel `/logbook` dan `/logbook/(.*)` | `vercel.json` |
+| Tombol Buka E-Logbook → `/logbook/` | bawaan `_info.tautanElogbook` |
+| Pantulan pintu belakang | env E-Logbook `ELOGBOOK_PINTU` |
 
-Sampai DNS-nya jadi, penambalnya manual: tekan **Keluar** di dalam tab
-E-Logbook, lalu masuk di situ dengan akun yang benar.
+Yang membuatnya bisa: `index.html` E-Logbook memanggil asetnya **relatif**
+(`css/…`, `js/…`), jadi di `/logbook/` semuanya jatuh ke `/logbook/css/…` dan
+`/logbook/js/…` tanpa menyentuh `/css/` dan `/js/` milik dashboard. Yang
+dipanggilnya mutlak cuma `/api/` dan `/uploads`, dan keduanya memang sudah
+diteruskan. **Kalau aset E-Logbook suatu saat berpindah ke jalur mutlak, pintu
+ini yang pertama patah** — dan patahnya terlihat sebagai halaman E-Logbook
+berkulit dashboard, bukan sebagai galat.
+
+Dua jebakan yang sudah memakan waktu, keduanya sekarang ada penjaganya di kode:
+
+- `app.all('/logbook')` **juga** cocok dengan `/logbook/` — Express tidak
+  memakai strict routing secara bawaan. Pengalihan tanpa pemeriksaan garis
+  miring jadi lingkaran tak berujung.
+- Pengalihan yang datang dari E-Logbook menyebut jalur menurut ukurannya
+  sendiri. Tanpa `Location` yang ditulis ulang, `/` darinya melempar pemakai
+  keluar dari `/logbook/`.
+
+#### Pintu belakang ditutup
+
+`ELOGBOOK_PINTU` di proyek E-Logbook memantulkan permintaan **halaman** yang
+datang langsung ke `e-log-book-server.vercel.app` menuju `/logbook/`. Hanya
+halaman: `/api/` dan aset dibiarkan lewat, dan penerusan dari dashboard dikenali
+dari kepala `x-diteruskan-avenger` supaya pantulannya tidak jadi lingkaran.
+
+```
+ELOGBOOK_PINTU=https://teknik-avenger-jatsc.vercel.app/logbook/
+```
+
+#### Nama domain sendiri — kalau suatu saat ada
+
+`avenger-teknik.com` tidak lagi memblokir apa pun. Kalau nanti dipasang, ia
+menggantikan pintu tunggal, bukan menambahinya: satu domain induk membuat
+`ELOGBOOK_COOKIE_DOMAIN` sah dipakai, dan kedua aplikasi boleh kembali ke
+subdomainnya masing-masing. Sampai saat itu, tidak ada yang perlu ditunggu.
+
+Catatan yang tetap berlaku: `SameSite=Lax` sengaja dipertahankan, dan `None`
+hanya akan melonggarkan penjagaan tanpa menambah satu pun kemampuan.
+
+### 8.10 Deploy CLI proyek E-Logbook — dari akar repo, bukan dari `elogbook/`
+
+Root Directory proyek `e-log-book-server` di Vercel adalah `elogbook`. Jalur itu
+dihitung **relatif terhadap folder yang di-deploy**, jadi menjalankan
+`npx vercel` dari dalam `elogbook/` membuatnya mencari `elogbook/elogbook`:
+
+```
+Error: The provided path "…\Teknik JATSC Avenger\elogbook\elogbook" does not exist.
+```
+
+Yang benar: dari **akar repo**, dengan proyek E-Logbook yang ditunjuk lewat
+environment variable — karena `.vercel/project.json` di akar menunjuk proyek
+Avenger.
+
+```powershell
+$env:VERCEL_ORG_ID     = "team_6pShRquatvqB8ObtrsS95Em7"
+$env:VERCEL_PROJECT_ID = "prj_8Rcpj95ZCB6HoKQR6jEdVUOz0Dlc"
+npx vercel --prod --yes
+```
+
+Avenger tetap seperti biasa, dari akar repo tanpa variabel apa pun.
+
+Satu akibat yang perlu diingat: karena yang diunggah adalah akar repo, yang
+berlaku adalah `.vercelignore` **akar**, bukan `elogbook/.vercelignore`. Pola
+`data/` dan `uploads/` di akar memang mencocokkan folder bernama sama di
+kedalaman mana pun, jadi basis data dan tanda tangan tetap tertahan — sudah
+diperiksa, `…/data/elogbook.db` dijawab 404 di produksi. Tapi kedua berkas itu
+harus tetap disunting berpasangan.
 
 ---
 
@@ -797,15 +869,16 @@ E-Logbook, lalu masuk di situ dengan akun yang benar.
 
 ## Yang belum siap
 
-- `ELOGBOOK_SECURE_COOKIE` masih terpasang di proyek E-Logbook dan nilainya tidak
-  terlihat. Lihat 3.2 — ini yang paling mendesak.
-- Branch Tracking Vercel belum diarahkan ke `utama`. Lihat 3.1.
+- Branch Tracking Vercel belum diarahkan ke `utama`. Lihat 3.1. Sampai itu,
+  produksi selalu naik lewat `npx vercel --prod`, tidak pernah lewat push —
+  dan untuk E-Logbook itu berarti dari akar repo, lihat 8.10.
 - `elogbook/elogbook_schema.sql` masih 0 byte. Tidak dipakai saat runtime, jadi
   tidak menghalangi deploy — tapi berarti belum ada satu berkas yang merekam
   skema utuhnya.
-- **Langkah F belum**: proyek Vercel untuk Avenger belum dibuat. Sampai itu ada,
-  Avenger tetap berjalan di kantor di jalur berkas, dan Bagian 5 masih yang
-  berlaku sehari-hari.
+- Alamat `e-log-book-server.vercel.app` masih hidup dan masih punya toples
+  cookienya sendiri. Permintaan halaman ke sana sekarang dipantulkan ke
+  `/logbook/` (lihat 8.9), jadi tidak ada lagi jalan masuk kedua lewat peramban
+  — tapi alamat itu sebaiknya tetap berhenti diedarkan.
 - Simpanan di Supabase sekarang punya dua salinan yang **tidak saling menyusul**:
   yang di kantor menulis ke `data/*.json`, yang di Supabase berhenti pada
   keadaan 19 Agu 2026. Selama Avenger belum pindah, tiap suntingan di kantor
