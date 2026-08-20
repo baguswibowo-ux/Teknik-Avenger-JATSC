@@ -440,9 +440,12 @@ html[data-tema="gelap"] .sert-sunting input[type=date]::-webkit-calendar-picker-
 .psn-berkas-ket{font-size:11px;color:var(--muted);}
 .psn-cip{display:inline-flex;align-items:center;gap:5px;padding:3px 7px;border-radius:7px;
   border:1px solid var(--line);background:var(--kaca);max-width:100%;}
-.psn-cip a{font-size:11px;color:var(--text);text-decoration:none;overflow:hidden;
-  text-overflow:ellipsis;white-space:nowrap;max-width:260px;}
+.psn-cip a,.psn-cip .psn-cip-tunda{font-size:11px;color:var(--text);text-decoration:none;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:260px;}
 .psn-cip a:hover{text-decoration:underline;}
+/* Bukti yang masih menunggu Simpan: belum bisa dibuka, jadi belum terlihat
+   seperti tautan. */
+.psn-cip .psn-cip-tunda{color:var(--muted);font-style:italic;}
 .psn-cip-buang{background:none;border:0;color:var(--muted);cursor:pointer;font-size:11px;padding:0 1px;}
 .psn-cip-buang:hover{color:var(--fail);}
 .psn-lampiran{font-family:var(--font-mono);font-size:10.5px;color:var(--muted);}

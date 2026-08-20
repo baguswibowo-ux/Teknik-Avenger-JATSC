@@ -28,6 +28,7 @@ const PSN = {
   boleh:   false,   // akun ini boleh mengubah?
   masuk:   true,    // nomor lisensinya utuh, atau sudah dipotong server?
   dibuka:  null,    // salinan orang yang sedang terbuka di kartu; null = tambah
+  tunda:   [],      // bukti yang dipilih sebelum orangnya punya id di server
   saring:  { unit:'', sert:'', cari:'' }
 };
 
@@ -340,6 +341,7 @@ function psnBuka(asal, unitBawaan){
   PSN.dibuka = asal
     ? JSON.parse(JSON.stringify(asal))
     : { id:'', nama:'', unit: unitBawaan || '', username:'', jabatan:'', sertifikat:[] };
+  PSN.tunda = [];
   el('judulPersonel').textContent = asal ? T('Ubah personel','Edit person')
                                          : T('Tambah personel','Add person');
   el('ketKartuPersonel').textContent = asal ? asal.nama : '';
@@ -425,6 +427,7 @@ function psnGambarKartu(){
 function psnTutup(){
   el('lapisPersonel').classList.remove('buka');
   PSN.dibuka = null;
+  PSN.tunda = [];
 }
 
 el('btnBatalPersonel').addEventListener('click', psnTutup);
@@ -443,7 +446,11 @@ el('btnSimpanPersonel').addEventListener('click', async ()=>{
   // Baris sertifikat yang sama sekali kosong dibuang tanpa berkata apa-apa:
   // menekan Tambah baris lalu berubah pikiran bukan kesalahan yang perlu
   // dilaporkan.
-  p.sertifikat = (p.sertifikat || []).filter(s=>s.nama || s.nomor || s.rating || s.berlaku);
+  // Baris yang sudah dilampiri bukti dikecualikan: orang yang menempelkan
+  // pindaian ke sebuah baris jelas tidak sedang berubah pikiran soal barisnya.
+  p.sertifikat = (p.sertifikat || []).filter(s=>
+    s.nama || s.nomor || s.rating || s.berlaku ||
+    PSN.tunda.some(t=>t.sert === (s.id || '')));
 
   const b = el('btnSimpanPersonel');
   const simpanan = JSON.parse(JSON.stringify(PSN.daftar));
@@ -456,8 +463,14 @@ el('btnSimpanPersonel').addEventListener('click', async ()=>{
   b.disabled = true;
   try{
     await psnSimpan(lama ? 'ubah' : 'tambah', p);
+    // Sekarang orangnya punya id, jadi bukti yang ditahan di kartu punya tempat
+    // untuk mendarat. Gagalnya satu berkas tidak membatalkan yang sudah tersimpan.
+    const gagal = await psnTundaKirim(p.id, b);
     psnTutup(); gambarPersonel(); gambarPerhatian(); gambarLonceng();
-    pesan(T('Data personel tersimpan.','Personnel record saved.'));
+    pesan(gagal.length
+      ? T('Tersimpan, tapi ada bukti yang gagal naik: ',
+          'Saved, but some proof failed to upload: ') + gagal.join('; ')
+      : T('Data personel tersimpan.','Personnel record saved.'));
   }catch(e){
     PSN.daftar = simpanan;
     pesan(T('Gagal menyimpan: ','Could not save: ') + (e && e.message || e));
@@ -481,9 +494,12 @@ el('btnSimpanPersonel').addEventListener('click', async ()=>{
    nomor urut: satu baris yang dihapus menggeser sisanya, dan bukti lisensi
    akan berpindah menempel ke sertifikat yang lain tanpa ada yang menyentuhnya.
 
-   Yang belum tersimpan tidak bisa dilampiri. Orang baru belum punya id di
-   server, dan berkas yang diunggah ke id yang belum ada tidak punya tempat
-   untuk mendarat. Kartunya mengatakan itu, bukan menawarkan tombol yang gagal. */
+   Orang baru boleh dilampiri sebelum tersimpan, tapi berkasnya belum bisa
+   berangkat: id yang dituju belum ada, dan berkas yang diunggah ke id yang
+   belum ada tidak punya tempat untuk mendarat. Jadi ia ditahan di kartu dan
+   berangkat sendiri tepat sesudah Simpan berhasil. Yang ditahan tinggal di
+   peramban — Batal membuangnya tanpa menyisakan apa pun di server, dan itu
+   sebabnya menahan lebih baik daripada mengunggah dulu ke id sementara. */
 
 const PSN_EXT_SAH = /\.(pdf|docx?|xlsx?|pptx?|odt|ods|odp|rtf|txt|csv|md|jpe?g|png|webp|gif|bmp|tiff?|zip|rar|7z|dwg|dxf)$/i;
 
@@ -560,9 +576,24 @@ async function psnBerkasKirim(orangId, f, sertId){
 /** Cip berkas di bawah satu baris sertifikat, beserta tombol lampir. */
 function psnBerkasCip(orang, s){
   if(!orang.id){
-    return `<div class="psn-berkas"><span class="psn-berkas-ket">${
-      T('Simpan dulu orangnya, baru buktinya bisa dilampirkan.',
-        'Save the person first, then attachments can be added.')}</span></div>`;
+    const nunggu = PSN.tunda.filter(t=>t.sert === (s.id || ''));
+    return `<div class="psn-berkas">
+      ${nunggu.map(t=>`<span class="psn-cip">
+        <span class="psn-cip-tunda" title="${esc(t.file.name)} · ${brkUkuran(t.file.size)}">${
+          esc(brkEkstensi(t.file.name))} · ${esc(t.file.name)}</span>
+        <button class="psn-cip-buang" data-brk-tunda="${esc(t.id)}"
+          title="${T('Batalkan berkas ini','Drop this file')}">✕</button>
+      </span>`).join('')}
+      ${PSN.berkasBisaTulis
+        ? `<button class="btn garis kecil" data-brk-lampir="${esc(s.id || '')}">${
+             nunggu.length ? T('Tambah bukti','Add proof')
+                           : T('Lampirkan bukti','Attach proof')}</button>
+           <span class="psn-berkas-ket">${nunggu.length
+             ? T('Berangkat begitu Simpan ditekan.','Uploaded as soon as you press Save.')
+             : T('Terkirim sesudah orangnya disimpan.','Sent once the person is saved.')}</span>`
+        : `<span class="psn-berkas-ket">${T('Unggahan dimatikan di lingkungan ini.',
+                                            'Uploads are off in this environment.')}</span>`}
+    </div>`;
   }
   const milik = psnBerkasSert(orang.id, s.id || '');
   return `<div class="psn-berkas">
@@ -597,6 +628,19 @@ function psnBerkasPasang(){
           pesan(T('Jenis berkas itu tidak diterima.','That file type is not accepted.'));
           return;
         }
+        if(!orang.id){
+          const tolak = [];
+          for(const f of daftar){
+            if(f.size > BRK_BATAS){
+              tolak.push(f.name + ': ' + T('lebih dari 25 MB','over 25 MB')); continue;
+            }
+            PSN.tunda.push({ id:'t' + Date.now().toString(36) + PSN.tunda.length,
+              sert: t.dataset.brkLampir, file: f });
+          }
+          psnGambarKartu();
+          if(tolak.length) pesan(T('Tidak bisa dilampirkan: ','Cannot attach: ') + tolak.join('; '));
+          return;
+        }
         t.disabled = true;
         const asal = t.textContent;
         const gagal = [];
@@ -620,6 +664,13 @@ function psnBerkasPasang(){
     });
   });
 
+  badan.querySelectorAll('[data-brk-tunda]').forEach(t=>{
+    t.addEventListener('click', ()=>{
+      PSN.tunda = PSN.tunda.filter(x=>x.id !== t.dataset.brkTunda);
+      psnGambarKartu();
+    });
+  });
+
   badan.querySelectorAll('[data-brk-buang]').forEach(t=>{
     t.addEventListener('click', async ()=>{
       if(!confirm(T('Hapus berkas bukti ini dari server?','Delete this attachment from the server?'))) return;
@@ -636,6 +687,33 @@ function psnBerkasPasang(){
       }
     });
   });
+}
+
+/**
+ * Kirim seluruh bukti yang ditahan, sesudah orangnya punya id.
+ *
+ * Dijalankan berurutan, bukan berbarengan: jalur unggahnya sama dengan yang
+ * dipakai rak dokumen unit, dan tombol Simpan dipakai sekalian sebagai penunjuk
+ * kemajuan supaya orang tahu kartunya belum boleh ditutup.
+ *
+ * @returns {Promise<string[]>} daftar kegagalan; kosong berarti semuanya naik.
+ */
+async function psnTundaKirim(orangId, tombol){
+  if(!PSN.tunda.length) return [];
+  const antre = PSN.tunda;
+  PSN.tunda = [];
+  const gagal = [];
+  const asal = tombol ? tombol.textContent : '';
+  let sudah = 0;
+  for(const t of antre){
+    if(tombol) tombol.textContent = T(`Mengunggah ${sudah + 1}/${antre.length}...`,
+                                      `Uploading ${sudah + 1}/${antre.length}...`);
+    try{ await psnBerkasKirim(orangId, t.file, t.sert); sudah++; }
+    catch(e){ gagal.push(t.file.name + ': ' + (e && e.message || e)); }
+  }
+  if(tombol) tombol.textContent = asal;
+  if(sudah) await psnBerkasMuat();
+  return gagal;
 }
 
 /**
