@@ -127,7 +127,28 @@ async function doLogin(){
 async function doLogout(){
   try{ await fetch('/api/logout', { method:'POST', credentials:'same-origin' }); }catch(e){}
   userSaatIni = null;
-  // Muat ulang halaman supaya tidak ada sisa data di layar setelah keluar.
+
+  /* Dibuka lewat pintu dashboard, Keluar mengantar ke layar masuk DASHBOARD,
+     bukan ke layar masuk halaman ini.
+
+     Sesinya cuma satu sejak kedua aplikasi satu asal, jadi menekan Keluar di
+     sini juga mengeluarkan orang itu dari dashboard. Memuat ulang halaman ini
+     akan menampilkan layar masuk E-Logbook — layar masuk kedua untuk sesi yang
+     cuma satu. Yang mengisinya lalu kembali ke sini, sementara dashboard yang
+     ia tinggalkan di belakang sudah kosong: dua pintu masuk untuk satu kunci,
+     dan tidak ada yang menerangkan mana yang sedang berlaku.
+
+     '/' bukan window.AVENGER_TAUTAN: begitu halaman ini berada di balik pintu,
+     akar asal ini MEMANG dashboard. Memakai alamat dari variabel hanya
+     menambah satu cara untuk salah — variabel yang menunjuk host lain akan
+     melempar orang keluar dari asal yang baru saja disatukan.
+
+     replace, bukan href: layar yang sudah keluar tidak pantas bisa didatangi
+     lagi dengan tombol Back. */
+  if(window.LEWAT_PINTU_AVENGER){ location.replace('/'); return; }
+
+  // Dibuka langsung di alamat aplikasi ini: muat ulang, supaya tidak ada sisa
+  // data di layar setelah keluar.
   location.reload();
 }
 

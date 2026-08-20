@@ -1094,7 +1094,25 @@ if (PAKAI_POSTGRES) {
 app.get('/avenger-tautan.js', (req, res) => {
   res.type('application/javascript');
   res.setHeader('Cache-Control', 'no-store');
-  res.send('window.AVENGER_TAUTAN = ' + JSON.stringify(process.env.AVENGER_TAUTAN || '') + ';\n');
+
+  /* Apakah halaman ini sedang disajikan lewat pintu dashboard, bukan dibuka
+     langsung di alamat aplikasi ini. Dipakai layar untuk memutuskan ke mana
+     Keluar mengantar.
+
+     Ditentukan di sini, bukan ditebak dari location.pathname di peramban:
+     nama jalur pintunya milik dashboard (/logbook), dan E-Logbook tidak perlu
+     ikut menghafalnya. Kalau suatu saat pintunya berpindah nama, yang berubah
+     cuma satu tempat.
+
+     no-store di atas jadi penting justru karena baris ini: jawabannya berbeda
+     untuk permintaan yang sama tergantung dari mana ia datang, dan satu
+     salinan yang tersimpan akan salah untuk separuh pemakainya. */
+  const lewatPintu = !!req.get('x-diteruskan-avenger');
+
+  res.send(
+    'window.AVENGER_TAUTAN = ' + JSON.stringify(process.env.AVENGER_TAUTAN || '') + ';\n' +
+    'window.LEWAT_PINTU_AVENGER = ' + (lewatPintu ? 'true' : 'false') + ';\n'
+  );
 });
 
 /* =====================================================================
