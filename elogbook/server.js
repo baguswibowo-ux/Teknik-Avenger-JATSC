@@ -14,7 +14,13 @@
  *   ELOGBOOK_COOKIE_DOMAIN   domain induk cookie sesi, supaya satu kali masuk
  *                            berlaku juga di dashboard. Kosong: cookie terikat
  *                            pada host yang memasangnya, dan kedua aplikasi
- *                            punya sesi sendiri-sendiri
+ *                            punya sesi sendiri-sendiri. TIDAK bisa dipakai di
+ *                            *.vercel.app — lihat ELOGBOOK_PINTU
+ *   ELOGBOOK_PINTU           alamat satu-satunya pintu masuk yang sah, mis.
+ *                            https://…/logbook/. Permintaan halaman yang datang
+ *                            langsung ke alamat ini dipantulkan ke sana, supaya
+ *                            hanya ada satu asal dan satu sesi. Kosong: tidak
+ *                            ada yang dipantulkan
  *   AVENGER_TAUTAN           alamat Dashboard Fasilitas Teknik untuk tombol
  *                            pulang. Wajib begitu aplikasi ini tidak lagi di
  *                            port sebelah dashboard — di Vercel, misalnya.
@@ -95,6 +101,15 @@ const SESSION_DAYS = Number(process.env.ELOGBOOK_SESSION_DAYS || 30);
  * Diisi kalau kedua aplikasi sudah berada di bawah satu domain induk, mis.
  * ELOGBOOK_COOKIE_DOMAIN=avenger-teknik.com untuk app.avenger-teknik.com dan
  * logbook.avenger-teknik.com. Satu kali masuk berlaku untuk keduanya.
+ *
+ * TIDAK BERLAKU di *.vercel.app, dan bukan karena belum dicoba: vercel.app ada
+ * di Public Suffix List, sederajat dengan co.id. Peramban menolak cookie yang
+ * menyebut Domain=vercel.app persis seperti ia menolak Domain=co.id — kalau
+ * tidak, satu situs di sana bisa memasang cookie untuk seluruh tetangganya.
+ * Jadi selama alamatnya masih bawaan Vercel, tidak ada domain induk yang boleh
+ * disebut, dan variabel ini tidak punya nilai sah untuk diisi. Yang menyatukan
+ * sesi di sana adalah menyatukan ASALNYA — lihat ELOGBOOK_PINTU, dan /logbook
+ * pada server dashboard.
  *
  * Dua hal yang mudah salah:
  *   - Nilainya harus domain INDUK, bukan salah satu subdomainnya. Cookie hanya
@@ -1067,6 +1082,43 @@ app.get('/avenger-tautan.js', (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   res.send('window.AVENGER_TAUTAN = ' + JSON.stringify(process.env.AVENGER_TAUTAN || '') + ';\n');
 });
+
+/* =====================================================================
+   PINTU TUNGGAL
+
+   Aplikasi ini punya alamatnya sendiri dan itu justru masalahnya. Sesi disimpan
+   sebagai cookie milik host yang memasangnya, jadi membuka alamat ini langsung
+   berarti masuk ke sesi yang lain daripada sesi yang sedang dipakai di
+   dashboard — biasanya sesi lama yang tertinggal, dan umurnya 30 hari. Orang
+   yang di dashboard cuma pegang satu unit bisa mendarat di sini sebagai
+   administrator yang membuka semuanya. Penjagaan unitnya sendiri tidak bocor
+   (lihat pastikanUnit); yang keliru adalah akun yang dijaganya.
+
+   ELOGBOOK_PINTU diisi alamat pintu yang sah — di produksi, /logbook/ di dalam
+   dashboard, yang meneruskan ke sini. Permintaan HALAMAN yang datang langsung
+   ke alamat ini dipantulkan ke sana, supaya cuma ada satu jalan masuk dan satu
+   sesi. Kosong: tidak ada yang dipantulkan, dan itu yang berlaku di komputer
+   sendiri.
+
+   Tiga saringan, dan ketiganya perlu:
+     - hanya GET/HEAD. POST yang dipantulkan kehilangan badannya.
+     - hanya yang meminta text/html. fetch('/api/…') dan permintaan aset tidak
+       meminta HTML, jadi keduanya lewat tanpa disentuh — termasuk yang datang
+       dari halaman yang sudah terlanjur terbuka.
+     - hanya yang TIDAK berpenanda penerusan. Tanpa saringan ini, penerusan
+       dari dashboard ikut dipantulkan kembali ke dashboard, dan halamannya
+       tidak pernah sampai ke mana pun.
+   ===================================================================== */
+const PINTU = (process.env.ELOGBOOK_PINTU || '').trim();
+
+if (PINTU) {
+  app.use((req, res, next) => {
+    if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+    if (req.get('x-diteruskan-avenger')) return next();
+    if (!String(req.get('accept') || '').includes('text/html')) return next();
+    return res.redirect(302, PINTU);
+  });
+}
 
 app.use(express.static(path.join(ROOT, 'public'), { extensions: ['html'] }));
 

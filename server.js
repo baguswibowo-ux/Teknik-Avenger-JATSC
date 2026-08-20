@@ -80,7 +80,50 @@ app.disable('x-powered-by');
    di dalam badan permintaan, dan batas bawaan Express (100 kb) jauh dari cukup.
    ===================================================================== */
 
+/* Jalur yang diteruskan APA ADANYA: prefiksnya memang milik E-Logbook juga,
+   jadi tidak ada yang perlu dipotong sebelum dikirim ke sana. */
 const JALUR_TERUS = ['/api', '/uploads'];
+
+/* =====================================================================
+   /logbook — PINTU E-LOGBOOK DI DALAM ASAL INI
+
+   Ini yang membuat kedua aplikasi berhenti punya dua sesi.
+
+   Masalahnya bukan pernah kurang jelas: dashboard di satu host, E-Logbook di
+   host lain, dan cookie sesi milik host yang memasangnya. Masuk lewat
+   dashboard diteruskan ke E-Logbook dan Set-Cookie-nya diteruskan balik, tapi
+   cookienya tersimpan atas nama host dashboard. Membuka tab E-Logbook langsung
+   berarti masuk ke toples cookie yang lain — berisi siapa pun yang terakhir
+   login di situ, dan sesinya hidup 30 hari. Akibat yang paling merugikan:
+   teknisi yang di dashboard cuma pegang Radtel bisa mendarat di E-Logbook
+   sebagai administrator dan membuka seluruh unit. Bukan karena penjagaannya
+   bocor — penjagaannya utuh, lihat pastikanUnit di sana — melainkan karena
+   yang dijaga ternyata akun yang berbeda.
+
+   Jalan keluar yang pertama dicoba adalah cookie berdomain induk
+   (ELOGBOOK_COOKIE_DOMAIN). Itu TIDAK bisa dipakai selama kedua aplikasi masih
+   di *.vercel.app: vercel.app ada di Public Suffix List, dan peramban menolak
+   cookie yang menyebut Domain=vercel.app persis seperti ia menolak
+   Domain=co.id. Jadi selama alamatnya masih bawaan Vercel, tidak ada domain
+   induk yang boleh disebut, dan tidak akan pernah ada.
+
+   Karena itu bukan cookienya yang disamakan, melainkan ASALNYA. Seluruh
+   E-Logbook disajikan lewat sini di bawah /logbook/, sehingga bagi peramban
+   hanya ada satu asal, satu toples cookie, dan satu sesi. Peran dan unit yang
+   berlaku di dashboard adalah peran dan unit yang sama persis di E-Logbook,
+   tanpa perlu disamakan oleh siapa pun.
+
+   Yang membuat ini bisa: index.html E-Logbook memanggil asetnya secara
+   RELATIF (`css/…`, `js/…`), bukan dari akar. Dibuka di /logbook/, permintaan
+   asetnya jatuh ke /logbook/css/… dan /logbook/js/… — tidak satu pun bertabrakan
+   dengan /css/ dan /js/ milik dashboard ini. Yang dipanggilnya secara mutlak
+   cuma /api/ dan /uploads, dan keduanya memang sudah diteruskan ke sana.
+
+   Kalau suatu saat aset E-Logbook berpindah ke jalur mutlak, pintu ini yang
+   pertama patah — dan patahnya terlihat sebagai halaman E-Logbook yang memakai
+   CSS dashboard, bukan sebagai galat.
+   ===================================================================== */
+const JALUR_LOGBOOK = '/logbook';
 
 /** Kepala yang tidak boleh ikut diteruskan: hop-by-hop, atau diisi ulang oleh fetch. */
 const KEPALA_DIBUANG = new Set([
@@ -89,17 +132,45 @@ const KEPALA_DIBUANG = new Set([
   'content-length', 'accept-encoding'
 ]);
 
+/* Penanda bahwa permintaan ini datang lewat penerusan, bukan langsung dari
+   peramban. E-Logbook memakainya untuk memutuskan boleh tidaknya ia
+   memantulkan permintaan halaman ke pintu tunggal — tanpa penanda ini,
+   pantulan itu akan memantulkan penerusan ini juga, dan jadi lingkaran.
+
+   Sengaja dihapus dulu dari kepala yang datang sebelum dipasang sendiri:
+   nilainya berasal dari sini, bukan dari siapa pun di luar. */
+const KEPALA_TERUSAN = 'x-diteruskan-avenger';
+
 const badanMentah = express.raw({ type: () => true, limit: '80mb' });
 
-async function teruskan(req, res) {
+/**
+ * @param potong prefiks yang dibuang sebelum permintaannya dikirim ke
+ *        E-Logbook. Kosong untuk /api dan /uploads — jalur itu sama di kedua
+ *        sisi. Diisi '/logbook', karena prefiks itu cuma ada di sini.
+ */
+async function teruskan(req, res, potong = '') {
   if (!TERUS) {
     return res.status(503).json({ error: 'Penerusan ke E-Logbook dimatikan (ELOGBOOK_MATI=1).' });
   }
 
   const kepala = {};
   for (const [nama, nilai] of Object.entries(req.headers)) {
-    if (!KEPALA_DIBUANG.has(nama.toLowerCase())) kepala[nama] = nilai;
+    const n = nama.toLowerCase();
+    if (KEPALA_DIBUANG.has(n) || n === KEPALA_TERUSAN) continue;
+    kepala[nama] = nilai;
   }
+  kepala[KEPALA_TERUSAN] = '1';
+
+  /* Jalur tujuan, bukan req.url: yang dipakai Express sesudah app.use sudah
+     terpotong mount-nya, tapi query stringnya ikut hilang pada sebagian jalur.
+     originalUrl selalu utuh, jadi prefiksnya dipotong sendiri di sini.
+
+     '/logbook' polos menyisakan string kosong, dan fetch('http://…' + '')
+     meminta akar tanpa garis miring. Karena itu jatuhnya ke '/'. */
+  const tujuan = potong
+    ? (req.originalUrl.slice(potong.length) || '/')
+    : req.originalUrl;
+  const jalurTujuan = tujuan.startsWith('/') ? tujuan : '/' + tujuan;
 
   const punyaBadan = req.method !== 'GET' && req.method !== 'HEAD';
   const badan = punyaBadan && Buffer.isBuffer(req.body) && req.body.length ? req.body : undefined;
@@ -110,7 +181,7 @@ async function teruskan(req, res) {
 
   let jawab;
   try {
-    jawab = await fetch(ASAL + req.originalUrl, {
+    jawab = await fetch(ASAL + jalurTujuan, {
       method: req.method,
       headers: kepala,
       body: badan,
@@ -134,6 +205,15 @@ async function teruskan(req, res) {
     // set-cookie harus lewat getSetCookie(): forEach menggabung beberapa cookie
     // jadi satu baris berkoma, dan browser membacanya sebagai satu cookie rusak.
     if (n === 'set-cookie') return;
+    /* Pengalihan yang datang dari E-Logbook menyebut jalur menurut UKURANNYA
+       sendiri — '/' berarti akar E-Logbook. Diteruskan apa adanya, peramban
+       akan membacanya sebagai akar dashboard ini dan pemakainya terlempar
+       keluar dari /logbook/ tanpa pernah sampai. express.static saja sudah
+       memantulkan direktori tanpa garis miring seperti itu. */
+    if (n === 'location' && potong && nilai.startsWith('/')) {
+      res.setHeader(nama, potong + nilai);
+      return;
+    }
     res.setHeader(nama, nilai);
   });
   const cookie = jawab.headers.getSetCookie?.() || [];
@@ -146,6 +226,35 @@ async function teruskan(req, res) {
 for (const jalur of JALUR_TERUS) {
   app.use(jalur, badanMentah, teruskan);
 }
+
+/* '/logbook' polos harus dibetulkan jadi '/logbook/' SEBELUM diteruskan, dan
+   alasannya bukan kerapian. Aset E-Logbook dipanggil relatif: dibuka di
+   '/logbook', dasar alamatnya adalah '/', dan `css/01-token-tema.css` jatuh ke
+   '/css/01-token-tema.css' — CSS dashboard ini. Halamannya tetap terbuka,
+   cuma memakai kulit yang salah, dan tidak ada satu pun galat yang menyebutkan
+   kenapa. Dengan garis miringnya, dasarnya '/logbook/' dan semuanya jatuh di
+   tempat yang benar.
+
+   302, bukan 301: 301 disimpan peramban tanpa masa berlaku, dan menariknya
+   kembali kalau pintu ini suatu saat berpindah berarti meminta setiap orang
+   membersihkan cache-nya sendiri.
+
+   Didaftarkan sebelum app.use di bawahnya, karena app.use('/logbook') juga
+   cocok dengan '/logbook' polos dan akan menelannya lebih dulu.
+
+   Garis miringnya diperiksa dari originalUrl, BUKAN dipercayakan pada
+   pencocokan jalur. Express tidak memakai strict routing secara bawaan, jadi
+   app.all('/logbook') juga cocok dengan '/logbook/' — dan pengalihan yang
+   dipasang tanpa pemeriksaan ini mengalihkan '/logbook/' ke '/logbook/', terus
+   sampai peramban menyerah. Sudah kejadian sekali di sini. */
+app.all(JALUR_LOGBOOK, (req, res, next) => {
+  // '' kalau polos, '/…' kalau sudah bergaris miring, '?…' kalau langsung query.
+  const sisa = req.originalUrl.slice(JALUR_LOGBOOK.length);
+  if (sisa.startsWith('/')) return next();
+  res.redirect(302, JALUR_LOGBOOK + '/' + sisa);
+});
+
+app.use(JALUR_LOGBOOK, badanMentah, (req, res) => teruskan(req, res, JALUR_LOGBOOK));
 
 /* =====================================================================
    GALERI FOTO — satu-satunya bagian yang menulis ke disk
@@ -2497,13 +2606,21 @@ app.get('/_info', (_req, res) => {
     versi: process.env.npm_package_version || '0.1.0',
     port: PORT,
     elogbook: TERUS ? ASAL : null,
-    // Alamat E-Logbook untuk DIBUKA DI PERAMBAN, berbeda dari ASAL yang dipakai
-    // server ini. ASAL menunjuk 127.0.0.1 — benar dari sisi server, tapi kalau
-    // dashboardnya dibuka dari komputer lain di jaringan, 127.0.0.1 di sana
-    // adalah komputer itu sendiri, bukan mesin E-Logbook. Karena itu bawaannya
-    // null: halaman merangkainya dari hostname yang sedang ia pakai, dan
-    // ELOGBOOK_TAUTAN dipakai hanya kalau alamatnya memang lain sendiri.
-    tautanElogbook: process.env.ELOGBOOK_TAUTAN || null,
+    /* Alamat E-Logbook untuk DIBUKA DI PERAMBAN, berbeda dari ASAL yang dipakai
+       server ini — ASAL menunjuk 127.0.0.1, yang dari sisi peramban orang lain
+       berarti komputernya sendiri.
+
+       Sekarang bawaannya /logbook/ dan itu bukan sekadar alamat yang lebih
+       pendek: selama tombolnya menunjuk host E-Logbook yang sungguhan,
+       menekannya berarti berpindah asal, dan berpindah asal berarti berpindah
+       sesi. Yang menyeberang lalu bukan orang yang sama — teknisi satu unit di
+       dashboard bisa mendarat sebagai administrator di sana. Menunjuk ke dalam
+       asal ini membuat pertanyaannya tidak pernah muncul.
+
+       ELOGBOOK_TAUTAN tetap dihormati kalau memang diisi, untuk pemasangan yang
+       sengaja memisahkan keduanya. Mengisinya berarti menerima kembali sesi
+       yang terbelah — jangan diisi tanpa alasan yang lebih kuat dari itu. */
+    tautanElogbook: process.env.ELOGBOOK_TAUTAN || (TERUS ? JALUR_LOGBOOK + '/' : null),
     portElogbook: TERUS ? Number(new URL(ASAL).port || 80) : null,
     /* Ke mana simpanan menulis. Bukan rahasia — ia cuma menyebut jalurnya,
        bukan alamat atau kuncinya.

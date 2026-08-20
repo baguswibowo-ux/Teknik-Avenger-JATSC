@@ -1,15 +1,25 @@
 /* =======================================================================
    TAUTAN KE E-LOGBOOK
 
-   Dashboard ini di port 3100, E-Logbook di 3000 — dua alamat berbeda bagi
-   peramban. Data memang lewat penerusan di server.js, tapi tombol "Buka
-   E-Logbook" harus menunjuk aplikasi E-Logbook yang sungguhan, dan itu tidak
-   bisa lewat penerusan: seluruh aset E-Logbook memanggil /css/ dan /js/ dari
-   akar, yang di sini milik dashboard.
+   Alamat tombol "Buka E-Logbook" datang dari /_info, dan sekarang bawaannya
+   /logbook/ — di dalam asal ini, bukan host E-Logbook yang sungguhan.
 
-   Dulu tombolnya cukup href="/" karena halaman ini memang disajikan DARI
-   E-Logbook. Setelah pindah, "/" berarti dashboard ini sendiri — tombolnya
-   hanya memuat ulang halaman yang sedang dibuka.
+   Di sini pernah tertulis bahwa itu tidak bisa dilakukan, alasannya "seluruh
+   aset E-Logbook memanggil /css/ dan /js/ dari akar". Itu sudah tidak benar:
+   index.html E-Logbook memanggil asetnya secara relatif, jadi dibuka di
+   /logbook/ semuanya jatuh di /logbook/css/… dan /logbook/js/… tanpa menyentuh
+   /css/ dan /js/ milik dashboard. Penjelasan lengkapnya di server.js, di atas
+   JALUR_LOGBOOK.
+
+   Kenapa ini penting, bukan sekadar rapi: tombol yang menyeberang ke host lain
+   menyeberangkan pemakainya ke toples cookie yang lain, dan di sana ia bisa
+   jadi orang lain — teknisi satu unit di sini, administrator di sana. Menunjuk
+   ke dalam asal sendiri berarti sesinya cuma satu, jadi peran dan unitnya
+   tidak punya kesempatan untuk berbeda.
+
+   Tetap lewat /_info, bukan ditulis mati di sini: pemasangan yang sengaja
+   memisahkan kedua aplikasi mengisi ELOGBOOK_TAUTAN, dan halaman ini tidak
+   perlu tahu yang mana yang sedang berlaku.
    ======================================================================= */
 let TAUTAN_ELOGBOOK = '';
 
