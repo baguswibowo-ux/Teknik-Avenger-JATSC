@@ -125,6 +125,20 @@ const SESSION_DAYS = Number(process.env.ELOGBOOK_SESSION_DAYS || 30);
  */
 const COOKIE_DOMAIN = (process.env.ELOGBOOK_COOKIE_DOMAIN || '').trim();
 
+/**
+ * Cookie sesi hanya dikirim lewat HTTPS. Wajib menyala di produksi.
+ *
+ * DIPANGKAS DULU, dan itu bukan kehati-hatian yang berlebihan. Nilai
+ * environment variable gampang membawa spasi atau baris baru yang tidak
+ * terlihat siapa pun — tempel dari dashboard, atau pipa di PowerShell yang
+ * menambahkan newline sendiri. Perbandingan langsung dengan '1' lalu gagal
+ * diam-diam: tidak ada galat, tidak ada catatan, aplikasinya jalan normal, dan
+ * satu-satunya bekasnya adalah atribut Secure yang hilang dari Set-Cookie —
+ * yang tidak akan dilihat siapa pun sampai ada yang memeriksanya. Sudah
+ * kejadian sekali di sini.
+ */
+const COOKIE_SECURE = (process.env.ELOGBOOK_SECURE_COOKIE || '').trim() === '1';
+
 const app = express();
 app.disable('x-powered-by');
 
@@ -154,7 +168,7 @@ function readCookie(req, name) {
 function bagianCookie() {
   const bits = ['Path=/', 'HttpOnly', 'SameSite=Lax'];
   if (COOKIE_DOMAIN) bits.push(`Domain=${COOKIE_DOMAIN}`);
-  if (process.env.ELOGBOOK_SECURE_COOKIE === '1') bits.push('Secure');
+  if (COOKIE_SECURE) bits.push('Secure');
   return bits;
 }
 
