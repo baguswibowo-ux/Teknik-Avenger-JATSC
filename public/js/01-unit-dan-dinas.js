@@ -1,18 +1,25 @@
 /* =======================================================================
-   KERANGKA UNIT DAN KODE DINAS
+   KODE DINAS DAN ILUSTRASI UNIT
 
-   Berkas ini dulu bernama 01-data-contoh.js dan isinya karangan: peralatan,
-   sparepart, trouble, jadwal, cuplikan logbook, sampai lima akun tiruan.
-   Semuanya sudah dibuang. Yang tersisa di sini bukan contoh melainkan
-   kerangka — dua hal yang memang tidak datang dari mana-mana:
+   Berkas ini dulu bernama 01-data-contoh.js dan isinya karangan; sesudah itu
+   sempat menyimpan kerangka unit lengkap dengan nama dan peralatannya. Kedua
+   isi itu sudah pergi, dan yang tersisa cuma dua hal yang memang tidak datang
+   dari mana-mana:
 
-     KODE_DINAS      bentuk hari kerja, sama untuk seluruh unit
-     UNIT_KERANGKA   daftar unit beserta ilustrasinya
+     KODE_DINAS    bentuk hari kerja, sama untuk seluruh unit
+     ADEGAN_UNIT   ilustrasi vektor tiap unit
 
-   UNIT_KERANGKA tetap perlu ada sekalipun daftar unit yang sungguhan datang
-   dari E-Logbook, karena satu kolom di dalamnya tidak dijawab siapa pun:
-   `adegan`, yaitu ilustrasi vektor tiap unit. Nama dan peralatannya ditimpa
-   jawaban server begitu ada yang masuk — lihat srvPasang().
+   NAMA DAN PERALATAN UNIT TIDAK ADA DI SINI, DAN ITU DISENGAJA. Daftar unit
+   yang berlaku milik E-Logbook (UNIT di db.js dan db-pg.js); dashboard ini
+   menerimanya lewat getAllData dan menyusun UNIT dari situ — lihat srvPasang().
+
+   Sebabnya pernah terlihat: berkas ini menulis ppabn sebagai "Pendaratan
+   Presisi & Navigasi", E-Logbook menulisnya "Pendaratan Presisi & Alat Bantu
+   Navigasi". Yang tampil bergantung pada siapa yang membuka, karena nama dari
+   server dulu hanya menimpa unit yang dipegang akun itu — unit lain tetap
+   memakai salinan di sini. Satu unit, dua nama, di layar yang sama.
+
+   Yang tinggal di sini justru yang TIDAK dijawab E-Logbook: gambar unitnya.
    ======================================================================= */
 
 /* Kode dinas yang dipakai seluruh unit. Empat yang pertama adalah bentuk
@@ -21,7 +28,15 @@
    hari itu mundur ke pukul 13:00. Jamnya ada di SHIFT, jauh di bawah.
 
    Satu daftar untuk semua unit, bukan per unit: pembagian JATSC/New JATSC itu
-   pembagian gedung, dan gedungnya sama untuk semua teknik. */
+   pembagian gedung, dan gedungnya sama untuk semua teknik.
+
+   JANGAN diganti dengan `dinas` dari daftar unit E-Logbook, sekalipun namanya
+   sama. Yang di sana daftar shift untuk lembar logbook — 'Pagi', 'Siang',
+   'Malam', 'PS' — bentuk lama dari sebelum kode gedung dipakai, dan radkom
+   malah memakai daftarnya sendiri. srvPasang() dulu menimpanya begitu saja,
+   dan akibatnya jadwal dinas menawarkan kode yang tidak dikenal modulnya
+   sendiri, di bawah keterangan yang menjelaskan kode yang tidak ada di
+   daftarnya. */
 const KODE_DINAS = ['PSJ','PSN','MJ','MN','P','S'];
 
 /* Yang dipasang sebagai petak sebelum ada jadwal yang bisa dibaca. P dan S
@@ -31,31 +46,25 @@ const KODE_DINAS = ['PSJ','PSN','MJ','MN','P','S'];
    kode yang benar-benar terisi di sana — lihat kodeDipakaiUnit(). */
 const KODE_DINAS_INTI = ['PSJ','PSN','MJ','MN'];
 
-/* Kerangka, bukan isi. `nama` dan `alat` di sini cuma dipakai sampai jawaban
-   server datang; yang tidak pernah ditimpa hanya `adegan`. */
-const UNIT_KERANGKA = [
-  { kode:'radtel', nama:'Radtel', alat:'Radio Komunikasi, VSCS Garex, Recording Neptuno',
-    adegan:'menara', dinas:KODE_DINAS },
-  { kode:'radkom', nama:'Radkom', alat:'Radio Komunikasi VHF/HF A/G',
-    adegan:'antena', dinas:KODE_DINAS },
-  { kode:'ppabn', nama:'Pendaratan Presisi & Navigasi', alat:'ILS, DVOR/DME, NDB',
-    adegan:'ils', dinas:KODE_DINAS },
-  { kode:'pengamatan', nama:'Pengamatan', alat:'Radar Pengamatan',
-    adegan:'radar', dinas:KODE_DINAS },
-  { kode:'amhsadps', nama:'AMHS-ADPS', alat:'AMHS dan ADPS',
-    adegan:'server', dinas:KODE_DINAS },
-  { kode:'fdpsrdps', nama:'FDPS-RDPS', alat:'FDPS dan RDPS',
-    adegan:'kontrol', dinas:KODE_DINAS },
-  { kode:'listrikmekanik', nama:'Listrik dan Mekanik', alat:'Kelistrikan dan Mekanikal',
-    adegan:'genset', dinas:KODE_DINAS },
-  { kode:'gedungkeamanan', nama:'Gedung dan Keamanan', alat:'Gedung dan Sistem Keamanan',
-    adegan:'gedung', dinas:KODE_DINAS }
-];
+/* Ilustrasi vektor per unit, dibangkitkan 05-ilustrasi.js menurut nilai ini.
+   Satu-satunya kolom unit yang memang milik dashboard ini. Unit yang belum
+   punya barisnya jatuh ke 'server' — bentuk paling netral yang ada. */
+const ADEGAN_UNIT = {
+  radtel:         'menara',
+  radkom:         'antena',
+  ppabn:          'ils',
+  pengamatan:     'radar',
+  amhsadps:       'server',
+  fdpsrdps:       'kontrol',
+  listrikmekanik: 'genset',
+  gedungkeamanan: 'gedung'
+};
 
-/* Daftar unit yang sedang berlaku. Salinan, bukan kerangkanya sendiri:
-   srvPasang() menyusunnya ulang dari jawaban server, dan kerangka yang ikut
-   berubah tidak akan bisa dipakai lagi sebagai acuan. */
-let UNIT = UNIT_KERANGKA.map(u => ({ ...u }));
+/* Daftar unit yang sedang berlaku, disusun srvPasang() dari jawaban E-Logbook.
+   Kosong sampai ada yang masuk, dan itu benar: sebelum login tidak ada satu
+   layar unit pun yang digambar, dan daftar tebakan hanya akan sempat terlihat
+   kalau salah. */
+let UNIT = [];
 
 /* Wadah yang isinya datang dari server dashboard ini sendiri (/unitdb).
    Sengaja dibiarkan kosong di sini: unit yang belum punya catatan harus

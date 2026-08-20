@@ -73,24 +73,39 @@ async function dbSimpanUnit(jenis, unit){
 }
 
 /** Terjemahkan jawaban server ke bentuk yang dipakai layar ini. */
-function srvPasang(unitSaya, paket){
+function srvPasang(unitSaya, paket, unitSemua){
   // Disetel ulang tiap data datang: halaman yang dibiarkan terbuka semalaman
   // akan mengukur umur trouble dari kemarin kalau tidak.
   HARI_INI = new Date(new Date().toDateString());
 
-  // Kerangka unit dipakai sebagai dasar — di dalamnya ada ilustrasi tiap unit,
-  // satu-satunya kolom yang memang tidak pernah dijawab server.
-  const peta = Object.fromEntries(unitSaya.map(u=>[u.kode, u]));
-  UNIT = UNIT_KERANGKA.map(u=>{
-    const s = peta[u.kode];
-    return s ? { ...u, nama:s.nama || u.nama, alat:s.peralatan || u.alat,
-                 dinas:(Array.isArray(s.dinas) && s.dinas.length) ? s.dinas : u.dinas } : u;
-  });
-  // Unit baru di server yang belum dikenal berkas ini tetap ikut tampil.
-  unitSaya.filter(s=>!UNIT_KERANGKA.some(u=>u.kode === s.kode)).forEach(s=>UNIT.push({
-    kode:s.kode, nama:s.nama || s.kode, alat:s.peralatan || '—',
+  /* Daftar unit disusun dari jawaban E-Logbook, bukan dari salinan di halaman
+     ini — satu daftar unit, satu tempat ia ditulis.
+
+     `unitSemua` berisi SELURUH unit, bukan cuma yang dipegang akun ini. Itu
+     yang membedakannya dari `unitSaya` dan itu sebabnya ia perlu ada: unit yang
+     tidak boleh dibuka pun tetap tampil (bergembok) di cincin beranda, dan dulu
+     nama yang dipakainya diambil dari salinan lokal. Akibatnya satu unit punya
+     dua nama tergantung siapa yang membuka — administrator melihat nama dari
+     server, teknisi melihat nama dari halaman.
+
+     E-Logbook lama belum menjawab `unitSemua`. Yang jatuh ke `unitSaya` dalam
+     keadaan itu bukan nama yang salah, melainkan unit bergembok yang belum
+     muncul sampai E-Logbook ikut dideploy — sengaja begitu: kurang lengkap
+     lebih baik daripada keliru. */
+  const dasar = (Array.isArray(unitSemua) && unitSemua.length) ? unitSemua : unitSaya;
+  UNIT = dasar.map(s=>({
+    kode:   s.kode,
+    nama:   s.nama || s.kode,
+    alat:   s.peralatan || '—',
+    // Ilustrasinya milik dashboard ini; E-Logbook tidak punya kolomnya.
     adegan: ADEGAN_UNIT[s.kode] || 'server',
-    dinas:(Array.isArray(s.dinas) && s.dinas.length) ? s.dinas : KODE_DINAS
+    /* Selalu KODE_DINAS, TIDAK PERNAH s.dinas. Keduanya bernama sama dan
+       artinya berbeda: `dinas` di daftar unit E-Logbook adalah pilihan shift
+       untuk lembar logbooknya, sedangkan yang dipakai modul Jadwal Dinas di
+       sini kode bergedung PSJ/PSN/MJ/MN. Dulu ditimpa begitu saja, dan yang
+       terbaca di layar jadi "Kode yang bisa diisi: Pagi · Siang · Malam · PS"
+       tepat di atas kalimat yang menerangkan arti huruf J dan N. */
+    dinas:  KODE_DINAS
   }));
 
   // Penanda formulir per unit (adaDsTest, adaDailyCheck, adaMonitoring)

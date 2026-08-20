@@ -641,6 +641,29 @@ const API = {
     return {
       unit: u,
       unitSaya: UNIT.filter((x) => bolehUnit.includes(x.kode)),
+      /**
+       * Seluruh unit yang dikenal, bukan cuma yang dipegang akun ini.
+       *
+       * Dipakai Dashboard Fasilitas Teknik: di sana unit yang TIDAK boleh
+       * dibuka pun tetap tampil bergembok, dan namanya harus tetap benar.
+       * Sebelum ini dashboard memakai salinan nama miliknya sendiri untuk
+       * unit-unit itu, dan salinan itu sudah meleset — ppabn tertulis
+       * "Pendaratan Presisi & Navigasi" di sana dan "Pendaratan Presisi & Alat
+       * Bantu Navigasi" di sini. Yang tampil bergantung pada peran yang
+       * membuka, yang tidak masuk akal untuk nama unit.
+       *
+       * Tidak ada yang rahasia di sini: daftar unit adalah bentuk organisasi,
+       * dan pemagarannya tetap `unitSaya` — yang menentukan boleh tidaknya
+       * membuka data sebuah unit tidak pernah daftar ini.
+       *
+       * Sengaja DIPANGKAS jadi tiga kolom. Yang paling menggoda untuk ikut
+       * dikirim adalah `dinas`, dan justru itu yang tidak boleh: di sini ia
+       * pilihan shift untuk lembar logbook, sedangkan di dashboard modul Jadwal
+       * Dinas memakai kode bergedung PSJ/PSN/MJ/MN. Dua daftar bernama sama
+       * dengan arti berbeda pernah tertukar sekali; mengirimnya lagi berarti
+       * menyediakan bahannya untuk tertukar lagi.
+       */
+      unitSemua: UNIT.map((x) => ({ kode: x.kode, nama: x.nama, peralatan: x.peralatan })),
       entries: jejak(entries),
       dcHistory: jejak(dcHistory),
       issues: jejak(issues),

@@ -319,6 +319,16 @@ mengisi atau tidak.
 Dari E-Logbook sendiri datang tiga hal: daftar unit, isu (jadi papan trouble),
 dan catatan logbook.
 
+**Daftar unitnya seluruhnya milik E-Logbook**, termasuk nama dan peralatan unit
+yang tidak boleh dibuka akun yang sedang masuk — `getAllData` menjawabnya di
+`unitSemua`, di samping `unitSaya` yang jadi pagarnya. Dashboard ini dulu
+memegang salinannya sendiri untuk unit-unit bergembok itu, dan salinan itu
+sempat meleset: `ppabn` tertulis "Pendaratan Presisi & Navigasi" di sini dan
+"Pendaratan Presisi & Alat Bantu Navigasi" di sana, jadi nama yang tampil
+bergantung pada peran yang membuka. Yang tersisa di dashboard tinggal
+ilustrasi tiap unit (`ADEGAN_UNIT`), satu-satunya kolom yang memang tidak
+dijawab E-Logbook.
+
 ## Jadwal dinas
 
 Tab **Jadwal Dinas** di dalam Database Unit. Satu matriks per unit per bulan:
@@ -350,6 +360,19 @@ memakai keduanya, siangnya baru selesai pukul 13:00 dan **malam hari itu mundur
 menjadi 13:00–00:00**, bukan 12:00. Pergeserannya dihitung per hari per unit,
 dari kode yang benar-benar terisi orang pada hari itu — bukan disimpan di
 berkas, jadi memperbaiki satu sel jadwal langsung membetulkan jam malamnya.
+
+**Jangan tertukar dengan `dinas` pada daftar unit E-Logbook.** Nama medannya
+sama, isinya bukan: di sana ia pilihan shift untuk lembar logbook — `Pagi`,
+`Siang`, `Malam`, `PS`, bentuk lama dari sebelum kode gedung dipakai, dan Radkom
+malah memakai daftarnya sendiri. Tabel di atas milik modul Jadwal Dinas dan
+tinggal di `KODE_DINAS`.
+
+Keduanya pernah tertukar: `srvPasang()` menimpa `dinas` unit dengan yang dari
+E-Logbook, dan hanya untuk unit yang dipegang akun itu. Yang terbaca di layar
+jadi *"Kode yang bisa diisi: Pagi · Siang · Malam · PS"* tepat di atas kalimat
+yang menerangkan arti huruf `J` dan `N` — kode yang tidak ada di daftarnya
+sendiri. Karena itu `unitSemua` yang dikirim E-Logbook sengaja dipangkas jadi
+`kode`, `nama`, dan `peralatan` saja.
 
 `PS` dan `M` polos — tanpa huruf gedung — tetap dikenali jamnya kalau terlanjur
 terisi, tetapi sengaja tidak ditawarkan di daftar pilihan dan dilaporkan sebagai

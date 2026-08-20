@@ -64,7 +64,6 @@ const PERAN_URUT = ['teknisi', 'pic', 'adminunit', 'pejabat', 'admin'];
 const peranTampil = (role) => (BHS === 'en' ? PERAN_SERVER_EN : PERAN_SERVER)[role] || role;
 /** Sebutan peran akun yang sedang masuk. */
 const peranAkun = () => (BHS === 'en' && akun && akun.peranEn) ? akun.peranEn : (akun ? akun.peran : '');
-const ADEGAN_UNIT = Object.fromEntries(UNIT_KERANGKA.map(u=>[u.kode, u.adegan]));
 
 /** Ambil bagian tanggal dari apa pun bentuk kiriman server ('2026-08-14', ISO penuh). */
 const isoTgl = (x) => { const m = String(x||'').match(/\d{4}-\d{2}-\d{2}/); return m ? m[0] : ''; };
@@ -224,7 +223,7 @@ async function srvMuat(){
     try{ paket[u.kode] = await srvApi('getAllData', u.kode); }
     catch(e){ console.warn('Unit ' + u.kode + ' dilewati:', e && e.message || e); }
   }
-  srvPasang(awal.unitSaya || [], paket);
+  srvPasang(awal.unitSaya || [], paket, awal.unitSemua);
   // Setelah SRV.aktif menyala: database unit diambil dari server ini sendiri,
   // bukan dari E-Logbook. Kegagalannya tidak menggagalkan pemuatan — layarnya
   // tetap hidup, hanya daftarnya yang belum terisi.
