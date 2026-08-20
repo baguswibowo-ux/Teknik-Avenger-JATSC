@@ -11,6 +11,10 @@
  *   HOST                     alamat bind (default 0.0.0.0 = semua antarmuka)
  *   ELOGBOOK_SECURE_COOKIE   set 1 kalau diakses lewat HTTPS
  *   ELOGBOOK_SESSION_DAYS    umur sesi login (default 30 hari)
+ *   ELOGBOOK_COOKIE_DOMAIN   domain induk cookie sesi, supaya satu kali masuk
+ *                            berlaku juga di dashboard. Kosong: cookie terikat
+ *                            pada host yang memasangnya, dan kedua aplikasi
+ *                            punya sesi sendiri-sendiri
  *   AVENGER_TAUTAN           alamat Dashboard Fasilitas Teknik untuk tombol
  *                            pulang. Wajib begitu aplikasi ini tidak lagi di
  *                            port sebelah dashboard — di Vercel, misalnya.
@@ -74,6 +78,38 @@ const HOST = process.env.HOST || '0.0.0.0';
 const COOKIE_NAME = 'elogbook_sesi';
 const SESSION_DAYS = Number(process.env.ELOGBOOK_SESSION_DAYS || 30);
 
+/**
+ * Domain cookie sesi. Kosong = cookie terikat pada host yang memasangnya, dan
+ * itu yang berlaku selama kedua aplikasi masih di *.vercel.app.
+ *
+ * Kenapa ini perlu ada. Dashboard dan E-Logbook duduk di dua asal berbeda.
+ * Masuk lewat dashboard diteruskan ke sini dan Set-Cookie-nya diteruskan balik,
+ * tapi cookienya tersimpan atas nama domain dashboard — domain E-Logbook punya
+ * toples cookienya sendiri. Akibatnya sudah terlihat: orang masuk di dashboard
+ * sebagai teknisi radkom, menekan Buka E-Logbook, dan mendarat di sana sebagai
+ * administrator yang terakhir kali login langsung di peramban itu — sesinya
+ * bertahan 30 hari. Yang diisi sesudah itu tercatat atas nama orang yang salah,
+ * karena penulis catatan diambil dari sesi (lihat user.username, user.nama pada
+ * insertEntry dan kerabatnya).
+ *
+ * Diisi kalau kedua aplikasi sudah berada di bawah satu domain induk, mis.
+ * ELOGBOOK_COOKIE_DOMAIN=avenger-teknik.com untuk app.avenger-teknik.com dan
+ * logbook.avenger-teknik.com. Satu kali masuk berlaku untuk keduanya.
+ *
+ * Dua hal yang mudah salah:
+ *   - Nilainya harus domain INDUK, bukan salah satu subdomainnya. Cookie hanya
+ *     boleh menyebut domain yang mencakup host pengirimnya; kalau tidak,
+ *     peramban membuangnya tanpa bersuara — login kelihatan berhasil lalu
+ *     permintaan berikutnya dijawab 401, dan tidak ada galat di mana pun.
+ *   - clearSessionCookie WAJIB memakai domain yang sama persis. Cookie dihapus
+ *     berdasarkan pasangan nama+domain+path; beda satu saja, Keluar tidak
+ *     menghapus apa-apa dan sesinya hidup terus.
+ *
+ * Titik di depan boleh ada boleh tidak — peramban sekarang memperlakukan
+ * `Domain=example.com` sebagai mencakup subdomainnya juga.
+ */
+const COOKIE_DOMAIN = (process.env.ELOGBOOK_COOKIE_DOMAIN || '').trim();
+
 const app = express();
 app.disable('x-powered-by');
 
@@ -95,20 +131,28 @@ function readCookie(req, name) {
   return '';
 }
 
-function setSessionCookie(res, token) {
-  const bits = [
-    `${COOKIE_NAME}=${token}`,
-    'Path=/',
-    'HttpOnly',
-    'SameSite=Lax',
-    `Max-Age=${SESSION_DAYS * 86400}`
-  ];
+/* SameSite=Lax tetap cukup sesudah kedua aplikasi satu domain induk, dan itu
+   memang yang diinginkan. Perpindahan antar subdomain pada domain terdaftar
+   yang sama terhitung same-site, jadi cookienya ikut terkirim — baik saat
+   diklik dari dashboard maupun saat diteruskan server. None hanya akan
+   melonggarkan penjagaan tanpa menambah satu pun kemampuan. */
+function bagianCookie() {
+  const bits = ['Path=/', 'HttpOnly', 'SameSite=Lax'];
+  if (COOKIE_DOMAIN) bits.push(`Domain=${COOKIE_DOMAIN}`);
   if (process.env.ELOGBOOK_SECURE_COOKIE === '1') bits.push('Secure');
+  return bits;
+}
+
+function setSessionCookie(res, token) {
+  const bits = [`${COOKIE_NAME}=${token}`, ...bagianCookie(), `Max-Age=${SESSION_DAYS * 86400}`];
   res.setHeader('Set-Cookie', bits.join('; '));
 }
 
 function clearSessionCookie(res) {
-  res.setHeader('Set-Cookie', `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`);
+  // Bagiannya dirakit fungsi yang sama dengan yang memasang, bukan ditulis
+  // ulang: cookie dihapus berdasarkan nama + domain + path, dan dua daftar yang
+  // ditulis terpisah adalah dua daftar yang bisa berselisih tanpa ketahuan.
+  res.setHeader('Set-Cookie', [`${COOKIE_NAME}=`, ...bagianCookie(), 'Max-Age=0'].join('; '));
 }
 
 const currentUser = (req) => getSessionUser(readCookie(req, COOKIE_NAME));

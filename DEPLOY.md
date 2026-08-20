@@ -184,6 +184,7 @@ jadi ia jadi **proyek Vercel tersendiri**.
 | `SUPABASE_SERVICE_KEY` | service_role key | ya, untuk unggahan berkas |
 | `ELOGBOOK_BUCKET` | `elogbook` | tidak (ini bawaannya) |
 | `ELOGBOOK_SECURE_COOKIE` | lihat 5.1 dan 8.1 | **belum beres**, lihat 3.2 |
+| `ELOGBOOK_COOKIE_DOMAIN` | domain induk, mis. `avenger-teknik.com` | belum — baru berlaku sesudah kedua aplikasi satu domain induk, lihat 8.9 |
 | `AVENGER_TAUTAN` | alamat Avenger di Vercel | **ya**, kalau tidak tombol pulang mati |
 | `PGSSLMODE` | `require` | dianjurkan |
 | `PGPOOL_MAX` | `1` | dianjurkan |
@@ -735,6 +736,60 @@ Ikut disamakan: `engines` di kedua `package-lock.json`. npm menyalin medan itu
 ke lockfile, jadi kalau cuma `package.json` yang disunting, `npm install`
 pertama yang dijalankan orang lain akan menulis ulang lockfile-nya dan
 memunculkan diff yang tidak ada yang minta.
+
+### 8.9 Satu domain induk, supaya sesinya satu
+
+**Belum dikerjakan — menunggu DNS `avenger-teknik.com`.**
+
+Gejalanya sudah terlihat dipakai: masuk di dashboard sebagai teknisi Radkom,
+tekan **Buka E-Logbook**, dan yang muncul di sana Bagus sebagai administrator.
+
+Sebabnya dua asal yang berbeda:
+
+```
+teknik-avenger-jatsc.vercel.app     ← login mendarat di sini
+e-log-book-server.vercel.app        ← tombol Buka E-Logbook membawa ke sini
+```
+
+Login lewat dashboard diteruskan ke E-Logbook dan `Set-Cookie`-nya diteruskan
+balik, tapi cookie itu tersimpan atas nama domain **dashboard**. Cookie sesi
+E-Logbook dibuat tanpa atribut `Domain`, jadi ia terikat pada host yang
+memasangnya, dan domain E-Logbook memegang toples cookienya sendiri — berisi
+sesi siapa pun yang terakhir login langsung di peramban itu, berumur 30 hari.
+
+Yang membuatnya lebih dari sekadar merepotkan: penulis catatan diambil dari
+sesi (`user.username, user.nama` → `DiinputOleh`, `dibuat_oleh`). Selama tab itu
+memakai sesi orang lain, **catatan yang diisi tercatat atas nama orang itu.** Di
+komputer yang dipakai bergantian satu ruangan, itu salah catat pada dokumen
+operasional, bukan sekadar salah tampil.
+
+Mekanismenya sudah ada di kode dan menunggu dinyalakan:
+
+| Langkah | Di mana | Isi |
+| --- | --- | --- |
+| 1 | DNS registrar | `avenger-teknik.com` diarahkan ke Vercel |
+| 2 | Vercel, proyek E-Logbook | tambahkan domain `logbook.avenger-teknik.com` |
+| 3 | Vercel, proyek Avenger | tambahkan domain `app.avenger-teknik.com` |
+| 4 | env E-Logbook | `ELOGBOOK_COOKIE_DOMAIN=avenger-teknik.com` |
+| 5 | env E-Logbook | `AVENGER_TAUTAN=https://app.avenger-teknik.com` |
+| 6 | env Avenger | `ELOGBOOK_ASAL` dan `ELOGBOOK_TAUTAN` → `https://logbook.avenger-teknik.com` |
+| 7 | env kedua proyek | `ELOGBOOK_SECURE_COOKIE=1` — lihat 3.2 |
+
+Nilai langkah 4 adalah domain **induk**, bukan subdomain E-Logbook. Cookie hanya
+boleh menyebut domain yang mencakup host pengirimnya; kalau salah, peramban
+membuangnya tanpa bersuara — login kelihatan berhasil lalu permintaan
+berikutnya dijawab 401, dan tidak ada galat di log mana pun.
+
+`SameSite=Lax` sengaja dipertahankan. Perpindahan antar subdomain pada domain
+terdaftar yang sama terhitung same-site, jadi cookienya tetap ikut terkirim.
+`None` hanya akan melonggarkan penjagaan tanpa menambah satu pun kemampuan.
+
+Sesudah langkah 1–7, alamat `*.vercel.app` sebaiknya berhenti diedarkan: ia
+tetap hidup dan tetap punya toples cookienya sendiri, jadi selama masih ada yang
+memakainya, gejala di atas masih bisa muncul untuk orang itu.
+
+Sampai DNS-nya jadi, penambalnya manual: tekan **Keluar** di dalam tab
+E-Logbook, lalu masuk di situ dengan akun yang benar.
 
 ---
 
