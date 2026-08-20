@@ -49,6 +49,20 @@ const KAMUS = {
     metaPenyelenggara:'Penyelenggara Pelayanan', metaKelompok:'Kelompok Fasilitas', metaPeralatan:'Nama Peralatan',
     temaKeTerang:'Ganti ke mode terang', temaKeGelap:'Ganti ke mode gelap',
     gantiBahasa:'Ganti ke Bahasa Inggris',
+    gantiBahasaJudul:'Ganti bahasa / change language',
+    /* Empat tulisan di layar masuk yang dulu ditulis tetap di js/25-login.js.
+       Selama bahasa cuma bisa diganti SETELAH masuk, tidak ada yang pernah
+       melihatnya salah. Begitu pemilih bahasa pindah ke layar masuk, tombol
+       yang tadinya "Entrar" berubah jadi "Masuk" sendiri sehabis percobaan
+       yang gagal — teks tombolnya dikembalikan dengan huruf tetap. */
+    memeriksa:'Memeriksa...',
+    isiUsernamePassword:'Username dan password harus diisi.',
+    takBisaHubungiServer:'Tidak dapat menghubungi server.',
+    gagalMasuk:'Gagal masuk.',
+    /* Kepanjangan AVENGERS. Sengaja tidak diterjemahkan di kamus mana pun:
+       ini akronim dari nama sistemnya, bukan kalimat — menerjemahkannya
+       membuat huruf depannya tidak lagi mengeja AVENGERS. */
+    avengersArti:'Advanced Engineer Electronic Reporting System',
     /* tab */
     tabLogbook:'📋 LOGBOOK FASILITAS', tabDailyCheck:'🖥 DAILY CHECK GAREX 300',
     tabIsu:'⚠ ISU / UPDATE ISSUE', tabAkun:'👤 KELOLA AKUN',
@@ -331,7 +345,15 @@ const KAMUS = {
     brandJudul:'E-Logbook Fasilitas Komunikasi Penerbangan',
     metaPenyelenggara:'Service Provider', metaKelompok:'Facility Group', metaPeralatan:'Equipment Name',
     temaKeTerang:'Switch to light mode', temaKeGelap:'Switch to dark mode',
-    gantiBahasa:'Ganti ke Bahasa Indonesia',
+    /* Tombol kepala berputar id → en → es → id, jadi tulisan ini menyebut
+       bahasa BERIKUTNYA, bukan bahasa yang sedang tampil. */
+    gantiBahasa:'Switch to Spanish / cambiar a español',
+    gantiBahasaJudul:'Change language / ganti bahasa',
+    memeriksa:'Checking...',
+    isiUsernamePassword:'Username and password are both required.',
+    takBisaHubungiServer:'Cannot reach the server.',
+    gagalMasuk:'Sign-in failed.',
+    avengersArti:'Advanced Engineer Electronic Reporting System',
     tabLogbook:'📋 FACILITY LOGBOOK', tabDailyCheck:'🖥 GAREX 300 DAILY CHECK',
     tabIsu:'⚠ ISSUE / UPDATE ISSUE', tabAkun:'👤 MANAGE ACCOUNTS',
     logbookJudul:'Facility Log Book', logbookSub:'Every entry is saved straight to the server database.',
@@ -566,6 +588,296 @@ const KAMUS = {
     tunjukAkunHint:'Type a name matching a pejabat/manager teknik account to have this entry show up in that person\'s TTD inbox.',
     inboxJudul:'Awaiting Your Signature', inboxTombolTitle:'TTD inbox',
     inboxKosong:'Nothing is waiting for your signature.'
+  },
+
+  /* ============== ESPAÑOL ==============
+     Setiap kunci di kamus en harus ada di sini juga. T() memang punya jaring
+     pengaman ke kamus id, tapi jaring itu tidak kelihatan: kunci yang lupa
+     diterjemahkan muncul sebagai kalimat Indonesia di tengah layar Spanyol,
+     dan tidak ada yang melaporkannya karena tidak terlihat seperti galat.
+
+     Nama resmi tidak diterjemahkan — sama seperti di kamus en. "E-Logbook
+     Fasilitas", "Dashboard Fasilitas Teknik", dan kepanjangan AVENGERS adalah
+     nama unit dan sistemnya sendiri, bukan keterangan yang boleh berganti
+     mengikuti bahasa layar. */
+  es: {
+    /* chrome */
+    orientasiAuto:'Automática', orientasiPortrait:'Vertical', orientasiLandscape:'Horizontal',
+    orientasiJudul:'Orientación del papel al imprimir',
+    belumPunyaAkun:'¿Aún no tiene cuenta?', buatAkunBaru:'Crear cuenta',
+    sudahPunyaAkun:'¿Ya tiene una cuenta?', kembaliMasuk:'Iniciar sesión',
+    daftarJudul:'Crear Cuenta',
+    daftarSub:'Una vez creada, la cuenta espera la aprobación del administrador antes de poder usarse.',
+    kirimPendaftaran:'Enviar Solicitud',
+    daftarBerhasil:'Solicitud enviada. Su cuenta espera la aprobación del administrador — contacte a un administrador para agilizarlo.',
+    daftarGagal:'La solicitud no se pudo enviar.',
+    namaKosong:'El nombre completo sigue vacío.', usernameKosong:'El usuario sigue vacío.',
+    passwordPendek:'La contraseña debe tener al menos 6 caracteres.', passwordTakSama:'La contraseña repetida no coincide.',
+    peran_admin:'Administrador', peran_pejabat:'Directivo', peran_teknisi:'Técnico',
+    peran_adminunit:'Administrador de Unidad', peran_pic:'Responsable de Unidad',
+    peranPejabat:'Directivo — ve todas las unidades y firma',
+    semuaUnit:'todas las unidades', menungguKonfirmasi:'pendiente de aprobación',
+    masukSebagai:'sesión iniciada como', keluar:'Cerrar sesión', masuk:'Entrar',
+    kembaliDashboard:'Dashboard Fasilitas Teknik',
+    kembaliDashboardKet:'Volver al Dashboard Fasilitas Teknik',
+    loginJudul:'E-Logbook Fasilitas', loginSub:'Entre con su cuenta de técnico.',
+    brandJudul:'E-Logbook Fasilitas Komunikasi Penerbangan',
+    metaPenyelenggara:'Proveedor del Servicio', metaKelompok:'Grupo de Instalaciones', metaPeralatan:'Nombre del Equipo',
+    temaKeTerang:'Cambiar a modo claro', temaKeGelap:'Cambiar a modo oscuro',
+    gantiBahasa:'Volver al indonesio / kembali ke Bahasa Indonesia',
+    gantiBahasaJudul:'Cambiar idioma / ganti bahasa',
+    memeriksa:'Comprobando...',
+    isiUsernamePassword:'El usuario y la contraseña son obligatorios.',
+    takBisaHubungiServer:'No se puede contactar el servidor.',
+    gagalMasuk:'No se pudo iniciar sesión.',
+    avengersArti:'Advanced Engineer Electronic Reporting System',
+    /* tab */
+    tabLogbook:'📋 BITÁCORA DE INSTALACIONES', tabDailyCheck:'🖥 CHEQUEO DIARIO GAREX 300',
+    tabIsu:'⚠ INCIDENCIA / ACTUALIZACIÓN', tabAkun:'👤 GESTIÓN DE CUENTAS',
+    /* bitácora */
+    logbookJudul:'Bitácora de Instalaciones', logbookSub:'Cada anotación se guarda directamente en la base de datos del servidor.',
+    tambahCatatan:'+ Añadir Anotación', dariTanggal:'Desde la fecha', sampaiTanggal:'Hasta la fecha',
+    lihatSaja:'👁 Solo Ver', cetakLogbook:'🖨 Imprimir Bitácora',
+    noteCetakLogbook:'Deje las fechas vacías para mostrar todas las anotaciones cargadas. Para <b>un solo día</b>, ponga la misma fecha en "desde" y "hasta"; añada el filtro de Turno para un solo turno, o el filtro de Ubicación para un solo edificio. Si el resultado viene de un solo edificio, ese edificio aparece en el encabezado; si está mezclado, cada fila lleva su propia columna de Ubicación. <b>Solo Ver</b> muestra el resultado en pantalla sin abrir el diálogo de impresión.',
+    /* chequeo diario */
+    dcJudul:'Chequeo Diario VCS Garex 300 — Unidad Radtel', dcSub:'Pulse un estado para cambiarlo: Normal → Alarma → Avería.',
+    suhuMer:'Temperatura MER (°C)', hariTanggal:'Día / Fecha', remark:'Observaciones / Notas Adicionales',
+    lgNormal:'Normal', lgAlarm:'Alarma / Vigilar', lgGangguan:'Avería',
+    mengetahuiManager:'Aprobado por — Gerente Técnico', ttdManager:'Firma del Gerente Técnico',
+    resetForm:'Reiniciar Formulario', cetakFormIni:'🖨 Imprimir Este Formulario', simpanDc:'💾 Guardar Chequeo Diario',
+    riwayatDc:'Historial de Chequeos Diarios', kolItem:'Elemento',
+    /* incidencias */
+    isuJudul:'Actualización de Incidencias — GAREX 300 y Neptuno', isuSub:'Incidencias abiertas todavía en tratamiento.',
+    tambahIsu:'+ Añadir Incidencia', reportDari:'Reportado desde', cetakIsu:'🖨 Imprimir Lista de Incidencias',
+    noteCetakIsu:'Deje las fechas vacías para mostrar todas las incidencias. Las fotos y documentos adjuntos aparecen en las páginas posteriores a la tabla, separados entre evidencia al reportar y evidencia al cerrar.',
+    noteIsuTeknisi:'Una vez reportada, la incidencia solo puede editarla o borrarla un administrador. Comunique cualquier corrección a su administrador.',
+    jenisIssue:'Tipo de Incidencia', keterangan:'Descripción', lokasi:'Ubicación', status:'Estado',
+    kolTglReport:'Reportada', kolTglClosed:'Cerrada', dilaporkanOleh:'Reportada Por',
+    kolBukti:'Evidencia', kolNo:'N.º', kolTindakan:'Acciones',
+    modalIsu:'Añadir Incidencia', tanggalReport:'Fecha del Reporte', simpanIsu:'💾 Guardar Incidencia', detailIsu:'Detalle de la Incidencia',
+    labelBuktiOpen:'Foto / Documento al Reportar <span style="text-transform:none;letter-spacing:0;">(opcional)</span>',
+    labelBuktiClosed:'Foto / Documento al Cerrar <span style="text-transform:none;letter-spacing:0;">(opcional)</span>',
+    noteIsuBaru:'Una incidencia nueva se registra siempre como <b>Abierta</b>. Solo un administrador puede pasarla a En Proceso o Cerrada, y adjuntar la evidencia del cierre.',
+    /* cuentas */
+    akunJudul:'Gestión de Cuentas', akunSub:'Los administradores crean las cuentas de los técnicos y sus contraseñas.',
+    buatAkun:'+ Crear Cuenta', modalAkun:'Crear Cuenta Nueva', buatAkunSimpan:'💾 Crear Cuenta',
+    username:'Usuario', password:'Contraseña', namaLengkap:'Nombre Completo', peran:'Rol',
+    peranTeknisi:'Técnico — solo registro', peranAdmin:'Administrador — control total',
+    ulangiPassword:'Repetir Contraseña', modalPasswd:'Restablecer Contraseña',
+    passwordBaru:'Contraseña Nueva', ulangiPasswordBaru:'Repetir Contraseña Nueva', simpanPassword:'💾 Guardar Contraseña',
+    modalNama:'Renombrar Cuenta', namaBaru:'Nombre Nuevo', simpanNama:'💾 Guardar Nombre',
+    noteAkun:'El rol <b>administrador</b> tiene control total: editar, borrar y gestionar cuentas. El rol <b>directivo</b> ve todas las unidades y puede añadir su propia firma a los registros que aún no la tienen — nada más. El rol <b>técnico</b> solo puede añadir anotaciones de bitácora, chequeos diarios e incidencias. El último administrador activo no puede desactivarse ni degradarse, para que el sistema nunca quede sin responsable. Una cuenta solo puede borrarse una vez desactivada; los registros que introdujo permanecen, incluido el nombre.',
+    noteAkunBaru:'Entregue esta contraseña a su dueño en persona y pídale que la cambie. No podrá volver a verse una vez creada la cuenta — si se olvida, un administrador simplemente la restablece.',
+    notePasswdTarget:'Contraseña nueva para <b id="pwNamaTarget">-</b>.',
+    noteNamaTarget:'Nombre nuevo para la cuenta <b id="namaUsernameTarget">-</b> — también se usa para emparejar las firmas pendientes (vea la nota del formulario).',
+    /* bitácora: formulario */
+    modalCatatan:'Añadir Anotación', tanggal:'Fecha', jamUtc:'Hora (UTC)', dinasShift:'Turno',
+    pjNama:'Responsable (nombre)', ttdPj:'Firma del Responsable', ttdTeknisi:'Firma del Técnico',
+    namaTeknisiPelaksana:'Técnico de Guardia', tambahNama:'+ Nombre',
+    simpanCatatan:'💾 Guardar Anotación', detailCatatan:'Detalle de la Anotación', detailDc:'Detalle del Chequeo Diario',
+    labelLampiran:'Adjuntos — Escaneo / Foto <span style="text-transform:none;letter-spacing:0;">(opcional)</span>',
+    hintLampiran:'Hasta 6 archivos, 8 MB cada uno. JPG, PNG, WEBP o PDF.',
+    hintLampiranPanjang:'Hasta 6 archivos, 8 MB cada uno. JPG, PNG, WEBP o PDF. Las fotos grandes se reducen automáticamente antes de subirlas.',
+    /* DS test */
+    kategoriDs:'Categoría',
+    dsKat_domestik:'Nacional', dsKat_internasional:'Internacional',
+    'dsKat_sli-gsm':'SLI y GSM', dsKat_pabx:'PABX',
+    dsDaftarKosong:'La lista de sitios de esta categoría aún no se ha rellenado. Envíe la lista y el formulario queda listo.',
+    tabDsTest:'☎ PRUEBA DS', dsJudul:'Prueba DS',
+    dsSub:'Pruebas de enlace de voz directa nacional e internacional, SLI y GSM, y PABX.',
+    dsModal:'Prueba DS', tambahDs:'+ Formulario Nuevo', simpanDs:'💾 Guardar Prueba DS',
+    belumAdaDs:'Todavía no hay resultados de Prueba DS.', dsTersimpan:'Prueba DS guardada.',
+    siteBermasalah:'sitios con problemas', semuaLolos:'todos correctos',
+    noteCariDs:'Elija una fecha para ver solo las Pruebas DS de ese día.',
+    /* trabajos periódicos */
+    bkJenis_neptuno:'Chequeo de Consultas de Grabación Neptuno',
+    bkJenis_gatevox:'Reinicio de CPU Gatevox',
+    'bkJenis_cleaning-cwp':'Limpieza de CWP',
+    'bkJenis_restart-cwp':'Reinicio de CWP',
+    tabBkNeptuno:'🎙 CONSULTAS NEPTUNO', tabBkGatevox:'♻ REINICIO CPU GATEVOX',
+    tabBkCleaning:'🧹 LIMPIEZA CWP', tabBkRestart:'⟳ REINICIO CWP',
+    bkJudul_neptuno:'Chequeo de Consultas de Grabación Neptuno',
+    bkSub_neptuno:'231 canales SCU y 85 canales CWP.',
+    bkJudul_gatevox:'Reinicio de CPU Gatevox',
+    bkSub_gatevox:'Nueve unidades Gatevox, CPU A y CPU B.',
+    'bkJudul_cleaning-cwp':'Limpieza de CWP',
+    'bkSub_cleaning-cwp':'Limpieza de los 85 canales CWP.',
+    'bkJudul_restart-cwp':'Reinicio de CWP',
+    'bkSub_restart-cwp':'85 canales CWP, más Neptuno 1–4 y TMCS 1–2.',
+    tambahBk:'+ Formulario Nuevo', simpanBk:'💾 Guardar Hoja',
+    bkDaftarKosong:'La lista de trabajos de esta hoja aún no se ha rellenado. Envíe la lista y el formulario queda listo.',
+    belumAdaBk:'Todavía no hay ninguna hoja de este trabajo.', bkTersimpan:'Hoja guardada.',
+    bkTemuan:'filas con problemas',
+    bkCatatan:'Notas', phBkCatatan:'Notas adicionales de esta hoja — puede dejarse vacío',
+    bkRingkasan:'Resumen', bkBaris:'filas', bkTandaiSemua:'marcar todo',
+    bkLgBawaan:'Todas las filas empiezan en ✓ — marque solo las que no estén bien.',
+    bkSemuaNormal:'Todas las filas normales — sin hallazgos.',
+    bkHanyaTemuan:'Ver solo los hallazgos', bkSeluruhBaris:'Ver todas las filas',
+    lgTidakDikerjakan:'NO REALIZADO',
+    noteCariBk:'Elija una fecha para ver solo las hojas de ese día.',
+    ttdPersonilTeknik:'Firma del Personal Técnico', ttdPersonilOps:'Firma del Personal de Operaciones',
+    labelLampiranLtk:'Adjuntos — Foto / Documento de Apoyo <span style="text-transform:none;letter-spacing:0;">(opcional)</span>',
+    /* búsqueda */
+    cariTanggal:'Fecha', cariKata:'Buscar equipo / módulo', dariTanggalSingkat:'Desde la fecha',
+    resetCari:'↺ Ver Todo', takAdaHasil:'Nada coincide con esa búsqueda.',
+    phCariLtk:'p. ej. procesador, transmisor, VHF',
+    noteCariMon:'Elija una fecha para ver solo los formularios de monitoreo de ese día.',
+    noteCariLtk:'La búsqueda por palabra revisa el nombre del equipo, la pieza o módulo averiado y el análisis de la avería. El rango de fechas usa la Fecha del Reporte.',
+    noteCariDc:'Elija un rango de fechas para separar el historial que quiere borrar.',
+    /* monitoreo y reporte de averías */
+    tabMonitoring:'📶 MONITOREO DE FRECUENCIAS', tabLtk:'🛠 REPORTE DE AVERÍAS',
+    monJudul:'Formulario de Monitoreo de Frecuencias', monSub:'Resultados de la observación de frecuencias junto al personal de operaciones.',
+    monModal:'Formulario de Monitoreo de Frecuencias', tambahMon:'+ Formulario Nuevo', simpanMon:'💾 Guardar Formulario',
+    personilOps:'Personal de Operaciones', personilTeknik:'Personal Técnico',
+    phPersonilOps:'Nombre del personal de operaciones', phPersonilTeknik:'Nombre del personal técnico',
+    barisPengamatan:'Filas de Observación', barisPengamatanSingkat:'filas de observación', tambahBaris:'+ Fila',
+    belumAdaMon:'Todavía no hay formularios de monitoreo.', monKosong:'No se ha rellenado ninguna fila de observación.',
+    monTersimpan:'Formulario de monitoreo guardado.',
+    ltkJudul:'Reporte de Avería y Reparación',
+    ltkSub:'Reporte de averías y trabajos de reparación en instalaciones de telecomunicación aeronáutica.',
+    ltkModal:'Crear Reporte de Avería', tambahLtk:'+ Crear Reporte', simpanLtk:'💾 Guardar Reporte',
+    tanggalPelaporan:'Fecha del Reporte', kotaLtk:'Ciudad',
+    penyelenggaraLtk:'Proveedor del Servicio', kelompokLtk:'Grupo de Instalaciones',
+    peralatanLtk:'Nombre del Equipo', modulLtk:'Pieza / Módulo Averiado',
+    analisaLtk:'Análisis de la Avería', perbaikanLtk:'Reparación / Seguimiento',
+    tanggalRusak:'Fecha de la Avería', jamRusak:'Hora de la Avería (UTC)',
+    tanggalSelesai:'Fecha de Fin de la Reparación', jamSelesai:'Hora de Fin de la Reparación (UTC)',
+    jamTerputus:'Horas Totales Fuera de Servicio',
+    teknisiTelekom:'Técnico de Telecomunicaciones', managerTeknik1:'Aprobado por — Gerente Técnico 1',
+    phPeralatanLtk:'p. ej. Transmisor VHF A/G', phModulLtk:'p. ej. Módulo Procesador',
+    phAnalisaLtk:'p. ej. El TX1 en 132.1 MHz muestra la pantalla en blanco con todos los LED encendidos...',
+    phPerbaikanLtk:'Una acción por línea', phJamTerputus:'p. ej. 3 horas 20 minutos',
+    phNamaTeknisi:'Nombre del técnico',
+    belumAdaLtk:'Todavía no hay reportes de avería.', ltkTersimpan:'Reporte de avería guardado.',
+    ltkPeralatanKosong:'El nombre del equipo sigue vacío.',
+    ltkSelesai:'terminado', ltkBelumSelesai:'en proceso',
+    konfirmasiHapus:'¿Borrar este registro?',
+    /* radkom */
+    tabDcRadkom:'📡 CHEQUEO DIARIO RADKOM', lgOk:'OK', lgNotOk:'NO OK', lgTidakDicek:'SIN REVISAR',
+    lgKlikUbah:'Pulse una casilla de estado para cambiarla.',
+    dcRadkomJudul:'Chequeo Diario Unidad Radkom — New JATSC',
+    dcRadkomSub:'Pulse una casilla TX/RX para alternar entre OK y NO OK.',
+    unitLabel:'Unidad', jamMulaiUtc:'Hora de Inicio (UTC)', jamSelesaiUtc:'Hora de Fin (UTC)',
+    frek:'Frecuencia', phFrek:'p. ej. 132.900 MHz', namaKecil:'nombre',
+    lokasiGedung:'Ubicación',
+    unitAkses:'Unidades de la Bitácora', pilihUnit:'Elija qué unidades puede abrir esta cuenta',
+    unitDiganti:'Unidad de bitácora cambiada.', dcTakAda:'Esta unidad todavía no tiene formulario de chequeo diario.',
+    /* resumen y matriz */
+    tabRekap:'📊 RESUMEN Y MATRIZ', rekapJudul:'Resumen y Matriz',
+    rekapSub:'Con qué se ha encontrado realmente esta unidad — qué tipos de suceso, cuándo se vio cada uno por primera vez y quién los ha atendido.',
+    cetakRekap:'🖨 Imprimir Resumen', periodeLabel:'Periodo', perMinggu:'Semanal', perBulan:'Mensual',
+    bulanIni:'Este mes', tigaBulan:'3 meses', setahun:'1 año',
+    noteRekap:'Construido a partir de los registros de Bitácora, LTK e Incidencias de este rango — recalculado en el servidor, no solo con las 200 filas más recientes que se ven en pantalla. Los chequeos diarios y el monitoreo quedan fuera: son inspecciones programadas, no sucesos con los que uno se encuentre.',
+    rekapMemuat:'Cargando el resumen…', rekapGagal:'No se pudo cargar el resumen.',
+    rekapKosong:'Todavía no hay registros en este rango de fechas.', rekapBelumAda:'El resumen aún no se ha cargado.',
+    totalSingkat:'Total',
+    kejadianTercatat:'Sucesos registrados', jenisPernahDialami:'Tipos vistos hasta ahora',
+    catatanTanpaBarisNol:'lo que nunca ha ocurrido no tiene ninguna fila',
+    orangTerlibat:'Personas implicadas', jenisBaruPeriodeIni:'Vistos por primera vez este periodo',
+    takAdaJenisBaru:'nada nuevo', belumTergolongLabel:'Sin clasificar',
+    belumTergolongCatatan:'su redacción no coincide con ninguna regla — vea “Reglas de clasificación”',
+    semuaTergolong:'todas las anotaciones clasificadas',
+    palingSeringDialami:'es el más frecuente', pertamaPada:'primero el',
+    matriksJenisJudul:'Tipos de suceso por periodo',
+    matriksJenisKet:'Una fila = un tipo de suceso que realmente ocurrió. ▲ marca el periodo en que cada tipo apareció por primera vez.',
+    matriksOrangJudul:'Quién ha atendido qué',
+    matriksOrangKet:'Una celda vacía significa que esa persona nunca ha quedado registrada atendiendo ese tipo de suceso — no es cero, es nunca. Esto no es una evaluación de desempeño. Pulse cualquier celda para ver los registros que hay detrás.',
+    jenisKejadian:'Tipo de suceso', pelaksanaLabel:'Personal',
+    pertamaDialami:'visto por primera vez', pertamaMuncul:'primera aparición en este rango',
+    orangKecil:'personas', catatanKecil:'registros', jenisKecil:'tipos', dariKecil:'de',
+    belumPernahPada:'nunca todavía el', belumPernah:'nunca todavía',
+    catatanMendasari:'Los registros detrás de estas cifras',
+    terbaruDiAtas:'los más recientes primero.', tekanSelUntukSaring:'Pulse una celda de la matriz de arriba para acotar esto.',
+    yangMengisiSel:'estos son los sucesos que llenaron esa celda.',
+    tampilkanSemua:'Ver todo', takAdaCatatanPilihan:'No hay registros para esta selección.',
+    catatanTakDitampilkan:'no se listan aquí más registros — las cifras de la matriz sí los cuentan todos.',
+    pelaksanaTakTercatat:'personal no registrado',
+    aturanJudul:'Reglas de clasificación — cómo se deduce el tipo de suceso',
+    aturanKet:'El formulario de la bitácora no tiene campo de “tipo de trabajo”; su descripción es texto libre. El tipo se deduce por palabras clave, revisadas de arriba abajo — gana la primera que coincide. Por eso las cifras de arriba son una estimación, no un recuento exacto.',
+    kataKunci:'Palabras clave en la descripción',
+    aturanBelumTergolong:'no coincide con ninguna regla — se muestra tal cual, nunca se fuerza al grupo más cercano',
+    /* filtro de cuentas */
+    saringUnit:'Unidad', cariAkun:'Buscar nombre / usuario', phCariAkun:'p. ej. dewi, radtel01',
+    semuaAkun:'Todas las cuentas', akunSemuaUnit:'Todas las unidades (admin y directivos)', akunTanpaUnit:'Todavía sin unidad',
+    akunTakCocok:'Ninguna cuenta coincide con este filtro.',
+    noteFilterAkun:'El filtro por unidad usa las unidades realmente concedidas a cada cuenta. Los administradores y directivos tienen todas las unidades a la vez, así que se agrupan bajo “Todas las unidades”.',
+    dinasSingkat:'Turno',
+    batal:'Cancelar', tutup:'Cerrar', cetak:'🖨 Imprimir', semua:'Todo', bersihkan:'borrar',
+    /* firmas */
+    ttdHintTeknisi:'firma del técnico', ttdHintUmum:'firme aquí',
+    pakaiTtdTersimpan:'✍ usar mi firma guardada',
+    ttdTersimpanDipakai:'Se está usando su firma guardada. Pulse “borrar” para dibujarla en su lugar.',
+    ttdTersimpanBelumAda:'Todavía no hay firma guardada. Cree una primero en “Mi Firma”.',
+    ttdTersimpanJudul:'Usar su firma guardada',
+    ttdTersimpanKeterangan:'No hace falta dibujar: se estampa la firma que guardó en “Mi Firma”.',
+    ttdTersimpanTombol:'✅ Aprobar y firmar',
+    ttdSayaJudul:'Mi Firma Guardada', ttdSayaTombol:'✍ Mi Firma',
+    ttdSayaTersimpanKini:'Guardada actualmente', ttdSayaGambarBaru:'Dibujar una firma nueva',
+    ttdTersimpanKosong:'— sin firma guardada —',
+    ttdSayaSimpan:'💾 Guardar firma', ttdSayaHapus:'Borrar la firma guardada',
+    ttdSayaCatatan:'Esta firma pertenece a su cuenta y solo usted puede crearla o borrarla. Una vez guardada, cada panel de firma de los formularios muestra un botón de “usar mi firma guardada”. Guardar una nueva reemplaza a la anterior; las firmas ya puestas en registros quedan intactas.',
+    ttdTersimpanDisimpan:'Su firma guardada se ha actualizado.',
+    ttdTersimpanDihapus:'Su firma guardada se ha borrado.',
+    ttdTersimpanHapusTanya:'¿Borrar su firma guardada? Las firmas ya puestas en registros no se eliminan.',
+    ttdTersimpanGagal:'No se pudo guardar la firma.',
+    bubuhkanTtd:'✍ Añadir Firma', ttdModalJudul:'Añadir Firma',
+    ttdSbgKeterangan:'Firma para', ttdDiSini:'Firma',
+    ttdNamaTetap:'Ese nombre lo escribió el técnico en el formulario y se deja sin cambiar.',
+    ttdNamaKosong:'El nombre del formulario sigue vacío, así que se usa el nombre de su cuenta.',
+    ttdDicatatSbg:'Registrado como añadida por', namaBelumDiisi:'(sin rellenar)',
+    ditandatanganiOleh:'añadida por',
+    ttdSbgPj:'Responsable', ttdSbgManager:'Gerente Técnico', ttdSbgOps:'Personal de Operaciones',
+    kirimTtdKe:'Enviar la firma a la cuenta', kirimTtdOtomatis:'Automático (del nombre de arriba)',
+    ttdSekaliSaja:'Una firma solo puede añadirse una vez y después no puede quitarse.',
+    simpanTtd:'💾 Guardar Firma', ttdKosong:'El panel de firma sigue vacío.',
+    ttdTersimpan:'Firma guardada.', ttdGagal:'No se pudo guardar la firma.',
+    hapusAkun:'🗑 Borrar Cuenta',
+    /* textos de ejemplo */
+    phUraian:'p. ej. Revisado el equipo VCS Garex por TMCS, CWP03 encontrado en alarma...',
+    phSuhu:'p. ej. 22°C', phRemark:'p. ej. VR3 fallo parcial de elemento, todavía con el experto remoto de Madrid...',
+    phNamaManager:'Nombre del gerente técnico', phNamaPj:'Nombre del responsable',
+    phJenisIsu:'p. ej. VR 3 fallo parcial de elemento',
+    phKeteranganIsu:'p. ej. Todavía atendido por el experto remoto de Madrid, a la espera del cambio de módulo.',
+    phLokasi:'p. ej. MER 2.ª planta', phPelapor:'Nombre de quien lo encontró / reportó',
+    phUsername:'p. ej. budi.santoso', phNamaLengkap:'p. ej. Budi Santoso', phMin6:'al menos 6 caracteres',
+    hari:['DOMINGO','LUNES','MARTES','MIÉRCOLES','JUEVES','VIERNES','SÁBADO'],
+    bulan:['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'],
+    /* estado del servidor */
+    tersambung:'conectado al servidor', menghubungkan:'conectando al servidor...',
+    memuatData:'cargando datos del servidor...', serverTakTerhubung:'no se puede contactar el servidor',
+    jamServer:'reloj del servidor', jamDariServer:'La hora se toma del reloj del servidor.',
+    jamBelumSelaras:'Todavía sin conexión — usando temporalmente el reloj de este equipo.',
+    belumAdaCatatan:'Todavía no hay anotaciones. Pulse "Añadir Anotación" para empezar.',
+    belumAdaDc:'Todavía no hay historial de chequeos diarios.', belumAdaIsu:'Todavía no hay incidencias registradas.',
+    belumAdaAkun:'Todavía no hay cuentas.', belumAdaBukti:'todavía sin evidencia adjunta',
+    detail:'👁 Detalle', hapus:'Borrar', cetakCatatanIni:'Imprimir esta anotación',
+    diinputOleh:'introducida por', tidakTercatat:'autor no registrado',
+    jejakBaris:'Introducida el', jejakHari:'d',
+    jejakDirekam:'Cuando esta anotación llegó realmente al servidor. Lo registra el propio servidor, no se teclea — la fecha y la hora de arriba se escriben a mano, este número no.',
+    jejakSusulan:'Tecleada después de la hora que indica — la anotación se registró con retraso.',
+    jejakDini:'Tecleada ANTES de la hora que indica esta anotación. Revise otra vez su fecha y hora.',
+    uraianPekerjaan:'Descripción del Trabajo / Suceso', teknisiPelaksana:'Técnico de Guardia',
+    penanggungJawab:'Responsable', lampiranKe:'Adjuntos',
+    buktiKejadian:'Evidencia al Reportar', buktiSelesai:'Evidencia al Cerrar',
+    unggahKeFase:'⬆ Subir a esta etapa', anda:'(Usted)', aktif:'activa', nonaktif:'inactiva',
+    aktifkan:'Activar', nonaktifkan:'Desactivar', gantiPassword:'🔑 Contraseña', ubahNama:'✎ Nombre',
+    tutupPratinjau:'✕ Cerrar Vista Previa', pratinjauJudul:'Vista previa — no se imprime',
+    tersimpanCatatan:'Anotación guardada.', tersimpanIsu:'Incidencia registrada.',
+    menyimpan:'Guardando en el servidor...', mengunggah:'Subiendo los adjuntos y guardando...',
+    uraianKosong:'La descripción del trabajo sigue vacía.', jenisKosong:'El tipo de incidencia sigue vacío.',
+    hanyaAdminHapus:'Solo un administrador puede borrar.',
+    hanyaAdminUbah:'Solo un administrador puede editar incidencias.',
+    takAdaFilter:'Ninguna anotación coincide con ese filtro de fecha/turno.',
+    takAdaIsuFilter:'Ninguna incidencia coincide con ese filtro.',
+    gagalSimpan:'No se pudo guardar', gagalHapus:'No se pudo borrar', coba:'inténtelo de nuevo.',
+    /* editar anotación */
+    suntingCatatanIni:'Editar esta anotación', suntingBtn:'✎ Editar', modalSuntingCatatan:'Editar Anotación de la Bitácora',
+    simpanPerubahan:'💾 Guardar Cambios', tersimpanPerubahan:'Cambios guardados.',
+    suntingTanggalDc:'Editar fecha', modalSuntingTanggalDc:'Editar la Fecha del Chequeo Diario',
+    /* asignación de cuenta y bandeja de firmas */
+    tunjukAkunHint:'Escriba un nombre que coincida con una cuenta de directivo o gerente técnico para que esta anotación aparezca en la bandeja de firmas de esa persona.',
+    inboxJudul:'Pendiente de Su Firma', inboxTombolTitle:'bandeja de firmas',
+    inboxKosong:'No hay nada esperando su firma.'
   }
 };
 
@@ -592,7 +904,13 @@ function terapkanBahasa(){
     po.title = T('orientasiJudul');
   }
   const bb = document.getElementById('tombolBahasa');
-  if(bb){ bb.textContent = bahasa === 'id' ? 'ID' : 'EN'; bb.title = T('gantiBahasa'); }
+  if(bb){ bb.textContent = bahasa.toUpperCase(); bb.title = T('gantiBahasa'); }
+  /* Pemilih di layar masuk. Nilainya diselaraskan, tidak disetel dari nol:
+     orang bisa saja sudah memilih lewat tombol di kepala pada kunjungan
+     sebelumnya, dan pemilih yang menampilkan bahasa lain daripada yang sedang
+     tampil adalah cara tercepat membuat orang mengira layarnya rusak. */
+  const pb = document.getElementById('pilihBahasaMasuk');
+  if(pb && pb.value !== bahasa) pb.value = bahasa;
   terapkanTema(document.documentElement.getAttribute('data-tema') || temaTersimpan());
 
   // Bagian yang digambar JavaScript harus digambar ulang agar ikut berganti.
@@ -618,13 +936,40 @@ function terapkanBahasa(){
   if(typeof userSaatIni !== 'undefined' && userSaatIni) tampilkanUser(userSaatIni);
 }
 
-function gantiBahasa(){
-  bahasa = bahasa === 'id' ? 'en' : 'id';
+/* Pilih bahasa tertentu, bukan sekadar membalik. Dibuat terpisah karena layar
+   masuk memakai <select>, sementara kepala dashboard memakai tombol yang
+   berganti-ganti — dan keduanya harus bermuara ke satu tempat.
+
+   Kode yang tidak dikenal diabaikan dan bahasanya dibiarkan seperti semula.
+   Menerimanya begitu saja berarti KAMUS[bahasa] undefined, dan T() akan jatuh
+   ke kamus id untuk SETIAP kunci: layarnya tetap berbahasa Indonesia, tapi
+   pemilihnya menunjuk bahasa lain dan tidak ada yang bisa mengembalikannya
+   selain menghapus localStorage. */
+function setBahasa(kode){
+  if(!KAMUS[kode] || kode === bahasa) return;
+  bahasa = kode;
   localStorage.setItem(KUNCI_BAHASA, bahasa);
   terapkanBahasa();
 }
 
-/* Terapkan sedini mungkin supaya tidak ada kedipan tema/bahasa saat halaman dibuka. */
-bahasa = localStorage.getItem(KUNCI_BAHASA) === 'en' ? 'en' : 'id';
+/* Tombol di kepala dashboard: satu tombol untuk tiga bahasa, jadi ia berputar
+   id → en → es → id. Urutannya diambil dari KAMUS, bukan ditulis ulang di
+   sini — daftar kedua yang harus ikut disunting setiap kali ada bahasa baru
+   adalah daftar yang suatu saat lupa disunting. */
+function gantiBahasa(){
+  const daftar = Object.keys(KAMUS);
+  setBahasa(daftar[(daftar.indexOf(bahasa) + 1) % daftar.length]);
+}
+
+/* Terapkan sedini mungkin supaya tidak ada kedipan tema/bahasa saat halaman dibuka.
+
+   Dulu baris ini berbunyi `=== 'en' ? 'en' : 'id'`. Bentuk itu benar selama
+   bahasanya cuma dua, dan diam-diam salah begitu ada yang ketiga: orang yang
+   memilih Spanyol akan kembali ke Indonesia setiap kali halaman dibuka, dan
+   pilihannya yang tersimpan tidak pernah terbaca. Sekarang yang menentukan
+   sah atau tidaknya adalah kamusnya sendiri — menambah bahasa berikutnya
+   cukup dengan menambah bloknya, tanpa menyentuh baris ini lagi. */
+const bahasaTersimpan = localStorage.getItem(KUNCI_BAHASA);
+bahasa = KAMUS[bahasaTersimpan] ? bahasaTersimpan : 'id';
 orientasiCetak = localStorage.getItem(KUNCI_ORIENTASI) || 'auto';
 document.documentElement.setAttribute('data-tema', temaTersimpan());

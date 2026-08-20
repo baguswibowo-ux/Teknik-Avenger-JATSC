@@ -24,12 +24,50 @@
 <link rel="stylesheet" href="css/08-layar-kecil.css">
 <link rel="stylesheet" href="css/09-cetak.css">
 <link rel="stylesheet" href="css/10-login-identitas.css">
+<link rel="stylesheet" href="css/11-login-avengers.css">
 </head>
 <body>
 
-<!-- ===== LAYAR LOGIN ===== -->
+<!-- ===== LAYAR LOGIN =====
+     Kartu masuk dan kartu daftar di bawah ini TIDAK berubah isinya: id, onclick,
+     dan urutan elemennya sama persis dengan sebelumnya, karena js/25-login.js
+     memegang semuanya lewat getElementById. Yang ditambahkan cuma bungkus di
+     sekelilingnya — merek AVENGERS di atas kartu, dan tombol tema/bahasa yang
+     sebelumnya tidak bisa dijangkau sebelum orang berhasil masuk. -->
 <div id="loginBg">
-  <div id="loginBox">
+
+  <!-- Tema dan bahasa memanggil fungsi yang sama dengan tombol di kepala
+       dashboard; tidak ada penyimpanan pilihan yang kedua. -->
+  <div class="av-kendali">
+    <select id="pilihBahasaMasuk" onchange="setBahasa(this.value)" data-t-title="gantiBahasaJudul" title="Ganti bahasa / change language">
+      <option value="id">ID</option>
+      <option value="en">EN</option>
+      <option value="es">ES</option>
+    </select>
+    <!-- Tanpa data-t-title: judulnya sudah diisi terapkanTema() menurut mode
+         yang sedang berlaku, dan dua sumber untuk satu tulisan berarti yang
+         satu pasti pernah salah. -->
+    <button type="button" id="tombolTemaMasuk" onclick="gantiTema()" title="Ganti mode gelap / terang">🌙</button>
+  </div>
+
+  <div class="av-isi">
+
+    <!-- Identitasnya AVENGERS, bukan E-Logbook: layar ini pintu masuk seluruh
+         Fasilitas Teknik, dan E-Logbook cuma salah satu ruangan di baliknya.
+         Nama ruangannya disebut di kartu, bukan di papan namanya.
+
+         Logo dipasang sebagai berkas terpisah, dan kalau berkas itu belum ada
+         onerror menukarnya dengan tulisan cadangan. Bukan supaya layar terlihat
+         selesai padahal belum — supaya yang belum selesai cuma logonya, bukan
+         seluruh halaman. -->
+    <header class="av-merek">
+      <img class="av-logo" id="logoAvengers" src="assets/login/avengers-logo.webp" alt="AVENGERS"
+           onerror="this.style.display='none'; document.getElementById('logoAvengersCadangan').classList.add('tampil');">
+      <div class="av-logo-cadangan" id="logoAvengersCadangan">AVENGERS</div>
+      <div class="av-arti" data-t="avengersArti">Advanced Engineer Electronic Reporting System</div>
+    </header>
+
+    <div id="loginBox">
     <div class="brand-eyebrow">Perum LPPNPI &middot; Cabang JATSC</div>
     <h3 data-t="loginJudul">E-Logbook Fasilitas</h3>
     <div class="login-sub" data-t="loginSub">Masuk dengan akun teknisi Anda.</div>
@@ -58,6 +96,8 @@
       <button type="button" onclick="bukaLogin()" data-t="kembaliMasuk">Masuk</button>
     </div>
   </div>
+
+  </div><!-- /.av-isi -->
 </div>
 
 <div class="console">

@@ -83,10 +83,10 @@ async function doDaftar(){
 async function doLogin(){
   const username = document.getElementById('loginUser').value.trim();
   const password = document.getElementById('loginPass').value;
-  if(!username || !password){ showLogin('Username dan password harus diisi.'); return; }
+  if(!username || !password){ showLogin(T('isiUsernamePassword')); return; }
 
   const btn = document.getElementById('loginBtn');
-  btn.disabled = true; btn.textContent = 'Memeriksa...';
+  btn.disabled = true; btn.textContent = T('memeriksa');
   try{
     let data;
     // Hanya bagian ini yang boleh berakhir di layar login: selama sesi belum
@@ -100,9 +100,12 @@ async function doLogin(){
       });
       catatWaktuServer(res);
       data = await res.json().catch(()=>({}));
-      if(!res.ok){ showLogin(data.error || 'Gagal masuk.'); return; }
+      /* data.error datang dari /api/login dan tetap berbahasa Indonesia:
+         menerjemahkannya berarti menyentuh API, dan itu di luar batas. Yang
+         berbahasa layar cuma cadangannya. */
+      if(!res.ok){ showLogin(data.error || T('gagalMasuk')); return; }
     }catch(e){
-      showLogin('Tidak dapat menghubungi server.');
+      showLogin(T('takBisaHubungiServer'));
       return;
     }
 
@@ -120,7 +123,7 @@ async function doLogin(){
       toast('Masuk berhasil, tetapi sebagian layar gagal dimuat: ' + (e.message || e));
     }
   }finally{
-    btn.disabled = false; btn.textContent = 'Masuk';
+    btn.disabled = false; btn.textContent = T('masuk');
   }
 }
 

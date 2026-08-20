@@ -18,11 +18,17 @@ function temaTersimpan(){
 
 function terapkanTema(tema){
   document.documentElement.setAttribute('data-tema', tema);
-  const b = document.getElementById('tombolTema');
-  if(b){
+  /* Dua tombol, satu keadaan. Yang di kepala dashboard baru bisa disentuh
+     setelah orang masuk; yang di layar masuk justru satu-satunya yang bisa
+     disentuh sebelum itu. Keduanya harus ikut berubah di sini — kalau tidak,
+     mengganti tema di layar masuk meninggalkan tombol kepala menunjukkan mode
+     yang sudah tidak berlaku sampai halaman dimuat ulang. */
+  [document.getElementById('tombolTema'),
+   document.getElementById('tombolTemaMasuk')].forEach(b=>{
+    if(!b) return;
     b.textContent = tema === 'terang' ? '☀' : '🌙';
     b.title = tema === 'terang' ? T('temaKeGelap') : T('temaKeTerang');
-  }
+  });
   // Warna bilah alamat di HP ikut menyesuaikan.
   const meta = document.getElementById('metaTema');
   if(meta) meta.setAttribute('content', tema === 'terang' ? '#eef2f6' : '#0a0e13');

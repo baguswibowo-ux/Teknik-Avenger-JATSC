@@ -35,6 +35,7 @@ untuk fungsi global.
 | `08-layar-kecil.css` | Penyesuaian HP dan tablet (`max-width` 600px dan 360px) |
 | `09-cetak.css` | Area cetak, warna hasil cetak, pratinjau di layar, bilah cetak |
 | `10-login-identitas.css` | Layar login & daftar, identitas pemakai, pemilih unit, tombol tema/bahasa |
+| `11-login-avengers.css` | Wajah layar masuk: latar bumi, merek AVENGERS, kartu kaca. Menimpa bentuk polos di `10-`, tidak menggantikannya — dilepas dari `index.html`, layar masuk kembali seperti dulu dan tetap bisa dipakai. Asetnya di `public/assets/login/` (lihat `BACA-DULU.md` di sana) |
 
 Mencari sesuatu: **warna** → `01`. **Sesuatu yang salah di HP** → `08`.
 **Hasil cetak** → `09`.
