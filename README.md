@@ -192,6 +192,14 @@ ditepati, dan di komputer yang dipakai bergantian orang berikutnya akan
 menemukan "Lanjutkan sebagai *nama orang sebelumnya*" lalu bisa menekannya
 tanpa password sama sekali.
 
+Arah baliknya kini juga satu: **Keluar di dalam E-Logbook mengantar ke layar
+masuk dashboard**, bukan ke layar masuk E-Logbook. Sesinya memang cuma satu
+sejak kedua aplikasi satu asal, jadi dua layar masuk untuk satu kunci hanya
+menyisakan pertanyaan mana yang sedang berlaku. Berlaku hanya kalau halamannya
+dibuka lewat `/logbook/`; dibuka langsung di alamat E-Logbook, ia memuat ulang
+seperti sebelumnya. Yang memutuskan servernya, lewat
+`window.LEWAT_PINTU_AVENGER` di `/avenger-tautan.js`.
+
 Karena itu tulisan **"Bukan Anda? Ganti akun"** di kaki kartu ikut dibuang. Ia
 ada untuk kasus sesi-yang-menempel, dan kasus itu sudah tidak ada. Yang tersisa
 sesudah keluar cuma username yang sengaja diingat, dan itu tinggal ditimpa
