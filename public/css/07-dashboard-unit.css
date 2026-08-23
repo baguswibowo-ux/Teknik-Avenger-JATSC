@@ -27,6 +27,34 @@
 .kepala-unit h2{font-size:19px;}
 .kepala-unit .sub{font-size:12.5px;color:var(--muted);margin-top:3px;}
 
+/* Petak petugas di kepala unit — siapa yang sedang dinas, dan manager
+   tekniknya. Menggantikan tombol "Buka E-Logbook" yang dulu berdiri di sini;
+   tombolnya pindah ke kepala dashboard, di kanan nama pemakai.
+
+   min-width pada bloknya, bukan lebar mati: dua blok bersisian di layar meja,
+   dan turun sendiri jadi dua baris begitu kepala unit kehabisan tempat —
+   .kepala-unit sudah flex-wrap sejak awal, jadi tidak perlu media query. */
+.petugas-unit{display:flex;gap:10px;flex-wrap:wrap;}
+.ptg-blok{display:flex;flex-direction:column;gap:6px;min-width:172px;
+  border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--panel);}
+.ptg-judul{font-family:var(--font-mono);font-size:9px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--muted);}
+.ptg-orang{display:flex;align-items:center;gap:8px;}
+.ptg-orang .av{width:26px;height:26px;border-radius:8px;flex:none;display:grid;place-items:center;
+  background:var(--kaca);border:1px solid var(--line);
+  font-family:var(--font-mono);font-size:10px;font-weight:600;}
+.ptg-orang .teks{display:flex;flex-direction:column;gap:2px;min-width:0;}
+/* Nama panjang dipotong, tidak melebarkan kepala unit sampai ikonnya terdorong
+   keluar. max-width di sini, bukan pada bloknya: yang boleh memanjang cuma
+   teksnya, dan blok yang ikut memanjang akan menyeret blok sebelahnya. */
+.ptg-orang .nm{font-size:12.5px;font-weight:500;line-height:1.2;max-width:190px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ptg-orang .pr{font-family:var(--font-mono);font-size:9.5px;color:var(--muted);
+  letter-spacing:.04em;max-width:190px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ptg-orang.kosong .av{color:var(--muted);}
+.ptg-sisa{font-family:var(--font-mono);font-size:9.5px;color:var(--muted);}
+
 /* Baris subtab. Dulu sederet tombol yang melayang tanpa alas, dan begitu
    jumlahnya lewat dari lima ia terlihat menempel ke kepala unit di atasnya
    sementara isinya jatuh terlalu jauh di bawah. Sekarang barisnya punya garis

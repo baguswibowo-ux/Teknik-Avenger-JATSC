@@ -23,8 +23,11 @@
   .jam{width:100%;justify-content:flex-start;gap:10px;}
   .jam .blok{text-align:left;}
   /* Kartu akun mendorong tombol-tombol ke tepi kanan, jadi panel lonceng yang
-     berlabuh di kanan tombolnya tidak pernah keluar layar di sebelah kiri. */
-  .jam .kartu-akun{margin-right:auto;}
+     berlabuh di kanan tombolnya tidak pernah keluar layar di sebelah kiri.
+     Dorongannya dipindah ke tombol E-Logbook, satu elemen lebih kanan: yang
+     diminta tombol itu duduk di samping nama pemakai, dan margin auto di
+     antara keduanya justru yang akan memisahkannya selebar layar. */
+  .jam #tombolElogbook{margin-right:auto;}
   .kepala-unit .ikon-unit{width:72px;height:46px;}
   .rel button{padding:12px 12px;font-size:12.5px;}
 }
@@ -37,6 +40,13 @@
      ke baris sendiri-sendiri. */
   .kartu-akun{min-width:0;max-width:52vw;}
   .kartu-akun .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  /* Tulisannya dilepas, ikonnya tetap — di lebar ini tombol Keluar dan lonceng
+     yang harus selamat lebih dulu. Dilepas dengan display:none pada <span>
+     labelnya, bukan pada tombolnya: nama tombol untuk pembaca layar hilang
+     kalau seluruh teksnya dibuang, dan yang tersisa cuma gambar buku. */
+  .tombol-ikon.lebar{width:34px;padding:0;gap:0;}
+  .tombol-ikon.lebar .lbl{position:absolute;width:1px;height:1px;overflow:hidden;
+    clip-path:inset(50%);white-space:nowrap;}
   .lapis-ubah{padding:12px;}
   .kartu-ubah{max-height:calc(100vh - 24px);}
   .kartu-ubah .kepala,.kartu-ubah .kaki{padding:11px 13px;}

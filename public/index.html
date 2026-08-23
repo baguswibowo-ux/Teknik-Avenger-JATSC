@@ -328,6 +328,23 @@
       <div class="blok"><div class="nilai" id="jamWib">--:--:--</div><div class="label" id="tglWib">WIB</div></div>
       <div class="kartu-akun"><span class="av" id="avAkun">--</span>
         <span><span class="nm" id="nmAkun">—</span><br><span class="pr" id="prAkun">—</span></span></div>
+      <!-- Pintu langsung ke E-Logbook, tepat di kanan nama pemakai. Sejak ada
+           di sini ia terlihat dari layar mana pun, jadi tombol yang sama di
+           kepala Database Unit dilepas — tempatnya di sana dipakai untuk
+           menyebut siapa yang sedang dinas.
+
+           href diisi pasangTautanElogbook() dari /_info; '#' cuma pengisi
+           sampai jawabannya datang. title juga miliknya ("Membuka <alamat>"),
+           karena itu di sini tidak dipasang data-en-judul — keduanya menulis
+           atribut yang sama dan akan saling menimpa. Nama tombolnya datang
+           dari teksnya sendiri, jadi tidak perlu aria-label. -->
+      <a class="tombol-ikon lebar" id="tombolElogbook" href="#" data-elogbook>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        <span class="lbl">E-Logbook</span>
+      </a>
       <!-- Lonceng: pemberitahuan yang benar-benar milik akun ini, bukan papan
            bersama di beranda. Yang di sini cuma tombolnya — panelnya duduk di
            akar dokumen, di bawah, karena kepala halaman ini memotong dan

@@ -52,6 +52,16 @@ const SRV = {
   jam:   null     // kapan data itu diambil
 };
 
+/* Manager teknik: akun aktif berperan `pejabat`. Datang menumpang jawaban
+   pertama getAllData sebagai pejabatList — bukan panggilan sendiri, karena
+   server memang sudah mengirimnya ke setiap pengguna, bukan cuma admin
+   (lihat listPejabatAktif di elogbook/server.js).
+
+   Kosong bukan kegagalan: server lama menjawab tanpa kolom ini, dan pemasangan
+   yang belum punya satu pun akun pejabat memang belum punya nama untuk
+   disebut. Yang membacanya harus menampilkan "—", bukan menebak. */
+let PEJABAT = [];
+
 const PERAN_SERVER    = { admin:'Administrator', pejabat:'Pejabat / Manager',
                           adminunit:'Admin Unit', pic:'PIC Unit', teknisi:'Teknisi' };
 const PERAN_SERVER_EN = { admin:'Administrator', pejabat:'Officer / Manager',
@@ -217,6 +227,10 @@ async function srvMuat(){
   // memang kosong, dan layar Kelola Akun pun tidak muncul.
   USERS = Array.isArray(awal.users) ? awal.users : [];
   USERS_JAM = USERS.length ? new Date() : null;
+  // Berbeda dengan users di atas: daftar pejabat dikirim ke semua peran, jadi
+  // kepala layar unit bisa menyebut manager tekniknya walau yang membuka
+  // seorang teknisi.
+  PEJABAT = Array.isArray(awal.pejabatList) ? awal.pejabatList : [];
   const paket = { [awal.unit]: awal };
   for(const u of (awal.unitSaya || [])){
     if(paket[u.kode]) continue;
