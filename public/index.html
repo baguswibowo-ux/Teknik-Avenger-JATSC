@@ -67,10 +67,6 @@
 <link href="/css/06-pita-berjalan.css" rel="stylesheet">
 <link href="/css/07-dashboard-unit.css" rel="stylesheet">
 <link href="/css/08-tablet-hp.css" rel="stylesheet">
-<!-- Wajah AVENGERS untuk layar masuk. Lapisan penimpa dan harus tetap yang
-     terakhir: ia hanya menimpa 02-layar-masuk.css, tidak menggantikannya.
-     Lepas baris ini dan konsol CNS/ATM kembali utuh, bandara 3D-nya sekalian. -->
-<link href="/css/09-login-avengers.css" rel="stylesheet">
 </head>
 <body>
 
@@ -175,23 +171,6 @@
       <button type="button" class="km-picu" id="kmPicuMasuk">MASUK</button>
 
       <div class="km-lapis-masuk" id="kmLapisMasuk">
-        <!-- Wordmark AVENGERS. Ditulis `hidden` dan dibuka lagi oleh
-             09-login-avengers.css, bukan sebaliknya: tanpa berkas itu layar
-             ini kembali jadi konsol CNS/ATM, dan wordmark yang menggantung di
-             atas layar radar tidak ada artinya.
-
-             Hurufnya teks, bukan berkas logo — tidak ada berkas logo AVENGERS
-             di repo ini. Kalau nanti ada, tukar .av-logo-teks dengan <img>
-             dan sisakan teksnya sebagai alt.
-
-             aria-hidden: pembaca layar sudah mendapat judul kartu di bawahnya
-             ("Dashboard Fasilitas Teknik"), dan mengejanya A-V-E-N-G-E-R-S
-             sebelum itu cuma menunda. -->
-        <div class="av-merek" hidden aria-hidden="true">
-          <div class="av-logo-teks">AVENGERS</div>
-          <div class="av-garis"></div>
-          <div class="av-tagline">FASILITAS TEKNIK &middot; JATSC</div>
-        </div>
         <div class="km-kartu">
           <button type="button" class="km-tutup" id="kmTutupMasuk"
                   aria-label="Tutup kartu masuk">&times;</button>

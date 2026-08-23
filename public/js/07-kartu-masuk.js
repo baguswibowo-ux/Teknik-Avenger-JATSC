@@ -201,22 +201,6 @@ function kmMulai(){
 
   el('kmUlangi').addEventListener('click', ()=>{ if(kmPanggung) kmPanggung.ulangi(); });
 
-  /* Panggungnya dilewatkan kalau tidak ada yang akan melihatnya. Sejak
-     09-login-avengers.css ada, #kmScene bisa display:none — dan three.js
-     tetap akan membangun bandara lengkapnya lalu menggambar ulang tiap frame
-     ke kanvas yang tidak pernah tampil. Layar masuk di ruang operasi bisa
-     terbuka berjam-jam; itu GPU yang terbakar percuma sepanjang shift.
-
-     Yang diperiksa keterlihatannya, bukan nama berkas CSS yang sedang dimuat.
-     Tuasnya tetap satu — <link> di index.html — dan berkas ini tidak perlu
-     tahu berkas itu ada. offsetParent null berarti elemennya (atau salah satu
-     induknya) display:none; #kmScene punya induk position:relative, jadi di
-     keadaan normal ia tidak pernah null. */
-  if(!el('kmScene').offsetParent){
-    console.info('Panggung layar masuk dilewatkan — #kmScene tidak tampil.');
-    return;
-  }
-
   /* three.js datang dari CDN. Kalau dalam 8 detik belum ada, panggungnya
      dilewatkan — kisi radar di CSS yang tersisa, kartu masuk tetap jalan. */
   (function tunggu(sisa){
