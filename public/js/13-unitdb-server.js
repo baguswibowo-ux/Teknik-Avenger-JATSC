@@ -161,7 +161,19 @@ function srvPasang(unitSaya, paket, unitSemua){
       frek:    e.Frek || '',
       dinas:   e.Dinas || '—',
       uraian:  e.Uraian || '—',
-      pj:      e.PJNama || e.TeknisiNama || e.DiinputOleh || '—'
+      /* Dua nama, bukan satu. Dulu keduanya diperas jadi satu kolom `pj` lewat
+         rantai || — dan karena pj_nama baru terisi setelah ditandatangani,
+         yang hampir selalu tampil justru nama teknisinya, di kolom bernama
+         Penanggung Jawab. Nama yang benar di kolom yang salah.
+
+         Daftar teknisi didahulukan: satu catatan bisa dikerjakan lebih dari
+         satu orang, dan teknisi_nama hanya memuat yang pertama. Kosong
+         dibiarkan kosong di sini — yang menggambar tabel yang memutuskan
+         bagaimana menyebut catatan yang belum ditandatangani. */
+      teknisi: (Array.isArray(e.TeknisiNamaListJSON) && e.TeknisiNamaListJSON.length
+                  ? e.TeknisiNamaListJSON.join(', ')
+                  : e.TeknisiNama) || e.DiinputOleh || '',
+      pj:      e.PJNama || ''
     }));
   });
 

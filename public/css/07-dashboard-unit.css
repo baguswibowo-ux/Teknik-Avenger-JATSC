@@ -27,37 +27,18 @@
 .kepala-unit h2{font-size:19px;}
 .kepala-unit .sub{font-size:12.5px;color:var(--muted);margin-top:3px;}
 
-/* Petak petugas — siapa yang sedang dinas di unit ini, dan siapa manager
-   tekniknya. Tempatnya di subtab E-Logbook, sebagai pita di antara kepala
-   panel dan tabelnya: dua nama ini menjawab pertanyaan yang muncul justru
-   sambil membaca barisnya.
-
-   min-width pada bloknya, bukan lebar mati: dua blok bersisian di layar meja,
-   dan turun sendiri jadi dua baris begitu pitanya kehabisan tempat — flex-wrap
-   yang mengurusnya, jadi tidak perlu satu pun media query. */
-.petugas-unit{display:flex;gap:10px;flex-wrap:wrap;padding:12px 15px;
-  border-bottom:1px solid var(--line);background:var(--panel-2);}
-/* background:var(--panel), lebih terang dari pitanya: bloknya harus terbaca
-   sebagai kartu di atas pita, bukan lubang di dalamnya. */
-.ptg-blok{display:flex;flex-direction:column;gap:6px;min-width:172px;
-  border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--panel);}
-.ptg-judul{font-family:var(--font-mono);font-size:9px;letter-spacing:.16em;
-  text-transform:uppercase;color:var(--muted);}
-.ptg-orang{display:flex;align-items:center;gap:8px;}
-.ptg-orang .av{width:26px;height:26px;border-radius:8px;flex:none;display:grid;place-items:center;
-  background:var(--kaca);border:1px solid var(--line);
-  font-family:var(--font-mono);font-size:10px;font-weight:600;}
-.ptg-orang .teks{display:flex;flex-direction:column;gap:2px;min-width:0;}
-/* Nama panjang dipotong, tidak melebarkan kepala unit sampai ikonnya terdorong
-   keluar. max-width di sini, bukan pada bloknya: yang boleh memanjang cuma
-   teksnya, dan blok yang ikut memanjang akan menyeret blok sebelahnya. */
-.ptg-orang .nm{font-size:12.5px;font-weight:500;line-height:1.2;max-width:190px;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.ptg-orang .pr{font-family:var(--font-mono);font-size:9.5px;color:var(--muted);
-  letter-spacing:.04em;max-width:190px;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.ptg-orang.kosong .av{color:var(--muted);}
-.ptg-sisa{font-family:var(--font-mono);font-size:9.5px;color:var(--muted);}
+/* Kolom "Teknisi / Manager Teknik" di cuplikan logbook: dua nama bertumpuk,
+   masing-masing berlabel. Labelnya kecil dan mono supaya terbaca sebagai
+   keterangan, bukan sebagai nama kedua — tanpa itu dua baris nama polos di
+   satu sel tidak bisa dibedakan mana yang mana. */
+.nama-peran{display:flex;align-items:baseline;gap:7px;}
+.nama-peran + .nama-peran{margin-top:3px;}
+.nama-peran .lbl{flex:none;width:52px;font-family:var(--font-mono);font-size:9px;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+.nama-peran .nm{min-width:0;}
+/* Yang belum ada ditulis apa adanya, dan dibedakan dari nama: kalimat
+   "belum ditandatangani" yang setebal nama orang akan terbaca sebagai nama. */
+.nama-peran .nm.belum{color:var(--muted);font-style:italic;}
 
 /* Baris subtab. Dulu sederet tombol yang melayang tanpa alas, dan begitu
    jumlahnya lewat dari lima ia terlihat menempel ke kepala unit di atasnya

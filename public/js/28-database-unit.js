@@ -142,62 +142,24 @@ async function ikonUnitBuang(unit){
 }
 
 /**
- * Siapa yang sedang memegang unit ini, dan siapa yang menandatangani di atasnya.
+ * Isi kolom "Teknisi / Manager Teknik" untuk satu baris logbook.
  *
- * Digambar sebagai pita di subtab E-Logbook, tepat di atas cuplikan logbooknya:
- * pertanyaan "siapa yang pegang sekarang" dan "siapa yang tanda tangan di kolom
- * kanan itu" muncul sambil membaca barisnya, bukan sebelum membukanya.
+ * Dua nama bertumpuk, masing-masing berlabel. Sebelum ini kolomnya cuma satu
+ * nama, dipilih dengan `PJNama || TeknisiNama || DiinputOleh` — dan karena
+ * pj_nama di E-Logbook baru terisi setelah catatannya ditandatangani, yang
+ * hampir selalu lolos justru nama teknisinya. Kolom bernama Penanggung Jawab
+ * yang isinya teknisi: benar orangnya, salah sebutannya.
  *
- * Yang ditampilkan hanya shift yang sedang berjalan menurut jam UTC, bukan
- * seluruh isi hari ini. Pertanyaan yang dibawa orang ke kepala layar unit
- * adalah "sekarang siapa", dan tiga shift sekaligus tidak menjawabnya. Di
- * antara dua shift petaknya memang bisa kosong; itu jawaban yang benar, bukan
- * alasan untuk menyebut nama orang yang sudah pulang.
+ * Manager teknik yang belum mengisi ditulis "belum ditandatangani", bukan
+ * dipinjamkan dari daftar akun pejabat. Nama pejabat yang dipasang di baris
+ * yang belum ia sentuh adalah tanda tangan yang tidak pernah dibubuhkan.
  */
-function petugasUnitHtml(kode){
-  const petak = dinasUnit(kode);
-  // Kode yang benar-benar terisi orang menentukan jam malamnya — 12:00 atau
-  // 13:00. Sama persis dengan yang dipakai layar Dinas Hari Ini.
-  const kodeHari = kodeTerpakai(petak);
-  const dinas = petak
-    .filter(s=>s.o.length && sedangShift(jamShift(s.k, kodeHari)))
-    .flatMap(s=>s.o.map(o=>({
-      nama: o.n,
-      ket:  `${o.p} · ${T('dinas','shift')} ${s.k}`,
-      w:    warnaShift(s.k)
-    })));
-
-  /* Manager teknik tidak bergantung unit: perannya memegang seluruhnya. Dua
-     nama saja yang dipampang — di pemasangan yang punya banyak pejabat, kepala
-     layar unit bukan tempat mendaftar semuanya. */
-  const semuaMgr = PEJABAT
-    .map(pj=>String(pj.nama || pj.username || '').trim())
-    .filter(Boolean);
-  const mgr = semuaMgr.slice(0, 2).map(n=>({
-    nama: n, ket: T('Manager Teknik','Technical Manager'), w:'var(--accent)'
-  }));
-  const sisaMgr = semuaMgr.length - mgr.length;
-
-  const orang = (o)=>`<div class="ptg-orang">
-    <span class="av" style="color:${o.w}">${esc(inisial(o.nama))}</span>
-    <span class="teks"><span class="nm">${esc(o.nama)}</span>
-      <span class="pr">${esc(o.ket)}</span></span></div>`;
-  const kosong = (teks)=>`<div class="ptg-orang kosong"><span class="av">—</span>
-    <span class="teks"><span class="pr">${esc(teks)}</span></span></div>`;
-
-  return `<div class="petugas-unit">
-    <div class="ptg-blok">
-      <div class="ptg-judul">${T('Sedang dinas','On duty now')}</div>
-      ${dinas.length ? dinas.map(orang).join('')
-        : kosong(T('tidak ada yang berdinas jam ini','nobody on duty this hour'))}
-    </div>
-    <div class="ptg-blok">
-      <div class="ptg-judul">${T('Manager teknik','Technical manager')}</div>
-      ${mgr.length ? mgr.map(orang).join('')
-        : kosong(T('belum ada akun manager teknik','no technical manager account yet'))}
-      ${sisaMgr > 0 ? `<div class="ptg-sisa">+${sisaMgr} ${T('lagi','more')}</div>` : ''}
-    </div>
-  </div>`;
+function namaPenanggungHtml(r){
+  const baris = (label, nama, kosong)=>`<div class="nama-peran">
+    <span class="lbl">${label}</span>
+    <span class="${nama ? 'nm' : 'nm belum'}">${esc(nama || kosong)}</span></div>`;
+  return baris(T('Teknisi','Technician'), r.teknisi, T('tidak tercatat','not recorded'))
+       + baris(T('Manager','Manager'),    r.pj,      T('belum ditandatangani','not yet signed'));
 }
 
 function gambarUnit(){
@@ -364,11 +326,6 @@ function gambarUnit(){
         <span class="ket">${log.length
           ? log.length + T(' baris terakhir',' most recent rows')
           : T('belum ada catatan','no records yet')}</span></div>
-        <!-- Di atas tabelnya, bukan di kepala unit: dua nama ini menjawab
-             pertanyaan yang muncul justru sambil membaca barisnya — siapa yang
-             sedang memegang unit ini jam ini, dan siapa yang menandatangani di
-             kolom paling kanan. -->
-        ${petugasUnitHtml(unitDibuka)}
         ${log.length ? '' : `<div class="badan" style="color:var(--muted);font-size:12.5px">
           ${T('Belum ada catatan logbook untuk unit ini di server.',
               'No logbook records for this unit on the server yet.')}</div>`}
@@ -377,18 +334,21 @@ function gambarUnit(){
           <th>${T('Dinas','Shift')}</th><th>${radkom
             ? T('Catatan / Tindakan','Notes / Action')
             : T('Uraian Pekerjaan / Kejadian','Work / Event Description')}</th>
-          <!-- Satu sebutan untuk semua unit. Dulu Radkom sendirian memakai
-               "Manager Teknik" dan unit lain "Penanggung Jawab"; sekarang
-               keduanya sama, jadi tidak ada lagi yang perlu dicabangkan di
-               sini. Kolom datanya tetap r.pj — yang berganti sebutannya. -->
-          <th>${T('Manager Teknik','Technical Manager')}</th></tr></thead>
+          <!-- Dua nama dalam satu kolom, bukan dua kolom. Keduanya menjawab
+               pertanyaan yang sama — siapa yang bertanggung jawab atas baris
+               ini — dan memisahkannya jadi dua kolom akan menambah lebar tabel
+               yang di Radkom sudah membawa dua kolom lebih banyak.
+
+               Sebutannya juga tidak lagi bercabang. Dulu Radkom sendirian
+               memakai "Manager Teknik" dan unit lain "Penanggung Jawab". -->
+          <th>${T('Teknisi / Manager Teknik','Technician / Technical Manager')}</th></tr></thead>
         <tbody>${log.map(r=>`<tr>
           <td><span class="mono">${tglRingkas(r.tgl)}</span></td>
           <td><span class="mono">${esc(r.jam)}</span></td>
           ${radkom?`<td><span class="mono">${esc(r.selesai||'—')}</span></td>
                     <td><span class="mono">${esc(r.frek||'—')}</span></td>`:''}
           <td><span class="sel-shift s-${esc(r.dinas)}" style="padding:2px 8px;display:inline-block">${esc(r.dinas)}</span></td>
-          <td>${esc(r.uraian)}</td><td>${esc(r.pj)}</td></tr>`).join('')}</tbody></table>
+          <td>${esc(r.uraian)}</td><td>${namaPenanggungHtml(r)}</td></tr>`).join('')}</tbody></table>
       </div>
       <div class="catatan"><b>${T('Bentuk barisnya mengikuti unit.','The row shape follows the unit.')}</b>
         ${radkom
