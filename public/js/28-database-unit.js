@@ -144,9 +144,9 @@ async function ikonUnitBuang(unit){
 /**
  * Siapa yang sedang memegang unit ini, dan siapa yang menandatangani di atasnya.
  *
- * Tombol "Buka E-Logbook" dulu berdiri persis di tempat ini. Pintunya sekarang
- * ada di kepala dashboard, terlihat dari layar mana pun — jadi petak ini bebas
- * dipakai untuk yang lebih berguna: nama.
+ * Digambar sebagai pita di subtab E-Logbook, tepat di atas cuplikan logbooknya:
+ * pertanyaan "siapa yang pegang sekarang" dan "siapa yang tanda tangan di kolom
+ * kanan itu" muncul sambil membaca barisnya, bukan sebelum membukanya.
  *
  * Yang ditampilkan hanya shift yang sedang berjalan menurut jam UTC, bukan
  * seluruh isi hari ini. Pertanyaan yang dibawa orang ke kepala layar unit
@@ -238,12 +238,14 @@ function gambarUnit(){
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         ${(bolehGantiIkon() && LOGO[unitDibuka]) ? `<button class="btn garis kecil" id="ikonUnitBuang">${
           T('Pakai ilustrasi','Use illustration')}</button>` : ''}
-        <!-- Tombol "Buka E-Logbook" pernah berdiri di sini. Ia pindah ke kepala
-             dashboard, di kanan nama pemakai: satu tombol yang terlihat dari
-             layar mana pun mengalahkan satu tombol yang hanya ada setelah
-             sebuah unit dibuka. Yang menggantikannya nama — lihat
-             petugasUnitHtml() di atas. -->
-        ${petugasUnitHtml(unitDibuka)}
+        <!-- Bukan "unit ini": E-Logbook tidak membaca satu pun parameter URL,
+             dan unit aktifnya cuma ada di memori — tidak ada cara menunjuknya
+             dari luar. Yang dijanjikan tombol ini hanya membuka aplikasinya.
+
+             Tetap di sini walau kepala dashboard sekarang punya tombol yang
+             sama: yang sudah berada di layar unit tidak perlu naik lagi ke
+             kepala halaman untuk menyeberang. -->
+        <a class="btn" href="#" data-elogbook>${T('Buka E-Logbook','Open E-Logbook')}</a>
       </div>
     </div>
 
@@ -362,6 +364,11 @@ function gambarUnit(){
         <span class="ket">${log.length
           ? log.length + T(' baris terakhir',' most recent rows')
           : T('belum ada catatan','no records yet')}</span></div>
+        <!-- Di atas tabelnya, bukan di kepala unit: dua nama ini menjawab
+             pertanyaan yang muncul justru sambil membaca barisnya — siapa yang
+             sedang memegang unit ini jam ini, dan siapa yang menandatangani di
+             kolom paling kanan. -->
+        ${petugasUnitHtml(unitDibuka)}
         ${log.length ? '' : `<div class="badan" style="color:var(--muted);font-size:12.5px">
           ${T('Belum ada catatan logbook untuk unit ini di server.',
               'No logbook records for this unit on the server yet.')}</div>`}

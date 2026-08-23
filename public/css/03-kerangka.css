@@ -32,13 +32,12 @@ header.konsol::after{content:"";position:absolute;inset:0;pointer-events:none;
 /* Sakelar bahasa memakai huruf, bukan ikon: bendera salah karena bahasa bukan
    negara, dan gambar bola dunia tidak memberi tahu bahasa apa yang akan dituju. */
 .tombol-ikon.teks{font-family:var(--font-mono);font-size:11px;font-weight:600;letter-spacing:.06em;}
-/* Tombol ikon yang membawa tulisan di sampingnya. grid-auto-flow:column wajib:
-   .tombol-ikon itu display:grid, dan dua anak tanpa arah aliran akan bertumpuk
-   jadi dua baris di dalam kotak setinggi 34px. */
-.tombol-ikon.lebar{width:auto;padding:0 11px;gap:7px;grid-auto-flow:column;
-  font-family:var(--font-mono);font-size:10.5px;font-weight:600;letter-spacing:.07em;
-  white-space:nowrap;}
-.tombol-ikon.lebar svg{flex:none;}
+/* Nama tombol yang tidak digambar. Dipakai tombol ikon yang isinya cuma
+   gambar: teksnya tetap di DOM sebagai nama elemennya, tapi tidak menempati
+   satu piksel pun. Bukan display:none — itu membuang namanya juga, dan yang
+   tersisa bagi pembaca layar cuma "tautan". */
+.tombol-ikon .lbl{position:absolute;width:1px;height:1px;overflow:hidden;
+  clip-path:inset(50%);white-space:nowrap;}
 
 .kartu-akun{display:flex;align-items:center;gap:9px;border:1px solid var(--line);border-radius:10px;
   padding:5px 10px 5px 6px;background:var(--panel);}
