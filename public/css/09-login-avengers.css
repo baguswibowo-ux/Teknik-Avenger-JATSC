@@ -1,0 +1,224 @@
+/* =====================================================================
+   9. WAJAH AVENGERS UNTUK LAYAR MASUK — lapisan penimpa, bukan pengganti
+
+   Berkas ini dimuat paling akhir dan hanya menimpa. Konsol CNS/ATM di
+   02-layar-masuk.css tetap utuh di tempatnya, lengkap dengan bandara 3D-nya:
+   lepas satu baris <link href="/css/09-login-avengers.css"> di index.html dan
+   ia kembali sepenuhnya, tanpa satu pun markup yang perlu disentuh.
+
+   Tiga hal yang dikerjakan di sini:
+     a. paletnya digeser dari sian ke oranye — satu blok variabel, bukan
+        pencarian-dan-ganti di 300 baris,
+     b. perabot konsol (kepala, dua rel, panggung 3D, pita kaki) disembunyikan,
+     c. kartu masuk dipaksa terbuka dan dipusatkan, dengan wordmark di atasnya.
+
+   Kartu masuk harus dipaksa terbuka karena pemicunya ikut hilang: blok SESI
+   ada di rel kiri, dan tombol MASUK cadangan (.km-picu) cuma muncul di bawah
+   900px. Tanpa pemaksaan ini tidak ada lagi jalan membuka kartunya.
+
+   PENTING soal pemaksaan itu. Semua rule yang menyalakan .km-lapis-masuk
+   dibatasi ke `#layarMasuk:not(.pergi)`. Sesudah login, .pergi menyetel
+   induknya opacity:0 + visibility:hidden + pointer-events:none — tapi anak
+   bisa membatalkan dua yang terakhir, hanya opacity yang tidak bisa. Kalau
+   pemaksaan di sini tidak dibatasi, yang tersisa di atas dashboard adalah
+   lapisan selebar layar yang tak terlihat tapi menelan semua klik.
+   ===================================================================== */
+
+/* ---------- palet ---------- */
+/* Ditaruh di #layarMasuk, bukan :root — dashboard di belakangnya tetap biru.
+   Yang digeser cuma tokennya; setiap aturan di 02 yang menyebut var(--km-sian)
+   ikut berubah sendiri, termasuk fokus kolom, bar, dan titik status. */
+#layarMasuk{
+  --km-sian:#f0862b;              /* oranye AVENGERS, menggantikan sian konsol */
+  --km-sian-garis:#5c3512;
+  --km-sian-latar:#1b1108;
+  --km-kuning:#ffc255;
+  --km-bg:#02040a;                /* langit, bukan abu-abu ruang kontrol */
+  --km-terang:#f3f6fa;
+}
+
+/* ---------- perabot konsol yang dilepas ---------- */
+/* Prefiks #layarMasuk dipakai supaya menang atas .km-picu{display:flex} yang
+   dipasang media query 900px di 02 — media query tidak menambah kekhususan,
+   jadi tanpa id di depan keduanya seri dan urutan sumber yang menentukan.
+   Dengan id, hasilnya tidak bergantung pada lebar layar sama sekali. */
+#layarMasuk .km-kepala,
+#layarMasuk .km-kaki,
+#layarMasuk .km-rel,
+#layarMasuk .km-scene,
+#layarMasuk .km-lapis,
+#layarMasuk .km-detail,
+#layarMasuk .km-alat,
+#layarMasuk .km-picu,
+#layarMasuk .km-tutup{display:none;}
+
+/* Kepala dan kaki keluar dari grid, jadi templat tiga barisnya harus ikut
+   menyusut — persis seperti yang sudah dilakukan @media (max-height:520px)
+   di 02, tapi sekarang berlaku di segala tinggi layar. */
+#layarMasuk .km-konsol{grid-template-rows:minmax(0,1fr);}
+#layarMasuk .km-badan{grid-template-columns:minmax(0,1fr);}
+
+/* ---------- latar: langit, bintang, lengkung bumi ---------- */
+#layarMasuk .km-panggung{
+  background:
+    radial-gradient(ellipse 120% 80% at 50% 108%, rgba(240,134,43,.20), transparent 62%),
+    radial-gradient(ellipse 90% 70% at 50% -10%, rgba(31,74,120,.34), transparent 66%),
+    linear-gradient(180deg,#03060e 0%,#050a14 46%,#02040a 100%);
+}
+
+/* ::before di 02 menggambar kisi radar. Di sini isinya ditukar jadi bintang —
+   selektornya sama persis, jadi kisi itu tidak pernah ikut tergambar.
+   Bintangnya ditaruh satu per satu, bukan tekstur berulang: sembilan radial
+   gradient jauh lebih murah daripada satu gambar, dan tidak pernah terlihat
+   berpola seperti ubin yang diulang. */
+#layarMasuk .km-panggung::before{
+  content:"";position:absolute;inset:0;opacity:1;z-index:0;
+  background:
+    radial-gradient(1.6px 1.6px at 11% 17%, rgba(255,255,255,.88), transparent 100%),
+    radial-gradient(1.2px 1.2px at 26% 9%,  rgba(255,255,255,.55), transparent 100%),
+    radial-gradient(1.8px 1.8px at 38% 31%, rgba(255,255,255,.72), transparent 100%),
+    radial-gradient(1.1px 1.1px at 57% 13%, rgba(255,255,255,.50), transparent 100%),
+    radial-gradient(1.5px 1.5px at 71% 26%, rgba(255,236,214,.80), transparent 100%),
+    radial-gradient(1.2px 1.2px at 84% 8%,  rgba(255,255,255,.58), transparent 100%),
+    radial-gradient(1.7px 1.7px at 92% 34%, rgba(255,255,255,.66), transparent 100%),
+    radial-gradient(1.1px 1.1px at 6%  42%, rgba(255,255,255,.44), transparent 100%),
+    radial-gradient(1.4px 1.4px at 48% 46%, rgba(255,255,255,.38), transparent 100%);
+  background-repeat:no-repeat;
+}
+
+/* Lengkung bumi. Lingkarannya jauh lebih besar dari panggung dan sengaja
+   ditenggelamkan: yang terlihat cuma tudung paling atas, jadi tepinya
+   membaca sebagai cakrawala, bukan sebagai bola yang kekecilan.
+
+   top dalam persen dan diameter dalam vw membuat tudung itu selalu setinggi
+   ~26% panggung, di layar mana pun — tidak perlu satu pun media query untuk
+   menahannya. width:min(…,2400px) mengunci pertumbuhannya di layar lebar. */
+#layarMasuk .km-panggung::after{
+  content:"";position:absolute;z-index:0;pointer-events:none;
+  left:50%;top:74%;transform:translateX(-50%);
+  width:min(190vw,2400px);height:min(190vw,2400px);border-radius:50%;
+  background:
+    /* Garis atmosfer. closest-side, bukan satuan px: jari-jari gradiennya jadi
+       persis jari-jari lingkaran, jadi cincin tipis ini duduk tepat di tepi —
+       inset box-shadow tidak bisa, bayangannya lurus dan tidak mengikuti busur. */
+    radial-gradient(closest-side circle at 50% 50%,
+      transparent 99.55%, rgba(176,226,255,.50) 99.75%, rgba(176,226,255,0) 100%),
+    radial-gradient(circle at 34% 10%, rgba(255,255,255,.09), transparent 24%),
+    radial-gradient(circle at 60% 18%, rgba(86,168,140,.20), transparent 27%),
+    radial-gradient(circle at 24% 21%, rgba(70,142,182,.15), transparent 25%),
+    radial-gradient(circle at 80% 27%, rgba(6,18,32,.60), transparent 35%),  /* terminator */
+    radial-gradient(circle at 45% 14%, #14506e 0%, #08293f 42%, #020a12 71%);
+  box-shadow:
+    0 0 90px 10px rgba(96,168,224,.20),
+    inset 0 26px 70px rgba(168,216,255,.13);
+}
+
+/* ---------- kartu masuk: selalu terbuka, dipusatkan ---------- */
+/* Kolom, bukan baris: wordmark di atas kartu, keduanya satu kelompok yang
+   dipusatkan bersama. Lihat catatan margin auto di bawah. */
+#layarMasuk .km-lapis-masuk{
+  z-index:3;
+  flex-direction:column;align-items:center;justify-content:flex-start;
+  gap:clamp(20px,4.5vh,40px);
+  padding:clamp(20px,5vh,48px) 20px;
+}
+
+/* Satu-satunya tempat lapisannya dinyalakan — dan `:not(.pergi)` di depan
+   adalah seluruh alasan berkas ini tidak menelan klik sesudah login.
+   pointer-events sengaja TIDAK disebut: .km-lapis-masuk tetap tembus klik dari
+   02 dan .km-kartu sudah pointer-events:auto sejak awal, jadi tidak ada yang
+   perlu dipaksa di sini. */
+#layarMasuk:not(.pergi) .km-lapis-masuk{opacity:1;visibility:visible;}
+
+/* Menutup lubang yang sudah ada sebelum berkas ini, dan tetap ada tanpanya:
+   .km-buka tidak pernah dilepas saat login, dan .km-lapis-masuk.km-buka di
+   02 menyetel visibility:visible. Digabung dengan .km-kartu yang memang
+   pointer-events:auto, kartu itu menelan klik di petaknya sendiri di atas
+   dashboard. Dua selektor di bawah lebih khusus (id + dua kelas), jadi
+   menang tanpa perlu !important. */
+#layarMasuk.pergi .km-lapis-masuk{visibility:hidden;pointer-events:none;}
+#layarMasuk.pergi .km-kartu{pointer-events:none;}
+
+/* margin auto pada anak, bukan justify-content:center pada induknya. Keduanya
+   memusatkan sama rapi selama muat; bedanya baru terasa kalau tidak muat —
+   justify-content:center memotong ujung atas dan bagian itu tidak bisa
+   digulung sama sekali, sedangkan margin auto luruh jadi nol dan seluruh
+   kelompoknya tetap bisa dicapai. Ini yang menahan layar pendek 1280x600. */
+#layarMasuk .av-merek{margin-top:auto;}
+#layarMasuk .km-kartu{
+  margin:0 0 auto;flex:none;width:min(400px,100%);
+  padding:26px 24px 22px;transform:none;
+  background:rgba(7,11,18,.84);
+  border:1px solid rgba(240,134,43,.26);
+  border-left:1px solid rgba(240,134,43,.26);
+  border-top:3px solid var(--km-sian);
+  box-shadow:0 30px 80px rgba(0,0,0,.62);
+}
+
+/* Sian yang masih tertinggal sebagai angka mentah di 02, di luar jangkauan
+   token: dua warna hover dan satu warna teks tombol. */
+#layarMasuk .km-tombol-masuk{color:#2b1002;}
+#layarMasuk .km-tombol-masuk:hover{background:#ff9d45;border-color:#ff9d45;}
+#layarMasuk .km-tautan:hover{color:#ff9d45;}
+#layarMasuk .km-kolom input:focus{box-shadow:0 0 0 2px rgba(240,134,43,.18);}
+
+/* ---------- wordmark ---------- */
+/* Blok mereknya ditulis dengan atribut `hidden` di index.html dan dibuka lagi
+   di sini. Begitu <link> ini dilepas, atribut itu yang berlaku dan konsol
+   CNS/ATM kembali tanpa sisa — tidak ada wordmark yang menggantung di sudut
+   layar radar. */
+#layarMasuk .av-merek[hidden]{display:flex;}
+#layarMasuk .av-merek{
+  flex:none;flex-direction:column;align-items:center;gap:13px;
+  text-align:center;max-width:100%;
+}
+
+/* Wordmark-nya teks, bukan berkas logo — tidak ada logo AVENGERS di repo ini.
+   Space Grotesk 700 sudah ada di /vendor/font, jadi tidak ada permintaan
+   jaringan tambahan. Gradasi oranye lewat background-clip:text, lalu ekstrusi
+   birunya dengan drop-shadow bertingkat: filter bekerja pada glif yang sudah
+   tercetak, jadi ia satu-satunya cara memberi bayangan pada teks yang warnanya
+   transparent. text-shadow tidak akan terlihat sama sekali di sini. */
+#layarMasuk .av-logo-teks{
+  font:700 clamp(40px,9.6vw,104px)/1 'Space Grotesk',sans-serif;
+  letter-spacing:.055em;text-indent:.055em;
+  background:linear-gradient(180deg,#ffdca4 0%,#f79a35 44%,#c9540c 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:
+    drop-shadow(0 3px 0 #0d4a7d)
+    drop-shadow(0 3px 0 #072f52)
+    drop-shadow(0 0 30px rgba(240,134,43,.32));
+}
+#layarMasuk .av-tagline{
+  font:500 clamp(8.5px,1.7vw,11px)/1.4 'IBM Plex Mono',monospace;
+  /* text-indent menebus jarak huruf terakhir, supaya barisnya benar-benar
+     terpusat dan tidak miring ke kiri sebanyak satu spasi. */
+  letter-spacing:.4em;text-indent:.4em;
+  color:rgba(224,190,152,.74);
+}
+#layarMasuk .av-garis{
+  width:min(210px,62vw);height:1px;
+  background:linear-gradient(90deg,transparent,rgba(240,134,43,.5),transparent);
+}
+
+/* ---------- layar sempit ---------- */
+/* Cuma satu media query, dan bukan untuk tata letak: yang di atas sudah
+   memakai clamp dan persen. Ini hanya merapatkan jarak di HP, tempat wordmark
+   dan kartu berebut tinggi layar yang sama. */
+@media (max-width:560px){
+  #layarMasuk .km-lapis-masuk{gap:22px;padding:20px 16px;}
+  #layarMasuk .km-kartu{padding:20px 17px 18px;}
+  #layarMasuk .av-merek{gap:10px;}
+}
+
+/* Layar pendek: wordmark mengalah lebih dulu daripada kartunya. Tanpa ini,
+   di 1280x600 kartunya masih muat tapi harus digulung untuk melihat tombol
+   Masuk — dan tombol yang harus dicari dulu adalah tombol yang lambat. */
+@media (max-height:600px){
+  #layarMasuk .av-logo-teks{font-size:clamp(30px,6vw,54px);}
+  #layarMasuk .av-garis{display:none;}
+  #layarMasuk .km-lapis-masuk{gap:18px;padding:18px 16px;}
+}
+@media (max-height:430px){
+  #layarMasuk .av-merek{display:none;}
+}
