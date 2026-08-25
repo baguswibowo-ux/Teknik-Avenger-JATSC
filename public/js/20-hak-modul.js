@@ -18,7 +18,14 @@
    ======================================================================= */
 
 const HAK_MODUL = ['dinas','berkala','personel','peralatan','sparepart','sejarah','dokumen','galeri'];
-const HAK_PERAN = ['admin','pejabat','adminunit','pic','teknisi'];
+/* Peran yang selalu view-only di dashboard ini. Manajer Teknik (pejabat) memang
+   perannya melihat & membubuhkan TTD di E-Logbook — tidak menyunting apa pun di
+   sini. Sama persis dengan PERAN_HANYA_LIHAT di server.js. */
+const PERAN_HANYA_LIHAT = new Set(['pejabat']);
+/* Peran yang dipertimbangkan di layar Hak Akses. Peran view-only sengaja tidak
+   dimasukkan — centangnya toh tidak berpengaruh; menyingkirkannya menghindarkan
+   janji palsu. Server sudah menyaring peranSah untuk alasan yang sama. */
+const HAK_PERAN = ['admin','adminunit','pic','teknisi'];
 const HAK_NAMA  = {
   dinas:     ['Jadwal Dinas','Duty Roster'],
   berkala:   ['Kegiatan Berkala','Recurring Jobs'],
@@ -41,8 +48,8 @@ const HAK_PERAN_HAPUS = ['admin','adminunit'];
    berbeda antara keduanya akan membuat modul yang sama terasa punya aturan
    yang berganti-ganti sendiri. */
 const hakBawaan = () => ({
-  dinas:     { peran:['admin','pejabat','adminunit'],                    petugas:[] },
-  berkala:   { peran:['admin','pejabat','adminunit','pic','teknisi'],    petugas:[] },
+  dinas:     { peran:['admin','adminunit'],                              petugas:[] },
+  berkala:   { peran:['admin','adminunit','pic','teknisi'],              petugas:[] },
   personel:  { peran:['admin','adminunit','pic','teknisi'],              petugas:[] },
   /* Daftar peralatan hanya administrator — alasannya ada di HAK_BAWAAN
      server.js: ia daftar induk yang ditunjuk modul lain lewat id. */
@@ -51,7 +58,7 @@ const hakBawaan = () => ({
   /* Sejarah alat dibuka sampai teknisi walau daftar alatnya tidak — yang
      menuliskan apa yang terjadi pada alat adalah yang berdinas di depannya.
      Alasan lengkapnya di HAK_BAWAAN server.js. */
-  sejarah:   { peran:['admin','pejabat','adminunit','pic','teknisi'],     petugas:[] },
+  sejarah:   { peran:['admin','adminunit','pic','teknisi'],              petugas:[] },
   dokumen:   { peran:['admin','adminunit','pic','teknisi'],              petugas:[] },
   galeri:    { peran:['admin','adminunit','pic','teknisi'],              petugas:[] }
 });
@@ -101,6 +108,9 @@ function hakRapi(mentah){
 const hakHitung = (modul) => {
   if(!akun) return false;
   if(akun.role === 'admin') return true;
+  // Peran view-only tidak pernah lolos, biar tombol simpan/tambah/hapus tidak
+  // sempat digambar sekilas sebelum jawaban server datang.
+  if(PERAN_HANYA_LIHAT.has(akun.role)) return false;
   const h = HAK[modul] || { peran:[], petugas:[] };
   return h.peran.includes(akun.role)
       || h.petugas.includes(String(akun.user || '').toLowerCase());

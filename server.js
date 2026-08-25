@@ -596,8 +596,8 @@ const MODUL_PER_UNIT = new Set(['dinas', 'berkala', 'peralatan', 'sparepart',
    Semuanya tetap bisa dibuka lagi dari layar Hak Akses — daftar ini bawaan,
    bukan aturan mati. */
 const HAK_BAWAAN = {
-  dinas:     { peran: ['admin', 'pejabat', 'adminunit'],               petugas: [] },
-  berkala:   { peran: ['admin', 'pejabat', 'adminunit', 'pic', 'teknisi'], petugas: [] },
+  dinas:     { peran: ['admin', 'adminunit'],                          petugas: [] },
+  berkala:   { peran: ['admin', 'adminunit', 'pic', 'teknisi'],        petugas: [] },
   personel:  { peran: ['admin', 'adminunit', 'pic', 'teknisi'],        petugas: [] },
   peralatan: { peran: ['admin'],                                       petugas: [] },
   sparepart: { peran: ['admin', 'adminunit', 'pic', 'teknisi'],        petugas: [] },
@@ -607,10 +607,16 @@ const HAK_BAWAAN = {
      menggeser layar orang lain, sementara menuliskan apa yang terjadi pada
      alat itu adalah pekerjaan orang yang sedang berdinas di depannya. Kalau
      ia harus menunggu administrator, riwayatnya tidak akan pernah terisi. */
-  sejarah:   { peran: ['admin', 'pejabat', 'adminunit', 'pic', 'teknisi'], petugas: [] },
+  sejarah:   { peran: ['admin', 'adminunit', 'pic', 'teknisi'],        petugas: [] },
   dokumen:   { peran: ['admin', 'adminunit', 'pic', 'teknisi'],        petugas: [] },
   galeri:    { peran: ['admin', 'adminunit', 'pic', 'teknisi'],        petugas: [] }
 };
+
+/* Peran yang selalu view-only, apa pun yang tertulis di hak.json. Manajer
+   Teknik memang perannya melihat & membubuhkan TTD di E-Logbook — tidak boleh
+   menyunting apa pun di dashboard ini. Aturan ini disandingkan dengan pagar
+   E-Logbook: pejabat di sana pun tidak menambah data. */
+const PERAN_HANYA_LIHAT = new Set(['pejabat']);
 
 const namaSah = (u) => /^[a-z0-9._-]{3,32}$/.test(String(u || '').trim().toLowerCase());
 
@@ -621,8 +627,11 @@ function rapikanHak(mentah) {
   for (const m of MODUL_HAK) {
     const asal = (mentah && mentah[m]) || {};
     hasil[m] = {
+      // Peran view-only (pejabat) dibuang di sini juga — bukan cuma di bolehIsi —
+      // supaya centangnya tidak tampil di layar Hak Akses sebagai janji palsu.
       peran: [...new Set((Array.isArray(asal.peran) ? asal.peran : HAK_BAWAAN[m].peran)
-        .map((p) => String(p || '').trim().toLowerCase()).filter((p) => PERAN_SAH.includes(p)))],
+        .map((p) => String(p || '').trim().toLowerCase())
+        .filter((p) => PERAN_SAH.includes(p) && !PERAN_HANYA_LIHAT.has(p)))],
       petugas: [...new Set((Array.isArray(asal.petugas) ? asal.petugas : [])
         .map((u) => String(u || '').trim().toLowerCase()).filter(namaSah))]
     };
@@ -695,6 +704,9 @@ function bolehUnit(user, unit) {
 async function bolehIsi(user, modul, unit = '') {
   if (!user) return false;
   if (peranUser(user) === 'admin') return true;
+  // Peran view-only tidak pernah lolos, walaupun hak.json terlanjur mencantumkannya.
+  // rapikanHak() sudah membuang pejabat dari daftar, tapi ini palang keduanya.
+  if (PERAN_HANYA_LIHAT.has(peranUser(user))) return false;
   if (MODUL_PER_UNIT.has(modul) && !bolehUnit(user, unit)) return false;
   const hak = (await bacaHak())[modul];
   if (!hak) return false;
@@ -865,7 +877,14 @@ app.get('/hak', async (req, res) => {
   if (!user || user.role !== 'admin') {
     return res.status(403).json({ error: 'Hanya administrator yang boleh melihat daftar hak.' });
   }
-  res.json({ hak: await bacaHak(), peranSah: PERAN_SAH, modul: MODUL_HAK });
+  // Peran view-only sengaja tidak dikirim sebagai kolom di layar Hak Akses —
+  // centangnya tidak akan pernah berpengaruh; menyingkirkannya di sini
+  // menghindarkan janji palsu.
+  res.json({
+    hak: await bacaHak(),
+    peranSah: PERAN_SAH.filter((p) => !PERAN_HANYA_LIHAT.has(p)),
+    modul: MODUL_HAK
+  });
 });
 
 app.put('/hak', badanDinas, async (req, res) => {
