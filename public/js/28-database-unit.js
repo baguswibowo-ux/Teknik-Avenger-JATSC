@@ -264,12 +264,16 @@ function gambarUnit(){
         <span class="ket">${part.filter(p=>p.stok<p.min).length} ${
           T('di bawah minimum','below minimum')}</span></div>
         ${part.length ? `<div class="gulir" style="max-height:none">
-          <table><thead><tr><th>${T('Sparepart','Spare Part')}</th><th>Part Number</th>
+          <table><thead><tr><th style="width:36px;text-align:right">${T('No','No')}</th>
+          <th>${T('Sparepart','Spare Part')}</th><th>Part Number</th>
           <th>${T('Rak','Rack')}</th><th>${T('Stok / Min','Stock / Min')}</th>
           <th>${T('Dipakai Terakhir','Last Used')}</th><th></th></tr></thead><tbody>${
-          [...part].sort((a,b)=>(a.stok/Math.max(a.min,1))-(b.stok/Math.max(b.min,1))).map(p=>{
+          [...part].sort((a,b)=>(a.stok/Math.max(a.min,1))-(b.stok/Math.max(b.min,1))).map((p,i)=>{
             const w = p.stok===0?'var(--fail)':p.stok<p.min?'var(--warn)':'var(--ok)';
-            return `<tr><td>${esc(p.nama)}</td><td><span class="mono">${esc(p.pn)}</span></td>
+            /* Nomor urut mengikuti urutan tampil (sudah disortir stok terkecil dulu),
+               bukan urutan simpan — jadi baris paling atas selalu No. 1. */
+            return `<tr><td class="mono" style="color:var(--muted);text-align:right">${i+1}</td>
+              <td>${esc(p.nama)}</td><td><span class="mono">${esc(p.pn)}</span></td>
               <td><span class="rak-kode">${esc(p.rak)}</span></td>
               <td><span class="mono" style="color:${w};font-weight:600">${p.stok}</span>
                   <span class="mono" style="color:var(--muted)"> / ${p.min} ${esc(p.satuan)}</span>

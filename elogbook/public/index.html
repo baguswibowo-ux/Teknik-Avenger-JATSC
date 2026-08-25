@@ -149,11 +149,15 @@
         <div class="field"><label data-t="sampaiTanggal">Sampai tanggal</label><input type="date" id="prTo" onchange="renderEntries()"></div>
         <div class="field"><label data-t="dinasShift">Dinas / Shift</label><select id="prDinas" onchange="renderEntries()"><option value="" data-t="semua">Semua</option><option>Pagi</option><option>Siang</option><option>Malam</option><option>PS</option></select></div>
         <div class="field"><label data-t="lokasiGedung">Lokasi</label><select id="prLokasi" onchange="renderEntries()"><option value="" data-t="semua">Semua</option></select></div>
+        <!-- Kotak cari teks: mengetik langsung menyaring daftar di bawah. Sengaja
+             pakai oninput (bukan onchange) supaya hasilnya keluar per huruf, cocok
+             untuk mencari nama teknisi, frekuensi, atau kata kunci di uraian. -->
+        <div class="field" style="min-width:200px;flex:1;"><label data-t="cariBaris">Cari kata</label><input type="search" id="prCari" placeholder="uraian, teknisi, PJ, frek..." oninput="renderEntries()"></div>
         <button class="btn ghost" onclick="resetFilterEntries()" data-t="resetCari">↺ Tampilkan Semua</button>
         <button class="btn ghost" onclick="lihatLogbook()" data-t="lihatSaja">👁 Lihat Saja</button>
         <button class="btn" onclick="printLogbook()" data-t="cetakLogbook">🖨 Cetak Logbook</button>
       </div>
-      <div class="subtle-note" data-t-html="noteCetakLogbook">Kosongkan tanggal untuk mencetak seluruh catatan yang termuat. Untuk cetak <b>satu hari saja</b>, isi tanggal "dari" dan "sampai" dengan tanggal yang sama; tambahkan filter Dinas untuk cetak per shift. Filter yang sama juga langsung memilah daftar di bawah — pakai ini untuk mencari catatan yang mau dihapus.</div>
+      <div class="subtle-note" data-t-html="noteCetakLogbook">Kosongkan tanggal untuk mencetak seluruh catatan yang termuat. Untuk cetak <b>satu hari saja</b>, isi tanggal "dari" dan "sampai" dengan tanggal yang sama; tambahkan filter Dinas untuk cetak per shift. Filter dan kotak cari yang sama juga langsung memilah daftar di bawah — pakai ini untuk menemukan catatan lama tanpa menggulir seluruh riwayat.</div>
     </div>
 
     <div id="entryList"></div>
@@ -257,17 +261,26 @@
   <section class="view" id="view-issues">
     <div class="section-head">
       <div><h2 data-t="isuJudul">Update Issue — GAREX 300 &amp; Neptuno</h2><p data-t="isuSub">Daftar isu terbuka yang masih dalam proses penanganan.</p></div>
-      <button class="btn btn-tambah" onclick="openIssueModal()" data-t="tambahIsu">+ Tambah Isu</button>
+      <div style="display:flex;gap:8px;">
+        <!-- Bulk-close sudah dihilangkan. Menutup isu sekarang lewat dropdown status
+             di baris masing-masing — sama untuk admin dan teknisi. -->
+        <button class="btn btn-tambah" onclick="openIssueModal()" data-t="tambahIsu">+ Tambah Isu</button>
+      </div>
     </div>
     <div class="card">
       <div class="print-bar">
-        <div class="field"><label data-t="reportDari">Report dari tanggal</label><input type="date" id="prIsuFrom"></div>
-        <div class="field"><label data-t="sampaiTanggal">Sampai tanggal</label><input type="date" id="prIsuTo"></div>
-        <div class="field"><label>Status</label><select id="prIsuStatus"><option value="" data-t="semua">Semua</option><option>Open</option><option>Proses</option><option>Closed</option></select></div>
+        <div class="field"><label data-t="reportDari">Report dari tanggal</label><input type="date" id="prIsuFrom" onchange="renderIssues()"></div>
+        <div class="field"><label data-t="sampaiTanggal">Sampai tanggal</label><input type="date" id="prIsuTo" onchange="renderIssues()"></div>
+        <div class="field"><label>Status</label><select id="prIsuStatus" onchange="renderIssues()"><option value="" data-t="semua">Semua</option><option>Open</option><option>Closed</option></select></div>
+        <!-- Kotak cari teks isu: mencari berdasarkan jenis, keterangan, lokasi,
+             pelapor, penutup, atau keterangan penutupan — supaya kasus yang mirip
+             langsung terpanggil tanpa menggulir. Filter ini juga ikut ke cetak. -->
+        <div class="field" style="min-width:200px;flex:1;"><label data-t="cariBaris">Cari kata</label><input type="search" id="prIsuCari" placeholder="jenis, keterangan, lokasi, pelapor..." oninput="renderIssues()"></div>
+        <button class="btn ghost" onclick="resetFilterIssues()" data-t="resetCari">↺ Tampilkan Semua</button>
         <button class="btn ghost" onclick="lihatIssues()" data-t="lihatSaja">👁 Lihat Saja</button>
         <button class="btn" onclick="printIssues()" data-t="cetakIsu">🖨 Cetak Daftar Isu</button>
       </div>
-      <div class="subtle-note" data-t-html="noteCetakIsu">Kosongkan tanggal untuk mencetak seluruh isu. Foto dan dokumen lampiran ikut tercetak di halaman setelah tabel, dipisah antara bukti saat kejadian dan bukti saat selesai.</div>
+      <div class="subtle-note" data-t-html="noteCetakIsu">Kosongkan tanggal untuk mencetak seluruh isu. Foto dan dokumen lampiran ikut tercetak di halaman setelah tabel, dipisah antara bukti saat kejadian dan bukti saat selesai. Filter dan kotak cari juga langsung memilah tabel di bawah.</div>
     </div>
     <div class="subtle-note hanya-teknisi" style="margin-bottom:12px;" data-t-html="noteIsuTeknisi">
       Isu yang sudah dilaporkan hanya bisa diubah atau dihapus oleh administrator. Kalau ada koreksi, sampaikan ke administrator.
@@ -521,7 +534,13 @@
         <div class="field" style="margin-bottom:0;"><label data-t="jamReportUtc">Jam Report (UTC)</label><input type="time" id="isJamReport"></div>
       </div>
     </div>
-    <div class="field"><label data-t="dilaporkanOleh">Dilaporkan Oleh</label><input type="text" id="isDilaporkanOleh" data-t-ph="phPelapor" placeholder="Nama yang menemukan / melaporkan"></div>
+    <!-- Pelapor dikunci = akun yang login. Field masih di-render (tidak dihapus) supaya
+         saveIssue tetap bisa membacanya, tapi readonly + disabled agar tidak diedit.
+         Server juga mengabaikan nilai apa pun dari klien untuk kolom ini. -->
+    <div class="field"><label data-t="dilaporkanOleh">Dilaporkan Oleh</label>
+      <input type="text" id="isDilaporkanOleh" readonly disabled
+             style="opacity:.75;cursor:not-allowed;"
+             title="Otomatis diisi dengan akun yang sedang login."></div>
     <div class="field">
       <label data-t-html="labelBuktiOpen">Foto / Dokumen Saat Kejadian <span style="text-transform:none;letter-spacing:0;">(opsional)</span></label>
       <input type="file" id="isLampiranOpen" multiple accept="image/jpeg,image/png,image/webp,application/pdf" onchange="pilihLampiran(this, 'isLampiranOpen')">
@@ -817,6 +836,45 @@
   </div>
 </div>
 
+<!-- MODAL TUTUP ISU
+     Muncul saat admin mengganti status Open/Proses → Closed dari tabel.
+     Satu tempat untuk mengisi keterangan penutupan dan mengunggah bukti "saat
+     selesai". Sebelumnya admin harus buka Detail dulu setelah menutup;
+     langkah itu sering terlupa, jadi isu ditutup tanpa jejak apa pun. -->
+<div class="modal-bg" id="tutupIsuModalBg">
+  <div class="modal" style="max-width:520px;">
+    <h3>Tutup Isu</h3>
+    <div class="subtle-note" id="tutupIsuRingkas" style="margin-bottom:12px;">
+      Isu yang akan ditutup akan muncul di sini.
+    </div>
+    <div class="field">
+      <label>Keterangan Penutupan</label>
+      <textarea id="tutupIsuKeterangan" rows="4"
+        placeholder="cth. Modul VR 3 diganti dengan spare, hasil uji nominal. Remote expert Madrid tidak jadi dipanggil."></textarea>
+    </div>
+    <div class="field">
+      <label>Bukti Saat Selesai <span style="text-transform:none;letter-spacing:0;">(opsional)</span></label>
+      <input type="file" id="tutupIsuLampiran" multiple accept="image/jpeg,image/png,image/webp,application/pdf"
+             onchange="pilihLampiran(this, 'tutupIsuLampiran')">
+      <div class="lampiran-hint" id="tutupIsuLampiranHint">Maksimal 6 berkas, 8 MB per berkas. JPG, PNG, WEBP, atau PDF.</div>
+      <div id="tutupIsuLampiranList"></div>
+    </div>
+    <div class="subtle-note">Keterangan dan bukti masih bisa ditambahkan atau diubah nanti dari tombol Detail.</div>
+    <div class="modal-footer">
+      <button class="btn ghost" onclick="batalkanTutupIsu()">Batal</button>
+      <button class="btn" id="tutupIsuSaveBtn" onclick="simpanTutupIsu()">✅ Tutup Isu</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL TUTUP SEMUA ISU TERBUKA
+     Menutup seluruh isu Open + Proses di unit yang sedang aktif dalam sekali klik.
+     Keterangan penutupan yang diketik dipakai untuk SEMUA isu — bukti tidak
+     dilampirkan di alur ini karena satu berkas biasanya tidak cocok untuk banyak
+     isu berbeda; kalau perlu, bukti ditambahkan per isu lewat Detail. -->
+<!-- Modal "Tutup Semua Isu Terbuka" sudah dihilangkan — sekarang setiap baris punya
+     dropdown status yang sama untuk semua peran, jadi bulk-close tidak diperlukan. -->
+
 <!-- MODAL TANDA TANGAN SUSULAN (pejabat / manager teknik) -->
 <div class="modal-bg" id="ttdModalBg">
   <div class="modal" style="max-width:460px;">
@@ -854,16 +912,33 @@
   </div>
 </div>
 
-<!-- MODAL TTD TERSIMPAN MILIK AKUN SENDIRI -->
+<!-- MODAL TTD TERSIMPAN MILIK AKUN SENDIRI
+     Tampilannya berubah menurut peran akun: teknisi cukup satu slot (label
+     tersembunyi, satu tombol simpan menggantikan); pejabat/admin melihat
+     daftar slot bertanda label (mis. "MT asli", "PH Bagus") plus form
+     penambahan slot baru. Isi bloknya diatur renderTtdSaya() di JS. -->
 <div class="modal-bg" id="ttdSayaModalBg">
   <div class="modal" style="max-width:460px;">
     <h3 data-t="ttdSayaJudul">TTD Tersimpan Saya</h3>
-    <div class="ttd-saya-pratinjau">
+
+    <!-- Daftar slot yang sudah tersimpan (dipakai pejabat/admin; disembunyikan
+         untuk teknisi karena hanya punya satu slot dan pratinjaunya di bawah). -->
+    <div id="ttdSayaSlotList" style="display:none;"></div>
+
+    <!-- Pratinjau slot tunggal (dipakai teknisi). -->
+    <div class="ttd-saya-pratinjau" id="ttdSayaPratinjauWrap">
       <label data-t="ttdSayaTersimpanKini">Yang tersimpan sekarang</label>
       <div id="ttdSayaPratinjau"></div>
     </div>
+
+    <!-- Isian label slot baru (dipakai pejabat/admin). -->
+    <div class="field" id="ttdSayaLabelWrap" style="display:none;">
+      <label for="ttdSayaLabelInput" data-t="ttdSayaLabelJudul">Label slot (mis. "MT asli" atau "PH Bagus")</label>
+      <input id="ttdSayaLabelInput" type="text" maxlength="40" data-t-ph="ttdSayaLabelPh" placeholder="mis. PH Bagus">
+    </div>
+
     <div class="field">
-      <label data-t="ttdSayaGambarBaru">Gambar tanda tangan baru</label>
+      <label id="ttdSayaGambarLabel" data-t="ttdSayaGambarBaru">Gambar tanda tangan baru</label>
       <div class="sig-wrap">
         <canvas id="sigTtdSaya"></canvas>
         <div class="sig-toolbar">
@@ -872,11 +947,25 @@
         </div>
       </div>
     </div>
-    <div class="subtle-note" data-t="ttdSayaCatatan">Tanda tangan ini milik akun Anda dan hanya bisa dibuat serta dihapus oleh Anda sendiri. Sekali tersimpan, tiap papan tanda tangan di formulir mendapat tombol “pakai TTD tersimpan”. Menyimpan yang baru menggantikan yang lama; tanda tangan yang sudah terlanjur dibubuhkan pada catatan tidak ikut berubah.</div>
+    <div class="subtle-note" id="ttdSayaCatatan" data-t="ttdSayaCatatan">Tanda tangan ini milik akun Anda dan hanya bisa dibuat serta dihapus oleh Anda sendiri. Sekali tersimpan, tiap papan tanda tangan di formulir mendapat tombol “pakai TTD tersimpan”. Menyimpan yang baru menggantikan yang lama; tanda tangan yang sudah terlanjur dibubuhkan pada catatan tidak ikut berubah.</div>
     <div class="modal-footer">
       <button class="btn ghost btn-hapus-akun" id="ttdSayaHapusBtn" onclick="hapusTtdSaya()" data-t="ttdSayaHapus" style="display:none;">Hapus yang tersimpan</button>
       <button class="btn ghost" onclick="closeTtdSayaModal()" data-t="tutup">Tutup</button>
       <button class="btn" id="ttdSayaSaveBtn" onclick="simpanTtdSaya()" data-t="ttdSayaSimpan">💾 Simpan TTD</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PILIH SLOT TTD (muncul saat pejabat/admin punya lebih dari satu slot,
+     ditampilkan setiap kali menekan "pakai TTD tersimpan" atau "setujui &
+     bubuhkan"). Isinya diatur bukaPickerSlotTtd() di JS. -->
+<div class="modal-bg" id="ttdSlotPickerBg">
+  <div class="modal" style="max-width:380px;">
+    <h3 data-t="ttdSlotPilihJudul">Pilih tanda tangan</h3>
+    <div class="subtle-note" style="margin-bottom:10px;" data-t="ttdSlotPilihKeterangan">Pilih slot yang akan dipakai. Yang terakhir dipilih otomatis jadi urutan pertama pada pemakaian berikutnya.</div>
+    <div id="ttdSlotPickerBody" style="display:flex;flex-direction:column;gap:8px;"></div>
+    <div class="modal-footer">
+      <button class="btn ghost" onclick="tutupPickerSlotTtd()" data-t="batal">Batal</button>
     </div>
   </div>
 </div>
@@ -954,7 +1043,8 @@
     <div class="modal-footer">
       <button class="btn ghost" onclick="closeEntryDetail()" data-t="tutup">Tutup</button>
       <button class="btn ghost hanya-tulis" id="entryDetailEditBtn" data-t="suntingBtn">✎ Sunting</button>
-      <button class="btn" id="entryDetailPrintBtn" data-t="cetak">🖨 Cetak</button>
+      <!-- Tombol Cetak per catatan dihilangkan. Cetakan hanya lewat "Cetak Logbook" di bilah
+           atas dan wajib menunggu seluruh TTD selesai; teknisi diberitahu lewat lonceng dashboard. -->
     </div>
   </div>
 </div>

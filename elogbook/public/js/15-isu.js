@@ -120,6 +120,81 @@ function renderIssueDetail(){
     ${bagianBuktiHtml(it, 'closed', T('buktiSelesai'))}`;
 }
 
+/* ---------- Alur menutup isu dari dropdown status di tabel ----------
+   Sebelumnya: admin ubah status → Closed di dropdown, server auto-isi
+   tglClosed + ditutupOleh, TAPI keterangan penutupan dan bukti "saat selesai"
+   tidak diminta. Admin harus ingat membuka Detail lagi untuk menuliskannya —
+   sering terlupa, jadi isu ditutup tanpa jejak akar penyebab atau bukti.
+
+   Sekarang: dropdown lewat wrapper ini. Kalau naik dari Open/Proses ke
+   Closed, buka modal supaya keterangan + bukti (opsional) diisi di satu
+   tempat. Batal → dropdown dikembalikan ke status lama. Transisi lain
+   (Closed → Open, Proses → Open, dsb.) langsung diteruskan tanpa modal. */
+let tutupIsuKonteks = null;  // { id, dropdown, statusLama }
+
+function tanganiUbahStatusIsu(id, nilai, dropdown){
+  const it = issues.find(i => i.id === id);
+  if(!it){ updateIssueField(id, 'status', nilai); return; }
+  if(nilai === 'Closed' && it.status !== 'Closed'){
+    tutupIsuKonteks = { id, dropdown, statusLama: it.status };
+    openTutupIsuModal(it);
+    return;
+  }
+  updateIssueField(id, 'status', nilai);
+}
+
+function openTutupIsuModal(it){
+  const jenis = escapeHtml(it.jenis) || '<span style="color:var(--muted);">(tanpa jenis)</span>';
+  const ket = it.keterangan
+    ? `<div style="margin-top:4px;color:var(--muted);white-space:pre-wrap;">${escapeHtml(it.keterangan)}</div>` : '';
+  document.getElementById('tutupIsuRingkas').innerHTML = `Menutup: <b>${jenis}</b>${ket}`;
+  document.getElementById('tutupIsuKeterangan').value = it.keteranganClosed || '';
+  resetLampiran('tutupIsuLampiran');
+  document.getElementById('tutupIsuModalBg').classList.add('show');
+  setTimeout(() => document.getElementById('tutupIsuKeterangan').focus(), 50);
+}
+
+function batalkanTutupIsu(){
+  // Dropdown sudah berpindah ke "Closed" sebelum onchange dipanggil — kembalikan
+  // ke status sebelumnya, jangan biarkan tampilan bohong ("tertulis Closed
+  // padahal batal ditutup").
+  if(tutupIsuKonteks && tutupIsuKonteks.dropdown){
+    tutupIsuKonteks.dropdown.value = tutupIsuKonteks.statusLama;
+  }
+  document.getElementById('tutupIsuModalBg').classList.remove('show');
+  resetLampiran('tutupIsuLampiran');
+  tutupIsuKonteks = null;
+}
+
+async function simpanTutupIsu(){
+  if(!tutupIsuKonteks) return;
+  const { id } = tutupIsuKonteks;
+  const keterangan = document.getElementById('tutupIsuKeterangan').value.trim();
+  const adaBukti = kotakLampiran('tutupIsuLampiran').length > 0;
+  const btn = document.getElementById('tutupIsuSaveBtn'); btn.disabled = true;
+  toast(adaBukti ? 'Mengunggah bukti dan menutup isu...' : 'Menutup isu...');
+  try{
+    // Satu panggilan sekaligus: status→Closed + keterangan penutupan + tanggal
+    // otomatis + ditutupOleh otomatis. API tutupIsu boleh dipanggil admin
+    // maupun teknisi; addBuktiTutupIsu juga (kunci fase = 'closed').
+    const t1 = await gsRun('tutupIsu', id, keterangan);
+    if(t1) gantiIsuDiDaftar(t1);
+    if(adaBukti){
+      const t2 = await gsRun('addBuktiTutupIsu', id, kirimLampiran('tutupIsuLampiran'));
+      if(t2) gantiIsuDiDaftar(t2);
+    }
+    renderIssues();
+    document.getElementById('tutupIsuModalBg').classList.remove('show');
+    resetLampiran('tutupIsuLampiran');
+    tutupIsuKonteks = null;
+    toast('Isu ditutup.');
+  }catch(e){
+    toast('Gagal menutup isu — ' + (e.message||'coba lagi.'));
+  }finally{
+    btn.disabled = false;
+  }
+}
+
 /** Simpan keterangan penutupan dari textarea di jendela detail. Dijalankan
     onchange (bukan input) supaya server tidak dihubungi setiap ketikan. */
 async function simpanKetClosed(nilai){
@@ -223,14 +298,56 @@ async function updateIssueField(id, field, value){
     if(field === 'status') renderIssues();
   }catch(e){ toast('Gagal menyimpan perubahan.'); }
 }
+/** Filter tanggal/status/teks dari bilah cetak, dipakai juga untuk memilah tabel
+    yang tampil dan daftar yang dicetak. Pencarian teks tidak peka huruf besar/
+    kecil dan menelusuri jenis, keterangan, lokasi, pelapor, penutup, dan
+    keterangan penutupan — supaya kasus lama yang mirip langsung terpanggil
+    saat mengetik kata kuncinya. Bulk-close sengaja tidak dihubungkan ke filter
+    ini: tombol tetap menutup semua isu Open/Proses di unit — agar tidak
+    berpindah tangan begitu filter berubah. */
+function isuTersaring(){
+  const from   = (document.getElementById('prIsuFrom')   || {}).value || '';
+  const to     = (document.getElementById('prIsuTo')     || {}).value || '';
+  const status = (document.getElementById('prIsuStatus') || {}).value || '';
+  const cari   = String((document.getElementById('prIsuCari') || {}).value || '').trim().toLowerCase();
+  if(!from && !to && !status && !cari) return issues;
+  return issues.filter(it=>{
+    const d = String(it.tglReport || '').slice(0,10);
+    if(from && (!d || d < from)) return false;
+    if(to   && (!d || d > to))   return false;
+    if(status && it.status !== status) return false;
+    if(cari){
+      const ladang = [
+        it.jenis, it.keterangan, it.keteranganClosed, it.lokasi,
+        it.status, it.dilaporkanOleh, it.ditutupOleh, it.diinputOleh, d
+      ].map(x => String(x || '').toLowerCase()).join(' \n ');
+      if(!ladang.includes(cari)) return false;
+    }
+    return true;
+  });
+}
+function resetFilterIssues(){
+  ['prIsuFrom','prIsuTo','prIsuStatus','prIsuCari'].forEach(id=>{ const el = document.getElementById(id); if(el) el.value = ''; });
+  renderIssues();
+}
 function renderIssues(){
   const body = document.getElementById('issuesBody');
   if(issues.length===0){
     body.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:20px;">' + T('belumAdaIsu') + '</td></tr>';
     return;
   }
-  body.innerHTML = issues.map((it,idx)=> adminAktif() ? barisIsuAdmin(it, idx) : barisIsuBaca(it, idx)).join('');
+  const daftar = isuTersaring();
+  if(daftar.length === 0){
+    body.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:20px;">' + T('takAdaIsuFilter') + '</td></tr>';
+    return;
+  }
+  body.innerHTML = daftar.map((it,idx)=> adminAktif() ? barisIsuAdmin(it, idx) : barisIsuBaca(it, idx)).join('');
 }
+
+/* Bulk-close ("🔒 Tutup Semua Terbuka") sudah dihilangkan — sekarang setiap
+   baris punya dropdown status yang sama untuk semua peran. Menutup satu-per-satu
+   di dropdown lebih jelas: modal Tutup Isu tetap muncul jadi keterangan dan
+   bukti bisa dilampirkan sesuai isunya masing-masing. */
 
 /** Baris admin dua isian (Tanggal + Jam UTC) untuk kolom Tgl Report / Tgl
  *  Closed. Nilainya digabung "YYYY-MM-DDTHH:MM" saat dikirim ke server —
@@ -264,24 +381,46 @@ function selBuktiHtml(it){
 const selDetailIsu = it =>
   `<button class="btn ghost" style="padding:5px 9px;font-size:12px;" onclick="openIssueDetail('${it.id}')">${T('detail')}</button>`;
 
+/* Kutipan pendek keterangan penutupan untuk ditempel di kolom Keterangan pada
+   baris isu yang sudah Closed — supaya tidak perlu buka Detail dulu untuk
+   melihat "ditutupnya karena/setelah apa". Kalau isunya belum Closed, kosong. */
+function ringkasPenutupanHtml(it){
+  if(it.status !== 'Closed' || !it.keteranganClosed) return '';
+  const teks = String(it.keteranganClosed);
+  const potong = teks.length > 140 ? teks.slice(0, 137) + '...' : teks;
+  return `<div class="diinput-oleh" style="margin-top:4px;padding-top:4px;border-top:1px dashed var(--line);white-space:pre-wrap;"
+              title="Keterangan penutupan (lengkap):\n${escapeHtml(teks)}">
+    <span style="color:var(--ok);">🔒 ditutup:</span> ${escapeHtml(potong)}
+  </div>`;
+}
+
+/** Dropdown status untuk baris isu — sama untuk admin dan teknisi. Pilihan
+    resmi tinggal Open dan Closed; "Proses" tidak lagi ditawarkan sebagai
+    pilihan baru. Baris lama yang status-nya masih Proses tetap ditampilkan
+    apa adanya (opsi Proses ikut muncul HANYA di baris itu, dan hilang begitu
+    dipindah ke Open/Closed) supaya data lama tidak berubah diam-diam. */
+function dropdownStatusIsu(it){
+  const opsi = ['Open','Closed'];
+  if(it.status && !opsi.includes(it.status)) opsi.push(it.status);
+  return `<select class="status-select" onchange="tanganiUbahStatusIsu('${it.id}', this.value, this)">${
+    opsi.map(v => `<option ${it.status===v?'selected':''}>${escapeHtml(v)}</option>`).join('')
+  }</select>`;
+}
+
 /* Administrator: seluruh kolom bisa diubah langsung di tabel. */
 function barisIsuAdmin(it, idx){
   return `
     <tr>
       <td>${idx+1}</td>
       <td><input type="text" value="${escapeHtml(it.jenis)}" style="width:100%;background:transparent;border:none;color:var(--text);font-size:13px;" onchange="updateIssueField('${it.id}','jenis',this.value)"></td>
-      <td><textarea style="width:100%;background:transparent;border:none;color:var(--text);font-size:13px;resize:vertical;" onchange="updateIssueField('${it.id}','keterangan',this.value)">${escapeHtml(it.keterangan)}</textarea></td>
+      <td><textarea style="width:100%;background:transparent;border:none;color:var(--text);font-size:13px;resize:vertical;" onchange="updateIssueField('${it.id}','keterangan',this.value)">${escapeHtml(it.keterangan)}</textarea>${ringkasPenutupanHtml(it)}</td>
       <td><input type="text" value="${escapeHtml(it.lokasi)}" style="width:100%;background:transparent;border:none;color:var(--text);font-size:13px;" onchange="updateIssueField('${it.id}','lokasi',this.value)"></td>
       <td>${bagiTglJamHtml(it, 'tglReport', false)}</td>
-      <td><select class="status-select" onchange="updateIssueField('${it.id}','status',this.value)">
-        <option ${it.status==='Open'?'selected':''}>Open</option>
-        <option ${it.status==='Proses'?'selected':''}>Proses</option>
-        <option ${it.status==='Closed'?'selected':''}>Closed</option>
-      </select></td>
+      <td>${dropdownStatusIsu(it)}</td>
       <td>${bagiTglJamHtml(it, 'tglClosed', it.status !== 'Closed')}</td>
-      <td><input type="text" value="${escapeHtml(it.dilaporkanOleh)}" title="Diinput oleh ${escapeHtml(it.diinputOleh)||'-'}"
-                 style="width:100%;background:transparent;border:none;color:var(--text);font-size:13px;"
-                 onchange="updateIssueField('${it.id}','dilaporkanOleh',this.value)"></td>
+      <!-- Pelapor tidak dapat diubah dari tabel: dikunci = akun yang membuat isu.
+           Ditampilkan sebagai teks biasa, bukan input, supaya jelas tidak bisa diedit. -->
+      <td title="Diinput oleh ${escapeHtml(it.diinputOleh)||'-'}">${escapeHtml(it.dilaporkanOleh)||'-'}</td>
       ${selBuktiHtml(it)}
       <td style="display:flex;gap:4px;align-items:center;">
         ${selDetailIsu(it)}
@@ -290,20 +429,25 @@ function barisIsuAdmin(it, idx){
     </tr>`;
 }
 
-/* Teknisi: baca saja. Tidak ada kolom yang bisa disunting dan tidak ada tombol hapus. */
+/* Teknisi: kolom lain baca saja, tapi status ikut memakai dropdown yang sama
+   dengan admin. Alur Open → Closed sama: membuka modal Tutup Isu supaya
+   keterangan + bukti bisa dilampirkan sekalian. Reopen (Closed → Open) hanya
+   admin — kalau teknisi mencoba, updateIssueField menolak dengan toast. */
 function barisIsuBaca(it, idx){
   const tanggal = t => escapeHtml(t) || '<span style="color:var(--muted);">—</span>';
   return `
     <tr>
       <td>${idx+1}</td>
       <td>${escapeHtml(it.jenis)||'-'}</td>
-      <td style="white-space:pre-wrap;">${escapeHtml(it.keterangan)||'-'}</td>
+      <td style="white-space:pre-wrap;">${escapeHtml(it.keterangan)||'-'}${ringkasPenutupanHtml(it)}</td>
       <td>${escapeHtml(it.lokasi)||'-'}</td>
       <td class="diinput-oleh">${tanggal(formatWaktuIsu(it.tglReport))}</td>
-      <td><span class="status-select" style="display:inline-block;">${escapeHtml(it.status)}</span></td>
+      <td>${dropdownStatusIsu(it)}</td>
       <td class="diinput-oleh">${tanggal(formatWaktuIsu(it.tglClosed))}</td>
       <td class="diinput-oleh" title="Diinput oleh ${escapeHtml(it.diinputOleh)||'-'}">${escapeHtml(it.dilaporkanOleh)||'-'}</td>
       ${selBuktiHtml(it)}
-      <td>${selDetailIsu(it)}</td>
+      <td style="display:flex;gap:4px;align-items:center;">
+        ${selDetailIsu(it)}
+      </td>
     </tr>`;
 }

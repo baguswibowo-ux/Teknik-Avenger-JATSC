@@ -15,7 +15,11 @@
 
 .field{margin-bottom:12px;}
 .field label{display:block; font-family:var(--font-mono); font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin-bottom:5px;}
-.field input[type=text], .field input[type=date], .field input[type=time], .field input[type=password], .field select, .field textarea{width:100%; background:var(--panel-2); border:1px solid var(--line); color:var(--text); border-radius:6px; padding:9px 10px; font-family:var(--font-body); font-size:13.5px; outline:none;}
+.field input[type=text], .field input[type=search], .field input[type=date], .field input[type=time], .field input[type=password], .field select, .field textarea{width:100%; background:var(--panel-2); border:1px solid var(--line); color:var(--text); border-radius:6px; padding:9px 10px; font-family:var(--font-body); font-size:13.5px; outline:none;}
+/* Placeholder di kotak cari sengaja muted + italic supaya jelas bahwa itu contoh isian, bukan nilai. Sama gayanya seperti "Cari nama berkas" di Avenger. */
+.field input[type=search]::placeholder{color:var(--muted); font-style:italic; opacity:.85;}
+/* Bulatkan sudut tombol X bawaan Chrome supaya tidak terpotong kotak — cosmetic. */
+.field input[type=search]::-webkit-search-cancel-button{filter:invert(.7); cursor:pointer;}
 .field textarea{min-height:70px; resize:vertical;}
 /* Nama hari di bawah pemilih tanggal daily check. Pemilihnya hanya menunjukkan
    angka, sementara yang tercetak di formulir memakai nama hari — ini yang

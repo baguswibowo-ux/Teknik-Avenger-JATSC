@@ -73,21 +73,23 @@ function printIssueList(list, subjudul){
 }
 
 function printIssues(){
-  const from = document.getElementById('prIsuFrom').value;
-  const to = document.getElementById('prIsuTo').value;
+  // Satu sumber filter dengan tabel di layar — kotak cari dan filter tanggal/
+  // status ikut dipakai supaya "Lihat Saja / Cetak" persis mencetak apa yang
+  // sedang tampil di daftar.
+  const from   = document.getElementById('prIsuFrom').value;
+  const to     = document.getElementById('prIsuTo').value;
   const status = document.getElementById('prIsuStatus').value;
+  const cari   = String((document.getElementById('prIsuCari') || {}).value || '').trim();
 
-  const list = issues.filter(it=>{
-    const d = String(it.tglReport || '').slice(0,10);
-    if(from && (!d || d < from)) return false;
-    if(to   && (!d || d > to))   return false;
-    if(status && it.status !== status) return false;
-    return true;
-  });
+  const list = isuTersaring();
   if(list.length === 0){ toast(T('takAdaIsuFilter')); return; }
 
-  const periode = (from || to || status)
-    ? `<div style="font-size:9pt;margin-bottom:6px;">Periode report: ${from||'awal'} s.d. ${to||'terakhir'}${status ? ' &middot; Status: ' + escapeHtml(status) : ''}</div>` : '';
+  const bagian = [];
+  if(from || to) bagian.push(`Periode report: ${from||'awal'} s.d. ${to||'terakhir'}`);
+  if(status)     bagian.push('Status: ' + escapeHtml(status));
+  if(cari)       bagian.push('Cari: "' + escapeHtml(cari) + '"');
+  const periode = bagian.length
+    ? `<div style="font-size:9pt;margin-bottom:6px;">${bagian.join(' &middot; ')}</div>` : '';
   printIssueList(list, periode);
 }
 

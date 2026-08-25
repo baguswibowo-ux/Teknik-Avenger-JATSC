@@ -147,26 +147,37 @@ function teknisiListOf(r){
   return r.teknisiNama ? String(r.teknisiNama).split(',').map(s=>s.trim()).filter(Boolean) : [];
 }
 
-/** Filter tanggal/dinas/lokasi dari bilah cetak, dipakai juga untuk memilah
-    daftar yang tampil — supaya administrator gampang menemukan catatan lama
-    yang mau dihapus tanpa harus menggulir seluruh riwayat. */
+/** Filter tanggal/dinas/lokasi/teks dari bilah cetak, dipakai juga untuk memilah
+    daftar yang tampil — supaya kasus lama yang mirip dengan yang sedang dicari
+    langsung terpanggil tanpa menggulir seluruh riwayat. Pencarian teks tidak
+    peka huruf besar/kecil dan menelusuri uraian, frekuensi, dinas, lokasi,
+    nama teknisi (termasuk daftar), dan nama penanggung jawab. */
 function entriesTersaring(){
   const from   = (document.getElementById('prFrom')   || {}).value || '';
   const to     = (document.getElementById('prTo')     || {}).value || '';
   const dinas  = (document.getElementById('prDinas')  || {}).value || '';
   const lokasi = (document.getElementById('prLokasi') || {}).value || '';
-  if(!from && !to && !dinas && !lokasi) return entries;
+  const cari   = String((document.getElementById('prCari') || {}).value || '').trim().toLowerCase();
+  if(!from && !to && !dinas && !lokasi && !cari) return entries;
   return entries.filter(e=>{
     const d = String(e.tanggal || '').slice(0,10);
     if(from && d < from) return false;
     if(to   && d > to)   return false;
     if(dinas && String(e.dinas || '') !== dinas) return false;
     if(lokasi && String(e.lokasi || '') !== lokasi) return false;
+    if(cari){
+      const namaTeknisi = teknisiListOf(e).join(' ');
+      const ladang = [
+        e.uraian, e.frek, e.dinas, e.lokasi, e.pjNama, e.diinputOleh,
+        namaTeknisi, e.teknisiNama, d
+      ].map(x => String(x || '').toLowerCase()).join(' \n ');
+      if(!ladang.includes(cari)) return false;
+    }
     return true;
   });
 }
 function resetFilterEntries(){
-  ['prFrom','prTo','prDinas','prLokasi'].forEach(id=>{ const el = document.getElementById(id); if(el) el.value = ''; });
+  ['prFrom','prTo','prDinas','prLokasi','prCari'].forEach(id=>{ const el = document.getElementById(id); if(el) el.value = ''; });
   renderEntries();
 }
 function renderEntries(){
@@ -184,7 +195,10 @@ function renderEntries(){
         <div style="display:flex;gap:4px;align-items:center;">
           <button class="btn ghost" style="padding:5px 9px;font-size:12px;" onclick="openEntryDetail('${e.id}')">${T('detail')}</button>
           ${(!e.pjTtd && bolehSuntingCatatan(e.dibuatOlehUsername)) ? `<button class="icon-btn" title="${T('suntingCatatanIni')}" onclick="openEntryEditModal('${e.id}')">✎</button>` : ''}
-          <button class="icon-btn" title="${T('cetakCatatanIni')}" onclick="printSingleEntry('${e.id}')">🖨</button>
+          <!-- Tombol cetak per baris sudah dihilangkan. Cetakan hanya lewat "Cetak Logbook"
+               di bilah atas, dan itu pun menolak selama ada catatan yang TTD-nya belum
+               lengkap — teknisi yang bernama di baris itu dapat peringatan lewat lonceng
+               di Dashboard Fasilitas Teknik untuk membubuhkan TTD-nya lebih dulu. -->
           <button class="icon-btn hanya-admin" title="Hapus" onclick="deleteEntry('${e.id}')">✕</button>
         </div>
       </div>
@@ -225,7 +239,7 @@ function openEntryDetail(id){
     </div>
     <div style="margin-top:14px;padding-top:10px;border-top:1px solid var(--line);">${diinputOlehHtml(e.diinputOleh, e.dibuatPada, acuanWaktuEntry(e)) || ('<span class="diinput-oleh">' + T('tidakTercatat') + '</span>')}</div>`;
 
-  document.getElementById('entryDetailPrintBtn').onclick = ()=>{ closeEntryDetail(); printSingleEntry(id); };
+  // Tombol Cetak per catatan sudah dihilangkan — tidak perlu memasang handler.
   const editBtn = document.getElementById('entryDetailEditBtn');
   editBtn.onclick = ()=>{ closeEntryDetail(); openEntryEditModal(id); };
   // Sudah disetujui penanggung jawab, atau bukan pembuat aslinya (dan bukan

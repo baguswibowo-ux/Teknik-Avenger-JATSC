@@ -328,32 +328,91 @@ export async function saveSignature(dataUrl, prefix) {
  * Cerminan dari getTtdTersimpan/simpanTtdTersimpan/hapusTtdTersimpan di db.js,
  * termasuk aturannya: berkas milik akun ini tidak pernah dipasang langsung ke
  * catatan — yang masuk ke catatan selalu salinan barunya, supaya menghapus satu
- * catatan tidak melenyapkan tanda tangan orang itu dari catatan yang lain. */
+ * catatan tidak melenyapkan tanda tangan orang itu dari catatan yang lain.
+ * Kolom ttd_tersimpan menyimpan JSON `[{label,path}]`; bentuk lama sekadar path
+ * juga tetap dibaca (satu slot tanpa label). Akun pejabat/admin boleh memegang
+ * beberapa slot bertanda label; teknisi tetap satu slot. */
+export const MAX_SLOT_TTD_PEJABAT = 7;
+
+function bacaSlotTtd(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return [];
+  if (s.startsWith('[')) {
+    try {
+      const arr = JSON.parse(s);
+      if (!Array.isArray(arr)) return [];
+      return arr
+        .map((x) => ({ label: String(x?.label || ''), path: String(x?.path || '') }))
+        .filter((x) => x.path);
+    } catch { return []; }
+  }
+  return [{ label: '', path: s }];
+}
+
+const tulisSlotTtd = (arr) => (arr && arr.length ? JSON.stringify(arr) : '');
+
+function bolehBanyakSlot(role) {
+  const r = String(role || '').toLowerCase();
+  return r === 'admin' || r === 'pejabat';
+}
 
 export async function getTtdTersimpan(username) {
   const u = await getUserByUsername(username);
-  return u ? (u.ttd_tersimpan || '') : '';
+  return u ? bacaSlotTtd(u.ttd_tersimpan) : [];
 }
 
-export async function simpanTtdTersimpan(username, dataUrl) {
+export async function simpanTtdTersimpan(username, dataUrl, label = '') {
   const u = await getUserByUsername(username);
   if (!u) throw new Error('Akun tidak ditemukan.');
+  const banyak = bolehBanyakSlot(u.role);
+  const lbl = banyak ? String(label || '').trim() : '';
+  if (banyak && !lbl) throw new Error('Beri label untuk slot TTD (mis. "MT asli" atau "PH Bagus").');
   const baru = await saveSignature(dataUrl, 'ttd_akun');
   if (!baru) throw new Error('Tanda tangannya masih kosong.');
-  const lama = u.ttd_tersimpan;
-  await jalankan('UPDATE users SET ttd_tersimpan = $1 WHERE id = $2', [baru, u.id]);
-  // Yang lama dibuang setelah yang baru tercatat — kalau urutannya terbalik dan
-  // penyimpanannya gagal, orangnya kehilangan keduanya.
-  if (lama) await hapusBerkas(lama);
-  return baru;
+  const slot = bacaSlotTtd(u.ttd_tersimpan);
+  let dibuang = '';
+  if (banyak) {
+    const idxSama = slot.findIndex((s) => s.label.toLowerCase() === lbl.toLowerCase());
+    if (idxSama >= 0) {
+      dibuang = slot[idxSama].path;
+      slot[idxSama] = { label: lbl, path: baru };
+    } else {
+      if (slot.length >= MAX_SLOT_TTD_PEJABAT) {
+        await hapusBerkas(baru);
+        throw new Error(`Batas ${MAX_SLOT_TTD_PEJABAT} slot TTD sudah penuh — hapus salah satu dulu.`);
+      }
+      slot.push({ label: lbl, path: baru });
+    }
+  } else {
+    if (slot.length) dibuang = slot[0].path;
+    slot.splice(0, slot.length, { label: '', path: baru });
+  }
+  await jalankan('UPDATE users SET ttd_tersimpan = $1 WHERE id = $2', [tulisSlotTtd(slot), u.id]);
+  if (dibuang) await hapusBerkas(dibuang);
+  return slot;
 }
 
-export async function hapusTtdTersimpan(username) {
+export async function hapusTtdTersimpan(username, label = null) {
   const u = await getUserByUsername(username);
-  if (!u) return false;
-  await jalankan("UPDATE users SET ttd_tersimpan = '' WHERE id = $1", [u.id]);
-  if (u.ttd_tersimpan) await hapusBerkas(u.ttd_tersimpan);
-  return true;
+  if (!u) return [];
+  const slot = bacaSlotTtd(u.ttd_tersimpan);
+  if (!slot.length) return [];
+  const banyak = bolehBanyakSlot(u.role);
+  let sisa;
+  let dibuang = [];
+  if (banyak && label != null) {
+    const lbl = String(label).trim().toLowerCase();
+    sisa = slot.filter((s) => {
+      if (s.label.toLowerCase() === lbl) { dibuang.push(s.path); return false; }
+      return true;
+    });
+  } else {
+    dibuang = slot.map((s) => s.path);
+    sisa = [];
+  }
+  await jalankan('UPDATE users SET ttd_tersimpan = $1 WHERE id = $2', [tulisSlotTtd(sisa), u.id]);
+  for (const p of dibuang) await hapusBerkas(p);
+  return sisa;
 }
 
 /* ============== PENGGUNA & SESI ============== */
@@ -423,9 +482,9 @@ export async function hapusUser(username) {
   if (u.aktif) throw new Error('Akun itu masih aktif. Nonaktifkan dulu sebelum dihapus.');
   await jalankan('DELETE FROM sessions WHERE user_id = $1', [u.id]);
   await jalankan('DELETE FROM user_unit WHERE user_id = $1', [u.id]);
-  // Tanda tangan tersimpannya ikut hilang; yang sudah dibubuhkan pada catatan
-  // tidak tersentuh karena itu salinan tersendiri.
-  if (u.ttd_tersimpan) await hapusBerkas(u.ttd_tersimpan);
+  // Tanda tangan tersimpannya (satu atau banyak slot) ikut hilang; yang sudah
+  // dibubuhkan pada catatan tidak tersentuh karena itu salinan tersendiri.
+  for (const s of bacaSlotTtd(u.ttd_tersimpan)) await hapusBerkas(s.path);
   const terhapus = (await jalankan('DELETE FROM users WHERE id = $1', [u.id])) > 0;
   if (terhapus) lupakanNamaPengguna();
   return terhapus;
@@ -1415,7 +1474,10 @@ export async function insertIssue(isu = {}, olehUsername = '', olehNama = '') {
        oleh updateIssue saat statusnya berubah. */
     ditutup_oleh: status === 'Closed' ? String(olehUsername || '') : '',
     keterangan_closed: String(isu.keteranganClosed || '').trim(),
-    dilaporkan_oleh: String(isu.dilaporkanOleh || '').trim() || olehNama || olehUsername,
+    // Pelapor selalu = akun yang login saat isu dibuat. Nilai dari klien
+    // sengaja diabaikan — supaya jejak "siapa memasukkan" tidak bisa
+    // dialihkan ke nama orang lain, baik lewat form maupun rekayasa payload.
+    dilaporkan_oleh: olehNama || olehUsername || '',
     dibuat_pada: nowIso()
   };
   await jalankan(
@@ -1436,11 +1498,12 @@ export async function insertIssue(isu = {}, olehUsername = '', olehNama = '') {
   });
 }
 
-/** Nama kolom dibatasi daftar putih — nilai dari klien tidak boleh masuk ke SQL. */
+/** Nama kolom dibatasi daftar putih — nilai dari klien tidak boleh masuk ke SQL.
+    DilaporkanOleh sengaja tidak diikutkan: pelapor dikunci = akun yang
+    membuat isu, tidak bisa diubah setelahnya. Lihat createIssue. */
 const ISSUE_FIELDS = {
   Jenis: 'jenis', Keterangan: 'keterangan', Lokasi: 'lokasi', Status: 'status',
   TanggalReport: 'tanggal_report', TanggalClosed: 'tanggal_closed',
-  DilaporkanOleh: 'dilaporkan_oleh',
   KeteranganClosed: 'keterangan_closed'
 };
 
@@ -1474,6 +1537,51 @@ export async function updateIssue(id, headerField, value, closerUsername = '') {
       }
     }
   }
+  return getIssue(id);
+}
+
+/**
+ * Tutup satu isu — tindakan yang boleh dikerjakan bukan hanya admin, tapi juga
+ * teknisi (mereka yang menyelesaikan gangguan di lapangan). Menyatukan tiga
+ * perubahan sekaligus dalam satu panggilan: status → Closed, catatan
+ * penutupan (kalau diisi), dan tanggal + penutup diisi otomatis.
+ *
+ * Bedanya dengan updateIssue biasa: fungsi ini hanya berurusan dengan urusan
+ * penutupan — jenis/keterangan/lokasi/pelapor tidak bisa disentuh dari sini,
+ * jadi teknisi yang menutup tidak bisa sekaligus "membetulkan" jenis isu
+ * orang lain lewat celah ini. Kalau isunya sudah Closed sebelumnya, catatan
+ * penutupan tetap boleh diperbarui — tapi tanggal_closed dan ditutup_oleh
+ * yang lama dipertahankan (penutup pertama itu yang berlaku).
+ */
+export async function tutupIsu(id, keteranganClosed, closerUsername = '') {
+  const sebelum = await q1('SELECT * FROM issues WHERE id = $1', [id]);
+  if (!sebelum) return null;
+
+  await jalankan("UPDATE issues SET status = 'Closed' WHERE id = $1", [id]);
+
+  const catatan = String(keteranganClosed || '').trim();
+  if (catatan) {
+    await jalankan('UPDATE issues SET keterangan_closed = $1 WHERE id = $2', [catatan, id]);
+  }
+  if (!sebelum.tanggal_closed) {
+    await jalankan('UPDATE issues SET tanggal_closed = $1 WHERE id = $2', [nowIso().slice(0, 16), id]);
+  }
+  if (!sebelum.ditutup_oleh && closerUsername) {
+    await jalankan('UPDATE issues SET ditutup_oleh = $1 WHERE id = $2', [String(closerUsername), id]);
+  }
+  return getIssue(id);
+}
+
+/**
+ * Menempel bukti fase "closed" pada isu. Terpisah dari addIssueLampiran
+ * (admin-only) karena teknisi yang menutup isu perlu bisa melampirkan foto
+ * hasil pekerjaan — tapi TIDAK boleh mengubah isunya di luar itu. Fase
+ * dikunci ke 'closed'; upaya ke 'open' ditolak sejak di sini.
+ */
+export async function tambahBuktiTutupIsu(id, daftar) {
+  const ada = await q1('SELECT 1 FROM issues WHERE id = $1', [id]);
+  if (!ada) throw new Error('Isu tidak ditemukan.');
+  await tambahLampiranIsu(String(id), 'closed', daftar || []);
   return getIssue(id);
 }
 

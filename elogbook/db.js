@@ -322,10 +322,12 @@ for (const tabel of ['entries', 'dailychecks', 'monitoring', 'dstest', 'ltk', 'b
   tambahKolom(tabel, 'ttd_untuk', "TEXT NOT NULL DEFAULT ''");
 }
 
-/* Tanda tangan tersimpan milik akun: digambar sekali oleh pemiliknya lewat menu
-   "TTD Saya", lalu dipakai ulang tiap mengisi formulir tanpa menggambar lagi.
-   Isinya path berkas, sama seperti tanda tangan pada catatan — bedanya berkas
-   ini milik akun, bukan milik satu catatan. Lihat simpanTtdTersimpan. */
+/* Tanda tangan tersimpan milik akun: digambar oleh pemiliknya lewat menu "TTD
+   Saya", lalu dipakai ulang tiap mengisi formulir tanpa menggambar lagi.
+   Isinya JSON `[{label, path}]` — daftar slot bertanda label. Bentuk lama
+   sekadar string path juga masih dibaca (dianggap satu slot tanpa label). Lihat
+   simpanTtdTersimpan. Akun pejabat/admin boleh memegang beberapa slot untuk
+   menampung TTD para PH; teknisi tetap satu slot. */
 tambahKolom('users', 'ttd_tersimpan', "TEXT NOT NULL DEFAULT ''");
 
 // DS Test: kategori daftar site, plus penandatangan Manager Teknik.
@@ -446,9 +448,10 @@ export function hapusUser(username) {
   // supaya tidak bergantung pada PRAGMA foreign_keys yang bisa saja mati.
   db.prepare('DELETE FROM sessions WHERE user_id = ?').run(u.id);
   db.prepare('DELETE FROM user_unit WHERE user_id = ?').run(u.id);
-  // Tanda tangan tersimpannya ikut hilang bersama akunnya. Yang sudah terlanjur
-  // dibubuhkan pada catatan tidak tersentuh — itu salinan tersendiri.
-  removeSignatureFile(u.ttd_tersimpan);
+  // Tanda tangan tersimpannya (satu atau banyak slot) ikut hilang bersama
+  // akunnya. Yang sudah terlanjur dibubuhkan pada catatan tidak tersentuh — itu
+  // salinan tersendiri.
+  for (const s of bacaSlotTtd(u.ttd_tersimpan)) removeSignatureFile(s.path);
   return db.prepare('DELETE FROM users WHERE id = ?').run(u.id).changes > 0;
 }
 
@@ -862,30 +865,94 @@ function removeSignatureFile(webPath) {
  * tangan orang itu dari seluruh catatan lain sekaligus.
  */
 
+/* Kolom ttd_tersimpan menyimpan JSON `[{label, path}]`. Bentuk lama sekadar
+   path juga tetap dikenali — dianggap satu slot tanpa label. Akun pejabat/admin
+   boleh memegang beberapa slot bertanda label untuk menampung TTD para PH;
+   teknisi tetap satu slot dan labelnya diabaikan. */
+export const MAX_SLOT_TTD_PEJABAT = 7;
+
+function bacaSlotTtd(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return [];
+  if (s.startsWith('[')) {
+    try {
+      const arr = JSON.parse(s);
+      if (!Array.isArray(arr)) return [];
+      return arr
+        .map((x) => ({ label: String(x?.label || ''), path: String(x?.path || '') }))
+        .filter((x) => x.path);
+    } catch { return []; }
+  }
+  // Bentuk lama: satu path. Tetap dibaca supaya data sebelum fitur multi-slot
+  // ini tidak hilang begitu saja.
+  return [{ label: '', path: s }];
+}
+
+const tulisSlotTtd = (arr) => (arr && arr.length ? JSON.stringify(arr) : '');
+
+function bolehBanyakSlot(role) {
+  const r = String(role || '').toLowerCase();
+  return r === 'admin' || r === 'pejabat';
+}
+
 export function getTtdTersimpan(username) {
   const u = getUserByUsername(username);
-  return u ? (u.ttd_tersimpan || '') : '';
+  return u ? bacaSlotTtd(u.ttd_tersimpan) : [];
 }
 
-export function simpanTtdTersimpan(username, dataUrl) {
+export function simpanTtdTersimpan(username, dataUrl, label = '') {
   const u = getUserByUsername(username);
   if (!u) throw new Error('Akun tidak ditemukan.');
+  const banyak = bolehBanyakSlot(u.role);
+  const lbl = banyak ? String(label || '').trim() : '';
+  if (banyak && !lbl) throw new Error('Beri label untuk slot TTD (mis. "MT asli" atau "PH Bagus").');
   const baru = saveSignature(dataUrl, 'ttd_akun');
   if (!baru) throw new Error('Tanda tangannya masih kosong.');
-  const lama = u.ttd_tersimpan;
-  db.prepare('UPDATE users SET ttd_tersimpan = ? WHERE id = ?').run(baru, u.id);
-  // Yang lama dibuang setelah yang baru tercatat, bukan sebelumnya: kalau
-  // urutannya terbalik dan penyimpanannya gagal, orangnya kehilangan keduanya.
-  if (lama) removeSignatureFile(lama);
-  return baru;
+  const slot = bacaSlotTtd(u.ttd_tersimpan);
+  let dibuang = '';
+  if (banyak) {
+    const idxSama = slot.findIndex((s) => s.label.toLowerCase() === lbl.toLowerCase());
+    if (idxSama >= 0) {
+      dibuang = slot[idxSama].path;
+      slot[idxSama] = { label: lbl, path: baru };
+    } else {
+      if (slot.length >= MAX_SLOT_TTD_PEJABAT) {
+        removeSignatureFile(baru);
+        throw new Error(`Batas ${MAX_SLOT_TTD_PEJABAT} slot TTD sudah penuh — hapus salah satu dulu.`);
+      }
+      slot.push({ label: lbl, path: baru });
+    }
+  } else {
+    if (slot.length) dibuang = slot[0].path;
+    slot.splice(0, slot.length, { label: '', path: baru });
+  }
+  db.prepare('UPDATE users SET ttd_tersimpan = ? WHERE id = ?').run(tulisSlotTtd(slot), u.id);
+  if (dibuang) removeSignatureFile(dibuang);
+  return slot;
 }
 
-export function hapusTtdTersimpan(username) {
+export function hapusTtdTersimpan(username, label = null) {
   const u = getUserByUsername(username);
-  if (!u) return false;
-  db.prepare("UPDATE users SET ttd_tersimpan = '' WHERE id = ?").run(u.id);
-  if (u.ttd_tersimpan) removeSignatureFile(u.ttd_tersimpan);
-  return true;
+  if (!u) return [];
+  const slot = bacaSlotTtd(u.ttd_tersimpan);
+  if (!slot.length) return [];
+  const banyak = bolehBanyakSlot(u.role);
+  let sisa;
+  let dibuang = [];
+  if (banyak && label != null) {
+    const lbl = String(label).trim().toLowerCase();
+    sisa = slot.filter((s) => {
+      if (s.label.toLowerCase() === lbl) { dibuang.push(s.path); return false; }
+      return true;
+    });
+  } else {
+    // Tanpa label: hapus semuanya (untuk teknisi ini otomatis slot satu-satunya).
+    dibuang = slot.map((s) => s.path);
+    sisa = [];
+  }
+  db.prepare('UPDATE users SET ttd_tersimpan = ? WHERE id = ?').run(tulisSlotTtd(sisa), u.id);
+  for (const p of dibuang) removeSignatureFile(p);
+  return sisa;
 }
 
 /* ============== SIAPA YANG MENGINPUT ============== */
@@ -1561,9 +1628,10 @@ export function insertIssue(isu = {}, olehUsername = '', olehNama = '') {
     // updateIssue saat statusnya berubah.
     ditutup_oleh: status === 'Closed' ? String(olehUsername || '') : '',
     keterangan_closed: String(isu.keteranganClosed || '').trim(),
-    // Pelapor diketik sendiri: yang menemukan gangguan sering bukan orang yang
-    // mengetikkannya ke sistem. Kalau dikosongkan, dipakai nama penginputnya.
-    dilaporkan_oleh: String(isu.dilaporkanOleh || '').trim() || olehNama || olehUsername,
+    // Pelapor selalu = akun yang login saat isu dibuat. Nilai dari klien
+    // sengaja diabaikan — supaya jejak "siapa memasukkan" tidak bisa dialihkan
+    // ke nama orang lain, baik lewat form maupun rekayasa payload.
+    dilaporkan_oleh: olehNama || olehUsername || '',
     dibuat_pada: nowIso()
   };
   db.prepare(`INSERT INTO issues (id, unit, jenis, keterangan, lokasi, status, tanggal_report, tanggal_closed,
@@ -1583,11 +1651,12 @@ export function insertIssue(isu = {}, olehUsername = '', olehNama = '') {
   });
 }
 
-/** Nama kolom dibatasi daftar putih — nilai dari klien tidak boleh masuk ke SQL. */
+/** Nama kolom dibatasi daftar putih — nilai dari klien tidak boleh masuk ke SQL.
+    DilaporkanOleh sengaja tidak diikutkan: pelapor dikunci = akun yang
+    membuat isu, tidak bisa diubah setelahnya. Lihat createIssue. */
 const ISSUE_FIELDS = {
   Jenis: 'jenis', Keterangan: 'keterangan', Lokasi: 'lokasi', Status: 'status',
   TanggalReport: 'tanggal_report', TanggalClosed: 'tanggal_closed',
-  DilaporkanOleh: 'dilaporkan_oleh',
   KeteranganClosed: 'keterangan_closed'
 };
 
@@ -1629,6 +1698,50 @@ export function updateIssue(id, headerField, value, closerUsername = '') {
     }
   }
 
+  return getIssue(id);
+}
+
+/**
+ * Tutup satu isu — tindakan yang boleh dikerjakan bukan hanya admin, tapi juga
+ * teknisi (mereka yang menyelesaikan gangguan di lapangan). Menyatukan tiga
+ * perubahan sekaligus dalam satu panggilan: status → Closed, catatan
+ * penutupan (kalau diisi), dan tanggal + penutup diisi otomatis.
+ *
+ * Bedanya dengan updateIssue biasa: fungsi ini hanya berurusan dengan urusan
+ * penutupan — jenis/keterangan/lokasi/pelapor tidak bisa disentuh dari sini,
+ * jadi teknisi yang menutup tidak bisa sekaligus "membetulkan" jenis isu
+ * orang lain lewat celah ini. Kalau isunya sudah Closed sebelumnya, catatan
+ * penutupan tetap boleh diperbarui — tapi tanggal_closed dan ditutup_oleh
+ * yang lama dipertahankan (penutup pertama itu yang berlaku).
+ */
+export function tutupIsu(id, keteranganClosed, closerUsername = '') {
+  const sebelum = getIssueRow(id);
+  if (!sebelum) return null;
+
+  db.prepare("UPDATE issues SET status = 'Closed' WHERE id = ?").run(id);
+
+  const catatan = String(keteranganClosed || '').trim();
+  if (catatan) {
+    db.prepare('UPDATE issues SET keterangan_closed = ? WHERE id = ?').run(catatan, id);
+  }
+  if (!sebelum.tanggal_closed) {
+    db.prepare('UPDATE issues SET tanggal_closed = ? WHERE id = ?').run(nowIso().slice(0, 16), id);
+  }
+  if (!sebelum.ditutup_oleh && closerUsername) {
+    db.prepare('UPDATE issues SET ditutup_oleh = ? WHERE id = ?').run(String(closerUsername), id);
+  }
+  return getIssue(id);
+}
+
+/**
+ * Menempel bukti fase "closed" pada isu. Terpisah dari addIssueLampiran
+ * (admin-only) karena teknisi yang menutup isu perlu bisa melampirkan foto
+ * hasil pekerjaan — tapi TIDAK boleh mengubah isunya di luar itu. Fase
+ * dikunci ke 'closed'; upaya ke 'open' ditolak sejak di sini.
+ */
+export function tambahBuktiTutupIsu(id, daftar) {
+  if (!getIssueRow(id)) throw new Error('Isu tidak ditemukan.');
+  tambahLampiranIsu(String(id), 'closed', daftar || []);
   return getIssue(id);
 }
 

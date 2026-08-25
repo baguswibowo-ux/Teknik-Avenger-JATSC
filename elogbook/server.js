@@ -52,6 +52,7 @@ const {
   listEntries, insertEntry, removeEntry, updateEntry, updateTtdRouting,
   listDailyChecks, insertDailyCheck, removeDailyCheck, updateDailyCheck, getDailyCheckDetailById,
   listIssues, insertIssue, updateIssue, removeIssue, getIssue,
+  tutupIsu, tambahBuktiTutupIsu,
   tambahLampiranIsu, hapusLampiranIsu,
   listMonitoring, insertMonitoring, removeMonitoring,
   listDsTest, insertDsTest, removeDsTest, DS_SITE, KATEGORI_DS,
@@ -451,7 +452,10 @@ async function unitDanHakAkses(user, unit) {
 const API_TULIS = new Set([
   'addEntry', 'addDailyCheck', 'addIssue', 'addMonitoring', 'addLtk', 'addDsTest', 'addBerkala',
   'addBapb',
-  'updateEntry', 'updateDailyCheck', 'updateTtdRouting'
+  'updateEntry', 'updateDailyCheck', 'updateTtdRouting',
+  // Menutup isu dan menempel bukti penutup bukan admin-only: teknisi
+  // yang menyelesaikan gangguan boleh menandai isunya selesai.
+  'tutupIsu', 'addBuktiTutupIsu'
 ]);
 
 /** Fungsi tanda tangan susulan: administrator dan pejabat, bukan teknisi. */
@@ -694,7 +698,7 @@ const API = {
      * hanya kueri paling lambat.
      */
     const [entries, dcHistory, issues, monitoring, ltk, bapb, dstest, berkala,
-           users, pejabatList, inboxTtd, ttdTersimpan] = await Promise.all([
+           users, pejabatList, inboxTtd, ttdSlots] = await Promise.all([
       listEntries(u, MAX_ROWS),
       listDailyChecks(u, MAX_ROWS),
       listIssues(u),
@@ -760,7 +764,9 @@ const API = {
       users,
       pejabatList,
       inboxTtd,
-      ttdTersimpan
+      // Slot TTD tersimpan milik akun ini — daftar {label,path}. Teknisi
+      // paling banter satu slot berlabel kosong; pejabat/admin boleh beberapa.
+      ttdSlots
     };
   },
 
@@ -860,13 +866,15 @@ const API = {
      pribadinya, bukan perubahan pada data logbook, jadi tidak masuk API_TULIS
      yang menutup jalur penambahan data bagi pejabat. */
 
-  simpanTtdSaya: async (dataUrl, user) => {
+  simpanTtdSaya: async (dataUrl, label, user) => {
     const d = String(dataUrl || '');
     if (!d.startsWith('data:image/')) throw new Error('Tanda tangannya masih kosong.');
-    return simpanTtdTersimpan(user.username, d);
+    return simpanTtdTersimpan(user.username, d, label);
   },
 
-  hapusTtdSaya: async (user) => hapusTtdTersimpan(user.username),
+  // Tanpa label = teknisi (yang cuma punya satu slot); dengan label = pejabat/admin
+  // menghapus slot tertentu. Server sendiri yang mengatur aturannya berdasar peran.
+  hapusTtdSaya: async (label, user) => hapusTtdTersimpan(user.username, label ?? null),
 
   addIssue: async (isu, user) => insertIssue(
     {
@@ -875,7 +883,26 @@ const API = {
     },
     user.username,
     user.nama
-  )
+  ),
+
+  /**
+   * Tutup satu isu. Sengaja bukan admin-only: teknisi yang mengerjakan
+   * gangguan di lapangan boleh menandai isunya selesai. Fungsi database
+   * yang dipanggil hanya berurusan dengan urusan penutupan (status,
+   * catatan penutupan, tanggal, penutup) — jenis/keterangan/pelapor
+   * tidak bisa ikut disunting lewat sini.
+   */
+  tutupIsu: async (id, keteranganClosed, user) =>
+    tutupIsu(String(id || ''), String(keteranganClosed || ''), user?.username || ''),
+
+  /**
+   * Menempel bukti fase "closed" pada isu. Terpisah dari addIssueLampiran
+   * (admin-only) karena teknisi yang menutup isu perlu bisa melampirkan
+   * foto hasil pekerjaannya — tapi tidak boleh menambah bukti "saat
+   * kejadian" (fase open) yang aturannya berbeda.
+   */
+  addBuktiTutupIsu: async (id, daftar) =>
+    tambahBuktiTutupIsu(String(id || ''), daftar || [])
 };
 
 const sameUser = (a, b) => String(a).toLowerCase() === String(b).toLowerCase();

@@ -119,7 +119,12 @@ function printEntryList(list, subjudul){
     ${halamanLampiran}`, 'landscape');
 }
 
-/* Cetak per rentang tanggal / dinas / lokasi */
+/* Cetak per rentang tanggal / dinas / lokasi.
+   Tombol per-catatan sudah dihilangkan; ini satu-satunya jalan mengeluarkan
+   lembar logbook di layar. Pratinjau ("Lihat Saja") tetap bebas — supaya
+   admin bisa memeriksa isinya — tetapi CETAK ditolak selama ada baris yang
+   TTD-nya belum lengkap. Teknisi yang bernama di baris itu sudah dapat
+   peringatan lewat lonceng di Dashboard Fasilitas Teknik (TTD_TERLAMBAT). */
 function printLogbook(){
   const from  = document.getElementById('prFrom').value;
   const to    = document.getElementById('prTo').value;
@@ -139,21 +144,29 @@ function printLogbook(){
   // urut naik (yang lama di atas), seperti buku fisik
   list = list.reverse();
 
+  // Guard TTD lengkap — HANYA saat benar-benar cetak. Pratinjau lewat "Lihat
+  // Saja" menyalakan modePratinjau lebih dulu, jadi tetap boleh menampilkan
+  // lembar yang belum ditandatangani (untuk pemeriksaan isi).
+  if(!modePratinjau){
+    const belum = list.filter(e => !cekTtdLengkap(e, 'entry').ok);
+    if(belum.length){
+      const contoh = belum.slice(0, 3).map(e=>{
+        const c = cekTtdLengkap(e, 'entry');
+        return `${escapeHtml(e.tanggal)||'-'} (${c.alasan})`;
+      }).join(', ');
+      const sisa = belum.length > 3 ? ` dan ${belum.length - 3} lagi` : '';
+      toast(`Cetak ditolak — ${belum.length} dari ${list.length} catatan belum lengkap TTD-nya: ${contoh}${sisa}. Peringatan sudah muncul di lonceng dashboard untuk teknisi yang bersangkutan.`);
+      return;
+    }
+  }
+
   const periode = (from || to || dinas || lokasi)
     ? `<div style="font-size:9pt;margin-bottom:6px;">Periode: ${from||'awal'} s.d. ${to||'terakhir'}${dinas ? ' &middot; Dinas: ' + escapeHtml(dinas) : ''}${lokasi ? ' &middot; Lokasi: ' + escapeHtml(lokasi) : ''}</div>` : '';
 
   printEntryList(list, periode);
 }
 
-/* Cetak satu catatan saja, dari kartu logbook atau dari modal detail. Kalau
-   catatan belum lengkap TTD-nya (teknisi + penanggung jawab), tombolnya menolak
-   di sini — cetakan resmi tanpa paraf tidak boleh keluar. Aturan ini berlaku
-   untuk semua peran termasuk admin: yang harus ditutup itu keluarnya kertas
-   tanpa TTD, bukan peran yang menekan tombolnya. */
-function printSingleEntry(id){
-  const e = entries.find(x=>x.id===id);
-  if(!e){ toast('Catatan tidak ditemukan.'); return; }
-  if(!tolakCetakBilaBelumTtd(e, 'entry')) return;
-  printEntryList([e],
-    `<div style="font-size:9pt;margin-bottom:6px;">Catatan tanggal ${escapeHtml(e.tanggal)||'-'}${e.dinas ? ' &middot; Dinas: ' + escapeHtml(e.dinas) : ''}${e.lokasi ? ' &middot; Lokasi: ' + escapeHtml(e.lokasi) : ''}</div>`);
-}
+/* Cetak per catatan dihilangkan: cetakan hanya lewat "Cetak Logbook" di bilah atas,
+   yang menolak selama ada baris yang TTD-nya belum lengkap. Tombolnya sudah dihapus
+   dari kartu daftar dan dari modal Detail — printSingleEntry ikut dihapus supaya
+   tidak dipanggil dari mana pun secara tak sengaja. */

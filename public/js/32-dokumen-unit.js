@@ -127,8 +127,10 @@ async function dokMuat(){
 /* Nilainya tetap Indonesia — itu yang tersimpan di tiap baris berkas, dan
    mengubahnya saat bahasa berganti akan membuat baris lama tidak cocok dengan
    pilihan mana pun di daftarnya. Yang diterjemahkan cuma yang terbaca. */
-const BRK_KATEGORI = ['SOP','Manual','Sertifikat','Berita Acara','Foto','Lainnya'];
-const BRK_KATEGORI_EN = { 'SOP':'SOP', 'Manual':'Manual', 'Sertifikat':'Certificate',
+const BRK_KATEGORI = ['SOP','Manual','Topologi','Block Diagram','Sertifikat','Berita Acara','Foto','Lainnya'];
+const BRK_KATEGORI_EN = { 'SOP':'SOP', 'Manual':'Manual',
+  'Topologi':'Topology', 'Block Diagram':'Block Diagram',
+  'Sertifikat':'Certificate',
   'Berita Acara':'Handover Record', 'Foto':'Photo', 'Lainnya':'Other' };
 const brkKategoriNama = (k) => BHS === 'en' ? (BRK_KATEGORI_EN[k] || k) : k;
 
@@ -173,6 +175,12 @@ function brkTebakKategori(nama, jenis){
   if(/(^|[^a-z])sop([^a-z]|$)|standar.?operasi|standard.?operating|prosedur|procedure|instruksi.?kerja/.test(n))
     return 'SOP';
   if(/manual|handbook|panduan|instruction/.test(n))           return 'Manual';
+  /* Diperiksa sebelum "diagram" umum agar "block diagram" tidak jatuh ke tebakan
+     yang lebih longgar. Nama gambar teknis biasanya "block-diagram-...", "bd_...",
+     "diagram-blok...", atau kombinasi "skematik/skema". */
+  if(/block.?diagram|diagram.?blok|(^|[^a-z])bd[-_ ]|skema(tik)?|schematic/.test(n))
+    return 'Block Diagram';
+  if(/topologi|topology|jaringan|network.?diagram/.test(n))    return 'Topologi';
   if(/sertifik|certificate|kalibrasi|calib/.test(n))          return 'Sertifikat';
   if(/berita.?acara|\bba[-_ ]|laporan|report/.test(n))         return 'Berita Acara';
   return 'Lainnya';
