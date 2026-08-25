@@ -19,10 +19,46 @@
  * yang setiap permintaannya 502.
  */
 
-import { spawn } from 'node:child_process';
+import { spawn, execSync } from 'node:child_process';
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
+
+/**
+ * Cari lalu matikan proses yang masih memegang salah satu port ini. Dipanggil
+ * SEBELUM anak dinyalakan.
+ *
+ * Kenapa perlu: sesi sebelumnya kadang tidak menutup port dengan bersih —
+ * terminal ditutup paksa, mesin di-hibernate, atau anaknya keluar tanpa
+ * ke SIGINT. Yang tinggal: satu proses zombie yang memegang port dengan kode
+ * LAMA. `node jalankan-semua.js` kemudian melihat port terpakai dan gagal;
+ * atau lebih buruk, anaknya berhasil naik di port lain (kalau autoPort aktif
+ * di harness dev) dan dashboard mengarah ke sana. Yang terlihat pengguna:
+ * fitur baru tidak muncul, dan tidak ada satu pun galat yang menyebutkan
+ * kenapa.
+ *
+ * Hanya Windows yang punya `netstat -ano` + `taskkill` seperti ini. Di POSIX
+ * dilewati — pengguna Linux/macOS bisa memakai `lsof -ti :3000 | xargs kill`
+ * sendiri kalau perlu.
+ */
+function bersihkanPortLama(port) {
+  if (process.platform !== 'win32') return;
+  try {
+    const keluaran = execSync(`netstat -ano | findstr "LISTENING" | findstr ":${port} "`,
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    const pids = new Set();
+    for (const baris of keluaran.split('\n')) {
+      const m = baris.trim().match(/\s(\d+)\s*$/);
+      if (m) pids.add(m[1]);
+    }
+    for (const pid of pids) {
+      try {
+        execSync(`taskkill /PID ${pid} /F`, { stdio: 'ignore' });
+        console.log(`  ⟲ port ${port}: proses lama (PID ${pid}) dimatikan.`);
+      } catch { /* proses sudah mati sendiri di sela ini — abaikan */ }
+    }
+  } catch { /* tidak ada yang memegang port ini — bagus, itu yang diharapkan */ }
+}
 
 // .env dibaca di sini juga, bukan hanya di server.js: port yang dipakai
 // ditentukan sebelum anaknya menyala, jadi .env harus sudah terbaca lebih dulu.
@@ -86,6 +122,11 @@ process.on('SIGINT', () => matikan(0));
 process.on('SIGTERM', () => matikan(0));
 
 console.log('Menyalakan E-Logbook dan Dashboard sekaligus. Ctrl+C untuk berhenti keduanya.\n');
+
+// Bersihkan lebih dulu — kalau ada zombie di port ini, ia menahan naiknya
+// server baru dan pengguna tidak tahu kenapa halamannya tidak berubah.
+bersihkanPortLama(PORT_ELOG);
+bersihkanPortLama(PORT_DASH);
 
 nyalakan('e-logbook', path.join(ELOG, 'server.js'), ELOG, { PORT: PORT_ELOG });
 

@@ -21,3 +21,10 @@ public/foto/daftar.json
 
 .vercel
 .env*
+
+# Artefak alat uji lokal — screenshot debug, log browser Playwright, dsb.
+# Tidak pernah bagian dari proyek; muncul karena sesi ngoprek.
+.playwright-mcp/
+*.png
+!public/**/*.png
+!elogbook/public/**/*.png
