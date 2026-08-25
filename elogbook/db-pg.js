@@ -187,8 +187,11 @@ const KOLOM_SUSULAN = [
   // yang tidak bisa diurutkan langsung — lihat tanggal-lama.js. Kolom ini
   // menyimpan bentuk ISO-nya, khusus untuk ORDER BY riwayat.
   ['dailychecks', 'tanggal_urut', "TEXT NOT NULL DEFAULT ''"],
-  // Tanda tangan tersimpan milik akun — lihat simpanTtdTersimpan.
+  // Tanda tangan tersimpan milik akun — lihat simpanTtdTersimpan. Kolomnya
+  // sekarang menampung JSON larik hingga 5 slot untuk admin/pejabat; teknisi
+  // tetap satu. ttd_aktif menunjuk slot yang sedang dipakai.
   ['users', 'ttd_tersimpan', "TEXT NOT NULL DEFAULT ''"],
+  ['users', 'ttd_aktif', "INTEGER NOT NULL DEFAULT 0"],
   // BAPB: daftar nama teknisi pelaksana (JSON) — disusulkan supaya tabel yang
   // sudah dibuat tanpa kolom ini ikut mendapat kolomnya.
   ['bapb', 'petugas_nama_list', "TEXT NOT NULL DEFAULT '[]'"],
@@ -330,30 +333,99 @@ export async function saveSignature(dataUrl, prefix) {
  * catatan — yang masuk ke catatan selalu salinan barunya, supaya menghapus satu
  * catatan tidak melenyapkan tanda tangan orang itu dari catatan yang lain. */
 
+/* ---------- Slot TTD tersimpan: cermin dari db.js ---------- */
+const MAKS_SLOT_TTD_PER_PERAN = { admin: 5, pejabat: 5 };
+function batasSlotTtd(role) { return MAKS_SLOT_TTD_PER_PERAN[role] || 1; }
+
+function parseSlotsTtd(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return [];
+  if (s[0] === '[') {
+    try {
+      const arr = JSON.parse(s);
+      if (!Array.isArray(arr)) return [];
+      return arr.map((x) => ({
+        path: String(x?.path || ''),
+        dibuatPada: String(x?.dibuatPada || '')
+      }));
+    } catch { return []; }
+  }
+  return [{ path: s, dibuatPada: '' }];
+}
+
+function isiHinggaMaks(slots, maks) {
+  const out = [];
+  for (let i = 0; i < maks; i++) {
+    const x = slots[i];
+    out.push({ path: String(x?.path || ''), dibuatPada: String(x?.dibuatPada || '') });
+  }
+  return out;
+}
+
+function serialisasiSlotsTtd(slots) {
+  const bersih = (slots || []).map((s) => ({
+    path: String(s?.path || ''),
+    dibuatPada: String(s?.dibuatPada || '')
+  }));
+  while (bersih.length && !bersih[bersih.length - 1].path) bersih.pop();
+  if (!bersih.length) return '';
+  return JSON.stringify(bersih);
+}
+
+function bacaAktifSah(u, maks) {
+  const raw = Number(u?.ttd_aktif);
+  if (!Number.isFinite(raw) || raw < 0 || raw >= maks) return 0;
+  return Math.floor(raw);
+}
+
+function bacaTtdTersimpanUser(u) {
+  const maks = batasSlotTtd(u?.role);
+  const slots = isiHinggaMaks(parseSlotsTtd(u?.ttd_tersimpan), maks);
+  const aktif = bacaAktifSah(u, maks);
+  return { slots, aktif, maks };
+}
+
 export async function getTtdTersimpan(username) {
   const u = await getUserByUsername(username);
-  return u ? (u.ttd_tersimpan || '') : '';
+  if (!u) return { slots: [{ path: '', dibuatPada: '' }], aktif: 0, maks: 1 };
+  return bacaTtdTersimpanUser(u);
 }
 
-export async function simpanTtdTersimpan(username, dataUrl) {
+export async function simpanTtdTersimpan(username, dataUrl, slotIdx = 0) {
   const u = await getUserByUsername(username);
   if (!u) throw new Error('Akun tidak ditemukan.');
+  const maks = batasSlotTtd(u.role);
+  const idx = Math.max(0, Math.min(maks - 1, Number(slotIdx) | 0));
+  const slots = isiHinggaMaks(parseSlotsTtd(u.ttd_tersimpan), maks);
   const baru = await saveSignature(dataUrl, 'ttd_akun');
   if (!baru) throw new Error('Tanda tangannya masih kosong.');
-  const lama = u.ttd_tersimpan;
-  await jalankan('UPDATE users SET ttd_tersimpan = $1 WHERE id = $2', [baru, u.id]);
-  // Yang lama dibuang setelah yang baru tercatat — kalau urutannya terbalik dan
-  // penyimpanannya gagal, orangnya kehilangan keduanya.
+  const lama = slots[idx].path;
+  slots[idx] = { path: baru, dibuatPada: new Date().toISOString() };
+  await jalankan('UPDATE users SET ttd_tersimpan = $1 WHERE id = $2', [serialisasiSlotsTtd(slots), u.id]);
   if (lama) await hapusBerkas(lama);
-  return baru;
+  return getTtdTersimpan(username);
 }
 
-export async function hapusTtdTersimpan(username) {
+export async function hapusTtdTersimpan(username, slotIdx = 0) {
   const u = await getUserByUsername(username);
-  if (!u) return false;
-  await jalankan("UPDATE users SET ttd_tersimpan = '' WHERE id = $1", [u.id]);
-  if (u.ttd_tersimpan) await hapusBerkas(u.ttd_tersimpan);
-  return true;
+  if (!u) return getTtdTersimpan(username);
+  const maks = batasSlotTtd(u.role);
+  const idx = Math.max(0, Math.min(maks - 1, Number(slotIdx) | 0));
+  const slots = isiHinggaMaks(parseSlotsTtd(u.ttd_tersimpan), maks);
+  const lama = slots[idx].path;
+  slots[idx] = { path: '', dibuatPada: '' };
+  await jalankan('UPDATE users SET ttd_tersimpan = $1 WHERE id = $2', [serialisasiSlotsTtd(slots), u.id]);
+  if (lama) await hapusBerkas(lama);
+  return getTtdTersimpan(username);
+}
+
+export async function pilihTtdTersimpanAktif(username, slotIdx) {
+  const u = await getUserByUsername(username);
+  if (!u) throw new Error('Akun tidak ditemukan.');
+  const maks = batasSlotTtd(u.role);
+  const idx = Math.max(0, Math.min(maks - 1, Number(slotIdx) | 0));
+  await jalankan('UPDATE users SET ttd_aktif = $1 WHERE id = $2', [idx, u.id]);
+  return getTtdTersimpan(username);
 }
 
 /* ============== PENGGUNA & SESI ============== */
@@ -425,7 +497,9 @@ export async function hapusUser(username) {
   await jalankan('DELETE FROM user_unit WHERE user_id = $1', [u.id]);
   // Tanda tangan tersimpannya ikut hilang; yang sudah dibubuhkan pada catatan
   // tidak tersentuh karena itu salinan tersendiri.
-  if (u.ttd_tersimpan) await hapusBerkas(u.ttd_tersimpan);
+  for (const s of parseSlotsTtd(u.ttd_tersimpan)) {
+    if (s.path) await hapusBerkas(s.path);
+  }
   const terhapus = (await jalankan('DELETE FROM users WHERE id = $1', [u.id])) > 0;
   if (terhapus) lupakanNamaPengguna();
   return terhapus;
@@ -556,8 +630,10 @@ export async function listUsers() {
   return rows.map((u) => ({
     ...u,
     aktif: u.aktif ? 1 : 0,   // frontend lama membaca 0/1, bukan boolean
-    unit: SEMUA_UNIT.includes(u.role) ? KODE_UNIT.slice()
-                             : KODE_UNIT.filter((k) => (peta.get(String(u.id)) || new Set()).has(k))
+    // Baris user_unit apa adanya, untuk semua peran. Untuk admin/pejabat baris
+    // itu bukan pagar akses melainkan tanda "muncul sebagai saran teknisi di
+    // unit ini" (dibaca listTeknisiUnit). Lihat catatan senama di db.js.
+    unit: KODE_UNIT.filter((k) => (peta.get(String(u.id)) || new Set()).has(k))
   }));
 }
 
@@ -602,7 +678,7 @@ export const UNIT = [
     brand: 'E-Logbook Fasilitas Komunikasi Penerbangan',
     judul: 'Buku Catatan Fasilitas',
     kelompok: 'Fasilitas Komunikasi Penerbangan (Radtel)',
-    peralatan: 'Radio Komunikasi, VSCS Garex, Recording Neptuno',
+    peralatan: 'VCS Garex, Recording Neptuno',
     dinas: ['Pagi', 'Siang', 'Malam', 'PS'],
     pakaiJamSelesai: true,
     pakaiFrek: false,
@@ -2076,6 +2152,22 @@ export async function listPejabatAktif() {
   return q(`SELECT username, nama FROM users
             WHERE aktif = true AND role = 'pejabat'
             ORDER BY nama`);
+}
+
+/**
+ * Akun yang muncul sebagai saran nama teknisi di formulir untuk satu unit.
+ * Cerminan Postgres dari listTeknisiUnit di db.js — lihat catatan panjang di
+ * sana untuk aturan admin/pejabat opt-in.
+ */
+export async function listTeknisiUnit(unitKode) {
+  const kode = String(unitKode || '').trim();
+  if (!kode) return [];
+  return q(`
+    SELECT u.username, u.nama
+      FROM users u
+     WHERE u.aktif = true
+       AND EXISTS (SELECT 1 FROM user_unit uu WHERE uu.user_id = u.id AND uu.unit = $1)
+     ORDER BY u.nama`, [kode]);
 }
 
 /**

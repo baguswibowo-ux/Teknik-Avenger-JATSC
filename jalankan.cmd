@@ -11,8 +11,7 @@ if not exist elogbook\node_modules (
   popd
 )
 echo.
-echo E-Logbook              - http://localhost:3000
-echo Dashboard Fasilitas    - http://localhost:3100
+echo Buka di peramban       - http://localhost:3100/logbook/
 echo Tekan Ctrl+C untuk menghentikan keduanya.
 echo.
 node jalankan-semua.js

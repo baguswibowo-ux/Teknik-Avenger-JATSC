@@ -31,7 +31,7 @@ function kopCetak(lokasi = 'New JATSC'){
   <table class="no-border" style="font-size:9pt;margin-bottom:8px;">
     <tr><td style="width:170px;">Penyelenggara Pelayanan</td><td>: JATSC Bandara Soekarno-Hatta${gedung}</td></tr>
     <tr><td>Kelompok Fasilitas</td><td>: ${escapeHtml(u?.kelompok || 'Fasilitas Komunikasi Penerbangan (Radkom & Radtel)')}</td></tr>
-    <tr><td>Nama Peralatan</td><td>: ${escapeHtml(u?.peralatan || 'Radio Komunikasi, VSCS Garex, Recording Neptuno')}</td></tr>
+    <tr><td>Nama Peralatan</td><td>: ${escapeHtml(u?.peralatan || 'VCS Garex, Recording Neptuno')}</td></tr>
   </table>`;
 }
 

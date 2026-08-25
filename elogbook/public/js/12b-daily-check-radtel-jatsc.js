@@ -31,9 +31,9 @@ const DC_JATSC = [
       ['CWP 17/ TWR 2','CWP 54/ MANTEK'],
       ['CWP 18/ CD 1','CWP 56/ GND 3'],
       ['CWP 19/ GND 1','CWP 57/ RADKOM'],
-      ['CWP 20/ TWR 1','CWP 29/ UPNK'],
-      ['CWP 21/ SPV TWR 2','CWP 30/ LN C'],
-      ['CWP 22/ SPV TWR 1','CWP 32/ TS A']
+      ['CWP 20/ TWR 1',''],
+      ['CWP 21/ SPV TWR 2',''],
+      ['CWP 22/ SPV TWR 1','']
     ]}
   ]},
   { kode:'B', judul:'B. RECORDING DIVOS 3 LOG3.2', blok:[

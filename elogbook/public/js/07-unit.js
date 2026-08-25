@@ -57,7 +57,7 @@ function terapkanUnit(){
   const judulUtama = document.querySelector('.brand-title');
   if(judulUtama && u.brand) judulUtama.textContent = u.brand;
   const sub = document.querySelector('.brand-sub');
-  if(sub) sub.textContent = u.peralatan.toUpperCase() + ' — MER NEW JATSC';
+  if(sub) sub.textContent = u.peralatan.toUpperCase();
   document.getElementById('metaKelompokIsi').textContent = u.kelompok;
   document.getElementById('metaPeralatanIsi').textContent = u.peralatan;
 

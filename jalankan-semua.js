@@ -4,8 +4,9 @@
  * Sejak E-Logbook disalin ke dalam folder ini (elogbook/), satu perintah cukup
  * untuk menyalakan keduanya:
  *
- *   node jalankan-semua.js          →  E-Logbook  http://localhost:3000
- *                                      Dashboard  http://localhost:3100
+ *   node jalankan-semua.js          →  Dashboard  http://localhost:3100
+ *                                      (E-Logbook jalan sebagai komponen internal,
+ *                                       dibuka pengguna lewat /logbook/ di dashboard)
  *
  * Kenapa dua proses, bukan satu app Express yang memuat keduanya:
  * E-Logbook menyajikan halamannya sendiri di akar ("/") dan API-nya di "/api",
@@ -138,6 +139,8 @@ setTimeout(() => {
     PORT: PORT_DASH,
     ELOGBOOK_ASAL: process.env.ELOGBOOK_ASAL || `http://127.0.0.1:${PORT_ELOG}`
   });
-  console.log(`\n  E-Logbook  →  http://localhost:${PORT_ELOG}`);
-  console.log(`  Dashboard  →  http://localhost:${PORT_DASH}\n`);
+  // Hanya satu URL yang dicetak: pintu masuk untuk pengguna adalah dashboard.
+  // E-Logbook tetap jalan sebagai komponen internal di port ${PORT_ELOG}, tapi
+  // menyebutnya di sini cuma bikin orang bingung mana yang harus dibuka.
+  console.log(`\n  Buka:  http://localhost:${PORT_DASH}/logbook/\n`);
 }, 600);

@@ -17,6 +17,7 @@ function renderMonTeknisi(){
     <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
       <span style="font-family:var(--font-mono);color:var(--accent);font-size:12px;min-width:18px;">${i+1}.</span>
       <input type="text" value="${escapeHtml(t.nama)}" placeholder="${T('namaTeknisiPelaksana')} ${i+1}"
+             list="teknisiDatalist"
              oninput="monTeknisiRows[${i}].nama=this.value"
              style="flex:1;background:var(--panel-2);border:1px solid var(--line);color:var(--text);border-radius:6px;padding:9px 10px;font-size:16px;">
       ${monTeknisiRows.length>1 ? `<button class="icon-btn" onclick="hapusMonTeknisi('${t.key}')">✕</button>` : ''}

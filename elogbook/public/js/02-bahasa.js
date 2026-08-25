@@ -261,6 +261,12 @@ const KAMUS = {
     ttdTersimpanDihapus:'TTD tersimpan Anda dihapus.',
     ttdTersimpanHapusTanya:'Hapus tanda tangan tersimpan Anda? Yang sudah dibubuhkan pada catatan tidak ikut terhapus.',
     ttdTersimpanGagal:'Gagal menyimpan TTD.',
+    /* multi-slot TTD (admin & pejabat) */
+    ttdSlot:'Slot', ttdSlotDipilih:'Sedang dipakai', ttdSlotPilih:'Pakai TTD ini',
+    ttdSlotIsi:'Isi', ttdSlotGanti:'Ganti', ttdSlotHapus:'Hapus',
+    ttdSlotSedangMengisi:'Sedang mengisi Slot {n}. Tekan Simpan setelah selesai.',
+    ttdSlotDipilihToast:'Slot aktif diperbarui.',
+    ttdSlotHapusTanya:'Hapus tanda tangan di Slot {n}? Yang sudah dibubuhkan pada catatan tidak ikut terhapus.',
     /* tanda tangan susulan oleh pejabat */
     bubuhkanTtd:'✍ Bubuhkan TTD', ttdModalJudul:'Bubuhkan Tanda Tangan',
     ttdSbgKeterangan:'Tanda tangan untuk', ttdDiSini:'Tanda Tangan',
@@ -550,6 +556,12 @@ const KAMUS = {
     ttdTersimpanDihapus:'Your saved signature has been deleted.',
     ttdTersimpanHapusTanya:'Delete your saved signature? Signatures already placed on records are not removed.',
     ttdTersimpanGagal:'Could not save the signature.',
+    /* multi-slot signature (admin & officer) */
+    ttdSlot:'Slot', ttdSlotDipilih:'In use', ttdSlotPilih:'Use this signature',
+    ttdSlotIsi:'Fill', ttdSlotGanti:'Replace', ttdSlotHapus:'Delete',
+    ttdSlotSedangMengisi:'Filling Slot {n}. Press Save when you’re done.',
+    ttdSlotDipilihToast:'Active slot updated.',
+    ttdSlotHapusTanya:'Delete the signature in Slot {n}? Signatures already placed on records are not removed.',
     bubuhkanTtd:'✍ Add Signature', ttdModalJudul:'Add Signature',
     ttdSbgKeterangan:'Signature for', ttdDiSini:'Signature',
     ttdNamaTetap:'That name was written by the technician on the form and is left unchanged.',
@@ -851,6 +863,12 @@ const KAMUS = {
     ttdTersimpanDihapus:'Su firma guardada se ha borrado.',
     ttdTersimpanHapusTanya:'¿Borrar su firma guardada? Las firmas ya puestas en registros no se eliminan.',
     ttdTersimpanGagal:'No se pudo guardar la firma.',
+    /* varias firmas guardadas (admin y oficial) */
+    ttdSlot:'Slot', ttdSlotDipilih:'En uso', ttdSlotPilih:'Usar esta firma',
+    ttdSlotIsi:'Guardar', ttdSlotGanti:'Reemplazar', ttdSlotHapus:'Borrar',
+    ttdSlotSedangMengisi:'Rellenando Slot {n}. Pulse Guardar al terminar.',
+    ttdSlotDipilihToast:'Slot activo actualizado.',
+    ttdSlotHapusTanya:'¿Borrar la firma del Slot {n}? Las firmas ya puestas en registros no se eliminan.',
     bubuhkanTtd:'✍ Añadir Firma', ttdModalJudul:'Añadir Firma',
     ttdSbgKeterangan:'Firma para', ttdDiSini:'Firma',
     ttdNamaTetap:'Ese nombre lo escribió el técnico en el formulario y se deja sin cambiar.',

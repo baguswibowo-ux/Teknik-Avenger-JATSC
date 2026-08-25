@@ -62,8 +62,8 @@ const {
   listLtk, insertLtk, removeLtk,
   listBapb, insertBapb, removeBapb,
   getUserByUsername, verifyPassword, createUser, countUsers, hapusUser,
-  jenisTtdSah, unitCatatan, tandaTanganiCatatan, listPejabatAktif, getInboxTtd,
-  getTtdTersimpan, simpanTtdTersimpan, hapusTtdTersimpan, rekapMentah,
+  jenisTtdSah, unitCatatan, tandaTanganiCatatan, listPejabatAktif, listTeknisiUnit, getInboxTtd,
+  getTtdTersimpan, simpanTtdTersimpan, hapusTtdTersimpan, pilihTtdTersimpanAktif, rekapMentah,
   listUsers, setPassword, setAktif, setRole, setNama, setUsername, ROLE_VALID, SEMUA_UNIT, jumlahAdminAktif,
   UNIT, KODE_UNIT, unitSah, unitUntukUser, setUnitUser,
   createSession, getSessionUser, deleteSession, purgeExpiredSessions,
@@ -698,7 +698,7 @@ const API = {
      * hanya kueri paling lambat.
      */
     const [entries, dcHistory, issues, monitoring, ltk, bapb, dstest, berkala,
-           users, pejabatList, inboxTtd, ttdTersimpan] = await Promise.all([
+           users, pejabatList, teknisiUnitList, inboxTtd, ttdTersimpan] = await Promise.all([
       listEntries(u, MAX_ROWS),
       listDailyChecks(u, MAX_ROWS),
       listIssues(u),
@@ -711,6 +711,9 @@ const API = {
       // Daftar pejabat untuk menunjuk penerima TTD susulan saat mengisi
       // formulir — perlu diketahui seluruh pengguna, bukan cuma admin.
       listPejabatAktif(),
+      // Daftar akun yang boleh masuk ke unit ini — jadi saran nama pada baris
+      // teknisi kedua dst. Baris pertama tetap otomatis nama pengisi dokumen.
+      listTeknisiUnit(u),
       // Kotak masuk TTD hanya berarti untuk peran yang memang bisa menandatangani.
       bolehTtdSusulan(user) ? getInboxTtd(user.username) : [],
       // Tanda tangan tersimpan milik akun yang sedang masuk — miliknya sendiri
@@ -763,6 +766,7 @@ const API = {
       batasLampiran: { maksByte: LAMPIRAN_MAKS_BYTE, maksJumlah: LAMPIRAN_MAKS_JUMLAH },
       users,
       pejabatList,
+      teknisiUnitList,
       inboxTtd,
       ttdTersimpan
     };
@@ -864,13 +868,33 @@ const API = {
      pribadinya, bukan perubahan pada data logbook, jadi tidak masuk API_TULIS
      yang menutup jalur penambahan data bagi pejabat. */
 
-  simpanTtdSaya: async (dataUrl, user) => {
-    const d = String(dataUrl || '');
+  /* Bentuk baru: payload adalah objek { dataUrl, slotIdx }. Bentuk lama (string
+     polos berisi dataUrl) tetap diterima supaya peramban yang belum reload tidak
+     ambruk — masuk ke slot 0 seperti dulu. */
+  simpanTtdSaya: async (payload, user) => {
+    let d = '';
+    let slotIdx = 0;
+    if (typeof payload === 'string') {
+      d = payload;
+    } else if (payload && typeof payload === 'object') {
+      d = String(payload.dataUrl || '');
+      slotIdx = Number(payload.slotIdx) || 0;
+    }
     if (!d.startsWith('data:image/')) throw new Error('Tanda tangannya masih kosong.');
-    return simpanTtdTersimpan(user.username, d);
+    return simpanTtdTersimpan(user.username, d, slotIdx);
   },
 
-  hapusTtdSaya: async (user) => hapusTtdTersimpan(user.username),
+  hapusTtdSaya: async (payload, user) => {
+    const slotIdx = (payload && typeof payload === 'object') ? Number(payload.slotIdx) || 0 : 0;
+    return hapusTtdTersimpan(user.username, slotIdx);
+  },
+
+  /* Pilih slot mana yang jadi TTD aktif. Sekali dipilih, tetap dipakai sampai
+     pemiliknya menggantinya, atau slot itu ia hapus. */
+  pilihTtdSayaAktif: async (payload, user) => {
+    const slotIdx = (payload && typeof payload === 'object') ? Number(payload.slotIdx) || 0 : Number(payload) || 0;
+    return pilihTtdTersimpanAktif(user.username, slotIdx);
+  },
 
   addIssue: async (isu, user) => insertIssue(
     {
@@ -1261,10 +1285,9 @@ if (DIJALANKAN_LANGSUNG) {
   await purgeExpiredSessions();
   setInterval(purgeExpiredSessions, 6 * 3600 * 1000).unref();
   app.listen(PORT, HOST, () => {
-    console.log(`E-Logbook New JATSC berjalan di http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`);
-    if (HOST === '0.0.0.0') {
-      console.log('Dari komputer lain di jaringan kantor: http://<alamat-IP-server>:' + PORT);
-    }
+    // Sengaja tidak mencetak URL 3000 supaya pengguna tidak bingung: satu-satunya
+    // pintu masuk yang benar adalah dashboard di /logbook/. Port ini murni internal.
+    console.log('E-Logbook siap (komponen internal — akses via dashboard /logbook/).');
   });
 }
 

@@ -22,6 +22,13 @@ let berkalaList = [];
 let pejabatList = [];
 let inboxTtd = [];
 
+/* Akun aktif yang boleh masuk ke unit yang sedang dibuka — dipakai sebagai
+   saran <datalist> pada isian nama teknisi mulai baris kedua dan seterusnya.
+   Baris pertama tetap otomatis diisi nama pengisi dokumen (lihat 11-logbook,
+   14-daily-check-umum, 16-monitoring, 17-ds-test, 18b-bapb, 19-berkala).
+   Diisi ulang tiap kali pindah unit, karena daftarnya per unit. */
+let teknisiUnitList = [];
+
 /* Unit logbook yang sedang dibuka. Diisi server saat memuat data — kalau masih
    kosong, server memilihkan unit pertama yang boleh dibuka akun ini. */
 let unitAktif = '';

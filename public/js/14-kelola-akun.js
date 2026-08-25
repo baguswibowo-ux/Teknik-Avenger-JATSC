@@ -351,10 +351,14 @@ const unitTercentang = () =>
 
 function segarkanUnitKartu(){
   const semua = SEMUA_UNIT_PERAN.includes(el('aRole').value);
-  el('aUnit').classList.toggle('mati', semua);
+  // Administrator dan pejabat memegang seluruh unit lewat perannya, jadi kotak
+  // ini bukan pagar akses buat mereka — melainkan tanda "tampilkan nama saya
+  // sebagai teknisi di unit ini" pada isian nama teknisi di formulir. Kotak
+  // tetap boleh diklik supaya opt-in itu bisa diatur dari sini.
+  el('aUnit').classList.toggle('mati', false);
   el('aUnitKet').textContent = semua
-    ? T('Administrator dan pejabat otomatis memegang seluruh unit — tidak perlu dipilih.',
-        'Administrators and officers hold every unit automatically — nothing to pick here.')
+    ? T('Administrator dan pejabat sudah otomatis membuka seluruh unit lewat perannya. Centang di sini hanya berarti “tampilkan nama saya sebagai saran teknisi di unit ini” — dipakai pada isian nama teknisi di formulir. Kosong berarti tidak tampil sebagai saran di unit mana pun; akses tetap penuh.',
+        'Administrators and officers already hold every unit through their role. Ticks here only mean “show my name as a technician suggestion in this unit” — used on the technician-name field in forms. Empty means no suggestions anywhere; access stays full.')
     : T('Teknisi harus punya minimal satu unit. Tanpa itu akunnya bisa masuk tapi tidak bisa membuka apa pun.',
         'A technician must hold at least one unit. Without one the account can sign in but cannot open anything.');
 }
@@ -537,11 +541,11 @@ async function simpanUbahan(asal){
     throw new Error('Username 3–32 karakter, hanya huruf kecil, angka, titik, garis bawah, atau strip.');
   }
 
-  // Administrator dan pejabat memegang seluruh unit tanpa satu pun baris di
-  // tabel unitnya — daftar yang terbaca untuk mereka dihitung server, bukan
-  // disimpan. Begitu perannya turun jadi teknisi, hitungan itu tidak berlaku
-  // lagi dan yang tersisa bisa jadi cuma satu unit warisan. Karena itu unitnya
-  // selalu dikirim ulang saat turun peran, sekalipun kelihatannya tidak berubah.
+  // Baris user_unit dulu cuma dipakai untuk peran non-semua-unit (pagar akses).
+  // Sekarang admin dan pejabat memakai baris yang sama sebagai opt-in "muncul
+  // sebagai saran teknisi di unit ini" — akses mereka tetap penuh lewat peran,
+  // yang berubah hanya isian nama teknisi di formulir. Karena itu setUserUnit
+  // ikut dikirim untuk semua peran begitu daftar centangnya berbeda.
   const asalSemua = SEMUA_UNIT_PERAN.includes(asal.role);
 
   /* Rename dijalankan PALING DULU — server-side setUsername mengubah kolom
@@ -553,8 +557,7 @@ async function simpanUbahan(asal){
   if(gantiUsername)                                  kerja.push(['setUserUsername', [asal.username, usernameBaru]]);
   const kunci = gantiUsername ? usernameBaru : asal.username;
   if(role !== asal.role)                             kerja.push(['setUserRole', [kunci, role]]);
-  if(!semua && (asalSemua || !samaIsi(unit, asal.unit || [])))
-                                                     kerja.push(['setUserUnit', [kunci, unit]]);
+  if(!samaIsi(unit, asal.unit || []))                kerja.push(['setUserUnit', [kunci, unit]]);
   if(nama !== (asal.nama || ''))                     kerja.push(['setUserNama', [kunci, nama]]);
   if(aktif !== !!asal.aktif)                         kerja.push(['setUserAktif', [kunci, aktif]]);
   if(pass)                                           kerja.push(['setUserPassword', [kunci, pass]]);

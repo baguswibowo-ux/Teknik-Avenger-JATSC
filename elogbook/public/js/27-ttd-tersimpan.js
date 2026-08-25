@@ -1,9 +1,9 @@
 /* E-Logbook · js/27-ttd-tersimpan.js — Tanda tangan tersimpan milik tiap akun
    Dimuat dari index.html sesuai nomor berkas; urutannya berpengaruh.
 
-   Tiap orang menggambar tanda tangannya sendiri SEKALI lewat jendela "TTD
-   Saya", lalu memakainya ulang di formulir mana pun tanpa menggambar lagi.
-   Dua tempat memakainya:
+   Tiap orang menggambar tanda tangannya sendiri lewat jendela "TTD Saya",
+   lalu memakainya ulang di formulir mana pun tanpa menggambar lagi. Dua tempat
+   memakainya:
 
    1. PAPAN TANDA TANGAN DI FORMULIR. Tombol "pakai TTD tersimpan" di tiap papan
       menutupi kanvasnya dengan tanda tangan yang sudah ada. "Bersihkan"
@@ -13,22 +13,57 @@
       memungut tanda tangan tersimpan itu lalu langsung mengirimkannya — tanpa
       menggambar ulang tiap kali menyetujui catatan.
 
+   MULTI-SLOT UNTUK ADMIN DAN PEJABAT
+   Admin dan pejabat boleh menyimpan sampai lima TTD sekaligus. Salah satu slot
+   ditandai "aktif" dan itulah yang selalu dibubuhkan sampai pemiliknya memilih
+   slot lain — sehingga rekap-rekap yang sudah tertanda tetap konsisten. Teknisi
+   tetap satu slot; UI-nya kelihatan sama seperti sebelum ini.
+
    YANG DIKIRIM KE SERVER SELALU GAMBARNYA, BUKAN PATH BERKAS MILIK AKUN.
    Menghapus catatan ikut menghapus berkas tanda tangannya (removeSignatureFile
    di db.js), jadi kalau catatan memakai path yang sama dengan milik akun, satu
    penghapusan melenyapkan tanda tangan orang itu dari seluruh catatan lain
    sekaligus. Tiap catatan harus memegang salinannya sendiri. */
 
-/** Path /uploads/... tanda tangan tersimpan milik akun yang sedang masuk. */
+/** Struktur lengkap yang dipegang server: daftar slot, indeks aktif, dan batas
+    maksimalnya. Awalnya diisi bentuk minimal supaya kode di bawah aman dipanggil
+    sebelum init() menjawab. */
+let ttdTersimpanInfo = { slots: [{ path: '', dibuatPada: '' }], aktif: 0, maks: 1 };
+
+/** Path /uploads/... slot AKTIF. Nilai cermin dari ttdTersimpanInfo — dijaga
+    supaya kode lama yang membaca variabel ini tidak perlu ikut diubah. */
 let ttdTersimpanSaya = '';
-/** Salinan dataURL-nya. Berkasnya dibaca sekali, lalu diingat selama halaman hidup. */
+/** Salinan dataURL slot aktif. Dibaca sekali; diinvalidasi saat slot berubah. */
 let ttdTersimpanData = '';
 
-/** Dipanggil init() begitu getAllData menjawab, dan tiap kali yang tersimpan berubah. */
-function setTtdTersimpanSaya(path){
-  ttdTersimpanSaya = String(path || '');
+/** Slot mana yang jadi target Simpan berikutnya. Dipilih ulang lewat tombol
+    "Isi/Ganti" di daftar; tidak ditulis ke server sampai pengguna menekan
+    Simpan. Untuk teknisi selalu 0. */
+let ttdSlotAkanDiisi = 0;
+
+/** Dipanggil init() begitu getAllData menjawab, dan tiap kali server membalas
+    dengan struktur terbaru (setelah simpan/hapus/pilih). */
+function setTtdTersimpan(info){
+  const maks = Math.max(1, Number(info?.maks) || 1);
+  const sumber = Array.isArray(info?.slots) ? info.slots : [];
+  const slots = [];
+  for(let i=0; i<maks; i++){
+    const s = sumber[i];
+    slots.push({ path: String(s?.path || ''), dibuatPada: String(s?.dibuatPada || '') });
+  }
+  const aktif = Math.max(0, Math.min(maks - 1, Number(info?.aktif) || 0));
+  ttdTersimpanInfo = { slots, aktif, maks };
+  ttdTersimpanSaya = String(slots[aktif]?.path || '');
   ttdTersimpanData = '';
+  if(ttdSlotAkanDiisi >= maks) ttdSlotAkanDiisi = 0;
   perbaruiTampilanTtdTersimpan();
+  renderTtdSaya();
+}
+
+/** Kompatibilitas: kode lama memanggil setTtdTersimpanSaya(path). Sekarang path
+    itu diperlakukan sebagai satu slot aktif tunggal. */
+function setTtdTersimpanSaya(path){
+  setTtdTersimpan({ slots: [{ path: String(path || ''), dibuatPada: '' }], aktif: 0, maks: 1 });
 }
 
 /** Berkas PNG milik akun -> dataURL, lewat kanvas. Sama asal (/uploads di balik
@@ -79,8 +114,7 @@ function pasangTombolTtdTersimpan(){
   perbaruiTampilanTtdTersimpan();
 }
 
-/** Selama akun ini belum punya tanda tangan tersimpan, tombolnya tidak ada
-    gunanya — sembunyikan, jangan biarkan ditekan lalu menjawab "belum ada". */
+/** Selama slot aktifnya kosong, tombolnya tidak ada gunanya — sembunyikan. */
 function perbaruiTampilanTtdTersimpan(){
   const ada = !!ttdTersimpanSaya;
   document.querySelectorAll('.sig-pakai').forEach(b=>{ b.style.display = ada ? '' : 'none'; });
@@ -113,7 +147,7 @@ async function setujuiDenganTtdTersimpan(){
   await kirimTtdPejabat(data, 'ttdTersimpanSaveBtn');
 }
 
-/* ---------- Jendela "TTD Saya": membuat dan menghapus ---------- */
+/* ---------- Jendela "TTD Saya": daftar slot dan pengelolaannya ---------- */
 
 function openTtdSayaModal(){
   if(!userSaatIni) return;
@@ -121,6 +155,10 @@ function openTtdSayaModal(){
   // sengaja tidak menyertakannya karena kanvas tersembunyi berlebar 0.
   if(!sigPads['sigTtdSaya']) setupSigCanvas('sigTtdSaya');
   clearSig('sigTtdSaya');
+  // Target awal saat modal dibuka: slot pertama yang masih kosong (kalau ada),
+  // supaya "Simpan TTD" langsung mengisi tempat kosong, bukan menimpa yang ada.
+  const idxKosong = ttdTersimpanInfo.slots.findIndex(s=>!s.path);
+  ttdSlotAkanDiisi = idxKosong >= 0 ? idxKosong : ttdTersimpanInfo.aktif;
   renderTtdSaya();
   document.getElementById('ttdSayaModalBg').classList.add('show');
   setTimeout(()=>resizeSigCanvas('sigTtdSaya'), 60);
@@ -130,15 +168,90 @@ function closeTtdSayaModal(){
   document.getElementById('ttdSayaModalBg').classList.remove('show');
 }
 
+function labelSlotTtd(i){ return (T('ttdSlot') || 'Slot') + ' ' + (i + 1); }
+
+function tanggalSingkatLokal(iso){
+  if(!iso) return '';
+  try{
+    const d = new Date(iso);
+    if(!Number.isFinite(d.getTime())) return '';
+    return d.toLocaleDateString(bahasa === 'en' ? 'en-GB' : (bahasa === 'es' ? 'es' : 'id'),
+      { day:'2-digit', month:'short', year:'numeric' });
+  }catch{ return ''; }
+}
+
 function renderTtdSaya(){
   const wrap = document.getElementById('ttdSayaPratinjau');
-  if(wrap){
-    wrap.innerHTML = ttdTersimpanSaya
-      ? `<div class="sig-thumb"><img src="${ttdTersimpanSaya}" alt="TTD tersimpan"></div>`
-      : `<span class="sig-empty-thumb">${T('ttdTersimpanKosong')}</span>`;
+  if(!wrap) return;
+  const { slots, aktif, maks } = ttdTersimpanInfo;
+  const kartu = slots.map((s, i)=>{
+    const kosong = !s.path;
+    const dipakai = !kosong && i === aktif;
+    const stempel = s.dibuatPada ? tanggalSingkatLokal(s.dibuatPada) : '';
+    const gambar = kosong
+      ? `<span class="sig-empty-thumb">${escapeHtml(T('ttdTersimpanKosong'))}</span>`
+      : `<div class="sig-thumb"><img src="${s.path}" alt="${escapeHtml(labelSlotTtd(i))}"></div>`;
+    // Radio "pakai TTD ini" hanya muncul di akun multi-slot; slot kosong tetap
+    // menampilkannya (disabled) supaya kartu-kartunya sejajar.
+    const radio = maks > 1 ? `
+      <label class="ttd-slot-pilih">
+        <input type="radio" name="ttdSlotAktif" ${dipakai ? 'checked' : ''} ${kosong ? 'disabled' : ''}
+          onchange="pilihSlotTtdAktif(${i})">
+        <span>${dipakai ? escapeHtml(T('ttdSlotDipilih') || 'Sedang dipakai') : escapeHtml(T('ttdSlotPilih') || 'Pakai TTD ini')}</span>
+      </label>` : '';
+    const targetKini = ttdSlotAkanDiisi === i ? ' aktif' : '';
+    const tblIsi = `<button type="button" class="btn ghost btn-mini" onclick="pilihSlotUntukDiisi(${i})">${escapeHtml(kosong ? (T('ttdSlotIsi') || 'Isi') : (T('ttdSlotGanti') || 'Ganti'))}</button>`;
+    const tblHapus = kosong ? '' : `<button type="button" class="btn ghost btn-mini btn-hapus-akun" onclick="hapusSlotTtd(${i})">${escapeHtml(T('ttdSlotHapus') || 'Hapus')}</button>`;
+    return `
+      <div class="ttd-slot-kartu${dipakai ? ' dipakai' : ''}${targetKini}">
+        <div class="ttd-slot-kepala">
+          <b>${escapeHtml(labelSlotTtd(i))}</b>
+          ${stempel ? `<span class="ttd-slot-stempel">${escapeHtml(stempel)}</span>` : ''}
+        </div>
+        <div class="ttd-slot-gambar">${gambar}</div>
+        ${radio}
+        <div class="ttd-slot-tombol">${tblIsi}${tblHapus}</div>
+      </div>`;
+  }).join('');
+  wrap.innerHTML = kartu;
+
+  // Petunjuk di atas kanvas menyebutkan slot mana yang sedang diisi. Untuk
+  // akun satu slot, petunjuknya tidak menambah pengetahuan siapa pun — sembunyikan.
+  const petunjuk = document.getElementById('ttdSlotTarget');
+  if(petunjuk){
+    if(maks > 1){
+      const teks = (T('ttdSlotSedangMengisi') || 'Sedang mengisi Slot {n}. Tekan Simpan setelah selesai.')
+        .replace('{n}', String(ttdSlotAkanDiisi + 1));
+      petunjuk.textContent = teks;
+      petunjuk.style.display = '';
+    } else {
+      petunjuk.style.display = 'none';
+    }
   }
-  const hapus = document.getElementById('ttdSayaHapusBtn');
-  if(hapus) hapus.style.display = ttdTersimpanSaya ? '' : 'none';
+}
+
+function pilihSlotUntukDiisi(i){
+  const maks = ttdTersimpanInfo.maks;
+  ttdSlotAkanDiisi = Math.max(0, Math.min(maks - 1, i|0));
+  clearSig('sigTtdSaya');
+  renderTtdSaya();
+  // Gulir ke kanvas supaya orangnya langsung tahu ke mana matanya harus pindah.
+  document.getElementById('sigTtdSaya')?.scrollIntoView({ behavior:'smooth', block:'center' });
+}
+
+async function pilihSlotTtdAktif(i){
+  const maks = ttdTersimpanInfo.maks;
+  const idx = Math.max(0, Math.min(maks - 1, i|0));
+  // Slot kosong tidak boleh jadi aktif — radio-nya sudah disabled, jaga lagi
+  // di sisi klien supaya tidak mengirim permintaan sia-sia.
+  if(!ttdTersimpanInfo.slots[idx]?.path){ renderTtdSaya(); return; }
+  try{
+    const info = await gsRun('pilihTtdSayaAktif', { slotIdx: idx });
+    setTtdTersimpan(info);
+    toast(T('ttdSlotDipilihToast') || 'Slot aktif diperbarui.');
+  }catch(e){
+    toast(e.message || T('ttdTersimpanGagal'));
+  }
 }
 
 async function simpanTtdSaya(){
@@ -147,11 +260,9 @@ async function simpanTtdSaya(){
   const btn = document.getElementById('ttdSayaSaveBtn');
   if(btn) btn.disabled = true;
   try{
-    // Menyimpan yang baru menggantikan yang lama — satu akun satu tanda tangan,
-    // jadi tidak ada daftar yang perlu dipilih tiap kali memakainya.
-    setTtdTersimpanSaya(await gsRun('simpanTtdSaya', data));
+    const info = await gsRun('simpanTtdSaya', { dataUrl: data, slotIdx: ttdSlotAkanDiisi });
+    setTtdTersimpan(info);
     clearSig('sigTtdSaya');
-    renderTtdSaya();
     toast(T('ttdTersimpanDisimpan'));
   }catch(e){
     toast(e.message || T('ttdTersimpanGagal'));
@@ -159,18 +270,26 @@ async function simpanTtdSaya(){
   if(btn) btn.disabled = false;
 }
 
-async function hapusTtdSaya(){
-  if(!ttdTersimpanSaya) return;
-  if(!confirm(T('ttdTersimpanHapusTanya'))) return;
-  const btn = document.getElementById('ttdSayaHapusBtn');
-  if(btn) btn.disabled = true;
+async function hapusSlotTtd(i){
+  const maks = ttdTersimpanInfo.maks;
+  const idx = Math.max(0, Math.min(maks - 1, i|0));
+  const slot = ttdTersimpanInfo.slots[idx];
+  if(!slot?.path) return;
+  const pesan = maks > 1
+    ? (T('ttdSlotHapusTanya') || 'Hapus tanda tangan di Slot {n}?').replace('{n}', String(idx + 1))
+    : T('ttdTersimpanHapusTanya');
+  if(!confirm(pesan)) return;
   try{
-    await gsRun('hapusTtdSaya');
-    setTtdTersimpanSaya('');
-    renderTtdSaya();
+    const info = await gsRun('hapusTtdSaya', { slotIdx: idx });
+    setTtdTersimpan(info);
     toast(T('ttdTersimpanDihapus'));
   }catch(e){
     toast(e.message || T('ttdTersimpanGagal'));
   }
-  if(btn) btn.disabled = false;
+}
+
+/** Kompatibilitas dengan pemanggilan lama (tombol "Hapus yang tersimpan" di
+    modal satu-slot). Menghapus slot aktif. */
+async function hapusTtdSaya(){
+  return hapusSlotTtd(ttdTersimpanInfo.aktif);
 }

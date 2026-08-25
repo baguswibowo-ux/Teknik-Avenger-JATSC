@@ -34,7 +34,13 @@ async function init(){
   unitSaya = data.unitSaya || [];
   // Tanda tangan tersimpan milik akun ini. Baru diketahui sekarang, jadi tombol
   // "pakai TTD tersimpan" di tiap papan baru muncul di sini — bukan di atas.
-  setTtdTersimpanSaya(data.ttdTersimpan);
+  // Server sekarang mengirim struktur { slots, aktif, maks }; peramban lama yang
+  // menerima string polos ditangani lewat setTtdTersimpanSaya di dalam setter.
+  if(data.ttdTersimpan && typeof data.ttdTersimpan === 'object' && Array.isArray(data.ttdTersimpan.slots)){
+    setTtdTersimpan(data.ttdTersimpan);
+  } else {
+    setTtdTersimpanSaya(data.ttdTersimpan);
+  }
   renderPemilihUnit();
   terapkanUnit();
   // Daftar gedung datang dari server; isi pemilihnya sebelum daftar catatan
@@ -79,6 +85,10 @@ async function init(){
   try{
     pejabatList = data.pejabatList || [];
     isiPilihanPejabat();
+    // Daftar akun yang boleh masuk ke unit yang sedang dibuka — saran nama pada
+    // baris teknisi kedua dst. Baris pertama tetap otomatis nama pengisi.
+    teknisiUnitList = data.teknisiUnitList || [];
+    isiPilihanTeknisiUnit();
     inboxTtd = data.inboxTtd || [];
     renderInboxBadge();
   }catch(e){ /* kotak masuk TTD sekadar kemudahan — kegagalannya tidak boleh menghentikan pemuatan */ }

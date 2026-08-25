@@ -325,8 +325,15 @@ for (const tabel of ['entries', 'dailychecks', 'monitoring', 'dstest', 'ltk', 'b
 /* Tanda tangan tersimpan milik akun: digambar sekali oleh pemiliknya lewat menu
    "TTD Saya", lalu dipakai ulang tiap mengisi formulir tanpa menggambar lagi.
    Isinya path berkas, sama seperti tanda tangan pada catatan — bedanya berkas
-   ini milik akun, bukan milik satu catatan. Lihat simpanTtdTersimpan. */
+   ini milik akun, bukan milik satu catatan. Lihat simpanTtdTersimpan.
+
+   Bentuk kolomnya berubah: dulu satu path polos, kini JSON larik hingga 5 slot
+   untuk admin dan pejabat (teknisi tetap 1). Yang lama TIDAK dimigrasikan
+   paksa — pembaca (parseSlotsTtd) menerima keduanya. Kolom ttd_aktif menunjuk
+   slot yang sedang dipilih; selama pilihan tidak diubah dan slotnya tidak
+   dihapus, TTD yang dipakai selalu itu. */
 tambahKolom('users', 'ttd_tersimpan', "TEXT NOT NULL DEFAULT ''");
+tambahKolom('users', 'ttd_aktif', "INTEGER NOT NULL DEFAULT 0");
 
 // DS Test: kategori daftar site, plus penandatangan Manager Teknik.
 tambahKolom('dstest', 'kategori', "TEXT NOT NULL DEFAULT 'domestik'");
@@ -448,7 +455,9 @@ export function hapusUser(username) {
   db.prepare('DELETE FROM user_unit WHERE user_id = ?').run(u.id);
   // Tanda tangan tersimpannya ikut hilang bersama akunnya. Yang sudah terlanjur
   // dibubuhkan pada catatan tidak tersentuh — itu salinan tersendiri.
-  removeSignatureFile(u.ttd_tersimpan);
+  for (const s of parseSlotsTtd(u.ttd_tersimpan)) {
+    if (s.path) removeSignatureFile(s.path);
+  }
   return db.prepare('DELETE FROM users WHERE id = ?').run(u.id).changes > 0;
 }
 
@@ -466,7 +475,7 @@ export const UNIT = [
     brand: 'E-Logbook Fasilitas Komunikasi Penerbangan',
     judul: 'Buku Catatan Fasilitas',
     kelompok: 'Fasilitas Komunikasi Penerbangan (Radtel)',
-    peralatan: 'Radio Komunikasi, VSCS Garex, Recording Neptuno',
+    peralatan: 'VCS Garex, Recording Neptuno',
     dinas: ['Pagi', 'Siang', 'Malam', 'PS'],
     pakaiJamSelesai: true,
     pakaiFrek: false,
@@ -675,7 +684,12 @@ export function setUnitUser(userId, daftar) {
 
 // Akun yang sudah ada dibuat sebelum unit dikenal — beri akses Radtel supaya
 // tidak ada yang mendadak kehilangan logbook yang selama ini dipakainya.
-for (const u of db.prepare('SELECT id FROM users').all()) {
+// Admin dan pejabat sengaja dilewat: akses mereka sudah lintas unit lewat
+// peran, jadi baris user_unit di sini bukan pagar akses melainkan opt-in
+// tampil sebagai teknisi di unit itu (lihat listTeknisiUnit). Menaruh
+// 'radtel' otomatis untuk mereka berarti nama mereka muncul di daftar saran
+// teknisi Radtel tanpa pernah memintanya.
+for (const u of db.prepare("SELECT id FROM users WHERE role NOT IN ('admin','pejabat')").all()) {
   const punya = db.prepare('SELECT COUNT(*) AS n FROM user_unit WHERE user_id = ?').get(u.id).n;
   if (punya === 0) db.prepare("INSERT INTO user_unit (user_id, unit) VALUES (?, 'radtel')").run(u.id);
 }
@@ -788,10 +802,23 @@ export const jumlahAdminAktif = () =>
 export const getUserByUsername = (username) =>
   db.prepare('SELECT * FROM users WHERE username = ?').get(String(username).trim());
 
+/**
+ * Isi `unit` di sini adalah baris user_unit apa adanya — untuk semua peran,
+ * termasuk admin dan pejabat. Untuk admin/pejabat baris itu bukan pagar akses
+ * (perannya sudah membuka seluruh unit lewat SEMUA_UNIT), melainkan tanda
+ * "muncul sebagai saran teknisi di unit ini" — dipilih di layar Kelola Akun,
+ * dibaca oleh listTeknisiUnit. Layar kartu akun butuh baris mentah supaya
+ * kotak centangnya mencerminkan pilihannya, bukan hasil sintesis "seluruh
+ * unit" yang membuat semua kotak selalu tampak tercentang.
+ */
 export const listUsers = () =>
   db.prepare('SELECT id, username, nama, role, aktif, dibuat_pada FROM users ORDER BY username')
     .all()
-    .map((u) => ({ ...u, unit: unitUntukUser(u) }));
+    .map((u) => {
+      const rows = db.prepare('SELECT unit FROM user_unit WHERE user_id = ?').all(u.id);
+      const punya = new Set(rows.map((r) => r.unit));
+      return { ...u, unit: KODE_UNIT.filter((k) => punya.has(k)) };
+    });
 
 export const countUsers = () =>
   db.prepare('SELECT COUNT(*) AS n FROM users').get().n;
@@ -862,30 +889,114 @@ function removeSignatureFile(webPath) {
  * tangan orang itu dari seluruh catatan lain sekaligus.
  */
 
+/* ---------- Slot TTD tersimpan: format dan batas per peran ----------
+   Admin dan pejabat boleh menyimpan sampai lima TTD sekaligus; teknisi tetap
+   satu. Salah satu slot dipilih sebagai "aktif" dan itulah yang dibubuhkan tiap
+   kali memakai TTD tersimpan — sampai pemiliknya berganti pilihan, atau slot
+   itu ia hapus dan gambar ulang. Kolom disimpan sebagai JSON larik untuk
+   multi-slot; nilai polos lama (satu path) tetap dibaca sebagai satu slot. */
+const MAKS_SLOT_TTD_PER_PERAN = { admin: 5, pejabat: 5 };
+function batasSlotTtd(role) { return MAKS_SLOT_TTD_PER_PERAN[role] || 1; }
+
+function parseSlotsTtd(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return [];
+  if (s[0] === '[') {
+    try {
+      const arr = JSON.parse(s);
+      if (!Array.isArray(arr)) return [];
+      return arr.map((x) => ({
+        path: String(x?.path || ''),
+        dibuatPada: String(x?.dibuatPada || '')
+      }));
+    } catch { return []; }
+  }
+  // Cara lama: satu path polos — dianggap slot pertama.
+  return [{ path: s, dibuatPada: '' }];
+}
+
+function isiHinggaMaks(slots, maks) {
+  const out = [];
+  for (let i = 0; i < maks; i++) {
+    const x = slots[i];
+    out.push({ path: String(x?.path || ''), dibuatPada: String(x?.dibuatPada || '') });
+  }
+  return out;
+}
+
+function serialisasiSlotsTtd(slots) {
+  const bersih = (slots || []).map((s) => ({
+    path: String(s?.path || ''),
+    dibuatPada: String(s?.dibuatPada || '')
+  }));
+  // Trailing slot kosong dipangkas supaya kolom rapi; kalau semuanya kosong,
+  // kolom dikembalikan ke '' — sinyal "belum pernah menyimpan".
+  while (bersih.length && !bersih[bersih.length - 1].path) bersih.pop();
+  if (!bersih.length) return '';
+  return JSON.stringify(bersih);
+}
+
+function bacaAktifSah(u, maks) {
+  const raw = Number(u?.ttd_aktif);
+  if (!Number.isFinite(raw) || raw < 0 || raw >= maks) return 0;
+  return Math.floor(raw);
+}
+
+function bacaTtdTersimpanUser(u) {
+  const maks = batasSlotTtd(u?.role);
+  const slots = isiHinggaMaks(parseSlotsTtd(u?.ttd_tersimpan), maks);
+  const aktif = bacaAktifSah(u, maks);
+  return { slots, aktif, maks };
+}
+
+/**
+ * Bentuk baru: { slots: [{path, dibuatPada}, ...], aktif, maks }.
+ * Peramban lama yang memanggil bentuk lama (satu string path) hanya perlu
+ * membaca slot pada indeks "aktif" dari struktur ini.
+ */
 export function getTtdTersimpan(username) {
   const u = getUserByUsername(username);
-  return u ? (u.ttd_tersimpan || '') : '';
+  if (!u) return { slots: [{ path: '', dibuatPada: '' }], aktif: 0, maks: 1 };
+  return bacaTtdTersimpanUser(u);
 }
 
-export function simpanTtdTersimpan(username, dataUrl) {
+export function simpanTtdTersimpan(username, dataUrl, slotIdx = 0) {
   const u = getUserByUsername(username);
   if (!u) throw new Error('Akun tidak ditemukan.');
+  const maks = batasSlotTtd(u.role);
+  const idx = Math.max(0, Math.min(maks - 1, Number(slotIdx) | 0));
+  const slots = isiHinggaMaks(parseSlotsTtd(u.ttd_tersimpan), maks);
   const baru = saveSignature(dataUrl, 'ttd_akun');
   if (!baru) throw new Error('Tanda tangannya masih kosong.');
-  const lama = u.ttd_tersimpan;
-  db.prepare('UPDATE users SET ttd_tersimpan = ? WHERE id = ?').run(baru, u.id);
-  // Yang lama dibuang setelah yang baru tercatat, bukan sebelumnya: kalau
-  // urutannya terbalik dan penyimpanannya gagal, orangnya kehilangan keduanya.
+  const lama = slots[idx].path;
+  slots[idx] = { path: baru, dibuatPada: new Date().toISOString() };
+  db.prepare('UPDATE users SET ttd_tersimpan = ? WHERE id = ?').run(serialisasiSlotsTtd(slots), u.id);
+  // Yang lama dibuang setelah yang baru tercatat: kalau urutannya terbalik dan
+  // penyimpanannya gagal, orangnya kehilangan keduanya.
   if (lama) removeSignatureFile(lama);
-  return baru;
+  return getTtdTersimpan(username);
 }
 
-export function hapusTtdTersimpan(username) {
+export function hapusTtdTersimpan(username, slotIdx = 0) {
   const u = getUserByUsername(username);
-  if (!u) return false;
-  db.prepare("UPDATE users SET ttd_tersimpan = '' WHERE id = ?").run(u.id);
-  if (u.ttd_tersimpan) removeSignatureFile(u.ttd_tersimpan);
-  return true;
+  if (!u) return getTtdTersimpan(username);
+  const maks = batasSlotTtd(u.role);
+  const idx = Math.max(0, Math.min(maks - 1, Number(slotIdx) | 0));
+  const slots = isiHinggaMaks(parseSlotsTtd(u.ttd_tersimpan), maks);
+  const lama = slots[idx].path;
+  slots[idx] = { path: '', dibuatPada: '' };
+  db.prepare('UPDATE users SET ttd_tersimpan = ? WHERE id = ?').run(serialisasiSlotsTtd(slots), u.id);
+  if (lama) removeSignatureFile(lama);
+  return getTtdTersimpan(username);
+}
+
+export function pilihTtdTersimpanAktif(username, slotIdx) {
+  const u = getUserByUsername(username);
+  if (!u) throw new Error('Akun tidak ditemukan.');
+  const maks = batasSlotTtd(u.role);
+  const idx = Math.max(0, Math.min(maks - 1, Number(slotIdx) | 0));
+  db.prepare('UPDATE users SET ttd_aktif = ? WHERE id = ?').run(idx, u.id);
+  return getTtdTersimpan(username);
 }
 
 /* ============== SIAPA YANG MENGINPUT ============== */
@@ -2239,6 +2350,34 @@ export function listPejabatAktif() {
   return db.prepare(`SELECT username, nama FROM users
                       WHERE aktif = 1 AND role = 'pejabat'
                       ORDER BY nama COLLATE NOCASE`).all();
+}
+
+/**
+ * Akun yang muncul sebagai saran nama teknisi di formulir untuk satu unit.
+ * Baris pertama nama teknisi tetap otomatis diisi nama pengisi dokumen; baris
+ * berikutnya menampilkan daftar ini sebagai saran, supaya nama-nama yang salah
+ * eja atau salah singkatan tidak lagi tersimpan sebagai salinan berbeda dari
+ * orang yang sama.
+ *
+ * Yang menentukan bukan peran, melainkan keanggotaan unit di user_unit:
+ *   - Teknisi/PIC/Admin Unit: user_unit-nya adalah pagar akses; ikut menjadi
+ *     opt-in otomatis sebagai anggota tim unit itu.
+ *   - Administrator dan Pejabat: akses mereka lintas unit lewat peran, jadi
+ *     user_unit tidak dipakai untuk pagar; di sini ia dipakai sebagai opt-in
+ *     — administrator yang memang ikut dinas di unit tertentu mencentang unit
+ *     itu di Kelola Akun, dan namanya baru muncul sebagai saran teknisi di
+ *     sana. Yang tidak mencentang tidak muncul, walaupun teknis mereka boleh
+ *     membuka semua unit.
+ */
+export function listTeknisiUnit(unitKode) {
+  const kode = String(unitKode || '').trim();
+  if (!kode) return [];
+  return db.prepare(`
+    SELECT u.username, u.nama
+      FROM users u
+     WHERE u.aktif = 1
+       AND EXISTS (SELECT 1 FROM user_unit uu WHERE uu.user_id = u.id AND uu.unit = ?)
+     ORDER BY u.nama COLLATE NOCASE`).all(kode);
 }
 
 /**

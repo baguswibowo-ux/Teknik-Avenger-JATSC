@@ -58,7 +58,7 @@
     <div>
       <div class="brand-eyebrow">Perum LPPNPI &middot; Cabang JATSC</div>
       <div class="brand-title" data-t="brandJudul">E-Logbook Fasilitas Komunikasi Penerbangan</div>
-      <div class="brand-sub">VCS GAREX 300 &amp; RECORDING NEPTUNO — MER NEW JATSC</div>
+      <div class="brand-sub">VCS GAREX 300 &amp; RECORDING NEPTUNO</div>
     </div>
     <div class="clock-box">
       <div class="clock-time" id="clockTime">--:--:--</div>
@@ -68,7 +68,7 @@
   <div class="meta-strip">
     <div class="meta-item"><span data-t="metaPenyelenggara">Penyelenggara Pelayanan</span>Perum LPPNPI Cabang JATSC</div>
     <div class="meta-item"><span data-t="metaKelompok">Kelompok Fasilitas</span><b id="metaKelompokIsi" style="font-weight:400;">Fasilitas Komunikasi Penerbangan (Radkom &amp; Radtel)</b></div>
-    <div class="meta-item"><span data-t="metaPeralatan">Nama Peralatan</span><b id="metaPeralatanIsi" style="font-weight:400;">Radio Komunikasi, VSCS Garex, Recording Neptuno</b></div>
+    <div class="meta-item"><span data-t="metaPeralatan">Nama Peralatan</span><b id="metaPeralatanIsi" style="font-weight:400;">VCS Garex, Recording Neptuno</b></div>
   </div>
   <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
     <div class="unit-chip" id="unitChip" style="display:none;">
@@ -742,7 +742,7 @@
     </div>
     <div class="grid2">
       <div>
-        <div class="field"><label data-t="teknisiTelekom">Teknisi Telekomunikasi</label><input type="text" id="ltkTeknisiNama" data-t-ph="phNamaTeknisi" placeholder="Nama teknisi"></div>
+        <div class="field"><label data-t="teknisiTelekom">Teknisi Telekomunikasi</label><input type="text" id="ltkTeknisiNama" list="teknisiDatalist" data-t-ph="phNamaTeknisi" placeholder="Nama teknisi"></div>
         <div class="field"><label data-t="ttdTeknisi">TTD Teknisi</label><div class="sig-wrap"><canvas id="sigLtkTeknisi"></canvas><div class="sig-toolbar"><span class="sig-hint" data-t="ttdHintTeknisi">tanda tangan teknisi</span><button class="sig-clear" onclick="clearSig('sigLtkTeknisi')" data-t="bersihkan">bersihkan</button></div></div></div>
       </div>
       <div>
@@ -914,7 +914,7 @@
 
 <!-- MODAL TTD TERSIMPAN MILIK AKUN SENDIRI -->
 <div class="modal-bg" id="ttdSayaModalBg">
-  <div class="modal" style="max-width:460px;">
+  <div class="modal" style="max-width:640px;">
     <h3 data-t="ttdSayaJudul">TTD Tersimpan Saya</h3>
     <div class="ttd-saya-pratinjau">
       <label data-t="ttdSayaTersimpanKini">Yang tersimpan sekarang</label>
@@ -922,6 +922,7 @@
     </div>
     <div class="field">
       <label data-t="ttdSayaGambarBaru">Gambar tanda tangan baru</label>
+      <div id="ttdSlotTarget" class="ttd-slot-petunjuk" style="display:none;">Sedang mengisi Slot 1.</div>
       <div class="sig-wrap">
         <canvas id="sigTtdSaya"></canvas>
         <div class="sig-toolbar">
@@ -932,7 +933,6 @@
     </div>
     <div class="subtle-note" data-t="ttdSayaCatatan">Tanda tangan ini milik akun Anda dan hanya bisa dibuat serta dihapus oleh Anda sendiri. Sekali tersimpan, tiap papan tanda tangan di formulir mendapat tombol “pakai TTD tersimpan”. Menyimpan yang baru menggantikan yang lama; tanda tangan yang sudah terlanjur dibubuhkan pada catatan tidak ikut berubah.</div>
     <div class="modal-footer">
-      <button class="btn ghost btn-hapus-akun" id="ttdSayaHapusBtn" onclick="hapusTtdSaya()" data-t="ttdSayaHapus" style="display:none;">Hapus yang tersimpan</button>
       <button class="btn ghost" onclick="closeTtdSayaModal()" data-t="tutup">Tutup</button>
       <button class="btn" id="ttdSayaSaveBtn" onclick="simpanTtdSaya()" data-t="ttdSayaSimpan">💾 Simpan TTD</button>
     </div>
@@ -1035,6 +1035,11 @@
 
 <!-- Saran nama akun pejabat/admin untuk isian TTD susulan (lihat 20-ttd-pejabat.js). -->
 <datalist id="pejabatDatalist"></datalist>
+
+<!-- Saran nama akun yang boleh masuk ke unit yang sedang dibuka, untuk isian
+     baris teknisi kedua dan seterusnya. Baris pertama tetap otomatis nama
+     pengisi. Diisi ulang di isiPilihanTeknisiUnit() saat data dimuat. -->
+<datalist id="teknisiDatalist"></datalist>
 
 <div class="toast" id="toast"></div>
 <div id="printArea"></div>

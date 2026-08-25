@@ -392,6 +392,18 @@ function isiPilihanPejabat(){
   });
 }
 
+/** Isi <datalist> saran nama teknisi — dipakai baris kedua dst pada semua
+    formulir yang punya daftar nama teknisi. Baris pertama tetap otomatis
+    nama pengisi dokumen; ini cuma menyarankan nama rekan sedinas yang sudah
+    terdaftar di unit yang sedang dibuka, supaya salah eja dan salah singkatan
+    tidak lagi tersimpan sebagai salinan berbeda dari orang yang sama. */
+function isiPilihanTeknisiUnit(){
+  const dl = document.getElementById('teknisiDatalist');
+  if(!dl) return;
+  const daftar = (typeof teknisiUnitList !== 'undefined' && Array.isArray(teknisiUnitList)) ? teknisiUnitList : [];
+  dl.innerHTML = daftar.map(t=>`<option value="${escapeHtml(t.nama || t.username)}">`).join('');
+}
+
 /** Nama yang diketik teknisi -> username akun, kalau memang cocok persis. */
 function ttdUntukDariNama(nama){
   const n = String(nama||'').trim();
