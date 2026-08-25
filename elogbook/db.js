@@ -869,7 +869,7 @@ function removeSignatureFile(webPath) {
    path juga tetap dikenali — dianggap satu slot tanpa label. Akun pejabat/admin
    boleh memegang beberapa slot bertanda label untuk menampung TTD para PH;
    teknisi tetap satu slot dan labelnya diabaikan. */
-export const MAX_SLOT_TTD_PEJABAT = 7;
+export const MAX_SLOT_TTD_PEJABAT = 3;
 
 function bacaSlotTtd(raw) {
   const s = String(raw || '').trim();
