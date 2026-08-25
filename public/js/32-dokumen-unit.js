@@ -369,7 +369,9 @@ function gambarBerkas(){
       <td><span class="mono" style="color:var(--muted)">${jam} · ${esc(b.olehNama || b.oleh)}</span></td>
       <td><div style="display:flex;gap:6px;justify-content:flex-end">
         <a class="btn garis kecil" href="${b.url}" target="_blank" rel="noopener">${T('Buka','Open')}</a>
-        <button class="brk-buang" data-buang="${b.id}">${T('Keluarkan','Remove')}</button>
+        ${BOLEH_HAPUS.dokumen
+          ? `<button class="brk-buang" data-buang="${b.id}">${T('Keluarkan','Remove')}</button>`
+          : ''}
       </div></td></tr>`;
   }).join('')}</tbody></table></div>`;
 

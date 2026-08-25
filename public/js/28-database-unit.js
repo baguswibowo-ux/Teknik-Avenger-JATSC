@@ -350,7 +350,7 @@ function gambarUnit(){
             <figcaption class="isi">
               <div class="ket">${esc(f.ket)}</div>
               <div class="meta">${f.tgl ? tglRingkas(f.tgl) + ' · ' : ''}${esc(f.berkas)}</div>
-              ${KEMAMPUAN.galeriTulis
+              ${KEMAMPUAN.galeriTulis && BOLEH_HAPUS.galeri
                 ? `<button class="buang" data-buang="${esc(f.berkas)}" title="${
                     T('Hapus foto ini','Delete this photo')}">${T('Hapus','Delete')}</button>` : ''}
             </figcaption>
