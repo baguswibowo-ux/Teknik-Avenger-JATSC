@@ -328,91 +328,32 @@ export async function saveSignature(dataUrl, prefix) {
  * Cerminan dari getTtdTersimpan/simpanTtdTersimpan/hapusTtdTersimpan di db.js,
  * termasuk aturannya: berkas milik akun ini tidak pernah dipasang langsung ke
  * catatan — yang masuk ke catatan selalu salinan barunya, supaya menghapus satu
- * catatan tidak melenyapkan tanda tangan orang itu dari catatan yang lain.
- * Kolom ttd_tersimpan menyimpan JSON `[{label,path}]`; bentuk lama sekadar path
- * juga tetap dibaca (satu slot tanpa label). Akun pejabat/admin boleh memegang
- * beberapa slot bertanda label; teknisi tetap satu slot. */
-export const MAX_SLOT_TTD_PEJABAT = 7;
-
-function bacaSlotTtd(raw) {
-  const s = String(raw || '').trim();
-  if (!s) return [];
-  if (s.startsWith('[')) {
-    try {
-      const arr = JSON.parse(s);
-      if (!Array.isArray(arr)) return [];
-      return arr
-        .map((x) => ({ label: String(x?.label || ''), path: String(x?.path || '') }))
-        .filter((x) => x.path);
-    } catch { return []; }
-  }
-  return [{ label: '', path: s }];
-}
-
-const tulisSlotTtd = (arr) => (arr && arr.length ? JSON.stringify(arr) : '');
-
-function bolehBanyakSlot(role) {
-  const r = String(role || '').toLowerCase();
-  return r === 'admin' || r === 'pejabat';
-}
+ * catatan tidak melenyapkan tanda tangan orang itu dari catatan yang lain. */
 
 export async function getTtdTersimpan(username) {
   const u = await getUserByUsername(username);
-  return u ? bacaSlotTtd(u.ttd_tersimpan) : [];
+  return u ? (u.ttd_tersimpan || '') : '';
 }
 
-export async function simpanTtdTersimpan(username, dataUrl, label = '') {
+export async function simpanTtdTersimpan(username, dataUrl) {
   const u = await getUserByUsername(username);
   if (!u) throw new Error('Akun tidak ditemukan.');
-  const banyak = bolehBanyakSlot(u.role);
-  const lbl = banyak ? String(label || '').trim() : '';
-  if (banyak && !lbl) throw new Error('Beri label untuk slot TTD (mis. "MT asli" atau "PH Bagus").');
   const baru = await saveSignature(dataUrl, 'ttd_akun');
   if (!baru) throw new Error('Tanda tangannya masih kosong.');
-  const slot = bacaSlotTtd(u.ttd_tersimpan);
-  let dibuang = '';
-  if (banyak) {
-    const idxSama = slot.findIndex((s) => s.label.toLowerCase() === lbl.toLowerCase());
-    if (idxSama >= 0) {
-      dibuang = slot[idxSama].path;
-      slot[idxSama] = { label: lbl, path: baru };
-    } else {
-      if (slot.length >= MAX_SLOT_TTD_PEJABAT) {
-        await hapusBerkas(baru);
-        throw new Error(`Batas ${MAX_SLOT_TTD_PEJABAT} slot TTD sudah penuh — hapus salah satu dulu.`);
-      }
-      slot.push({ label: lbl, path: baru });
-    }
-  } else {
-    if (slot.length) dibuang = slot[0].path;
-    slot.splice(0, slot.length, { label: '', path: baru });
-  }
-  await jalankan('UPDATE users SET ttd_tersimpan = $1 WHERE id = $2', [tulisSlotTtd(slot), u.id]);
-  if (dibuang) await hapusBerkas(dibuang);
-  return slot;
+  const lama = u.ttd_tersimpan;
+  await jalankan('UPDATE users SET ttd_tersimpan = $1 WHERE id = $2', [baru, u.id]);
+  // Yang lama dibuang setelah yang baru tercatat — kalau urutannya terbalik dan
+  // penyimpanannya gagal, orangnya kehilangan keduanya.
+  if (lama) await hapusBerkas(lama);
+  return baru;
 }
 
-export async function hapusTtdTersimpan(username, label = null) {
+export async function hapusTtdTersimpan(username) {
   const u = await getUserByUsername(username);
-  if (!u) return [];
-  const slot = bacaSlotTtd(u.ttd_tersimpan);
-  if (!slot.length) return [];
-  const banyak = bolehBanyakSlot(u.role);
-  let sisa;
-  let dibuang = [];
-  if (banyak && label != null) {
-    const lbl = String(label).trim().toLowerCase();
-    sisa = slot.filter((s) => {
-      if (s.label.toLowerCase() === lbl) { dibuang.push(s.path); return false; }
-      return true;
-    });
-  } else {
-    dibuang = slot.map((s) => s.path);
-    sisa = [];
-  }
-  await jalankan('UPDATE users SET ttd_tersimpan = $1 WHERE id = $2', [tulisSlotTtd(sisa), u.id]);
-  for (const p of dibuang) await hapusBerkas(p);
-  return sisa;
+  if (!u) return false;
+  await jalankan("UPDATE users SET ttd_tersimpan = '' WHERE id = $1", [u.id]);
+  if (u.ttd_tersimpan) await hapusBerkas(u.ttd_tersimpan);
+  return true;
 }
 
 /* ============== PENGGUNA & SESI ============== */
@@ -482,9 +423,9 @@ export async function hapusUser(username) {
   if (u.aktif) throw new Error('Akun itu masih aktif. Nonaktifkan dulu sebelum dihapus.');
   await jalankan('DELETE FROM sessions WHERE user_id = $1', [u.id]);
   await jalankan('DELETE FROM user_unit WHERE user_id = $1', [u.id]);
-  // Tanda tangan tersimpannya (satu atau banyak slot) ikut hilang; yang sudah
-  // dibubuhkan pada catatan tidak tersentuh karena itu salinan tersendiri.
-  for (const s of bacaSlotTtd(u.ttd_tersimpan)) await hapusBerkas(s.path);
+  // Tanda tangan tersimpannya ikut hilang; yang sudah dibubuhkan pada catatan
+  // tidak tersentuh karena itu salinan tersendiri.
+  if (u.ttd_tersimpan) await hapusBerkas(u.ttd_tersimpan);
   const terhapus = (await jalankan('DELETE FROM users WHERE id = $1', [u.id])) > 0;
   if (terhapus) lupakanNamaPengguna();
   return terhapus;

@@ -32,11 +32,9 @@ async function init(){
   }
   unitAktif = data.unit || unitAktif;
   unitSaya = data.unitSaya || [];
-  // Slot TTD tersimpan milik akun ini. Baru diketahui sekarang, jadi tombol
+  // Tanda tangan tersimpan milik akun ini. Baru diketahui sekarang, jadi tombol
   // "pakai TTD tersimpan" di tiap papan baru muncul di sini — bukan di atas.
-  // ttdSlots dari server sudah berupa array {label,path}; ttdTersimpan lama
-  // (string tunggal) tetap diterima sebagai satu slot berlabel kosong.
-  setTtdSlotsSaya(data.ttdSlots || (data.ttdTersimpan ? [{ label: '', path: data.ttdTersimpan }] : []));
+  setTtdTersimpanSaya(data.ttdTersimpan);
   renderPemilihUnit();
   terapkanUnit();
   // Daftar gedung datang dari server; isi pemilihnya sebelum daftar catatan

@@ -322,12 +322,10 @@ for (const tabel of ['entries', 'dailychecks', 'monitoring', 'dstest', 'ltk', 'b
   tambahKolom(tabel, 'ttd_untuk', "TEXT NOT NULL DEFAULT ''");
 }
 
-/* Tanda tangan tersimpan milik akun: digambar oleh pemiliknya lewat menu "TTD
-   Saya", lalu dipakai ulang tiap mengisi formulir tanpa menggambar lagi.
-   Isinya JSON `[{label, path}]` — daftar slot bertanda label. Bentuk lama
-   sekadar string path juga masih dibaca (dianggap satu slot tanpa label). Lihat
-   simpanTtdTersimpan. Akun pejabat/admin boleh memegang beberapa slot untuk
-   menampung TTD para PH; teknisi tetap satu slot. */
+/* Tanda tangan tersimpan milik akun: digambar sekali oleh pemiliknya lewat menu
+   "TTD Saya", lalu dipakai ulang tiap mengisi formulir tanpa menggambar lagi.
+   Isinya path berkas, sama seperti tanda tangan pada catatan — bedanya berkas
+   ini milik akun, bukan milik satu catatan. Lihat simpanTtdTersimpan. */
 tambahKolom('users', 'ttd_tersimpan', "TEXT NOT NULL DEFAULT ''");
 
 // DS Test: kategori daftar site, plus penandatangan Manager Teknik.
@@ -448,10 +446,9 @@ export function hapusUser(username) {
   // supaya tidak bergantung pada PRAGMA foreign_keys yang bisa saja mati.
   db.prepare('DELETE FROM sessions WHERE user_id = ?').run(u.id);
   db.prepare('DELETE FROM user_unit WHERE user_id = ?').run(u.id);
-  // Tanda tangan tersimpannya (satu atau banyak slot) ikut hilang bersama
-  // akunnya. Yang sudah terlanjur dibubuhkan pada catatan tidak tersentuh — itu
-  // salinan tersendiri.
-  for (const s of bacaSlotTtd(u.ttd_tersimpan)) removeSignatureFile(s.path);
+  // Tanda tangan tersimpannya ikut hilang bersama akunnya. Yang sudah terlanjur
+  // dibubuhkan pada catatan tidak tersentuh — itu salinan tersendiri.
+  removeSignatureFile(u.ttd_tersimpan);
   return db.prepare('DELETE FROM users WHERE id = ?').run(u.id).changes > 0;
 }
 
@@ -865,94 +862,30 @@ function removeSignatureFile(webPath) {
  * tangan orang itu dari seluruh catatan lain sekaligus.
  */
 
-/* Kolom ttd_tersimpan menyimpan JSON `[{label, path}]`. Bentuk lama sekadar
-   path juga tetap dikenali — dianggap satu slot tanpa label. Akun pejabat/admin
-   boleh memegang beberapa slot bertanda label untuk menampung TTD para PH;
-   teknisi tetap satu slot dan labelnya diabaikan. */
-export const MAX_SLOT_TTD_PEJABAT = 7;
-
-function bacaSlotTtd(raw) {
-  const s = String(raw || '').trim();
-  if (!s) return [];
-  if (s.startsWith('[')) {
-    try {
-      const arr = JSON.parse(s);
-      if (!Array.isArray(arr)) return [];
-      return arr
-        .map((x) => ({ label: String(x?.label || ''), path: String(x?.path || '') }))
-        .filter((x) => x.path);
-    } catch { return []; }
-  }
-  // Bentuk lama: satu path. Tetap dibaca supaya data sebelum fitur multi-slot
-  // ini tidak hilang begitu saja.
-  return [{ label: '', path: s }];
-}
-
-const tulisSlotTtd = (arr) => (arr && arr.length ? JSON.stringify(arr) : '');
-
-function bolehBanyakSlot(role) {
-  const r = String(role || '').toLowerCase();
-  return r === 'admin' || r === 'pejabat';
-}
-
 export function getTtdTersimpan(username) {
   const u = getUserByUsername(username);
-  return u ? bacaSlotTtd(u.ttd_tersimpan) : [];
+  return u ? (u.ttd_tersimpan || '') : '';
 }
 
-export function simpanTtdTersimpan(username, dataUrl, label = '') {
+export function simpanTtdTersimpan(username, dataUrl) {
   const u = getUserByUsername(username);
   if (!u) throw new Error('Akun tidak ditemukan.');
-  const banyak = bolehBanyakSlot(u.role);
-  const lbl = banyak ? String(label || '').trim() : '';
-  if (banyak && !lbl) throw new Error('Beri label untuk slot TTD (mis. "MT asli" atau "PH Bagus").');
   const baru = saveSignature(dataUrl, 'ttd_akun');
   if (!baru) throw new Error('Tanda tangannya masih kosong.');
-  const slot = bacaSlotTtd(u.ttd_tersimpan);
-  let dibuang = '';
-  if (banyak) {
-    const idxSama = slot.findIndex((s) => s.label.toLowerCase() === lbl.toLowerCase());
-    if (idxSama >= 0) {
-      dibuang = slot[idxSama].path;
-      slot[idxSama] = { label: lbl, path: baru };
-    } else {
-      if (slot.length >= MAX_SLOT_TTD_PEJABAT) {
-        removeSignatureFile(baru);
-        throw new Error(`Batas ${MAX_SLOT_TTD_PEJABAT} slot TTD sudah penuh — hapus salah satu dulu.`);
-      }
-      slot.push({ label: lbl, path: baru });
-    }
-  } else {
-    if (slot.length) dibuang = slot[0].path;
-    slot.splice(0, slot.length, { label: '', path: baru });
-  }
-  db.prepare('UPDATE users SET ttd_tersimpan = ? WHERE id = ?').run(tulisSlotTtd(slot), u.id);
-  if (dibuang) removeSignatureFile(dibuang);
-  return slot;
+  const lama = u.ttd_tersimpan;
+  db.prepare('UPDATE users SET ttd_tersimpan = ? WHERE id = ?').run(baru, u.id);
+  // Yang lama dibuang setelah yang baru tercatat, bukan sebelumnya: kalau
+  // urutannya terbalik dan penyimpanannya gagal, orangnya kehilangan keduanya.
+  if (lama) removeSignatureFile(lama);
+  return baru;
 }
 
-export function hapusTtdTersimpan(username, label = null) {
+export function hapusTtdTersimpan(username) {
   const u = getUserByUsername(username);
-  if (!u) return [];
-  const slot = bacaSlotTtd(u.ttd_tersimpan);
-  if (!slot.length) return [];
-  const banyak = bolehBanyakSlot(u.role);
-  let sisa;
-  let dibuang = [];
-  if (banyak && label != null) {
-    const lbl = String(label).trim().toLowerCase();
-    sisa = slot.filter((s) => {
-      if (s.label.toLowerCase() === lbl) { dibuang.push(s.path); return false; }
-      return true;
-    });
-  } else {
-    // Tanpa label: hapus semuanya (untuk teknisi ini otomatis slot satu-satunya).
-    dibuang = slot.map((s) => s.path);
-    sisa = [];
-  }
-  db.prepare('UPDATE users SET ttd_tersimpan = ? WHERE id = ?').run(tulisSlotTtd(sisa), u.id);
-  for (const p of dibuang) removeSignatureFile(p);
-  return sisa;
+  if (!u) return false;
+  db.prepare("UPDATE users SET ttd_tersimpan = '' WHERE id = ?").run(u.id);
+  if (u.ttd_tersimpan) removeSignatureFile(u.ttd_tersimpan);
+  return true;
 }
 
 /* ============== SIAPA YANG MENGINPUT ============== */
