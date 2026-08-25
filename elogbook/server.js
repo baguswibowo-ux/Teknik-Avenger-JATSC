@@ -698,7 +698,7 @@ const API = {
      * hanya kueri paling lambat.
      */
     const [entries, dcHistory, issues, monitoring, ltk, bapb, dstest, berkala,
-           users, pejabatList, inboxTtd, ttdTersimpan] = await Promise.all([
+           users, pejabatList, inboxTtd, ttdSlots] = await Promise.all([
       listEntries(u, MAX_ROWS),
       listDailyChecks(u, MAX_ROWS),
       listIssues(u),
@@ -764,7 +764,9 @@ const API = {
       users,
       pejabatList,
       inboxTtd,
-      ttdTersimpan
+      // Slot TTD tersimpan milik akun ini — daftar {label,path}. Teknisi
+      // paling banter satu slot berlabel kosong; pejabat/admin boleh beberapa.
+      ttdSlots
     };
   },
 
@@ -864,13 +866,15 @@ const API = {
      pribadinya, bukan perubahan pada data logbook, jadi tidak masuk API_TULIS
      yang menutup jalur penambahan data bagi pejabat. */
 
-  simpanTtdSaya: async (dataUrl, user) => {
+  simpanTtdSaya: async (dataUrl, label, user) => {
     const d = String(dataUrl || '');
     if (!d.startsWith('data:image/')) throw new Error('Tanda tangannya masih kosong.');
-    return simpanTtdTersimpan(user.username, d);
+    return simpanTtdTersimpan(user.username, d, label);
   },
 
-  hapusTtdSaya: async (user) => hapusTtdTersimpan(user.username),
+  // Tanpa label = teknisi (yang cuma punya satu slot); dengan label = pejabat/admin
+  // menghapus slot tertentu. Server sendiri yang mengatur aturannya berdasar peran.
+  hapusTtdSaya: async (label, user) => hapusTtdTersimpan(user.username, label ?? null),
 
   addIssue: async (isu, user) => insertIssue(
     {

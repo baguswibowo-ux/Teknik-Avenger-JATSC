@@ -912,16 +912,33 @@
   </div>
 </div>
 
-<!-- MODAL TTD TERSIMPAN MILIK AKUN SENDIRI -->
+<!-- MODAL TTD TERSIMPAN MILIK AKUN SENDIRI
+     Tampilannya berubah menurut peran akun: teknisi cukup satu slot (label
+     tersembunyi, satu tombol simpan menggantikan); pejabat/admin melihat
+     daftar slot bertanda label (mis. "MT asli", "PH Bagus") plus form
+     penambahan slot baru. Isi bloknya diatur renderTtdSaya() di JS. -->
 <div class="modal-bg" id="ttdSayaModalBg">
   <div class="modal" style="max-width:460px;">
     <h3 data-t="ttdSayaJudul">TTD Tersimpan Saya</h3>
-    <div class="ttd-saya-pratinjau">
+
+    <!-- Daftar slot yang sudah tersimpan (dipakai pejabat/admin; disembunyikan
+         untuk teknisi karena hanya punya satu slot dan pratinjaunya di bawah). -->
+    <div id="ttdSayaSlotList" style="display:none;"></div>
+
+    <!-- Pratinjau slot tunggal (dipakai teknisi). -->
+    <div class="ttd-saya-pratinjau" id="ttdSayaPratinjauWrap">
       <label data-t="ttdSayaTersimpanKini">Yang tersimpan sekarang</label>
       <div id="ttdSayaPratinjau"></div>
     </div>
+
+    <!-- Isian label slot baru (dipakai pejabat/admin). -->
+    <div class="field" id="ttdSayaLabelWrap" style="display:none;">
+      <label for="ttdSayaLabelInput" data-t="ttdSayaLabelJudul">Label slot (mis. "MT asli" atau "PH Bagus")</label>
+      <input id="ttdSayaLabelInput" type="text" maxlength="40" data-t-ph="ttdSayaLabelPh" placeholder="mis. PH Bagus">
+    </div>
+
     <div class="field">
-      <label data-t="ttdSayaGambarBaru">Gambar tanda tangan baru</label>
+      <label id="ttdSayaGambarLabel" data-t="ttdSayaGambarBaru">Gambar tanda tangan baru</label>
       <div class="sig-wrap">
         <canvas id="sigTtdSaya"></canvas>
         <div class="sig-toolbar">
@@ -930,11 +947,25 @@
         </div>
       </div>
     </div>
-    <div class="subtle-note" data-t="ttdSayaCatatan">Tanda tangan ini milik akun Anda dan hanya bisa dibuat serta dihapus oleh Anda sendiri. Sekali tersimpan, tiap papan tanda tangan di formulir mendapat tombol “pakai TTD tersimpan”. Menyimpan yang baru menggantikan yang lama; tanda tangan yang sudah terlanjur dibubuhkan pada catatan tidak ikut berubah.</div>
+    <div class="subtle-note" id="ttdSayaCatatan" data-t="ttdSayaCatatan">Tanda tangan ini milik akun Anda dan hanya bisa dibuat serta dihapus oleh Anda sendiri. Sekali tersimpan, tiap papan tanda tangan di formulir mendapat tombol “pakai TTD tersimpan”. Menyimpan yang baru menggantikan yang lama; tanda tangan yang sudah terlanjur dibubuhkan pada catatan tidak ikut berubah.</div>
     <div class="modal-footer">
       <button class="btn ghost btn-hapus-akun" id="ttdSayaHapusBtn" onclick="hapusTtdSaya()" data-t="ttdSayaHapus" style="display:none;">Hapus yang tersimpan</button>
       <button class="btn ghost" onclick="closeTtdSayaModal()" data-t="tutup">Tutup</button>
       <button class="btn" id="ttdSayaSaveBtn" onclick="simpanTtdSaya()" data-t="ttdSayaSimpan">💾 Simpan TTD</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PILIH SLOT TTD (muncul saat pejabat/admin punya lebih dari satu slot,
+     ditampilkan setiap kali menekan "pakai TTD tersimpan" atau "setujui &
+     bubuhkan"). Isinya diatur bukaPickerSlotTtd() di JS. -->
+<div class="modal-bg" id="ttdSlotPickerBg">
+  <div class="modal" style="max-width:380px;">
+    <h3 data-t="ttdSlotPilihJudul">Pilih tanda tangan</h3>
+    <div class="subtle-note" style="margin-bottom:10px;" data-t="ttdSlotPilihKeterangan">Pilih slot yang akan dipakai. Yang terakhir dipilih otomatis jadi urutan pertama pada pemakaian berikutnya.</div>
+    <div id="ttdSlotPickerBody" style="display:flex;flex-direction:column;gap:8px;"></div>
+    <div class="modal-footer">
+      <button class="btn ghost" onclick="tutupPickerSlotTtd()" data-t="batal">Batal</button>
     </div>
   </div>
 </div>
