@@ -151,7 +151,11 @@ function renderDsTeknisi(){
       ${dsTeknisiRows.length>1 ? `<button class="icon-btn" onclick="hapusDsTeknisi('${t.key}')">✕</button>` : ''}
     </div>`).join('');
 }
-function addDsTeknisi(){ dsTeknisiRows.push({key:'d'+(dsTeknisiSeq++), nama:''}); renderDsTeknisi(); }
+function addDsTeknisi(){
+  const isiAwal = dsTeknisiRows.length === 0 && userSaatIni ? (userSaatIni.nama || userSaatIni.username || '') : '';
+  dsTeknisiRows.push({key:'d'+(dsTeknisiSeq++), nama: isiAwal});
+  renderDsTeknisi();
+}
 function hapusDsTeknisi(key){ dsTeknisiRows = dsTeknisiRows.filter(x=>x.key!==key); renderDsTeknisi(); }
 
 function openDsModal(){

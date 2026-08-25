@@ -196,7 +196,11 @@ function renderBerkalaTeknisi(){
       ${berkalaTeknisiRows.length>1 ? `<button class="icon-btn" onclick="hapusBerkalaTeknisi('${t.key}')">✕</button>` : ''}
     </div>`).join('');
 }
-function addBerkalaTeknisi(){ berkalaTeknisiRows.push({key:'b'+(berkalaTeknisiSeq++), nama:''}); renderBerkalaTeknisi(); }
+function addBerkalaTeknisi(){
+  const isiAwal = berkalaTeknisiRows.length === 0 && userSaatIni ? (userSaatIni.nama || userSaatIni.username || '') : '';
+  berkalaTeknisiRows.push({key:'b'+(berkalaTeknisiSeq++), nama: isiAwal});
+  renderBerkalaTeknisi();
+}
 function hapusBerkalaTeknisi(key){ berkalaTeknisiRows = berkalaTeknisiRows.filter(x=>x.key!==key); renderBerkalaTeknisi(); }
 
 /** Jendela pengisian, selalu untuk satu jenis — tabnya yang menentukan. */

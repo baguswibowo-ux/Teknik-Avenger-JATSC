@@ -22,7 +22,11 @@ function renderMonTeknisi(){
       ${monTeknisiRows.length>1 ? `<button class="icon-btn" onclick="hapusMonTeknisi('${t.key}')">✕</button>` : ''}
     </div>`).join('');
 }
-function addMonTeknisi(){ monTeknisiRows.push({key:'t'+(monTeknisiSeq++), nama:''}); renderMonTeknisi(); }
+function addMonTeknisi(){
+  const isiAwal = monTeknisiRows.length === 0 && userSaatIni ? (userSaatIni.nama || userSaatIni.username || '') : '';
+  monTeknisiRows.push({key:'t'+(monTeknisiSeq++), nama: isiAwal});
+  renderMonTeknisi();
+}
 function hapusMonTeknisi(key){ monTeknisiRows = monTeknisiRows.filter(x=>x.key!==key); renderMonTeknisi(); }
 
 const mapMon = m => ({ id:m.ID, tanggal:m.Tanggal, baris:m.Baris||[],

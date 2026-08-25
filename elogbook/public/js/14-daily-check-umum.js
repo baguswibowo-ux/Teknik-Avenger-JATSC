@@ -16,7 +16,11 @@ function renderTeknisiList(){
     </div>`).join('');
 }
 function addTeknisi(){
-  teknisiRows.push({key:'k'+(teknisiSeq++), nama:''});
+  // Baris pertama pra-isi dengan yang sedang login — dialah teknisi yang lagi
+  // berdinas dan yang mengisi. Baris berikutnya kosong; kalau salah orang atau
+  // admin yang mengisi atas nama, tinggal diganti.
+  const isiAwal = teknisiRows.length === 0 && userSaatIni ? (userSaatIni.nama || userSaatIni.username || '') : '';
+  teknisiRows.push({key:'k'+(teknisiSeq++), nama: isiAwal});
   renderTeknisiList();
 }
 function removeTeknisi(key){

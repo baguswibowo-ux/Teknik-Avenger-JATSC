@@ -15,7 +15,14 @@ function renderFeTeknisiList(){
       ${feTeknisiRows.length>1 ? `<button class="icon-btn" title="Hapus" onclick="removeFeTeknisi('${t.key}')">✕</button>` : ''}
     </div>`).join('');
 }
-function addFeTeknisi(){ feTeknisiRows.push({key:'f'+(feTeknisiSeq++), nama:''}); renderFeTeknisiList(); }
+function addFeTeknisi(){
+  // Baris pertama pra-isi dengan yang sedang login — dialah teknisi yang lagi
+  // berdinas dan yang mengisi. Baris berikutnya kosong; kalau salah orang atau
+  // admin yang mengisi atas nama, tinggal diganti. Pola sama seperti BAPB & LTK.
+  const isiAwal = feTeknisiRows.length === 0 && userSaatIni ? (userSaatIni.nama || userSaatIni.username || '') : '';
+  feTeknisiRows.push({key:'f'+(feTeknisiSeq++), nama: isiAwal});
+  renderFeTeknisiList();
+}
 function removeFeTeknisi(key){ feTeknisiRows = feTeknisiRows.filter(x=>x.key!==key); renderFeTeknisiList(); }
 function collectFeTeknisiNama(){ return feTeknisiRows.map(t=>(t.nama||'').trim()).filter(Boolean); }
 
