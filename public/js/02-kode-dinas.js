@@ -26,6 +26,14 @@ const SHIFT = {
   'MN':   { mulai:12, sampai:24, warna:'var(--muted)',  nama:'Malam New JATSC', pita:'M', malam:true },
   'P':    { mulai:0,  sampai:7,  warna:'var(--accent)', nama:'Pagi',            pita:'P', geser:true },
   'S':    { mulai:7,  sampai:13, warna:'var(--warn)',   nama:'Siang',           pita:'S', geser:true },
+  /* Pagi/Siang per gedung — pasangan JATSC/New JATSC untuk pecahan pagi dan
+     siang, mirip PSJ/PSN dan MJ/MN. Jamnya sama persis dengan P dan S polos;
+     `geser:true` ikut supaya kalau hari itu dipecah, malamnya tetap mundur ke
+     13:00 seperti aturannya di P dan S. */
+  'PJ':   { mulai:0,  sampai:7,  warna:'var(--accent)', nama:'Pagi JATSC',      pita:'P', geser:true },
+  'PNJ':  { mulai:0,  sampai:7,  warna:'var(--accent)', nama:'Pagi New JATSC',  pita:'P', geser:true },
+  'SJ':   { mulai:7,  sampai:13, warna:'var(--warn)',   nama:'Siang JATSC',     pita:'S', geser:true },
+  'SNJ':  { mulai:7,  sampai:13, warna:'var(--warn)',   nama:'Siang New JATSC', pita:'S', geser:true },
   /* Tanpa huruf gedung. Tidak ditawarkan di daftar kode unit — lembar yang
      menulis 'PS' saja belum menyebut JATSC atau New JATSC, dan impor memang
      harus melaporkannya sebagai kode asing supaya dilengkapi. Tetap dikenal
@@ -37,7 +45,35 @@ const SHIFT = {
      bulan-bulan itu tanpa ada yang tahu sebabnya. */
   'Pagi':  { mulai:0,  sampai:7,  warna:'var(--accent)', nama:'Pagi',  pita:'P', geser:true },
   'Siang': { mulai:7,  sampai:13, warna:'var(--warn)',   nama:'Siang', pita:'S', geser:true },
-  'Malam': { mulai:12, sampai:24, warna:'var(--muted)',  nama:'Malam', pita:'M', malam:true }
+  'Malam': { mulai:12, sampai:24, warna:'var(--muted)',  nama:'Malam', pita:'M', malam:true },
+
+  /* SPKL — Surat Perintah Kerja Lembur. Enam varian, satu untuk tiap bentuk
+     shift di KODE_DINAS supaya kartu SPKL bisa berdiri di petak yang tepat
+     (PS JATSC / PS New JATSC / Malam JATSC / Malam New JATSC / Pagi / Siang).
+     Jamnya sama persis dengan varian dasarnya — SPKL itu penanda "kerja lembur
+     dengan surat perintah", bukan periode jam yang berbeda. Warnanya ungu
+     supaya jelas beda dari dinas biasa, dan tetap terbaca di kedua mode tema. */
+  'SPKLPSJ': { mulai:0,  sampai:12, warna:'#a855f7', nama:'SPKL PS JATSC',      pita:'PS' },
+  'SPKLPSN': { mulai:0,  sampai:12, warna:'#a855f7', nama:'SPKL PS New JATSC',  pita:'PS' },
+  'SPKLMJ':  { mulai:12, sampai:24, warna:'#a855f7', nama:'SPKL Malam JATSC',   pita:'M', malam:true },
+  'SPKLMN':  { mulai:12, sampai:24, warna:'#a855f7', nama:'SPKL Malam New JATSC', pita:'M', malam:true },
+  'SPKLP':   { mulai:0,  sampai:7,  warna:'#a855f7', nama:'SPKL Pagi',          pita:'P', geser:true },
+  'SPKLS':   { mulai:7,  sampai:13, warna:'#a855f7', nama:'SPKL Siang',         pita:'S', geser:true },
+  /* SPKL per gedung untuk pecahan pagi dan siang — mengikuti pola PJ/PNJ/SJ/SNJ
+     di atas. Jamnya sama dengan varian dasarnya, warnanya tetap ungu SPKL. */
+  'SPKLPJ':  { mulai:0,  sampai:7,  warna:'#a855f7', nama:'SPKL Pagi JATSC',      pita:'P', geser:true },
+  'SPKLPNJ': { mulai:0,  sampai:7,  warna:'#a855f7', nama:'SPKL Pagi New JATSC',  pita:'P', geser:true },
+  'SPKLSJ':  { mulai:7,  sampai:13, warna:'#a855f7', nama:'SPKL Siang JATSC',     pita:'S', geser:true },
+  'SPKLSNJ': { mulai:7,  sampai:13, warna:'#a855f7', nama:'SPKL Siang New JATSC', pita:'S', geser:true },
+
+  /* Tidak berdinas — kartu tetap tampil supaya manajer melihat siapa saja yang
+     tidak masuk hari itu, tetapi tanpa jam dan tanpa pita cakupan. `libur:true`
+     memberi tahu kartuShift untuk menyembunyikan jam, dan kosongnya `pita`
+     membuat rombonganShift() menjawab '' sehingga lonceng berkala tidak
+     mengingatkan mereka yang sedang cuti. */
+  'CUTI': { mulai:0, sampai:0, warna:'var(--muted)', nama:'Cuti Tahunan',       libur:true },
+  'CAP':  { mulai:0, sampai:0, warna:'var(--fail)',  nama:'Cuti Alasan Penting', libur:true },
+  'IJIN': { mulai:0, sampai:0, warna:'var(--warn)',  nama:'Ijin',               libur:true }
 };
 
 /* Urutan pita di panel Cakupan 24 Jam, dari yang paling lebar. */

@@ -4,8 +4,14 @@
 #app{display:none;}
 #app.tampil{display:block;}
 
+/* Header konsol sedikit tembus supaya orbit di body menyembul menembusnya —
+   tanpa ini header akan menjadi pita gelap solid yang memotong latar dua. */
 header.konsol{position:relative;overflow:hidden;border-bottom:1px solid var(--line);
-  background:linear-gradient(150deg,var(--konsol-1),var(--konsol-2));}
+  background:linear-gradient(150deg, rgba(13,20,27,.78), rgba(10,14,19,.88));
+  backdrop-filter:blur(8px) saturate(130%);
+  -webkit-backdrop-filter:blur(8px) saturate(130%);}
+html[data-tema="terang"] header.konsol{
+  background:linear-gradient(150deg, rgba(255,255,255,.85), rgba(231,238,244,.9));}
 header.konsol::after{content:"";position:absolute;inset:0;pointer-events:none;
   background:repeating-linear-gradient(0deg,var(--garis-pindai) 0 1px,transparent 1px 3px);}
 .konsol-isi{position:relative;z-index:1;display:flex;gap:16px;align-items:center;flex-wrap:wrap;
@@ -44,8 +50,14 @@ header.konsol::after{content:"";position:absolute;inset:0;pointer-events:none;
    rel harus diberi jarak sebesar pita itu — diukur, karena angka matinya cuma
    benar pada satu lebar layar. Pitanya sudah dibuang; relnya menempel langsung
    di puncak jendela, dan pengukurannya ikut hilang. */
-nav.rel{position:sticky;top:0;z-index:50;background:var(--panel);
-  border-bottom:1px solid var(--line);}
+/* Rel navigasi juga sedikit tembus — sudah sticky di puncak layar, dan pita
+   gelap solid selebar viewport akan menutup orbit persis di garis mata. */
+nav.rel{position:sticky;top:0;z-index:50;
+  background:rgba(17,24,32,.82);
+  border-bottom:1px solid var(--line);
+  backdrop-filter:blur(10px) saturate(130%);
+  -webkit-backdrop-filter:blur(10px) saturate(130%);}
+html[data-tema="terang"] nav.rel{background:rgba(255,255,255,.85);}
 .rel-isi{display:flex;gap:2px;overflow-x:auto;max-width:1500px;margin:0 auto;padding:0 14px;}
 .rel button{background:none;border:0;border-bottom:2px solid transparent;color:var(--muted);cursor:pointer;
   font-family:var(--font-display);font-size:13px;font-weight:500;padding:13px 15px;white-space:nowrap;transition:.16s;}

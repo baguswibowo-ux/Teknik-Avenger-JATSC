@@ -252,13 +252,21 @@ function jdwIsi(unit){
         ${T('Huruf terakhir menyebut gedungnya — <b>J</b> untuk JATSC, <b>N</b> untuk New JATSC — dan jamnya '
           + 'sama untuk keduanya. Jam dinas dihitung UTC: <b>PS</b> 00:00–12:00, <b>M</b> 12:00–00:00, dan '
           + 'kalau hari itu dipecah <b>P</b> 00:00–07:00 dan <b>S</b> 07:00–13:00, malamnya mundur jadi '
-          + '13:00–00:00. Kartu di atas hanya memuat kode yang benar-benar terisi di jadwal bulan ini; '
-          + 'yang tidak dipakai tidak ikut dipasang sebagai kotak kosong.',
+          + '13:00–00:00. <b>SPKL</b> (Surat Perintah Kerja Lembur) mengikuti bentuk shift dasarnya — '
+          + '<b>SPKLPSJ</b> berarti SPKL untuk shift PS di JATSC, dan seterusnya — jamnya sama, kartunya '
+          + 'berwarna beda. <b>CUTI</b>, <b>CAP</b> (Cuti Alasan Penting/sakit), dan <b>IJIN</b> tetap '
+          + 'memasang orangnya di petak hari itu supaya kelihatan siapa yang absen, tetapi tidak '
+          + 'dihitung sebagai berdinas. Kartu di atas hanya memuat kode yang benar-benar terisi di '
+          + 'jadwal bulan ini; yang tidak dipakai tidak ikut dipasang sebagai kotak kosong.',
             'The last letter names the building — <b>J</b> for JATSC, <b>N</b> for New JATSC — and the hours '
           + 'are the same for both. Shift hours are UTC: <b>PS</b> 00:00–12:00, <b>M</b> 12:00–00:00, and when '
           + 'a day is split into <b>P</b> 00:00–07:00 and <b>S</b> 07:00–13:00, the night moves back to '
-          + '13:00–00:00. The cards above carry only the codes this month’s roster actually uses; the rest '
-          + 'are not laid out as empty slots.')}</div>`
+          + '13:00–00:00. <b>SPKL</b> (overtime work order) follows its base shift — <b>SPKLPSJ</b> means '
+          + 'SPKL during the PS shift at JATSC, and so on — same hours, distinct colour. <b>CUTI</b> (annual '
+          + 'leave), <b>CAP</b> (leave for a critical reason / sick), and <b>IJIN</b> (permitted absence) '
+          + 'still show the person on that day so an absence is visible, but do not count as on-duty. The '
+          + 'cards above carry only the codes this month’s roster actually uses; the rest are not laid out '
+          + 'as empty slots.')}</div>`
     + `<div class="catatan"><b>${T('Tersimpan di server ini.','Stored on this server.')}</b> ${
         T('Jadwal yang disimpan di sini terlihat oleh semua orang yang membuka dashboard ini — '
           + 'itu memang gunanya. Modulnya milik dashboard ini, bukan E-Logbook: yang ditanyakan ke '

@@ -37,7 +37,23 @@
    dan akibatnya jadwal dinas menawarkan kode yang tidak dikenal modulnya
    sendiri, di bawah keterangan yang menjelaskan kode yang tidak ada di
    daftarnya. */
-const KODE_DINAS = ['PSJ','PSN','MJ','MN','P','S'];
+const KODE_DINAS = [
+  /* Bentuk penuh sehari: PSJ/PSN (PS per gedung), MJ/MN (Malam per gedung).
+     P/S polos ada untuk pecahan hari yang belum menyebut gedung; PJ/PNJ/SJ/SNJ
+     memberi bentuk pecahannya per gedung, sama seperti PS diberi PSJ/PSN. */
+  'PSJ','PSN','MJ','MN','P','S','PJ','PNJ','SJ','SNJ',
+  /* SPKL — Surat Perintah Kerja Lembur; satu varian untuk tiap bentuk dinas
+     dasarnya, supaya kartu SPKL berdiri sejajar dengan petak dinas biasa di
+     jadwal harian. Jam dan pita cakupan mengikuti varian dasarnya (lihat
+     SHIFT), warnanya sengaja beda supaya kartu SPKL tidak salah dibaca sebagai
+     jaga rutin. */
+  'SPKLPSJ','SPKLPSN','SPKLMJ','SPKLMN','SPKLP','SPKLS','SPKLPJ','SPKLPNJ','SPKLSJ','SPKLSNJ',
+  /* Tidak berdinas — orangnya tetap muncul di petak hari itu supaya siapa yang
+     absen kelihatan, tetapi tanpa jam dan tanpa hitungan cakupan (lihat entri
+     `libur:true` di SHIFT). Pengimpor membedakannya dari sel kosong, jadi
+     'CUTI' di lembar aslinya tidak lagi jatuh ke "libur" begitu saja. */
+  'CUTI','CAP','IJIN'
+];
 
 /* Yang dipasang sebagai petak sebelum ada jadwal yang bisa dibaca. P dan S
    tidak ikut: keduanya bentuk khusus untuk hari yang dibagi dua orang, dan
@@ -78,3 +94,10 @@ let TROUBLE = [];
    catatan tampil kosong — dulu diisi empat baris karangan per unit, dan di
    layar yang sudah tersambung keempatnya tidak bisa dibedakan dari yang asli. */
 let LOGBOOK = {};
+
+/* Catatan yang jamnya sudah lewat namun tanda tangannya belum dibubuhkan —
+   dihitung sekali oleh srvPasang() dari formulir yang dibawa E-Logbook. Dipakai
+   lonceng untuk memberi tahu manager/teknisi kalau ada yang menggantung, tanpa
+   perlu memanggil server terpisah: seluruh data yang diperlukan sudah ada di
+   jawaban getAllData. */
+let TTD_TERLAMBAT = [];

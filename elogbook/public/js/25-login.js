@@ -1,27 +1,19 @@
-/* E-Logbook · js/25-login.js — Layar login, pendaftaran mandiri, dan pemeriksaan sesi
-   Dimuat dari index.html sesuai nomor berkas; urutannya berpengaruh. */
+/* E-Logbook · js/25-login.js — Sesi pemakai: identitas, keluar, dan pintu yang tertutup
+   Dimuat dari index.html sesuai nomor berkas; urutannya berpengaruh.
 
-/* ============== LOGIN ============== */
+   Aplikasi ini TIDAK punya layar masuk sendiri. Kartu masuk dan kartu daftar
+   akun berdiri di Dashboard Fasilitas Teknik, dan keduanya tetap memanggil
+   /api/login serta /api/daftar milik server ini lewat penerusan — yang dibuang
+   layarnya, bukan pintunya. Sesinya memang cuma satu sejak kedua aplikasi satu
+   asal; dua layar masuk untuk satu kunci hanya menambah cara untuk salah, dan
+   tidak ada yang menerangkan mana yang sedang berlaku.
+
+   Yang tinggal di berkas ini tiga hal: menempelkan identitas orang yang sudah
+   masuk ke kepala halaman, tombol Keluar, dan satu panel pemberitahuan untuk
+   keadaan "tidak ada sesi yang sah". */
+
+/* ============== IDENTITAS ============== */
 let userSaatIni = null;
-
-function showLogin(pesan){
-  document.getElementById('loginBg').classList.add('show');
-  bukaLogin();
-  document.getElementById('userChip').style.display = 'none';
-  const err = document.getElementById('loginErr');
-  if(pesan){ err.textContent = pesan; err.classList.add('show'); }
-  else { err.textContent = ''; err.classList.remove('show'); }
-  document.getElementById('loginPass').value = '';
-  setTimeout(()=>{
-    const u = document.getElementById('loginUser');
-    (u.value ? document.getElementById('loginPass') : u).focus();
-  }, 60);
-}
-
-function hideLogin(){
-  document.getElementById('loginBg').classList.remove('show');
-  document.getElementById('loginErr').classList.remove('show');
-}
 
 function tampilkanUser(user){
   userSaatIni = user;
@@ -36,145 +28,93 @@ function tampilkanUser(user){
   terapkanPeran();
 }
 
-function bukaDaftar(){
-  document.getElementById('loginBox').style.display = 'none';
-  document.getElementById('daftarBox').style.display = '';
-  document.getElementById('daftarErr').classList.remove('show','sukses');
-  ['dfNama','dfUsername','dfPassword','dfPassword2'].forEach(id=>document.getElementById(id).value='');
-}
-function bukaLogin(){
-  document.getElementById('daftarBox').style.display = 'none';
-  document.getElementById('loginBox').style.display = '';
-}
-
-async function doDaftar(){
-  const v = id => document.getElementById(id).value;
-  const err = document.getElementById('daftarErr');
-  const tampil = (pesan, sukses) => {
-    err.textContent = pesan;
-    err.classList.add('show');
-    err.classList.toggle('sukses', !!sukses);
-  };
-
-  const nama = v('dfNama').trim(), username = v('dfUsername').trim().toLowerCase();
-  const p1 = v('dfPassword'), p2 = v('dfPassword2');
-  if(!nama){ tampil(T('namaKosong')); return; }
-  if(!username){ tampil(T('usernameKosong')); return; }
-  if(p1.length < 6){ tampil(T('passwordPendek')); return; }
-  if(p1 !== p2){ tampil(T('passwordTakSama')); return; }
-
-  const btn = document.getElementById('dfBtn');
-  btn.disabled = true;
-  try{
-    const res = await fetch('/api/daftar', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      credentials: 'same-origin',
-      body: JSON.stringify({ nama, username, password: p1 })
-    });
-    const data = await res.json().catch(()=>({}));
-    if(!res.ok){ tampil(data.error || T('daftarGagal')); return; }
-    tampil(T('daftarBerhasil'), true);
-    ['dfNama','dfUsername','dfPassword','dfPassword2'].forEach(id=>document.getElementById(id).value='');
-  }catch(e){
-    tampil(T('serverTakTerhubung'));
-  }finally{ btn.disabled = false; }
+/* ============== PINTU TERTUTUP ============== */
+/**
+ * Tidak ada sesi yang sah. Dua keadaan, dan jalannya berbeda.
+ *
+ * Disajikan LEWAT dashboard: orangnya diantar langsung ke layar masuk
+ * dashboard. Begitu halaman ini berada di balik pintu, akar asal ini MEMANG
+ * dashboard — '/' sudah pasti benar dan sudah pasti hidup, karena ia baru saja
+ * menyajikan halaman ini. Bukan window.AVENGER_TAUTAN: alamat dari variabel
+ * hanya menambah satu cara untuk salah, dan yang menunjuk host lain akan
+ * melempar orang keluar dari asal yang baru saja disatukan.
+ *
+ * replace, bukan href: layar tanpa sesi tidak pantas bisa didatangi lagi
+ * dengan tombol Back.
+ *
+ * Dibuka LANGSUNG di alamat aplikasi ini: yang tampil panelnya, dengan tautan
+ * ke dashboard. Sengaja tidak dipantulkan sendiri — di keadaan ini alamat
+ * dashboard cuma tebakan (lihat alamatDashboard() di js/26-init.js), dan
+ * memantulkan orang ke alamat yang belum tentu hidup menukar satu kebingungan
+ * dengan kebingungan yang lebih sulit dibaca.
+ */
+function sesiTakSah(kunciPesan){
+  if(window.LEWAT_PINTU_AVENGER){ location.replace('/'); return; }
+  tampilkanPintuTutup(kunciPesan);
 }
 
-async function doLogin(){
-  const username = document.getElementById('loginUser').value.trim();
-  const password = document.getElementById('loginPass').value;
-  if(!username || !password){ showLogin(T('isiUsernamePassword')); return; }
+function tampilkanPintuTutup(kunciPesan){
+  document.getElementById('userChip').style.display = 'none';
 
-  const btn = document.getElementById('loginBtn');
-  btn.disabled = true; btn.textContent = T('memeriksa');
-  try{
-    let data;
-    // Hanya bagian ini yang boleh berakhir di layar login: selama sesi belum
-    // terbentuk, kegagalan memang soal kredensial atau sambungan.
-    try{
-      const res = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
-        body: JSON.stringify({ username, password })
-      });
-      catatWaktuServer(res);
-      data = await res.json().catch(()=>({}));
-      /* data.error datang dari /api/login dan tetap berbahasa Indonesia:
-         menerjemahkannya berarti menyentuh API, dan itu di luar batas. Yang
-         berbahasa layar cuma cadangannya. */
-      if(!res.ok){ showLogin(data.error || T('gagalMasuk')); return; }
-    }catch(e){
-      showLogin(T('takBisaHubungiServer'));
-      return;
-    }
-
-    // Sesi sudah jadi. Mulai dari sini kegagalan bukan lagi soal password, jadi
-    // jangan dilempar balik ke layar login: dulu galat kecil saat menggambar
-    // layar terbaca sebagai "tidak dapat menghubungi server", dan orang mengira
-    // passwordnya yang salah padahal sudah benar.
-    tampilkanUser(data.user);
-    hideLogin();
-    document.getElementById('loginPass').value = '';
-    try{
-      await init();
-    }catch(e){
-      console.error('init() gagal setelah login:', e);
-      toast('Masuk berhasil, tetapi sebagian layar gagal dimuat: ' + (e.message || e));
-    }
-  }finally{
-    btn.disabled = false; btn.textContent = T('masuk');
+  /* Sebabnya dipasang lewat data-t, bukan sebagai teks jadi: kalau orangnya
+     mengganti bahasa sesudah panel ini terbuka, terapkanBahasa() menyalinnya
+     ulang tanpa perlu tahu panel ini ada. */
+  const pesan = document.getElementById('pintuPesan');
+  if(kunciPesan){
+    pesan.setAttribute('data-t', kunciPesan);
+    pesan.textContent = T(kunciPesan);
+    pesan.style.display = '';
+  }else{
+    pesan.removeAttribute('data-t');
+    pesan.textContent = '';
+    pesan.style.display = 'none';
   }
+
+  // Tanpa alamat, href-nya sengaja dilepas: CSS menyembunyikan tautan yang
+  // belum menunjuk ke mana pun.
+  const tautan = document.getElementById('pintuTautan');
+  const alamat = alamatDashboard();
+  if(alamat) tautan.href = alamat; else tautan.removeAttribute('href');
+
+  document.getElementById('pintuTutup').classList.add('show');
 }
 
+/* ============== KELUAR ============== */
 async function doLogout(){
   try{ await fetch('/api/logout', { method:'POST', credentials:'same-origin' }); }catch(e){}
   userSaatIni = null;
 
-  /* Dibuka lewat pintu dashboard, Keluar mengantar ke layar masuk DASHBOARD,
-     bukan ke layar masuk halaman ini.
-
-     Sesinya cuma satu sejak kedua aplikasi satu asal, jadi menekan Keluar di
-     sini juga mengeluarkan orang itu dari dashboard. Memuat ulang halaman ini
-     akan menampilkan layar masuk E-Logbook — layar masuk kedua untuk sesi yang
-     cuma satu. Yang mengisinya lalu kembali ke sini, sementara dashboard yang
-     ia tinggalkan di belakang sudah kosong: dua pintu masuk untuk satu kunci,
-     dan tidak ada yang menerangkan mana yang sedang berlaku.
-
-     '/' bukan window.AVENGER_TAUTAN: begitu halaman ini berada di balik pintu,
-     akar asal ini MEMANG dashboard. Memakai alamat dari variabel hanya
-     menambah satu cara untuk salah — variabel yang menunjuk host lain akan
-     melempar orang keluar dari asal yang baru saja disatukan.
-
-     replace, bukan href: layar yang sudah keluar tidak pantas bisa didatangi
-     lagi dengan tombol Back. */
+  // Sesinya cuma satu: menekan Keluar di sini juga mengeluarkan orang itu dari
+  // dashboard. Jadi keluarnya diantar ke layar masuk dashboard.
   if(window.LEWAT_PINTU_AVENGER){ location.replace('/'); return; }
 
-  // Dibuka langsung di alamat aplikasi ini: muat ulang, supaya tidak ada sisa
-  // data di layar setelah keluar.
+  /* Dibuka langsung di alamat aplikasi ini: muat ulang, supaya tidak ada sisa
+     data di layar setelah keluar. Yang menyambut sesudahnya panel pintu
+     tertutup — mulai() yang memasangnya, karena /api/me sudah menjawab 401. */
   location.reload();
 }
 
-document.addEventListener('keydown', e=>{
-  if(e.key === 'Enter' && document.getElementById('loginBg').classList.contains('show')) doLogin();
-});
-
+/* ============== PEMERIKSAAN SESI ============== */
 /** Dipanggil saat halaman dibuka: cek apakah cookie sesi masih berlaku. */
 async function mulai(){
   try{
     const res = await fetch('/api/me', { credentials:'same-origin' });
-    catatWaktuServer(res);   // selaraskan jam sedini mungkin, bahkan sebelum login
+    catatWaktuServer(res);   // selaraskan jam sedini mungkin, bahkan sebelum layar hidup
     tickClock();
     if(res.ok){
       const data = await res.json();
       tampilkanUser(data.user);
-      hideLogin();
       await init();
       return;
     }
   }catch(e){
+    /* Servernya yang tidak menjawab, bukan sesinya yang mati. Memantulkan orang
+       ke dashboard di keadaan ini keliru dua kali: alamatnya belum tentu hidup,
+       dan yang salah memang bukan sesinya. */
     document.getElementById('syncBadge').innerHTML =
       '<span class="sync-dot" style="background:var(--fail);box-shadow:none;"></span> server tidak dapat dihubungi';
+    tampilkanPintuTutup('takBisaHubungiServer');
+    return;
   }
-  showLogin();
+  sesiTakSah();
 }

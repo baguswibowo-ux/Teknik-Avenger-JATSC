@@ -153,7 +153,10 @@ function srvKet(teks, rupa){
              '. Tekan lanjut tanpa mengisi password.';
       rupa = 'km-baik';
     }else{
-      teks = 'Server terjawab. Masuk dengan akun E-Logbook Anda untuk memakai data nyata.';
+      // Kondisi normal (server hidup, belum ada sesi) sengaja tidak menuliskan
+      // apa pun di baris ini — kartu login sudah menjelaskan apa yang harus
+      // dilakukan. Baris ini disisakan hanya untuk keadaan bermasalah di atas.
+      teks = '';
       rupa = 'km-baik';
     }
   }

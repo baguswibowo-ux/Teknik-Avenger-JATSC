@@ -254,7 +254,9 @@ function gambarUnit(){
         <span class="ket">${part.length} ${T('sparepart terdaftar di unit ini',
           'spare parts registered in this unit')}</span>
         <span class="tombol">
-          ${bolehSuntingDb('sparepart') ? `<button class="btn kecil" data-db-tambah="sparepart">${
+          ${bolehSuntingDb('sparepart') ? `<button class="btn garis kecil" data-spr-impor>${
+            T('Impor dari berkas','Import from a file')}</button>
+            <button class="btn kecil" data-db-tambah="sparepart">${
             T('Tambah sparepart','Add spare part')}</button>` : ''}
         </span>
       </div>
@@ -309,15 +311,16 @@ function gambarUnit(){
           <th>${T('Dinas','Shift')}</th><th>${radkom
             ? T('Catatan / Tindakan','Notes / Action')
             : T('Uraian Pekerjaan / Kejadian','Work / Event Description')}</th>
-          <th>${radkom ? T('Manager Teknik','Technical Manager')
-                       : T('Penanggung Jawab','Person Responsible')}</th></tr></thead>
+          <th>${T('Manager Teknik & Teknisi Onduty','Technical Manager & Duty Technician')}</th></tr></thead>
         <tbody>${log.map(r=>`<tr>
           <td><span class="mono">${tglRingkas(r.tgl)}</span></td>
           <td><span class="mono">${esc(r.jam)}</span></td>
           ${radkom?`<td><span class="mono">${esc(r.selesai||'—')}</span></td>
                     <td><span class="mono">${esc(r.frek||'—')}</span></td>`:''}
           <td><span class="sel-shift s-${esc(r.dinas)}" style="padding:2px 8px;display:inline-block">${esc(r.dinas)}</span></td>
-          <td>${esc(r.uraian)}</td><td>${esc(r.pj)}</td></tr>`).join('')}</tbody></table>
+          <td>${esc(r.uraian)}</td>
+          <td><div>${esc(r.pj)}</div>
+              <div style="font-size:11.5px;color:var(--muted);margin-top:2px">${T('Onduty','Duty')}: ${esc(r.teknisi)}</div></td></tr>`).join('')}</tbody></table>
       </div>
       <div class="catatan"><b>${T('Bentuk barisnya mengikuti unit.','The row shape follows the unit.')}</b>
         ${radkom

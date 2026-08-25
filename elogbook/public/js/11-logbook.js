@@ -191,7 +191,7 @@ function renderEntries(){
       <div class="entry-body">${escapeHtml(e.uraian)}</div>
       <div class="entry-sigs">
         <div class="sig-block"><b>${tekLabel}</b>${sigThumbHtml(e.teknisiTtd)}</div>
-        <div class="sig-block"><b>${escapeHtml(e.pjNama)||'Penanggung Jawab'}</b>${sigThumbHtml(e.pjTtd)}</div>
+        <div class="sig-block"><b>${escapeHtml(e.pjNama)||'Manager Teknik'}</b>${sigThumbHtml(e.pjTtd)}</div>
         <div style="flex:1;display:flex;align-items:flex-end;justify-content:flex-end;">${diinputOlehHtml(e.diinputOleh, e.dibuatPada, acuanWaktuEntry(e))}</div>
       </div>
     </div>`;
@@ -219,7 +219,9 @@ function openEntryDetail(id){
     ${lampiranGaleriHtml(e.lampiran)}
     <div class="detail-ttd">
       <div class="sig-block"><b>${T('teknisiPelaksana')}</b>${tekHtml}</div>
-      <div class="sig-block"><b>${T('penanggungJawab')}</b>${escapeHtml(e.pjNama)||'-'}${sigPejabatHtml('logbook', e.id, e.pjTtd, e)}</div>
+      <div class="sig-block"><b>${T('penanggungJawab')}</b>${
+        renderPihakKedua('entry', e.id, e.pjNama, e.pjTtd, 'penanggung jawab')
+      }${sigPejabatHtml('logbook', e.id, e.pjTtd, e)}</div>
     </div>
     <div style="margin-top:14px;padding-top:10px;border-top:1px solid var(--line);">${diinputOlehHtml(e.diinputOleh, e.dibuatPada, acuanWaktuEntry(e)) || ('<span class="diinput-oleh">' + T('tidakTercatat') + '</span>')}</div>`;
 
@@ -233,10 +235,75 @@ function openEntryDetail(id){
 }
 
 /* ---------- Sunting catatan logbook tersimpan ----------
-   Hanya tanggal, jam, dinas, lokasi, dan uraian — bukan nama teknisi, tanda
-   tangan, atau lampiran. Itu bukti kerja yang sudah dibubuhkan, bukan
-   metadata yang boleh ditimpa diam-diam. */
+   Tanggal, jam, dinas, lokasi, uraian, dan lampiran — bukan nama teknisi atau
+   tanda tangan. Itu bukti kerja yang sudah dibubuhkan, bukan metadata yang
+   boleh ditimpa diam-diam.
+
+   Lampiran ikut bisa disunting karena hasil scan sering baru dipegang setelah
+   catatannya tersimpan; jendelanya sama dengan jendela sunting yang lain —
+   selama penanggung jawab belum menandatangani. Berkas yang ditandai buang
+   tetap ditampilkan sampai Simpan ditekan, supaya salah tekan masih bisa
+   dibatalkan. */
 let entryEditId = null;
+
+/**
+ * Boleh tidaknya papan TTD ditawarkan pada catatan yang sedang dibuka.
+ *
+ * Dua syarat, dan keduanya perlu:
+ *   petaknya memang masih KOSONG — tanda tangan yang sudah dibubuhkan tidak
+ *   diganti dari sini, sama seperti aturan TTD susulan pejabat; dan
+ *   yang membuka adalah PEMBUAT catatannya sendiri — administrator boleh
+ *   membetulkan kalimat orang lain, tapi membubuhkan tanda tangan orang lain
+ *   berarti menandatangani atas namanya.
+ *
+ * Server memutuskan lagi dengan aturan yang sama. Yang di sini cuma soal papan
+ * digambar atau tidak.
+ */
+let entryEditBolehTtd = false;
+
+function siapkanTtdSunting(e){
+  const sudahAda = !!e.teknisiTtd;
+  const punyaSaya = !!userSaatIni && !!e.dibuatOlehUsername
+                    && userSaatIni.username === e.dibuatOlehUsername;
+  entryEditBolehTtd = !sudahAda && punyaSaya;
+
+  document.getElementById('feeTtdAda').innerHTML = sudahAda ? sigThumbHtml(e.teknisiTtd) : '';
+  document.getElementById('feeTtdPapan').style.display = entryEditBolehTtd ? '' : 'none';
+  document.getElementById('feeTtdHint').textContent =
+      entryEditBolehTtd ? T('hintTtdSusulan')
+    : sudahAda          ? T('hintTtdSudahAda')
+                        : T('hintTtdBukanPembuat');
+
+  if(!sigPads['sigFeeTeknisi']) setupSigCanvas('sigFeeTeknisi');
+  clearSig('sigFeeTeknisi');
+}
+
+/** Lampiran yang sudah tersimpan di catatan yang sedang dibuka, dan mana saja
+    yang ditandai untuk dibuang saat perubahan disimpan. */
+let entryEditLampiranAda = [];
+let entryEditLampiranBuang = [];
+
+function renderEntryEditLampiranAda(){
+  const wrap = document.getElementById('feeLampiranAda');
+  if(!wrap) return;
+  wrap.innerHTML = entryEditLampiranAda.map(l=>{
+    const buang = entryEditLampiranBuang.includes(l.ID);
+    return `
+    <div class="lampiran-item${buang ? ' dibuang' : ''}">
+      <span>${String(l.Mime||'').startsWith('image/') ? '🖼' : '📄'}</span>
+      <a class="nama" href="${l.Path}" target="_blank" rel="noopener" title="${escapeHtml(l.Nama)}">${escapeHtml(l.Nama)}</a>
+      <span class="ukuran">${ukuranTeks(l.Ukuran||0)}</span>
+      <button class="icon-btn" title="${buang ? T('batalBuangLampiran') : T('buangLampiran')}" onclick="toggleBuangLampiranEntry('${l.ID}')">${buang ? '↺' : '✕'}</button>
+    </div>`;
+  }).join('');
+}
+
+function toggleBuangLampiranEntry(id){
+  entryEditLampiranBuang = entryEditLampiranBuang.includes(id)
+    ? entryEditLampiranBuang.filter(x=>x!==id)
+    : entryEditLampiranBuang.concat(id);
+  renderEntryEditLampiranAda();
+}
 
 function openEntryEditModal(id){
   const e = entries.find(x=>x.id===id);
@@ -250,6 +317,12 @@ function openEntryEditModal(id){
   document.getElementById('feeUraian').value = e.uraian || '';
   isiPilihanLokasiEdit(e.lokasi);
 
+  entryEditLampiranAda = e.lampiran || [];
+  entryEditLampiranBuang = [];
+  renderEntryEditLampiranAda();
+  resetLampiran('feeLampiran');
+  siapkanTtdSunting(e);
+
   const u = infoUnit();
   document.getElementById('feeJamSelesaiWrap').style.display = (u && u.pakaiJamSelesai) ? '' : 'none';
   document.getElementById('feeFrekWrap').style.display = (u && u.pakaiFrek) ? '' : 'none';
@@ -261,6 +334,9 @@ function openEntryEditModal(id){
   if([...dinasSel.options].some(o=>o.value===e.dinas)) dinasSel.value = e.dinas;
 
   document.getElementById('entryEditModalBg').classList.add('show');
+  // Sesudah jendelanya terlihat, bukan sebelum: kanvas berlebar 0 tidak bisa
+  // digambari, dan itulah lebar papan selama modalnya masih tersembunyi.
+  if(entryEditBolehTtd) setTimeout(()=>resizeSigCanvas('sigFeeTeknisi'), 60);
 }
 
 function isiPilihanLokasiEdit(nilai){
@@ -272,6 +348,11 @@ function isiPilihanLokasiEdit(nilai){
 function closeEntryEditModal(){
   document.getElementById('entryEditModalBg').classList.remove('show');
   entryEditId = null;
+  entryEditLampiranAda = [];
+  entryEditLampiranBuang = [];
+  resetLampiran('feeLampiran');
+  entryEditBolehTtd = false;
+  clearSig('sigFeeTeknisi');
 }
 
 async function saveEntryEdit(){
@@ -286,15 +367,22 @@ async function saveEntryEdit(){
     frek: document.getElementById('feeFrek').value.trim(),
     dinas: document.getElementById('feeDinas').value,
     lokasi: document.getElementById('feeLokasi').value,
-    uraian
+    uraian,
+    lampiranBaru: kirimLampiran('feeLampiran'),
+    lampiranHapus: entryEditLampiranBuang,
+    // Papan kosong menjawab null, dan server membaca itu sebagai "tidak ada
+    // yang dibubuhkan" — bukan sebagai perintah mengosongkan.
+    teknisiTtd: entryEditBolehTtd ? getSigDataUrl('sigFeeTeknisi') : null
   };
+  if(patch.lampiranBaru.length) toast(T('mengunggahLampiran'));
   try{
     const saved = await gsRun('updateEntry', entryEditId, patch);
     const i = entries.findIndex(x=>x.id===entryEditId);
     if(i !== -1) entries[i] = mapEntry(saved);
     renderEntries();
+    const adaTtd = !!patch.teknisiTtd;
     closeEntryEditModal();
-    toast(T('tersimpanPerubahan'));
+    toast(adaTtd ? T('ttdSusulanTersimpan') : T('tersimpanPerubahan'));
   }catch(e){ toast('Gagal menyimpan — ' + (e.message||'coba lagi.')); }
   btn.disabled = false;
 }

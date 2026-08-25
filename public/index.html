@@ -6,14 +6,15 @@
 <meta name="theme-color" content="#0a0e13">
 <meta name="color-scheme" content="dark light">
 <title>Dashboard Fasilitas Teknik — JATSC</title>
-<!-- Font ikut dibawa di vendor/font/ (subset latin + latin-ext saja), bukan
-     dari fonts.googleapis.com: build ini harus utuh di jaringan tertutup. -->
+<!-- Font aplikasi utama dibawa di vendor/font/ (subset latin + latin-ext),
+     supaya sisi dashboard tetap utuh di jaringan tertutup. Panji AVENGERS di
+     layar masuk memakai keluarga font khusus (Lora italic untuk judul, Barlow
+     & Rajdhani untuk teks, Share Tech Mono untuk label) yang belum ada di
+     bundel lokal; sementara diambil dari Google Fonts dengan preconnect. -->
 <link href="/vendor/font/font.css" rel="stylesheet">
-<!-- Panggung 3D di layar masuk. Salinannya ikut dibawa di vendor/, bukan
-     ditarik dari unpkg: jaringan kantor tertutup, dan build ini harus jalan
-     penuh tanpa internet. Tetap tidak dijadikan syarat — kalau berkasnya
-     hilang, panggungnya dilewatkan dan layar masuknya tetap bisa dipakai. -->
-<script src="/vendor/three.min.js" defer></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:ital,wght@1,800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 
 <!--
   DASHBOARD FASILITAS TEKNIK JATSC — halaman utama aplikasi ini.
@@ -40,20 +41,19 @@
   Rinciannya di blok JEMBATAN E-LOGBOOK, dekat kaki berkas.
 
   Alurnya:
-    1. Layar masuk           — konsol CNS/ATM dengan bandara 3D, akun E-Logbook
+    1. Layar masuk           — kartu login sederhana di atas latar bumi (Indonesia
+                                 dari orbit malam hari, lampu kota menyala)
     2. Dashboard umum        — sama untuk semua akun: trouble dan dinas SEMUA unit
     3. Dashboard unit        — baru di sini peran akun menentukan apa yang terbuka
 
-  Layar masuknya diambil dari proyek Claude Design "Animasi Bandara Soekarno
-  Hatta 3D" (`CNS Tower Dashboard.dc.html` + `cns-scene.js`), menggantikan layar
-  masuk lama yang berupa siluet menara dari SVG dan CSS. Semua kelas dan id
-  miliknya berawalan `km` supaya tidak bertabrakan dengan dashboard di bawahnya
-  — `.kartu`, `.judul`, `.status`, `#jamUtc`, dan `#pesan` sudah terpakai di sana.
+  Latarnya satu gambar — public/images/indonesia-orbit-bg.png — dipatok fixed di
+  body, jadi tetap di tempatnya saat halaman digulir. Panel dashboard tetap
+  gelap solid supaya angka dan tabel tetap tajam terbaca; orbit terlihat di sela
+  ubin, di margin layar, dan menembus kepala konsol yang dibuat sedikit tembus.
 
-  three.js satu-satunya pustaka luar di berkas ini, dan salinannya ikut dibawa
-  di public/vendor/ — tidak ada permintaan ke internet sama sekali. Tetap bukan
-  syarat: kalau berkasnya hilang, panggung 3D-nya dilewatkan dan kartu masuknya
-  tetap jalan di atas kisi radar yang digambar CSS.
+  Semua kelas dan id di layar masuk berawalan `km` (dari "konsol masuk") supaya
+  tidak bertabrakan dengan dashboard di bawahnya — `.kartu`, `.judul`, `.status`,
+  `#jamUtc`, dan `#pesan` sudah terpakai di sana.
 
   Gambar peralatannya ilustrasi, bukan foto asli. Tiap ilustrasi menempati
   bingkai berukuran sama dengan slot foto nanti, jadi mengganti gambar dengan
@@ -71,238 +71,94 @@
 <body>
 
 <!-- ===================================================================
-     LAYAR MASUK
+     LAYAR MASUK — kartu login sederhana di atas latar Indonesia dari orbit
+
+     Sebelumnya konsol CNS/ATM lengkap dengan bandara 3D (three.js). Dibuang
+     atas permintaan: yang dibutuhkan cuma pintu masuk, dan pemandangan tiga
+     dimensi yang harus diputar sebelum boleh mengetik username adalah pesta
+     yang tidak ada tamunya. Pengganti sekarang cukup satu foto Indonesia yang
+     dilihat dari orbit malam hari — lampu kota menyala di seluruh nusantara —
+     dan sebuah kartu login melayang di tengahnya.
+
+     Semua id di kartu masih persis nama yang lama (iUser, iPass, btnMasuk,
+     kmPanelMasuk, kmPanelDaftar, dst.) supaya JS di 07-kartu-masuk.js dan
+     12-jembatan-elogbook.js jalan tanpa disunting.
      =================================================================== -->
 <div id="layarMasuk">
- <div class="km-konsol">
+  <div class="lm-langit" aria-hidden="true"></div>
 
-  <header class="km-kepala">
-    <div class="km-merek">
-      <div class="km-tanda"><i></i></div>
-      <div class="km-merek-teks">
-        <b>CNS / ATM OPERATIONS</b>
-        <span>BANDARA INTERNASIONAL SOEKARNO&ndash;HATTA &middot; WIII / CGK</span>
+  <div class="lm-kanvas">
+    <div class="lm-merek">
+      <div class="lm-tanda"><i></i></div>
+      <div class="lm-merek-teks">
+        <b>PERUM LPPNPI</b>
+        <span>CABANG JATSC &middot; SOEKARNO&ndash;HATTA</span>
       </div>
     </div>
-    <div class="km-kepala-kanan">
-      <div class="km-metrik">
-        <div><span>RUNWAY IN USE</span><b>25L / 25R</b></div>
-        <div class="km-pisah"></div>
-        <div><span>QNH</span><b>1010 hPa</b></div>
-        <div class="km-pisah"></div>
-        <div><span>UTC</span><b class="km-sian" id="kmJam">00:00:00</b></div>
-      </div>
-      <div class="km-status"><i></i><span>SISTEM NORMAL</span></div>
-      <div class="km-cap">PROTOTIPE</div>
-    </div>
-  </header>
+    <div class="lm-jam"><span>UTC</span><b id="kmJam">00:00:00</b></div>
+  </div>
 
-  <main class="km-badan">
+  <!-- Panji AVENGERS: baris ketiga dari #layarMasuk (grid), duduk sendiri
+       di antara kepala & kartu login supaya jaraknya persis mock-up
+       (44px turun dari kepala, 56px naik dari kartu). "Advanced Engineer
+       Electronic Reporting System" adalah kepanjangan resmi; nama itu
+       tetap dieja penuh di sini karena inilah satu-satunya tempat orang
+       belum tahu apa singkatannya. -->
+  <div class="lm-panji" aria-label="AVENGERS — Advanced Engineer Electronic Reporting System">
+    <h1 class="lm-panji-judul">AVENGERS</h1>
+    <p class="lm-panji-anak">Advanced Engineer Electronic Reporting System</p>
+  </div>
 
-    <aside class="km-rel km-kiri">
-      <div class="km-blok">
-        <div class="km-judul">SUBSISTEM</div>
-        <div class="km-sub">
-          <div class="km-sub-atas"><b>COMMUNICATION</b><span>ON LINE</span></div>
-          <p>VHF A/G main + standby, VCCS tower, recorder</p>
-          <div class="km-bar"><i style="width:96%"></i></div>
+  <div class="lm-tengah">
+    <div class="lm-kartu">
+      <div class="lm-eyebrow">DASHBOARD FASILITAS TEKNIK</div>
+      <h2>Selamat datang</h2>
+      <p class="lm-sub" id="kmSubTeks">Masuk dengan akun E-Logbook Anda &mdash; akunnya satu, sama persis dengan
+        yang dipakai di sana. Setelah masuk, semua akun melihat trouble dan jadwal dinas seluruh
+        unit; isi per unit terbuka sesuai peran akun.</p>
+
+      <div id="kmPanelMasuk">
+        <div class="lm-sumber-ket lm-sibuk" id="ketSumber"><i></i><span>Memeriksa sambungan ke server&hellip;</span></div>
+
+        <div class="lm-kolom">
+          <label for="iUser">Username</label>
+          <input type="text" id="iUser" autocomplete="off" spellcheck="false" placeholder="mis. radtel">
         </div>
-        <div class="km-sub">
-          <div class="km-sub-atas"><b>NAVIGATION</b><span>ON LINE</span></div>
-          <p>DVOR/DME, ILS LOC + GP, monitor kategori CAT I</p>
-          <div class="km-bar"><i style="width:92%"></i></div>
+        <div class="lm-kolom">
+          <label for="iPass">Password</label>
+          <input type="password" id="iPass" autocomplete="off" placeholder="password akun E-Logbook">
         </div>
-        <div class="km-sub">
-          <div class="km-sub-atas"><b>SURVEILLANCE</b><span>ON LINE</span></div>
-          <p>PSR/SSR Mode S, ADS-B 1090 ES, MLAT</p>
-          <div class="km-bar"><i style="width:88%"></i></div>
-        </div>
-        <div class="km-sub">
-          <div class="km-sub-atas"><b>DATA PROCESSING</b><span>ON LINE</span></div>
-          <p>RDP &middot; FDP &middot; multi-sensor tracker &middot; AMHS</p>
-          <div class="km-bar"><i style="width:94%"></i></div>
-        </div>
-      </div>
+        <button class="lm-tombol" id="btnMasuk">Masuk</button>
 
-      <div class="km-blok">
-        <div class="km-judul">LEGENDA</div>
-        <div class="km-legenda"><span class="km-garis"></span>Aliran data ke ruang processing</div>
-        <div class="km-legenda"><span class="km-garis km-kuning-bg"></span>Panduan ILS / pendekatan</div>
-        <div class="km-legenda"><span class="km-bulat"></span>Track surveillance aktif</div>
-      </div>
-
-      <div class="km-sesi-blok">
-        <div class="km-judul">SESI</div>
-        <button type="button" class="km-sesi" id="kmSesi">
-          <span class="km-av" id="kmSesiInisial">&mdash;</span>
-          <span class="km-sesi-teks">
-            <span class="km-nm" id="kmSesiNama">BELUM LOGIN</span>
-            <span class="km-pr" id="kmSesiPeran">KLIK UNTUK MASUK</span>
-          </span>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-               stroke-width="1.8" stroke-linecap="square" aria-hidden="true">
-            <path d="M10 4H5v16h5"></path><path d="M14 8l4 4-4 4"></path><path d="M18 12H9"></path>
-          </svg>
-        </button>
-        <div class="km-sesi-ket" id="kmSesiKet">AKSES TERBATAS &middot; READ ONLY</div>
-      </div>
-    </aside>
-
-    <section class="km-panggung">
-      <div class="km-scene" id="kmScene"></div>
-      <div class="km-lapis" id="kmLapis"></div>
-      <div class="km-detail" id="kmDetail"><div class="km-kode"></div><h4></h4><p></p></div>
-      <div class="km-alat">
-        <div class="km-petunjuk">DRAG UNTUK ROTASI &middot; SCROLL UNTUK ZOOM &middot; KLIK LABEL UNTUK DETAIL</div>
-        <!-- Menyentuh panggung menghentikan putaran otomatisnya. Sebelum ada
-             tombol ini satu-satunya jalan mengembalikannya memuat ulang
-             halaman. Disembunyikan sampai panggungnya benar-benar berdiri —
-             tanpa three.js tidak ada yang bisa diputar ulang. -->
-        <button type="button" class="km-ulang" id="kmUlangi" hidden
-                title="Kembalikan kamera ke posisi awal dan putar animasinya dari awal">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M3 12a9 9 0 1 0 2.6-6.4"></path><path d="M3 4v5h5"></path>
-          </svg>
-          PUTAR ULANG
-        </button>
-      </div>
-
-      <button type="button" class="km-picu" id="kmPicuMasuk">MASUK</button>
-
-      <div class="km-lapis-masuk" id="kmLapisMasuk">
-        <div class="km-kartu">
-          <button type="button" class="km-tutup" id="kmTutupMasuk"
-                  aria-label="Tutup kartu masuk">&times;</button>
-          <div class="km-eyebrow">PERUM LPPNPI &middot; CABANG JATSC</div>
-          <h2>Dashboard Fasilitas Teknik</h2>
-          <p class="km-sub-teks" id="kmSubTeks">Masuk dengan akun E-Logbook Anda — akunnya satu, sama persis dengan
-            yang dipakai di sana. Setelah masuk, semua akun melihat trouble dan jadwal dinas seluruh
-            unit; isi per unit terbuka sesuai peran akun.</p>
-
-          <!-- TIDAK ada deret tombol apa pun di sini, dan itu sudah dua kali
-               dibersihkan. Yang pertama deret MASUK/DAFTAR AKUN; yang kedua
-               pemilih TUJUAN — E-LOGBOOK / DASHBOARD / DATA CONTOH.
-
-               Pemilih tujuan dibuang karena tujuannya cuma satu: masuk berarti
-               mendarat di dashboard ini. E-Logbook tetap sejauh satu tombol,
-               tapi tombolnya ada di kepala dashboard, tempat orang mencarinya
-               setelah masuk — bukan pertanyaan yang harus dijawab sebelum
-               boleh mengetik username.
-
-               Data contoh sudah tidak ada sama sekali, jadi tidak ada pula
-               keadaan ketiga yang perlu dijelaskan di sini: server terjawab
-               atau tidak. -->
-          <div id="kmBagianDash">
-           <div id="kmPanelMasuk">
-            <div class="km-sumber">
-              <div class="km-sumber-ket km-sibuk" id="ketSumber"><i></i><span>Memeriksa sambungan ke server…</span></div>
-            </div>
-
-            <div class="km-kolom"><label for="iUser">Username</label>
-              <input type="text" id="iUser" autocomplete="off" spellcheck="false" placeholder="mis. radtel"></div>
-            <div class="km-kolom"><label for="iPass">Password</label>
-              <input type="password" id="iPass" autocomplete="off" placeholder="prototipe — tidak diperiksa"></div>
-            <button class="km-tombol-masuk" id="btnMasuk">Masuk</button>
-
-            <!-- Kaki kartu. "Bukan Anda? Ganti akun" pernah ada di sini dan
-                 sudah dibuang: keluar dari dashboard sekarang benar-benar
-                 memutus sesinya, jadi tidak ada lagi nama orang lain yang
-                 menempel untuk diganti. Tombol yang tidak pernah dibutuhkan
-                 tetap harus dibaca setiap kali kartunya dibuka. -->
-            <div class="km-kaki-tautan">
-              <button type="button" id="btnBukaDaftar" class="km-tautan">Belum punya akun? Daftar</button>
-            </div>
-
-            <!-- Daftar akun pra-login pernah ada di sini: seluruh username yang
-                 sedang aktif, tinggal ditekan untuk mengisi kolom. Dibuang atas
-                 permintaan, dan pembuangannya sekalian mengembalikan penjagaan
-                 yang dulu dikorbankan untuknya — /api/login di E-Logbook sengaja
-                 menyamakan pesan salahnya supaya tidak ketahuan username mana
-                 yang terdaftar, dan daftar itu membatalkannya. Sekarang yang
-                 tersisa untuk ditebak orang luar dua-duanya, bukan cuma
-                 password. Endpoint /api/akun-daftar tidak dipanggil lagi dari
-                 sini; matikan sekalian dengan ELOGBOOK_DAFTAR_AKUN=0. -->
-           </div>
-
-           <!-- Pendaftaran mandiri. Isinya sama dengan formulir yang dulu ada di
-                E-Logbook, dan tujuannya pun endpoint yang sama (/api/daftar,
-                lewat penerusan di server.js). Yang berpindah cuma tempatnya:
-                sejak Kelola Akun dicabut ke sini, pintu masuk akun baru pantas
-                berada di layar yang sama dengan yang mengurusnya. -->
-           <div id="kmPanelDaftar" hidden>
-            <div class="km-kolom"><label for="dfNama">Nama lengkap</label>
-              <input type="text" id="dfNama" autocomplete="off" placeholder="cth. Budi Santoso"></div>
-            <div class="km-kolom"><label for="dfUser">Username</label>
-              <input type="text" id="dfUser" autocomplete="off" spellcheck="false"
-                     autocapitalize="off" placeholder="cth. budi.santoso"></div>
-            <div class="km-kolom"><label for="dfPass">Password</label>
-              <input type="password" id="dfPass" autocomplete="new-password" placeholder="minimal 6 karakter"></div>
-            <div class="km-kolom"><label for="dfPass2">Ulangi password</label>
-              <input type="password" id="dfPass2" autocomplete="new-password" placeholder="ketik ulang password"></div>
-            <button class="km-tombol-masuk" id="btnDaftar">Kirim pendaftaran</button>
-            <div class="km-sumber-ket" id="ketDaftar"><i></i><span></span></div>
-            <div class="km-kaki-tautan">
-              <button type="button" id="btnKembaliMasuk" class="km-tautan">Sudah punya akun? Masuk</button>
-            </div>
-           </div>
-          </div>
-
+        <div class="lm-kaki-tautan">
+          <button type="button" id="btnBukaDaftar" class="lm-tautan">Belum punya akun? Daftar</button>
         </div>
       </div>
-    </section>
 
-    <aside class="km-rel km-kanan">
-      <div class="km-blok">
-        <div class="km-judul">TRAFFIC DIPANTAU</div>
-        <div class="km-traffic">
-          <div class="km-traffic-atas"><b>GIA 652</b><span>A333</span></div>
-          <div class="km-fase" id="kmFase">INISIALISASI SURVEILLANCE</div>
-          <div class="km-angka">
-            <div><span>GND SPEED</span><b id="kmGs">0 kt</b></div>
-            <div><span>ALTITUDE</span><b id="kmAlt">0 ft</b></div>
-          </div>
+      <!-- Pendaftaran mandiri. Endpoint tetap /api/daftar milik E-Logbook. -->
+      <div id="kmPanelDaftar" hidden>
+        <div class="lm-kolom"><label for="dfNama">Nama lengkap</label>
+          <input type="text" id="dfNama" autocomplete="off" placeholder="cth. Budi Santoso"></div>
+        <div class="lm-kolom"><label for="dfUser">Username</label>
+          <input type="text" id="dfUser" autocomplete="off" spellcheck="false"
+                 autocapitalize="off" placeholder="cth. budi.santoso"></div>
+        <div class="lm-kolom"><label for="dfPass">Password</label>
+          <input type="password" id="dfPass" autocomplete="new-password" placeholder="minimal 6 karakter"></div>
+        <div class="lm-kolom"><label for="dfPass2">Ulangi password</label>
+          <input type="password" id="dfPass2" autocomplete="new-password" placeholder="ketik ulang password"></div>
+        <button class="lm-tombol" id="btnDaftar">Kirim pendaftaran</button>
+        <div class="lm-sumber-ket" id="ketDaftar"><i></i><span></span></div>
+        <div class="lm-kaki-tautan">
+          <button type="button" id="btnKembaliMasuk" class="lm-tautan">Sudah punya akun? Masuk</button>
         </div>
-        <div class="km-lalu"><div class="km-lalu-kiri"><b>SJY 214</b><span>B738 &middot; SSR + ADS-B</span></div><em>TAXI</em></div>
-        <div class="km-lalu"><div class="km-lalu-kiri"><b>BTK 6501</b><span>A320 &middot; ADS-B</span></div><em>ENROUTE</em></div>
-        <div class="km-lalu"><div class="km-lalu-kiri"><b>GIA 411</b><span>B77W &middot; PSR + SSR</span></div><em>HOLD</em></div>
-      </div>
-
-      <div class="km-blok">
-        <div class="km-judul">RANTAI DATA</div>
-        <div class="km-rantai"><i></i><div><b>SENSOR</b>
-          <span>PSR/SSR dan ADS-B menangkap posisi, identitas, dan level pesawat.</span></div></div>
-        <div class="km-rantai"><i></i><div><b>RDP / FDP</b>
-          <span>Data radar difusikan dengan rencana penerbangan menjadi satu track berlabel.</span></div></div>
-        <div class="km-rantai"><i></i><div><b>DISPLAY</b>
-          <span>Track dan label disajikan ke controller working position di tower dan APP.</span></div></div>
-        <div class="km-rantai"><i></i><div><b>RECORDING</b>
-          <span>Suara dan data direkam untuk investigasi serta evaluasi kinerja.</span></div></div>
-      </div>
-    </aside>
-  </main>
-
-  <footer class="km-kaki">
-    <div class="km-pita">
-      <div>
-        <span><i></i>DVOR CGK &middot; MONITOR NORMAL</span>
-        <span><i></i>ILS RWY 25L &middot; CAT I SERVICEABLE</span>
-        <span><i></i>PSR/SSR &middot; 4.0 s SCAN &middot; PD 0.98</span>
-        <span><i></i>ADS-B &middot; 1090 MHz ES &middot; UPDATE 1 s</span>
-        <span><i></i>AFTN / AMHS &middot; QUEUE 0</span>
-        <span><i></i>UPS &amp; GENSET &middot; STANDBY READY</span>
-      </div>
-      <div aria-hidden="true">
-        <span><i></i>DVOR CGK &middot; MONITOR NORMAL</span>
-        <span><i></i>ILS RWY 25L &middot; CAT I SERVICEABLE</span>
-        <span><i></i>PSR/SSR &middot; 4.0 s SCAN &middot; PD 0.98</span>
-        <span><i></i>ADS-B &middot; 1090 MHz ES &middot; UPDATE 1 s</span>
-        <span><i></i>AFTN / AMHS &middot; QUEUE 0</span>
-        <span><i></i>UPS &amp; GENSET &middot; STANDBY READY</span>
       </div>
     </div>
+  </div>
+
+  <footer class="lm-kaki">
+    <span>&copy; Perum LPPNPI &middot; Cabang JATSC</span>
+    <span>Latar: Kepulauan Indonesia dari orbit malam</span>
   </footer>
- </div>
 </div>
 
 
@@ -328,6 +184,17 @@
       <div class="blok"><div class="nilai" id="jamWib">--:--:--</div><div class="label" id="tglWib">WIB</div></div>
       <div class="kartu-akun"><span class="av" id="avAkun">--</span>
         <span><span class="nm" id="nmAkun">—</span><br><span class="pr" id="prAkun">—</span></span></div>
+      <!-- Pintasan ke E-Logbook. Ditempatkan menempel di sisi kartu akun karena
+           pertanyaan tersering setelah mengenali diri sendiri di kepala adalah
+           "logbook saya di mana?"; sebelumnya jawaban itu tersembunyi di
+           beranda. href diisi oleh 15-tautan-elogbook.js lewat data-elogbook. -->
+      <a class="tombol-ikon" id="tombolLogbook" href="#" data-elogbook
+         title="Buka E-Logbook" data-en-judul="Open E-Logbook" aria-label="Buka E-Logbook">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+        </svg>
+      </a>
       <!-- Lonceng: pemberitahuan yang benar-benar milik akun ini, bukan papan
            bersama di beranda. Yang di sini cuma tombolnya — panelnya duduk di
            akar dokumen, di bawah, karena kepala halaman ini memotong dan
@@ -744,11 +611,31 @@
   </div>
 </div>
 
+<!-- Impor sparepart. Sebangun dengan kartu di atas dan memakai pembaca berkas
+     yang sama, tapi satu hal berbeda dan perlu diingat saat menyuntingnya:
+     jadwal dinas punya draf, sparepart tidak. Yang ditekan di kaki kartu ini
+     menyimpan langsung ke server, jadi pratinjau di dalamnyalah satu-satunya
+     langkah pemeriksaan — dan tombolnya menyebutkan sendiri berapa baris yang
+     ditambah, diperbarui, dan dihapus. -->
+<div class="lapis-ubah" id="lapisImporPart" role="dialog" aria-modal="true" aria-labelledby="judulImporPart">
+  <div class="kartu-ubah lebar">
+    <div class="kepala">
+      <h3 id="judulImporPart" data-en="Import spare parts">Impor sparepart</h3>
+      <span class="ket" id="ketImporPart"></span>
+    </div>
+    <div class="badan" id="badanImporPart"></div>
+    <div class="kaki">
+      <button class="btn garis" id="btnBatalImporPart" data-en="Cancel">Batal</button>
+      <button class="btn" id="btnPakaiImporPart" disabled
+        data-en="Save to the spare parts list">Simpan ke daftar sparepart</button>
+    </div>
+  </div>
+</div>
+
 <script src="/js/01-unit-dan-dinas.js"></script>
 <script src="/js/02-kode-dinas.js"></script>
 <script src="/js/04-galeri.js"></script>
 <script src="/js/05-ilustrasi.js"></script>
-<script src="/js/06-panggung-3d.js"></script>
 <script src="/js/07-kartu-masuk.js"></script>
 <script src="/js/08-bantu.js"></script>
 <script src="/js/09-bahasa.js"></script>
@@ -776,6 +663,7 @@
 <script src="/js/31-gambar-kartu.js"></script>
 <script src="/js/32-dokumen-unit.js"></script>
 <script src="/js/34-sejarah-alat.js"></script>
+<script src="/js/35-impor-sparepart.js"></script>
 <script src="/js/33-mulai.js"></script>
 </body>
 </html>

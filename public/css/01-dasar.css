@@ -24,8 +24,33 @@ html[data-tema="terang"]{
   --kaca:rgba(22,32,43,0.04);
 }
 *{box-sizing:border-box;}
-body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-body);
-     -webkit-font-smoothing:antialiased;}
+/* Latar seluruh dashboard: satu foto Kepulauan Indonesia dari orbit malam
+   yang menempel di tepi peramban (fixed) dan tidak ikut menggulir bersama
+   isinya. Sekarang memakai pseudo-element supaya bisa dicerahkan lewat
+   `filter: brightness()` — sama seperti latar layar masuk. Tint di atasnya
+   dibuat tipis biar warna foto tetap keluar; --bg dipasang sebagai jaring
+   pengaman bila gambarnya tidak sampai. */
+body{margin:0;color:var(--text);font-family:var(--font-body);
+     -webkit-font-smoothing:antialiased;
+     background:var(--bg);}
+body::before{
+  content:''; position:fixed; inset:0; z-index:-2; pointer-events:none;
+  background:url('/images/indonesia-orbit-bg.png') center center / cover no-repeat;
+  filter:brightness(1.35) saturate(1.12) contrast(1.02);
+}
+body::after{
+  content:''; position:fixed; inset:0; z-index:-1; pointer-events:none;
+  background:linear-gradient(180deg,
+    rgba(6,12,26,.35) 0%,
+    rgba(6,12,26,.15) 40%,
+    rgba(4,7,16,.55) 100%);
+}
+html[data-tema="terang"] body::after{
+  background:linear-gradient(180deg,
+    rgba(238,242,246,.55) 0%,
+    rgba(238,242,246,.25) 40%,
+    rgba(238,242,246,.65) 100%);
+}
 h1,h2,h3,h4{font-family:var(--font-display);margin:0;font-weight:600;letter-spacing:-.01em;}
 ::-webkit-scrollbar{height:8px;width:8px;}
 ::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px;}

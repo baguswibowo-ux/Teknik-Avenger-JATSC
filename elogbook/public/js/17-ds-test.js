@@ -270,7 +270,7 @@ function openDsDetail(id){
     ${dsTabelBaca(d.state, false, d.kategori)}
     <div class="detail-ttd">
       <div class="sig-block"><b>${T('teknisiPelaksana')}</b>${escapeHtml(d.teknisiNama)||'-'}${sigThumbHtml(d.teknisiTtd)}</div>
-      <div class="sig-block"><b>${T('mengetahuiManager')}</b>${escapeHtml(d.managerNama)||'-'}${sigPejabatHtml('dstest', d.id, d.managerTtd, d)}</div>
+      <div class="sig-block"><b>${T('mengetahuiManager')}</b>${renderPihakKedua('dstest', d.id, d.managerNama, d.managerTtd)}${sigPejabatHtml('dstest', d.id, d.managerTtd, d)}</div>
     </div>
     <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line);">${diinputOlehHtml(d.diinputOleh, d.dibuatPada, String(d.tanggal||'').slice(0,10))}</div>`;
   document.getElementById('formDetailPrintBtn').onclick = ()=>{ closeFormDetail(); printDs(id); };
@@ -289,6 +289,7 @@ const DS_JUDUL_CETAK = {
 function printDs(id){
   const d = dsList.find(x=>x.id===id);
   if(!d) return;
+  if(!tolakCetakBilaBelumTtd(d, 'dstest')) return;
   const nama = (d.teknisiNamaList && d.teknisiNamaList.length) ? d.teknisiNamaList : [d.teknisiNama || ''];
   const judul = DS_JUDUL_CETAK[d.kategori] || DS_JUDUL_CETAK.domestik;
   doPrint(`
@@ -300,14 +301,14 @@ function printDs(id){
       <tr>
         <td style="width:55%;text-align:center;vertical-align:top;">
           <div style="margin-bottom:6px;">TEKNISI PELAKSANA :</div>
-          ${nama.map((n,i)=>`<div>${i+1}. ${escapeHtml(n) || '______________________'}</div>`).join('')}
+          ${nama.map((n,i)=>`<div>${i+1}. ${d.teknisiTtd ? (escapeHtml(n) || '______________________') : '______________________'}</div>`).join('')}
           <div style="height:40px;margin-top:4px;">${ttdImg(d.teknisiTtd, 34)}</div>
         </td>
         <td style="text-align:center;vertical-align:top;">
           <div>Mengetahui,</div>
           <div style="margin-bottom:4px;">Manager Teknik</div>
           <div style="height:46px;">${ttdImg(d.managerTtd, 40)}</div>
-          <div style="border-top:1px solid #000;display:inline-block;padding:0 24px;">${escapeHtml(d.managerNama)||'&nbsp;'}</div>
+          <div style="border-top:1px solid #000;display:inline-block;padding:0 24px;">${d.managerTtd ? (escapeHtml(d.managerNama)||'&nbsp;') : '&nbsp;'}</div>
         </td>
       </tr>
     </table>`, 'landscape');

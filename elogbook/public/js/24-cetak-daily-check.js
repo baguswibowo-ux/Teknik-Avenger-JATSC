@@ -25,9 +25,35 @@ function dcPrintTable(leftItems, rightItems, state){
       dcCols.map(c=>`<td style="text-align:center;font-size:8pt;">${mark(item,c)}</td>`).join('')
     : '<td></td>'.repeat(6);
 
+  // Sub-baris tercetak: peran Main/Standby untuk Gatevox (A/B) & pasangan TMCS.
+  // Ditulis eksplisit "· Main" / "· Standby" supaya lembar cetakan berdiri
+  // sendiri tanpa harus melihat aturan tabelnya.
+  const subCells = item => {
+    if(!item) return null;
+    if(/^GATEVOX [1-9]$/.test(item)){
+      const cpu = ((state[item] || {}).mainCpu) || 'A';
+      const teks = `CPU: A · ${cpu==='A'?'Main':'Standby'}, B · ${cpu==='B'?'Main':'Standby'}`;
+      return `<td colspan="6" style="font-size:7.5pt;font-style:italic;padding-left:14px;">${teks}</td>`;
+    }
+    if(item === 'TMCS 1' || item === 'TMCS 2'){
+      const n = (state['TMCS 1'] && Number(state['TMCS 1'].mainTmcs)) || 1;
+      const angka = item === 'TMCS 1' ? 1 : 2;
+      const teks = `Main/standby: ${n===angka ? 'Main' : 'Standby'}`;
+      return `<td colspan="6" style="font-size:7.5pt;font-style:italic;padding-left:14px;">${teks}</td>`;
+    }
+    return null;
+  };
+
   const n = Math.max(leftItems.length, rightItems.length);
   let rows = '';
-  for(let i=0;i<n;i++) rows += `<tr>${cells(leftItems[i])}${cells(rightItems[i])}</tr>`;
+  for(let i=0;i<n;i++){
+    rows += `<tr>${cells(leftItems[i])}${cells(rightItems[i])}</tr>`;
+    const lSub = subCells(leftItems[i]);
+    const rSub = subCells(rightItems[i]);
+    if(lSub || rSub){
+      rows += `<tr>${lSub || '<td colspan="6"></td>'}${rSub || '<td colspan="6"></td>'}</tr>`;
+    }
+  }
 
   return `<table style="font-size:8pt;margin-bottom:10px;"><thead>${head}</thead><tbody>${rows}</tbody></table>`;
 }
@@ -68,7 +94,52 @@ function buildDcRkPrintHtml(r, state){
           <div style="margin-bottom:4px;">PH MANAGER TEKNIK</div>
           <div style="height:46px;">${ttdImg(r.managerTtd, 40)}</div>
           <div style="border-top:1px solid #000;display:inline-block;padding:0 24px;">
-            ${escapeHtml(r.managerNama) || '&nbsp;'}
+            ${r.managerTtd ? (escapeHtml(r.managerNama) || '&nbsp;') : '&nbsp;'}
+          </div>
+        </td>
+      </tr>
+    </table>`;
+}
+
+/** Halaman cetak daily check JATSC (Frequentis 3020X) — pakai render baca-saja
+    dcJatscTabelBaca yang sama dengan modal detail, dengan gaya cetak. */
+function buildDcJatscPrintHtml(r, state){
+  const petugas = (r.teknisiNamaList && r.teknisiNamaList.length)
+    ? r.teknisiNamaList.join(', ') : (r.teknisiNama || '-');
+  return `
+    <div style="text-align:center;font-weight:bold;font-size:12pt;margin-bottom:2px;">
+      CHECKLIST PERAWATAN HARIAN RADTEL
+    </div>
+    <div style="text-align:center;font-weight:bold;font-size:10pt;margin-bottom:8px;">
+      VCS FREQUENTIS 3020X — JATSC
+    </div>
+    <table class="no-border" style="font-size:9pt;margin-bottom:8px;">
+      <tr>
+        <td style="width:33%;">DINAS : ${escapeHtml(r.dinas)||'________'}</td>
+        <td style="width:33%;">HARI/TANGGAL : ${escapeHtml(r.tanggal)||'________'}</td>
+        <td>PETUGAS : ${escapeHtml(petugas)}</td>
+      </tr>
+    </table>
+
+    ${dcJatscTabelBaca(state, true)}
+
+    <div style="font-size:8.5pt;margin-top:6px;">
+      <b>NB :</b> ✓ : Normal &nbsp;&nbsp; ! : Alarm &nbsp;&nbsp; ✕ : Gangguan
+    </div>
+    ${r.remark ? `<div style="font-size:8.5pt;margin-top:4px;"><b>KETERANGAN :</b> ${escapeHtml(r.remark).replace(/\n/g,'<br>')}</div>` : ''}
+
+    <table class="no-border" style="font-size:9pt;margin-top:14px;">
+      <tr>
+        <td style="width:55%;text-align:left;vertical-align:top;">
+          <div style="margin-bottom:6px;">PETUGAS :</div>
+          ${teknisiPrintBlock(r)}
+        </td>
+        <td style="text-align:center;vertical-align:top;">
+          <div>Mengetahui,</div>
+          <div style="margin-bottom:4px;">Manager Teknik</div>
+          <div style="height:46px;">${ttdImg(r.managerTtd, 40)}</div>
+          <div style="border-top:1px solid #000;display:inline-block;padding:0 24px;">
+            ${r.managerTtd ? (escapeHtml(r.managerNama) || '&nbsp;') : '&nbsp;'}
           </div>
         </td>
       </tr>
@@ -77,6 +148,7 @@ function buildDcRkPrintHtml(r, state){
 
 function buildDcPrintHtml(r, state){
   if(dcRadkomAktif()) return buildDcRkPrintHtml(r, state);
+  if(state && state.__lokasi === 'jatsc') return buildDcJatscPrintHtml(r, state);
   const remarkLines = (r.remark || '').split('\n')
     .filter(s=>s.trim()).map((s,i)=>`<div>${i+1}. ${escapeHtml(s)}</div>`).join('') || '<div>&nbsp;</div>';
 
@@ -110,7 +182,7 @@ function buildDcPrintHtml(r, state){
           <div style="margin-bottom:4px;">Manager Teknik</div>
           <div style="height:46px;">${ttdImg(r.managerTtd, 40)}</div>
           <div style="border-top:1px solid #000;display:inline-block;padding:0 24px;">
-            ${escapeHtml(r.managerNama) || '&nbsp;'}
+            ${r.managerTtd ? (escapeHtml(r.managerNama) || '&nbsp;') : '&nbsp;'}
           </div>
         </td>
       </tr>
@@ -127,7 +199,11 @@ function teknisiPrintBlock(r){
   let namaList = r.teknisiNamaList && r.teknisiNamaList.length ? r.teknisiNamaList
                : (r.teknisiNama ? String(r.teknisiNama).split(',').map(s=>s.trim()).filter(Boolean) : []);
   if(namaList.length === 0) namaList = [''];
-  const names = namaList.map((n,i)=>`<div>${i+1}. ${escapeHtml(n) || '______________________'}</div>`).join('');
+  // Daftar nama tidak ikut ke cetakan kalau petak TTD teknisinya masih kosong —
+  // hanya penomorannya yang tersisa, supaya bentuk baris tetap sama tinggi.
+  const names = r.teknisiTtd
+    ? namaList.map((n,i)=>`<div>${i+1}. ${escapeHtml(n) || '______________________'}</div>`).join('')
+    : namaList.map((_,i)=>`<div>${i+1}. ______________________</div>`).join('');
   return `<table class="no-border" style="width:auto;border-collapse:collapse;"><tr>
       <td style="text-align:left;vertical-align:middle;white-space:nowrap;">${names}</td>
       <td style="width:60px;text-align:left;vertical-align:middle;padding-left:10px;">${ttdImg(r.teknisiTtd, 34, 'left')}</td>
@@ -136,19 +212,23 @@ function teknisiPrintBlock(r){
 
 /** Cetak form daily check yang sedang diisi (belum disimpan). */
 function printCurrentDailyCheck(){
+  const jatsc = dcRadtelJatscAktif();
   const r = {
     tanggal: tanggalDcTersimpan(),
     dinas: document.getElementById('dcDinas').value,
-    suhu: document.getElementById('dcSuhu').value.trim(),
+    suhu: jatsc ? '' : document.getElementById('dcSuhu').value.trim(),
     remark: document.getElementById('dcRemark').value.trim(),
     teknisiNamaList: collectTeknisiNama(),
     teknisiTtd: getSigDataUrl('sigDcTeknisi'),
     managerNama: document.getElementById('dcManagerNama').value.trim()
   };
-  doPrint(buildDcPrintHtml(r, dcState), 'landscape');
+  const state = jatsc ? { ...dcJState, __lokasi:'jatsc' } : dcState;
+  doPrint(buildDcPrintHtml(r, state), 'landscape');
 }
 
-/** Cetak daily check yang sudah tersimpan di database. */
+/** Cetak daily check yang sudah tersimpan di database. Detailnya dulu diambil
+    baru dicek — teknisiTtd/managerTtd yang berlaku bisa saja bukan yang ada di
+    ringkasannya (mis. TTD susulan yang barusan dibubuhkan pejabat). */
 async function printSavedDailyCheck(id){
   const r = dcHistory.find(x=>x.id===id);
   if(!r) return;
@@ -159,6 +239,7 @@ async function printSavedDailyCheck(id){
       teknisiTtd: detail.teknisiTtd || r.teknisiTtd,
       managerTtd: detail.managerTtd || r.managerTtd
     });
+    if(!tolakCetakBilaBelumTtd(rPrint, 'dc')) return;
     doPrint(buildDcPrintHtml(rPrint, detail.state || {}), 'landscape');
   }catch(e){ toast('Gagal mengambil detail daily check.'); }
 }

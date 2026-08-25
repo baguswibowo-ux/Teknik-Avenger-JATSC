@@ -1160,6 +1160,10 @@ function rapikanKegiatan(k, adaId) {
     tanggal: jenis === 'mingguan' ? null : Math.min(28, Math.max(1, Number(k?.tanggal) || 1)),
     alat: String(k?.alat || '').trim().slice(0, 40),
     ket:  String(k?.ket  || '').trim().slice(0, 400),
+    // Lokasi fisik peralatan: 'new-jatsc' atau 'jatsc'. Kegiatan lama tidak
+    // punya kolom ini dan tetap dibaca — kosong berarti tidak dibatasi
+    // lokasi, yaitu perilaku sebelumnya (berlaku unit-wide).
+    lokasi: ['new-jatsc','jatsc'].includes(k?.lokasi) ? k.lokasi : '',
     // Kegiatan lama tidak punya kolom ini dan tetap dibaca — tanpa sumber
     // berarti ditandai manual, yaitu perilaku sebelumnya.
     sumber: BERKALA_SUMBER.has(k?.sumber) ? (k.sumber || '') : '',

@@ -10,7 +10,13 @@
  */
 function entryPrintRow(e, i, pakaiKolomLokasi){
   const namaList = teknisiListOf(e);
-  const tekCell = namaList.length ? namaList.map((n,k)=>`${k+1}. ${escapeHtml(n)}`).join('<br>') : escapeHtml(e.teknisiNama);
+  // Nama hanya ikut tercetak kalau tanda tangannya sudah dibubuhkan. Bagian yang
+  // belum ditandatangani sengaja dikosongkan: form fisik tidak boleh membawa
+  // nama seolah-olah orangnya sudah paraf, padahal petak TTD-nya kosong.
+  const tekCell = e.teknisiTtd
+    ? (namaList.length ? namaList.map((n,k)=>`${k+1}. ${escapeHtml(n)}`).join('<br>') : escapeHtml(e.teknisiNama))
+    : '';
+  const pjCell = e.pjTtd ? escapeHtml(e.pjNama) : '';
   return `
     <tr>
       <td style="text-align:center;width:28px;">${i+1}</td>
@@ -21,7 +27,7 @@ function entryPrintRow(e, i, pakaiKolomLokasi){
       <td style="font-size:9pt;">${escapeHtml(e.uraian).replace(/\n/g,'<br>')}</td>
       <td style="width:85px;font-size:8.5pt;">${tekCell}</td>
       <td style="width:80px;">${ttdImg(e.teknisiTtd)}</td>
-      <td style="width:85px;font-size:8.5pt;text-align:center;">${escapeHtml(e.pjNama)}</td>
+      <td style="width:85px;font-size:8.5pt;text-align:center;">${pjCell}</td>
       <td style="width:80px;">${ttdImg(e.pjTtd)}</td>
     </tr>`;
 }
@@ -78,7 +84,7 @@ function printEntryList(list, subjudul){
   const kolJam = u?.pakaiJamSelesai ? 'TANGGAL/<br>JAM MULAI–SELESAI' : 'TANGGAL/<br>JAM';
   const kolFrek = u?.pakaiFrek ? '<td rowspan="2">FREK</td>' : '';
   const kolUraian = u?.pakaiFrek ? 'CATATAN / TINDAKAN' : 'PELAKSANAAN PEMELIHARAAN';
-  const kolPj = (u?.labelPj || 'Penanggung Jawab').toUpperCase();
+  const kolPj = (u?.labelPj || 'Manager Teknik').toUpperCase();
 
   /* Gedung ditulis sekali di kop kalau seluruh isi cetakan dari gedung yang
      sama. Kalau bercampur, kop tidak menyebut gedung mana pun — menyebut satu
@@ -139,10 +145,15 @@ function printLogbook(){
   printEntryList(list, periode);
 }
 
-/* Cetak satu catatan saja, dari kartu logbook atau dari modal detail */
+/* Cetak satu catatan saja, dari kartu logbook atau dari modal detail. Kalau
+   catatan belum lengkap TTD-nya (teknisi + penanggung jawab), tombolnya menolak
+   di sini — cetakan resmi tanpa paraf tidak boleh keluar. Aturan ini berlaku
+   untuk semua peran termasuk admin: yang harus ditutup itu keluarnya kertas
+   tanpa TTD, bukan peran yang menekan tombolnya. */
 function printSingleEntry(id){
   const e = entries.find(x=>x.id===id);
   if(!e){ toast('Catatan tidak ditemukan.'); return; }
+  if(!tolakCetakBilaBelumTtd(e, 'entry')) return;
   printEntryList([e],
     `<div style="font-size:9pt;margin-bottom:6px;">Catatan tanggal ${escapeHtml(e.tanggal)||'-'}${e.dinas ? ' &middot; Dinas: ' + escapeHtml(e.dinas) : ''}${e.lokasi ? ' &middot; Lokasi: ' + escapeHtml(e.lokasi) : ''}</div>`);
 }

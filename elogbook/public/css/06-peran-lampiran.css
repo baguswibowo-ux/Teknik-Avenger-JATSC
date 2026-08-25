@@ -41,6 +41,12 @@ body:not(.tanpa-tulis) .hanya-tulis{display:revert;}
                background:var(--panel-2); border:1px solid var(--line); border-radius:6px; font-size:12px;}
 .lampiran-item .nama{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .lampiran-item .ukuran{font-family:var(--font-mono); font-size:10.5px; color:var(--muted); white-space:nowrap;}
+/* Nama lampiran yang sudah tersimpan bisa dibuka — yang masih menunggu unggah tidak. */
+.lampiran-item a.nama{color:var(--text); text-decoration:none;}
+.lampiran-item a.nama:hover{color:var(--accent); text-decoration:underline;}
+/* Ditandai buang, tapi baru benar-benar hilang setelah Simpan ditekan. */
+.lampiran-item.dibuang{opacity:.5; border-style:dashed;}
+.lampiran-item.dibuang .nama{text-decoration:line-through;}
 .lampiran-galeri{display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;}
 .lampiran-kartu{display:block; width:104px; border:1px solid var(--line); border-radius:8px; overflow:hidden;
                 background:var(--panel-2); color:var(--text); text-decoration:none;}

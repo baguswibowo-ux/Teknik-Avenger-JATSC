@@ -18,6 +18,19 @@ input.rk-ket{width:100%; background:transparent; border:none; color:var(--text);
              font-size:11.5px; padding:2px 0;}
 
 /* Form monitoring frekuensi — 10 kolom, jadi tabelnya memang lebar */
+/* Daily check Radtel JATSC — Frequentis 3020X. Susunannya banyak seksi kecil
+   (A. VCS, B. Recording, C. Direct Speech, D. Master Clock, E. PLS, F.
+   Jaringan) — bukan satu tabel raksasa seperti Garex. Judul seksi/blok jadi
+   tulang punggung layar; tabel kecil di dalamnya bisa mengecilkan diri sesuai
+   isian. */
+.dc-j-seksi{margin-bottom:14px;}
+.dc-j-seksi-judul{font-family:var(--font-mono); font-size:11px; letter-spacing:.1em;
+                  text-transform:uppercase; color:var(--accent); margin:12px 0 6px;}
+.dc-j-blok-judul{font-size:11.5px; color:var(--muted); margin:8px 0 3px;}
+table.dc.dc-j{min-width:0;}
+table.dc.dc-j th{font-size:10px; padding:4px 6px;}
+table.dc.dc-j td{padding:3px 6px;}
+
 table.dc.mon{min-width:1000px;}
 table.dc.mon th{font-size:10px; white-space:nowrap;}
 table.dc.mon td{padding:2px 4px;}

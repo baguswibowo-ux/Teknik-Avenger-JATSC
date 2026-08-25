@@ -79,7 +79,12 @@ function getSigDataUrl(id){
   if(sigTersimpan[id]) return sigTersimpan[id];   // TTD tersimpan menggantikan goresan
   const s = sigPads[id]; if(!s || s.empty) return null; return s.canvas.toDataURL('image/png');
 }
-function initAllSigPads(){ ['sigFeTeknisi','sigDcTeknisi','sigMon','sigMonOps','sigDs','sigLtkTeknisi','sigTtdPejabat'].forEach(id=>{ if(!sigPads[id]) setupSigCanvas(id); }); }
+/* 'sigFeeTeknisi' — papan TTD susulan di jendela sunting catatan — ikut di sini
+   dan bukan dibuat saat jendelanya dibuka, supaya pasangTombolTtdTersimpan()
+   yang jalan sekali di init() ikut memasang tombol "pakai TTD tersimpan" di
+   atasnya. Kanvas di dalam modal tersembunyi berlebar 0; resizeSigCanvas
+   menunda dirinya sendiri sampai jendelanya benar-benar terlihat. */
+function initAllSigPads(){ ['sigFeTeknisi','sigFeeTeknisi','sigDcTeknisi','sigMon','sigMonOps','sigDs','sigLtkTeknisi','sigTtdPejabat','sigBerkala','sigBapbPemakai','sigBapbTeknik','sigBapbPetugas'].forEach(id=>{ if(!sigPads[id]) setupSigCanvas(id); }); }
 function resizeAllVisibleSigPads(){ Object.keys(sigPads).forEach(resizeSigCanvas); }
 window.addEventListener('resize', resizeAllVisibleSigPads);
 window.addEventListener('orientationchange', ()=>setTimeout(resizeAllVisibleSigPads, 250));

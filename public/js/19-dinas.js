@@ -8,13 +8,20 @@ const kodeTerpakai = (petak) => petak.filter(s=>s.o.length).map(s=>s.k);
 function kartuShift(s, kodeHari){
   const jam = jamShift(s.k, kodeHari);
   const warna = warnaShift(s.k);
-  const sedang = sedangShift(jam);
-  const nama = (SHIFT[s.k] && SHIFT[s.k].nama) || '';
-  return `<div class="dinas-kartu">
+  const info = SHIFT[s.k] || {};
+  const libur = !!info.libur;
+  /* Tanpa berdinas — kartu tetap muncul supaya manajer melihat siapa yang cuti,
+     tetapi 'SEDANG DINAS' dan jam kerja disembunyikan: keduanya tidak berlaku
+     untuk hari libur, dan menampilkan '00:00–00:00' hanya membingungkan. */
+  const sedang = !libur && sedangShift(jam);
+  const nama = info.nama || '';
+  return `<div class="dinas-kartu${libur?' dinas-libur':''}">
     <span class="pita-sisi" style="background:${warna}"></span>
     ${sedang && s.o.length ? `<span class="sedang-dinas">${T('SEDANG DINAS','ON DUTY NOW')}</span>` : ''}
     <div class="kode" style="color:${warna}" title="${esc(nama)}">${esc(s.k)}</div>
-    <div class="jam-shift">${labelUtc(jam)}<br><span class="jam-lokal">${labelWib(jam)}</span></div>
+    ${libur
+      ? `<div class="jam-shift"><span class="jam-lokal">${esc(nama)}</span></div>`
+      : `<div class="jam-shift">${labelUtc(jam)}<br><span class="jam-lokal">${labelWib(jam)}</span></div>`}
     ${s.o.length ? s.o.map(o=>`<div class="orang">
         <span class="avatar" style="color:${warna}">${inisial(o.n)}</span>
         <span><span class="nm">${esc(o.n)}</span><br><span class="pr">${esc(o.p)}</span></span>
@@ -49,14 +56,22 @@ function gambarDinas(){
 
   const kartuOrang = semua.map(o=>{
     const w = warnaShift(o.k);
+    /* Kode tak-berdinas (CUTI/CAP/IJIN) tidak punya jam — labelnya nama kode
+       saja, dan status kanannya bukan "BELUM/SUDAH" melainkan "TIDAK BERDINAS"
+       supaya tidak dibaca sebagai giliran yang belum sampai. */
+    const libur = !!(SHIFT[o.k] && SHIFT[o.k].libur);
+    const namaKode = (SHIFT[o.k] && SHIFT[o.k].nama) || o.k;
     return `<article class="kartu-orang" style="--w:${w}">
       <span class="av3d">${inisial(o.n)}</span>
       <span class="teks"><span class="nm">${esc(o.n)}</span>
         <span class="pr">${esc(namaUnit(o.unit))} · ${esc(o.p)}</span></span>
       <span class="kanan">
-        <span class="jam-kecil">${T('dinas','shift')} ${esc(o.k)} · ${labelUtc(o.jam)}</span>
-        <span class="nyala ${o.sedang?'':'diam'}">${o.sedang
-          ? T('SEDANG DINAS','ON DUTY NOW') : T('BELUM/SUDAH','BEFORE/AFTER')}</span>
+        <span class="jam-kecil">${libur
+          ? esc(namaKode)
+          : `${T('dinas','shift')} ${esc(o.k)} · ${labelUtc(o.jam)}`}</span>
+        <span class="nyala ${o.sedang?'':'diam'}">${libur
+          ? T('TIDAK BERDINAS','OFF DUTY')
+          : (o.sedang ? T('SEDANG DINAS','ON DUTY NOW') : T('BELUM/SUDAH','BEFORE/AFTER'))}</span>
       </span>
     </article>`;
   }).join('');
@@ -82,7 +97,10 @@ function gambarDinas(){
      satu jadwal pun yang terbaca, PS dan M dipasang sebagai bentuk bakunya. */
   const pitaDipakai = new Set();
   petakUnit.forEach(({ petak })=>petak.forEach(s=>{
-    if(SHIFT[s.k]) pitaDipakai.add(SHIFT[s.k].pita);
+    /* Kode tanpa pita (CUTI/CAP/IJIN) sengaja diabaikan — orang cuti tidak
+       mengisi jam cakupan, jadi tidak ada blok yang perlu digambar untuknya. */
+    const p = SHIFT[s.k] && SHIFT[s.k].pita;
+    if(p) pitaDipakai.add(p);
   }));
   const pita = URUT_PITA.filter(k=>pitaDipakai.has(k));
   const blok = (pita.length ? pita : ['PS','M']).map(k=>{

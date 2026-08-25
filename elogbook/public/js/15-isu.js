@@ -9,7 +9,11 @@ function openIssueModal(){
   document.getElementById('isJenis').value = '';
   document.getElementById('isKeterangan').value = '';
   document.getElementById('isLokasi').value = '';
+  // Tanggal + jam dibagi dua isian mengikuti pola form Logbook (Tanggal +
+  // Jam UTC), bukan datetime-local bawaan browser. Nilai gabungannya baru
+  // disusun saat disimpan; server tetap menerima "YYYY-MM-DDTHH:MM".
   document.getElementById('isTanggalReport').value = tanggalHariIni();
+  document.getElementById('isJamReport').value = jamSekarang();
   // Isian awal nama pelapor: yang sedang login. Bisa diganti kalau yang menemukan orang lain.
   document.getElementById('isDilaporkanOleh').value = userSaatIni ? (userSaatIni.nama || userSaatIni.username) : '';
   document.getElementById('isStatus').value = 'Open';
@@ -32,11 +36,16 @@ async function saveIssue(){
   const jenis = document.getElementById('isJenis').value.trim();
   if(!jenis){ toast(T('jenisKosong')); return; }
   const btn = document.getElementById('isSaveBtn'); btn.disabled = true;
+  // Gabungan tanggal + jam menjadi bentuk yang disimpan server. Kalau jamnya
+  // kosong, kirim tanggal saja — jangan membuat "2026-08-24T" yang tidak sah.
+  const tglIs = document.getElementById('isTanggalReport').value;
+  const jamIs = document.getElementById('isJamReport').value;
+  const tglGabung = tglIs && jamIs ? `${tglIs}T${jamIs}` : (tglIs || '');
   const payload = {
     jenis,
     keterangan: document.getElementById('isKeterangan').value.trim(),
     lokasi: document.getElementById('isLokasi').value.trim(),
-    tanggalReport: document.getElementById('isTanggalReport').value,
+    tanggalReport: tglGabung,
     dilaporkanOleh: document.getElementById('isDilaporkanOleh').value.trim(),
     // Status hanya dikirim admin; server tetap memaksa isu baru dari teknisi jadi Open.
     status: adminAktif() ? document.getElementById('isStatus').value : 'Open',
@@ -74,6 +83,22 @@ function renderIssueDetail(){
   const baris = (label, isi) =>
     `<tr><td style="padding:3px 12px 3px 0;color:var(--muted);white-space:nowrap;">${label}</td><td style="padding:3px 0;">${isi}</td></tr>`;
   const kosong = '<span style="color:var(--muted);">—</span>';
+  const closed = it.status === 'Closed';
+
+  /* Keterangan penutupan: admin bisa mengetik langsung di sini, tersimpan begitu
+     kolomnya ditinggalkan. Peran lain hanya membaca. Ditampilkan hanya saat isu
+     memang tertutup — mengetik alasan menutup untuk isu yang masih terbuka cuma
+     membingungkan (belum ada yang menutup). */
+  const ketArea = closed && adminAktif()
+    ? `<textarea id="isDetailKetClosed" rows="3"
+         style="width:100%;background:var(--panel-2);color:var(--text);border:1px solid var(--line);
+                border-radius:5px;padding:6px 8px;font-family:var(--font-body);font-size:13px;
+                resize:vertical;box-sizing:border-box;"
+         placeholder="Keterangan penutupan (mis. akar penyebab, tindakan yang dilakukan)"
+         onchange="simpanKetClosed(this.value)">${escapeHtml(it.keteranganClosed||'')}</textarea>`
+    : (it.keteranganClosed
+        ? `<span style="white-space:pre-wrap;">${escapeHtml(it.keteranganClosed)}</span>`
+        : kosong);
 
   document.getElementById('issueDetailBody').innerHTML = `
     <table style="font-size:13px;line-height:1.6;margin-bottom:4px;">
@@ -81,8 +106,10 @@ function renderIssueDetail(){
       ${baris('Keterangan', '<span style="white-space:pre-wrap;">'+(escapeHtml(it.keterangan)||kosong)+'</span>')}
       ${baris('Lokasi', escapeHtml(it.lokasi)||kosong)}
       ${baris('Status', '<span class="tag '+(it.status==='Closed'?'ok':it.status==='Proses'?'warn':'fail')+'">'+escapeHtml(it.status)+'</span>')}
-      ${baris('Tgl Report', escapeHtml(it.tglReport)||kosong)}
-      ${baris('Tgl Closed', escapeHtml(it.tglClosed)||kosong)}
+      ${baris('Tgl &amp; Jam Report', escapeHtml(formatWaktuIsu(it.tglReport))||kosong)}
+      ${baris('Tgl &amp; Jam Closed', escapeHtml(formatWaktuIsu(it.tglClosed))||kosong)}
+      ${closed || it.ditutupOleh ? baris('Ditutup oleh', escapeHtml(it.ditutupOleh)||kosong) : ''}
+      ${closed || it.keteranganClosed ? baris('Keterangan penutupan', ketArea) : ''}
       ${baris('Dilaporkan oleh', escapeHtml(it.dilaporkanOleh)||kosong)}
       ${baris('Diinput oleh', escapeHtml(it.diinputOleh)||kosong)}
       ${adminAktif() && it.dibuatPada
@@ -91,6 +118,22 @@ function renderIssueDetail(){
     </table>
     ${bagianBuktiHtml(it, 'open', T('buktiKejadian'))}
     ${bagianBuktiHtml(it, 'closed', T('buktiSelesai'))}`;
+}
+
+/** Simpan keterangan penutupan dari textarea di jendela detail. Dijalankan
+    onchange (bukan input) supaya server tidak dihubungi setiap ketikan. */
+async function simpanKetClosed(nilai){
+  if(!isuDetailId) return;
+  const it = issues.find(x=>x.id===isuDetailId);
+  if(!it) return;
+  const baru = String(nilai || '').trim();
+  if(baru === (it.keteranganClosed||'')) return;
+  try{
+    const terbaru = await gsRun('updateIssueField', isuDetailId, ISSUE_HEADER.keteranganClosed, baru);
+    if(terbaru) gantiIsuDiDaftar(terbaru);
+    it.keteranganClosed = baru;
+    renderIssues();
+  }catch(e){ toast('Gagal menyimpan keterangan — ' + (e.message||'coba lagi.')); }
 }
 
 function bagianBuktiHtml(it, fase, judul){
@@ -189,6 +232,27 @@ function renderIssues(){
   body.innerHTML = issues.map((it,idx)=> adminAktif() ? barisIsuAdmin(it, idx) : barisIsuBaca(it, idx)).join('');
 }
 
+/** Baris admin dua isian (Tanggal + Jam UTC) untuk kolom Tgl Report / Tgl
+ *  Closed. Nilainya digabung "YYYY-MM-DDTHH:MM" saat dikirim ke server —
+ *  kalau salah satunya kosong, kirim tanggal saja (jangan bentuk cacat). */
+function bagiTglJamHtml(it, field, disabled){
+  const v = String(it[field] || '');
+  const tgl = v.slice(0, 10);
+  const jam = v.length >= 16 ? v.slice(11, 16) : '';
+  const off = disabled ? 'disabled' : '';
+  const gaya = 'background:var(--panel-2);color:var(--text);border:1px solid var(--line);border-radius:5px;padding:4px 6px;font-family:var(--font-mono);font-size:11px;';
+  return `<div style="display:flex;gap:4px;">
+    <input type="date" ${off} value="${escapeHtml(tgl)}" style="${gaya}width:110px;"
+           onchange="updateIssueTglJam('${it.id}','${field}',this.value, this.parentElement.querySelector('input[type=time]').value)">
+    <input type="time" ${off} value="${escapeHtml(jam)}" style="${gaya}width:78px;"
+           onchange="updateIssueTglJam('${it.id}','${field}', this.parentElement.querySelector('input[type=date]').value, this.value)">
+  </div>`;
+}
+function updateIssueTglJam(id, field, tgl, jam){
+  const gabung = tgl && jam ? `${tgl}T${jam}` : (tgl || '');
+  updateIssueField(id, field, gabung);
+}
+
 /** Ringkasan jumlah bukti per fase, dipakai di kolom "Bukti". */
 function selBuktiHtml(it){
   const bagian = [];
@@ -208,15 +272,13 @@ function barisIsuAdmin(it, idx){
       <td><input type="text" value="${escapeHtml(it.jenis)}" style="width:100%;background:transparent;border:none;color:var(--text);font-size:13px;" onchange="updateIssueField('${it.id}','jenis',this.value)"></td>
       <td><textarea style="width:100%;background:transparent;border:none;color:var(--text);font-size:13px;resize:vertical;" onchange="updateIssueField('${it.id}','keterangan',this.value)">${escapeHtml(it.keterangan)}</textarea></td>
       <td><input type="text" value="${escapeHtml(it.lokasi)}" style="width:100%;background:transparent;border:none;color:var(--text);font-size:13px;" onchange="updateIssueField('${it.id}','lokasi',this.value)"></td>
-      <td><input type="date" class="issue-date" value="${escapeHtml(it.tglReport)}" title="Tanggal isu dilaporkan" onchange="updateIssueField('${it.id}','tglReport',this.value)"></td>
+      <td>${bagiTglJamHtml(it, 'tglReport', false)}</td>
       <td><select class="status-select" onchange="updateIssueField('${it.id}','status',this.value)">
         <option ${it.status==='Open'?'selected':''}>Open</option>
         <option ${it.status==='Proses'?'selected':''}>Proses</option>
         <option ${it.status==='Closed'?'selected':''}>Closed</option>
       </select></td>
-      <td><input type="date" class="issue-date" value="${escapeHtml(it.tglClosed)}" ${it.status==='Closed'?'':'disabled'}
-                 title="${it.status==='Closed'?'Tanggal isu ditutup':'Terisi otomatis saat status jadi Closed'}"
-                 onchange="updateIssueField('${it.id}','tglClosed',this.value)"></td>
+      <td>${bagiTglJamHtml(it, 'tglClosed', it.status !== 'Closed')}</td>
       <td><input type="text" value="${escapeHtml(it.dilaporkanOleh)}" title="Diinput oleh ${escapeHtml(it.diinputOleh)||'-'}"
                  style="width:100%;background:transparent;border:none;color:var(--text);font-size:13px;"
                  onchange="updateIssueField('${it.id}','dilaporkanOleh',this.value)"></td>
@@ -237,9 +299,9 @@ function barisIsuBaca(it, idx){
       <td>${escapeHtml(it.jenis)||'-'}</td>
       <td style="white-space:pre-wrap;">${escapeHtml(it.keterangan)||'-'}</td>
       <td>${escapeHtml(it.lokasi)||'-'}</td>
-      <td class="diinput-oleh">${tanggal(it.tglReport)}</td>
+      <td class="diinput-oleh">${tanggal(formatWaktuIsu(it.tglReport))}</td>
       <td><span class="status-select" style="display:inline-block;">${escapeHtml(it.status)}</span></td>
-      <td class="diinput-oleh">${tanggal(it.tglClosed)}</td>
+      <td class="diinput-oleh">${tanggal(formatWaktuIsu(it.tglClosed))}</td>
       <td class="diinput-oleh" title="Diinput oleh ${escapeHtml(it.diinputOleh)||'-'}">${escapeHtml(it.dilaporkanOleh)||'-'}</td>
       ${selBuktiHtml(it)}
       <td>${selDetailIsu(it)}</td>

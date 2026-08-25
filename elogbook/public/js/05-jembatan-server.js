@@ -23,7 +23,7 @@ async function gsCall(fn, args){
 
   if(res.status === 401){
     sesiHabis = true;
-    showLogin('Sesi Anda sudah berakhir. Silakan masuk lagi.');
+    sesiTakSah('pesanSesiBerakhir');
     throw new Error('Sesi berakhir.');
   }
 

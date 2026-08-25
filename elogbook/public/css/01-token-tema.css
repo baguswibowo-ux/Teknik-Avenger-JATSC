@@ -34,6 +34,32 @@ html[data-tema="terang"]{
   --bayang:0 10px 30px rgba(22,32,43,0.16);
 }
 *{box-sizing:border-box;}
-body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-body);}
+/* Latar halaman: satu foto Kepulauan Indonesia dari orbit malam yang dipatok
+   fixed di tepi peramban — tetap di tempatnya kalau tabel logbook digulir
+   ratusan baris. Tint gelap di atasnya menjaga baris tabel tetap tajam
+   terbaca; orbit terlihat di sela ubin, di margin, dan menembus kepala
+   halaman. Warna --bg tetap dipasang sebagai jaring pengaman bila gambarnya
+   tidak sampai. */
+body{margin:0;color:var(--text);font-family:var(--font-body);
+     -webkit-font-smoothing:antialiased;
+     background:var(--bg);}
+body::before{
+  content:''; position:fixed; inset:0; z-index:-2; pointer-events:none;
+  background:url('../images/indonesia-orbit-bg.png') center center / cover no-repeat;
+  filter:brightness(1.35) saturate(1.12) contrast(1.02);
+}
+body::after{
+  content:''; position:fixed; inset:0; z-index:-1; pointer-events:none;
+  background:linear-gradient(180deg,
+    rgba(6,12,26,.35) 0%,
+    rgba(6,12,26,.15) 40%,
+    rgba(4,7,16,.55) 100%);
+}
+html[data-tema="terang"] body::after{
+  background:linear-gradient(180deg,
+    rgba(238,242,246,.55) 0%,
+    rgba(238,242,246,.25) 40%,
+    rgba(238,242,246,.65) 100%);
+}
 ::-webkit-scrollbar{height:8px;width:8px;}
 ::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px;}

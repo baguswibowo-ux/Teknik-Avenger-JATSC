@@ -75,37 +75,83 @@ function terapkanUnit(){
     tabMon.style.display = u.adaMonitoring ? '' : 'none';
     if(!u.adaMonitoring && tabMon.classList.contains('active')) pilihTab('logbook');
   }
-  const tabDs = document.querySelector('.tab-btn[data-tab="dstest"]');
-  if(tabDs){
-    tabDs.style.display = u.adaDsTest ? '' : 'none';
-    if(!u.adaDsTest && tabDs.classList.contains('active')) pilihTab('logbook');
+  // Tab wadah Preventive Maintenance dan sub-tabnya. Wadahnya muncul selama
+  // unit ini punya minimal salah satu isi (DS Test atau salah satu lembar
+  // berkala). Di dalamnya, sub-tab DS Test hanya untuk unit yang memakainya;
+  // sub-tab pekerjaan berkala diperlakukan satu paket seperti sebelumnya
+  // — tidak ada unit yang punya sebagiannya saja.
+  const tabPm = document.querySelector('.tab-btn[data-tab="preventive"]');
+  const adaPm = !!(u.adaDsTest || u.adaBerkala);
+  if(tabPm){
+    tabPm.style.display = adaPm ? '' : 'none';
+    if(!adaPm && tabPm.classList.contains('active')) pilihTab('logbook');
   }
-  // Keempat tab pekerjaan berkala baru dipakai Radtel; unit lain belum punya
-  // daftarnya. Diperlakukan satu paket: tidak ada unit yang punya sebagian.
+  const subDs = document.querySelector('.subtab-btn[data-subtab="dstest"]');
+  if(subDs) subDs.style.display = u.adaDsTest ? '' : 'none';
   ['bk-neptuno','bk-gatevox','bk-cleaning','bk-restart'].forEach(nama=>{
-    const t = document.querySelector(`.tab-btn[data-tab="${nama}"]`);
-    if(!t) return;
-    t.style.display = u.adaBerkala ? '' : 'none';
-    if(!u.adaBerkala && t.classList.contains('active')) pilihTab('logbook');
+    const s = document.querySelector(`.subtab-btn[data-subtab="${nama}"]`);
+    if(s) s.style.display = u.adaBerkala ? '' : 'none';
   });
-  const tabLtk = document.querySelector('.tab-btn[data-tab="ltk"]');
-  if(tabLtk){
-    tabLtk.style.display = u.adaLtk ? '' : 'none';
-    if(!u.adaLtk && tabLtk.classList.contains('active')) pilihTab('logbook');
+  // Kalau sub-tab yang lagi aktif ternyata tidak dipakai unit ini, pindah
+  // ke sub-tab pertama yang masih terlihat — kalau tidak, wadahnya terbuka
+  // di ruang kosong dan seolah tidak ada isinya.
+  const wadahPm = document.getElementById('view-preventive');
+  if(wadahPm){
+    const aktifSub = wadahPm.querySelector('.subtab-btn.active');
+    const aktifTerlihat = aktifSub && aktifSub.style.display !== 'none';
+    if(!aktifTerlihat){
+      const gantinya = wadahPm.querySelector('.subtab-btn:not([style*="display: none"])');
+      if(gantinya) gantinya.click();
+    }
+  }
+  // Tab wadah FORM (LTK + BAPB). LTK ada untuk sebagian unit; BAPB
+  // dianggap ada untuk semua unit (berita acara pemasangan barang
+  // berlaku umum). Wadahnya muncul selama minimal salah satunya
+  // dipakai — praktisnya selalu terlihat karena BAPB selalu ada.
+  const tabForm = document.querySelector('.tab-btn[data-tab="form"]');
+  const adaBapb = true;
+  const adaForm = !!(u.adaLtk || adaBapb);
+  if(tabForm){
+    tabForm.style.display = adaForm ? '' : 'none';
+    if(!adaForm && tabForm.classList.contains('active')) pilihTab('logbook');
+  }
+  const subLtk = document.querySelector('.subtab-btn[data-subtab="ltk"]');
+  if(subLtk) subLtk.style.display = u.adaLtk ? '' : 'none';
+  const wadahForm = document.getElementById('view-form');
+  if(wadahForm){
+    const aktifSub = wadahForm.querySelector('.subtab-btn.active');
+    const aktifTerlihat = aktifSub && aktifSub.style.display !== 'none';
+    if(!aktifTerlihat){
+      const gantinya = wadahForm.querySelector('.subtab-btn:not([style*="display: none"])');
+      if(gantinya) gantinya.click();
+    }
   }
 
-  // Dua formulir daily check yang berbeda bentuk — tampilkan yang sesuai unit.
+  // Tiga formulir daily check dengan bentuk berbeda: Garex (Radtel/unit lain),
+  // Frequentis 3020X (Radtel di JATSC), dan Radkom. Radtel dapat pemilih lokasi
+  // di form-nya sendiri — dan selector itu yang menentukan mana yang tampak.
   const radkom = u.kode === 'radkom';
-  document.getElementById('dcGarexWrap').style.display   = radkom ? 'none' : '';
+  const punyaLokasi = u.kode === 'radtel';   // JATSC vs New JATSC
   document.getElementById('dcRadkomWrap').style.display  = radkom ? '' : 'none';
-  document.getElementById('dcLegendGarex').style.display = radkom ? 'none' : '';
   document.getElementById('dcLegendRadkom').style.display= radkom ? '' : 'none';
   document.getElementById('dcSuhuWrap').style.display    = radkom ? 'none' : '';
+  const dcAlatWrap = document.getElementById('dcAlatWrap');
+  if(dcAlatWrap) dcAlatWrap.style.display = (radkom || !punyaLokasi) ? 'none' : '';
+  const dcLegendGarex = document.getElementById('dcLegendGarex');
+  const dcJatscWrap = document.getElementById('dcJatscWrap');
+  const dcGarexWrap = document.getElementById('dcGarexWrap');
+  const jatsc = punyaLokasi && document.getElementById('dcLokasi')?.value === 'jatsc';
+  dcGarexWrap.style.display = (radkom || jatsc) ? 'none' : '';
+  if(dcJatscWrap) dcJatscWrap.style.display = (!radkom && jatsc) ? '' : 'none';
+  if(dcLegendGarex) dcLegendGarex.style.display = radkom ? 'none' : '';
+  // Judul tab tetap "Daily Check" apa pun peralatannya — nama alat sudah
+  // disebut di selector di dalam form, tidak perlu diulang di kepala.
   const dcJudul = document.querySelector('[data-t="dcJudul"]');
   const dcSub = document.querySelector('[data-t="dcSub"]');
-  if(dcJudul) dcJudul.textContent = u.dcJudul || (radkom ? T('dcRadkomJudul') : T('dcJudul'));
+  if(dcJudul) dcJudul.textContent = T('dcJudul');
   if(dcSub) dcSub.textContent = radkom ? T('dcRadkomSub') : T('dcSub');
   if(radkom && Object.keys(dcRkState).length === 0){ initDcRkState(); renderDcRkTable(); }
+  if(!radkom && jatsc && Object.keys(dcJState || {}).length === 0){ initDcJState(); renderDcJatscTable(); }
 
   // Judul seksi logbook mengikuti nama form unit itu
   const judul = document.querySelector('[data-t="logbookJudul"]');
@@ -152,7 +198,9 @@ const mapDc = r => ({ id:r.ID, tanggal:r.Tanggal, tanggalIso:r.TanggalIso||'', d
 const mapIssue = i => ({ id:i.ID, jenis:i.Jenis, keterangan:i.Keterangan, lokasi:i.Lokasi, status:i.Status,
                          tglReport:i.TanggalReport||'', tglClosed:i.TanggalClosed||'',
                          dilaporkanOleh:i.DilaporkanOleh||'', diinputOleh:i.DiinputOleh||'',
+                         ditutupOleh:i.DitutupOleh||'', keteranganClosed:i.KeteranganClosed||'',
                          dibuatPada:i.DibuatPada||'',
                          lampiranOpen:i.LampiranOpen||[], lampiranClosed:i.LampiranClosed||[] });
 const ISSUE_HEADER = { jenis:'Jenis', keterangan:'Keterangan', lokasi:'Lokasi', status:'Status',
-                       tglReport:'TanggalReport', tglClosed:'TanggalClosed', dilaporkanOleh:'DilaporkanOleh' };
+                       tglReport:'TanggalReport', tglClosed:'TanggalClosed',
+                       dilaporkanOleh:'DilaporkanOleh', keteranganClosed:'KeteranganClosed' };

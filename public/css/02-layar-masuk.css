@@ -1,324 +1,318 @@
 /* =====================================================================
-   1. LAYAR MASUK — konsol CNS/ATM dengan bandara 3D
+   LAYAR MASUK — kartu login sederhana di atas Indonesia dari orbit malam
 
-   Diambil dari proyek Claude Design "Animasi Bandara Soekarno Hatta 3D"
-   (`CNS Tower Dashboard.dc.html` + `cns-scene.js`). Menggantikan layar masuk
-   lama yang berupa pemandangan siluet CSS.
+   Tata rupa mengikuti mock-up "Login Header.dc.html" (E:\2026\test\Login
+   Page): panji AVENGERS raksasa dengan huruf Lora italic dan bayangan
+   navy, kartu login gelap-transparan bersudut kecil, tombol utama sian
+   #35e0c4, latar bumi diterangkan lewat filter brightness+saturate pada
+   gambarnya sendiri (bukan overlay tebal seperti versi sebelumnya).
 
-   Semua kelas dan id di bagian ini berawalan `km` (konsol masuk). Dashboard di
-   bawahnya sudah memakai nama sepolos `.kartu`, `.judul`, `.status`, `#jamUtc`,
-   dan `#pesan` — tanpa awalan, layar masuk dan aplikasinya akan saling merusak.
-
-   Paletnya berdiri sendiri, tidak ikut token di atas: konsol ini tetap gelap
-   walaupun dashboardnya sedang mode terang. Ruang kontrol tidak pernah putih,
-   dan layar masuk cuma satu tarikan napas sebelum aplikasinya terbuka.
+   Semua kelas berawalan `lm` (layar masuk). ID di kartu (iUser, iPass,
+   btnMasuk, kmPanelMasuk, kmPanelDaftar, dst.) tidak disunting supaya JS
+   di 07-kartu-masuk.js & 12-jembatan-elogbook.js jalan tanpa perubahan.
    ===================================================================== */
+
 :root{
-  --km-bg:#06090d; --km-panel:#080d12; --km-panel-2:#0b1219; --km-panel-3:#0a1017;
-  --km-line:#17232c; --km-line-2:#16222b; --km-line-3:#1a2731;
-  --km-teks:#cfdae4; --km-terang:#eaf2f8; --km-terang-2:#dfe8f0; --km-terang-3:#d7e3ec;
-  --km-redup:#8496a5; --km-redup-2:#7b8d9c; --km-redup-3:#6d8090; --km-redup-4:#5f7382;
-  --km-sian:#3fd6c8; --km-sian-garis:#1f4e46; --km-sian-latar:#0a1a19;
-  --km-kuning:#f0b429;
+  --lm-sian:#35e0c4;
+  --lm-sian-terang:#6ef0da;
+  --lm-jingga:#f6971d;
+  --lm-jingga-terang:#ffb52e;
+  --lm-teks:#f2f6ff;
+  --lm-teks-redup:#9fb0cd;
+  --lm-teks-remang:#8fa2c4;
+  --lm-teks-kabur:#6d7f9e;
+  --lm-kartu-bg:rgba(9,17,33,.82);
+  --lm-kartu-garis:rgba(90,130,190,.28);
+  --lm-input-bg:rgba(16,27,49,.7);
+  --lm-input-garis:rgba(100,135,195,.32);
 }
 
-#layarMasuk{position:fixed;inset:0;z-index:100;overflow:hidden;
-  background:var(--km-bg);color:var(--km-teks);
-  font-family:'IBM Plex Sans',system-ui,sans-serif;
-  transition:opacity .6s,visibility .6s;}
-#layarMasuk.pergi{opacity:0;visibility:hidden;pointer-events:none;}
+#layarMasuk{
+  position:fixed; inset:0; z-index:100; overflow-y:auto; overflow-x:hidden;
+  color:var(--lm-teks);
+  font-family:'Barlow','IBM Plex Sans',system-ui,sans-serif;
+  min-height:100vh;
+  transition:opacity .6s ease, visibility .6s ease;
+  background:#04070f;
+}
+#layarMasuk.pergi{opacity:0; visibility:hidden; pointer-events:none;}
 
-/* minmax(0,1fr), bukan kolom auto: kepala konsol isinya deretan mono yang tidak
-   boleh patah, dan kolom auto ikut selebar isi terpanjang itu — di HP seluruh
-   konsol jadi lebih lebar dari layar dan kartu masuknya terpotong di kanan.
-   min-width:0 pada ketiga barisnya menahan hal yang sama satu tingkat di bawah. */
-.km-konsol{display:grid;grid-template-rows:64px 1fr 40px;grid-template-columns:minmax(0,1fr);
-  height:100%;overflow:hidden;}
-.km-kepala,.km-badan,.km-kaki{min-width:0;}
-
-/* ---------- kepala ---------- */
-.km-kepala{display:flex;align-items:center;justify-content:space-between;gap:16px;
-  padding:0 22px;border-bottom:1px solid var(--km-line);
-  background:linear-gradient(180deg,#0b1218,#080d12);}
-.km-merek{display:flex;align-items:center;gap:16px;min-width:0;flex:1 1 auto;}
-.km-tanda{width:30px;height:30px;flex:none;border:1.5px solid var(--km-sian);display:grid;place-items:center;}
-.km-tanda i{width:10px;height:10px;background:var(--km-sian);border-radius:50%;}
-.km-merek-teks{display:flex;flex-direction:column;gap:3px;min-width:0;}
-.km-merek-teks b{font:600 14px/1 'IBM Plex Sans',sans-serif;letter-spacing:.18em;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.km-merek-teks span{font:400 10px/1 'IBM Plex Mono',monospace;letter-spacing:.2em;
-  color:var(--km-redup-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.km-kepala-kanan{display:flex;align-items:center;gap:22px;flex:none;}
-.km-metrik{display:flex;gap:18px;}
-.km-metrik>div{display:flex;flex-direction:column;gap:4px;align-items:flex-end;}
-.km-metrik .km-pisah{width:1px;padding:0;gap:0;background:var(--km-line-3);}
-.km-metrik span{font:400 9px/1 'IBM Plex Mono',monospace;letter-spacing:.2em;color:var(--km-redup-4);}
-.km-metrik b{font:600 13px/1 'IBM Plex Mono',monospace;color:var(--km-terang);}
-.km-metrik b.km-sian{color:var(--km-sian);}
-.km-status{display:flex;align-items:center;gap:8px;padding:6px 12px;
-  border:1px solid var(--km-sian-garis);background:var(--km-sian-latar);}
-.km-status i{width:7px;height:7px;border-radius:50%;background:var(--km-sian);animation:km-blip 1.6s infinite;}
-.km-status span{font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.18em;color:var(--km-sian);}
-@keyframes km-blip{0%,100%{opacity:1;}50%{opacity:.25;}}
-.km-cap{padding:6px 10px;border:1px solid #5a4415;background:#1c1408;
-  font:600 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:.2em;color:var(--km-kuning);}
-
-/* ---------- badan: rel kiri · panggung · rel kanan ---------- */
-/* max-width/margin/padding dinolkan lagi: badan konsol ini elemen <main>, dan
-   dashboard di bawah punya `main{max-width:1500px;margin:0 auto;padding:22px}`
-   untuk isinya sendiri. Tanpa penawar ini, aturan itu ikut kena — kolom
-   tengahnya menyusut jadi nol dan kartu masuknya jadi selebar satu huruf. */
-.km-badan{position:relative;display:grid;grid-template-columns:236px 1fr 268px;min-height:0;
-  max-width:none;margin:0;padding:0;}
-.km-rel{background:var(--km-panel);padding:18px 16px;display:flex;flex-direction:column;
-  gap:22px;overflow:auto;min-height:0;}
-.km-kiri{border-right:1px solid var(--km-line);}
-.km-kanan{border-left:1px solid var(--km-line);}
-.km-blok{display:flex;flex-direction:column;gap:10px;}
-.km-judul{font:500 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:.22em;color:var(--km-redup-4);}
-
-.km-sub{display:flex;flex-direction:column;gap:7px;padding:11px 12px;
-  background:var(--km-panel-2);border:1px solid var(--km-line-2);border-left:2px solid var(--km-sian);}
-.km-sub-atas{display:flex;justify-content:space-between;align-items:baseline;gap:8px;}
-.km-sub-atas b{font:600 11px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;color:var(--km-terang-2);}
-.km-sub-atas span{font:500 9px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;color:var(--km-sian);}
-.km-sub p{margin:0;font:400 10.5px/1.5 'IBM Plex Sans',sans-serif;color:var(--km-redup-2);}
-.km-bar{height:3px;background:#132029;}
-.km-bar i{display:block;height:3px;background:var(--km-sian);}
-
-.km-legenda{display:flex;align-items:center;gap:9px;
-  font:400 10.5px/1.4 'IBM Plex Sans',sans-serif;color:var(--km-redup);}
-.km-legenda .km-garis{width:16px;height:2px;flex:none;background:var(--km-sian);}
-.km-legenda .km-garis.km-kuning-bg{background:var(--km-kuning);}
-.km-legenda .km-bulat{width:9px;height:9px;flex:none;border:1.5px solid var(--km-sian);border-radius:50%;}
-
-/* Blok sesi. Di berkas desain aslinya ini tombol yang membalik status login;
-   di sini ia mengikuti akun contoh yang sedang terisi di kartu masuk, jadi
-   sebelum menekan Masuk pun sudah terlihat akun mana yang akan dipakai. */
-.km-sesi-blok{margin-top:auto;display:flex;flex-direction:column;gap:9px;}
-.km-sesi{display:flex;align-items:center;gap:11px;padding:10px 11px;width:100%;
-  background:var(--km-panel-2);border:1px solid var(--km-line-2);cursor:pointer;
-  text-align:left;font-family:'IBM Plex Mono',monospace;transition:.16s;}
-.km-sesi:hover{border-color:var(--km-sian-garis);background:#0c161c;}
-.km-sesi .km-av{width:28px;height:28px;flex:none;border-radius:50%;border:1.5px solid var(--km-redup-4);
-  display:grid;place-items:center;font:600 10px/1 'IBM Plex Mono',monospace;color:var(--km-redup-4);}
-.km-sesi.km-siap .km-av{border-color:var(--km-sian);color:var(--km-sian);}
-.km-sesi.km-siap svg{stroke:var(--km-sian);}
-.km-sesi .km-sesi-teks{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1;}
-.km-sesi .km-nm{font:600 10.5px/1 'IBM Plex Mono',monospace;letter-spacing:.12em;color:var(--km-terang-3);
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.km-sesi .km-pr{font:400 9px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;color:var(--km-redup-3);
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.km-sesi svg{flex:none;stroke:var(--km-redup-4);}
-.km-sesi-ket{font:400 9.5px/1.5 'IBM Plex Mono',monospace;letter-spacing:.1em;color:var(--km-redup-4);}
-
-.km-traffic{padding:13px;background:var(--km-panel-2);border:1px solid var(--km-sian-garis);}
-.km-traffic-atas{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:9px;}
-.km-traffic-atas b{font:600 13px/1 'IBM Plex Mono',monospace;letter-spacing:.12em;color:var(--km-terang);}
-.km-traffic-atas span{font:500 9.5px/1 'IBM Plex Mono',monospace;color:var(--km-kuning);}
-.km-fase{font:400 10.5px/1.5 'IBM Plex Mono',monospace;letter-spacing:.08em;
-  color:var(--km-sian);margin-bottom:11px;min-height:16px;}
-.km-angka{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
-.km-angka>div{display:flex;flex-direction:column;gap:4px;}
-.km-angka span{font:400 9px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;color:var(--km-redup-4);}
-.km-angka b{font:600 15px/1 'IBM Plex Mono',monospace;color:var(--km-terang-2);}
-
-.km-lalu{display:flex;justify-content:space-between;align-items:center;gap:10px;
-  padding:9px 12px;background:var(--km-panel-3);border:1px solid var(--km-line-2);}
-.km-lalu-kiri{display:flex;flex-direction:column;gap:3px;min-width:0;}
-.km-lalu b{font:600 11px/1 'IBM Plex Mono',monospace;letter-spacing:.12em;color:#c9d6e1;}
-.km-lalu span{font:400 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;color:var(--km-redup-3);}
-.km-lalu em{font:500 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#8ea0af;
-  font-style:normal;white-space:nowrap;}
-
-.km-rantai{display:flex;gap:11px;align-items:flex-start;}
-.km-rantai i{margin-top:5px;width:6px;height:6px;flex:none;background:var(--km-kuning);}
-.km-rantai div{display:flex;flex-direction:column;gap:3px;}
-.km-rantai b{font:600 10.5px/1.3 'IBM Plex Mono',monospace;letter-spacing:.12em;color:#c9d6e1;}
-.km-rantai span{font:400 10.5px/1.5 'IBM Plex Sans',sans-serif;color:var(--km-redup-2);text-wrap:pretty;}
-
-/* ---------- panggung 3D ---------- */
-.km-panggung{position:relative;min-width:0;min-height:0;overflow:hidden;background:var(--km-panel);}
-/* Kisi radar tergambar di bawah kanvas. Kalau three.js tidak sampai, yang
-   tersisa tetap terlihat seperti layar radar, bukan kotak hitam kosong. */
-.km-panggung::before{content:"";position:absolute;inset:0;opacity:.5;
+/* --- Latar bumi dari orbit. Gambarnya dipasang sebagai <img> di JS/CSS
+   supaya bisa dicerahkan lewat filter (brightness/saturate/contrast) —
+   overlay hitam di atasnya dibuat tipis, jadi warna aslinya keluar.  */
+.lm-langit{
+  position:fixed; inset:0; z-index:-2; pointer-events:none;
   background:
-    radial-gradient(circle at 50% 58%, rgba(63,214,200,.07), transparent 62%),
-    repeating-linear-gradient(0deg,  rgba(27,43,54,.55) 0 1px, transparent 1px 46px),
-    repeating-linear-gradient(90deg, rgba(27,43,54,.55) 0 1px, transparent 1px 46px);}
-.km-scene{position:absolute;inset:0;}
-.km-scene canvas{display:block;width:100%;height:100%;cursor:grab;}
-.km-scene.km-geser canvas{cursor:grabbing;}
-.km-lapis{position:absolute;inset:0;pointer-events:none;overflow:hidden;}
-.km-chip{position:absolute;transform:translate(-50%,-100%);pointer-events:auto;cursor:pointer;
-  background:rgba(9,15,21,.82);border:1px solid rgba(63,214,200,.4);color:var(--km-terang-3);
-  padding:4px 9px;font:500 10.5px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;
-  white-space:nowrap;display:flex;gap:7px;align-items:center;
-  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);}
-.km-chip i{width:5px;height:5px;background:var(--km-sian);border-radius:50%;display:inline-block;}
-.km-chip em{color:var(--km-kuning);font-style:normal;}
-.km-label-pesawat{position:absolute;transform:translate(14px,-50%);pointer-events:none;
-  font:500 10px/1.45 'IBM Plex Mono',monospace;letter-spacing:.1em;color:var(--km-sian);
-  background:rgba(8,14,19,.72);border-left:2px solid var(--km-sian);padding:4px 8px;white-space:pre;}
-.km-detail{position:absolute;left:18px;bottom:18px;width:min(320px,46%);padding:16px 18px;
-  background:rgba(10,17,23,.9);border:1px solid rgba(63,214,200,.35);
-  border-left:3px solid var(--km-sian);backdrop-filter:blur(6px);
-  -webkit-backdrop-filter:blur(6px);pointer-events:auto;display:none;}
-.km-detail .km-kode{font:600 10px/1 'IBM Plex Mono',monospace;letter-spacing:.22em;color:var(--km-kuning);}
-.km-detail h4{font:600 17px/1.3 'IBM Plex Sans',sans-serif;letter-spacing:.06em;margin:8px 0;color:var(--km-terang);}
-.km-detail p{margin:0;font:400 12.5px/1.65 'IBM Plex Sans',sans-serif;color:#93a4b3;text-wrap:pretty;}
-/* Pojok kiri atas panggung: petunjuk dan tombol putar ulang, ditumpuk. Dulu
-   petunjuknya dipatok sendiri di 14/14; begitu ada tombol di bawahnya, dua
-   elemen yang sama-sama absolut harus saling menebak tinggi. */
-.km-alat{position:absolute;top:14px;left:14px;z-index:2;display:flex;
-  flex-direction:column;align-items:flex-start;gap:8px;}
-.km-petunjuk{padding:8px 12px;background:rgba(8,13,18,.72);
-  border:1px solid var(--km-line);font:400 9.5px/1.6 'IBM Plex Mono',monospace;
-  letter-spacing:.12em;color:var(--km-redup-3);pointer-events:none;}
-.km-ulang{display:inline-flex;align-items:center;gap:7px;padding:7px 11px;
-  background:rgba(8,13,18,.72);border:1px solid var(--km-line);color:var(--km-redup-3);
-  font:600 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;cursor:pointer;
-  transition:.16s;}
-.km-ulang:hover{border-color:var(--km-sian);color:var(--km-sian);}
-.km-ulang svg{width:12px;height:12px;flex:none;}
-/* Menyala persis saat tombolnya paling dicari: putaran otomatisnya berhenti. */
-.km-ulang.km-perlu{background:var(--km-sian-latar);border-color:var(--km-sian-garis);
-  color:var(--km-sian);}
-
-/* ---------- kartu masuk ---------- */
-/* Kartunya sengaja tidak ikut muncul di awal: yang pertama terlihat cuma
-   panggungnya. Kartu baru datang kalau blok SESI di rel kiri ditekan (atau
-   tombol MASUK di panggung, untuk layar sempit yang relnya sudah dilepas),
-   dan pergi lagi dengan Esc atau tombol tutup — supaya animasi bandaranya
-   tidak tertutupi apa pun selama belum ada yang mau masuk.
-
-   Lapis pembungkusnya tembus klik supaya panggung di belakang tetap bisa
-   diputar; hanya kartunya yang menangkap tetikus. align-items:flex-start plus
-   margin blok auto, bukan align-items:center — begitu kartunya lebih tinggi
-   dari panggung, margin auto luruh jadi nol dan kartu tetap utuh dari atas. */
-.km-lapis-masuk{position:absolute;inset:0;z-index:3;display:flex;
-  align-items:flex-start;justify-content:flex-end;padding:26px;overflow:auto;pointer-events:none;
-  opacity:0;visibility:hidden;transition:opacity .22s ease,visibility .22s;}
-.km-lapis-masuk.km-buka{opacity:1;visibility:visible;}
-.km-kartu{pointer-events:auto;flex:none;width:360px;max-width:100%;position:relative;
-  margin-top:auto;margin-bottom:auto;padding:22px 22px 20px;
-  background:rgba(10,17,23,.92);border:1px solid rgba(63,214,200,.35);
-  border-left:3px solid var(--km-sian);backdrop-filter:blur(6px);
-  -webkit-backdrop-filter:blur(6px);box-shadow:0 24px 60px rgba(0,0,0,.55);
-  transform:translateY(-10px);transition:transform .22s ease;}
-.km-lapis-masuk.km-buka .km-kartu{transform:none;}
-.km-tutup{position:absolute;top:9px;right:9px;width:26px;height:26px;display:grid;place-items:center;
-  background:transparent;border:1px solid var(--km-line-3);color:var(--km-redup-3);cursor:pointer;
-  font:400 15px/1 'IBM Plex Mono',monospace;transition:.16s;}
-.km-tutup:hover{border-color:var(--km-sian);color:var(--km-sian);}
-
-/* Pemicu cadangan di pojok panggung. Rel kiri — tempat blok SESI berada —
-   dilepas di layar sempit, jadi tanpa tombol ini tidak ada lagi jalan membuka
-   kartu masuk di sana. Di layar lebar ia tidak dipasang sama sekali. */
-.km-picu{position:absolute;right:16px;bottom:16px;z-index:4;display:none;
-  align-items:center;gap:8px;background:rgba(9,15,21,.86);border:1px solid var(--km-sian-garis);
-  color:var(--km-sian);padding:10px 15px;cursor:pointer;
-  font:600 10.5px/1 'IBM Plex Mono',monospace;letter-spacing:.18em;
-  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);}
-.km-picu:hover{border-color:var(--km-sian);}
-.km-kartu .km-eyebrow{font:600 10px/1 'IBM Plex Mono',monospace;letter-spacing:.22em;color:var(--km-kuning);}
-.km-kartu h2{font:600 17px/1.3 'IBM Plex Sans',sans-serif;letter-spacing:.06em;
-  margin:9px 0 0;color:var(--km-terang);}
-.km-kartu .km-sub-teks{margin:7px 0 0;font:400 11.5px/1.6 'IBM Plex Sans',sans-serif;
-  color:#93a4b3;text-wrap:pretty;}
-.km-kolom{margin-top:13px;}
-.km-kolom label{display:block;font:400 9px/1 'IBM Plex Mono',monospace;letter-spacing:.2em;
-  color:var(--km-redup-4);margin-bottom:6px;text-transform:uppercase;}
-.km-kolom input{width:100%;background:rgba(255,255,255,.045);border:1px solid var(--km-line-3);
-  color:var(--km-terang);font-family:'IBM Plex Mono',monospace;font-size:12.5px;
-  padding:10px 11px;outline:0;transition:border-color .15s,box-shadow .15s;}
-.km-kolom input::placeholder{color:#54677a;}
-.km-kolom input:focus{border-color:var(--km-sian);box-shadow:0 0 0 2px rgba(63,214,200,.16);}
-.km-tombol-masuk{width:100%;margin-top:18px;background:var(--km-sian);color:#04231f;
-  border:1px solid var(--km-sian);padding:11px;cursor:pointer;
-  font:600 11px/1 'IBM Plex Mono',monospace;letter-spacing:.2em;
-  text-transform:uppercase;transition:.16s;}
-.km-tombol-masuk:hover{background:#5ce4d7;border-color:#5ce4d7;}
-
-/* Pemilih tujuan. Kartu ini bisa memakai dua sumber: server E-Logbook yang
-   sungguhan (kalau halaman ini dibuka dari server itu) atau data contoh yang
-   menyatu di berkas ini. Pilihannya dibuat terlihat, bukan disembunyikan di
-   balik tebakan — orang harus tahu angka yang sedang ia lihat itu nyata atau
-   karangan. */
-.km-sumber{margin-top:14px;}
-
-/* Kaki kartu: satu tautan, jarang dipakai tapi harus ada — pendaftaran akun.
-   Sengaja kecil dan berupa tautan, bukan tombol: yang biasa terjadi orangnya
-   memang mau masuk sebagai dirinya sendiri, dan tombol lagi di bawah tombol
-   Masuk akan bersaing dengannya.
-
-   Rata kiri, bukan space-between: sejak "Bukan Anda? Ganti akun" dibuang, yang
-   tersisa cuma satu anak, dan space-between akan melemparkannya ke pojok kiri
-   sendirian — benar secara kebetulan, salah begitu ada anak kedua lagi. */
-.km-kaki-tautan{display:flex;flex-wrap:wrap;align-items:baseline;
-  gap:7px 14px;margin-top:11px;
-  font:400 10px/1.5 'IBM Plex Mono',monospace;
-  letter-spacing:.04em;color:var(--km-redup-3);}
-.km-tautan{background:transparent;border:0;padding:0;cursor:pointer;
-  color:var(--km-sian);font:inherit;text-decoration:underline;text-underline-offset:3px;}
-.km-tautan:hover{color:#5ce4d7;}
-.km-tautan:disabled{opacity:.5;cursor:progress;text-decoration:none;}
-.km-tautan[hidden]{display:none;}
-a.km-tombol-masuk{display:block;text-align:center;text-decoration:none;}
-
-.km-sumber-ket{display:flex;align-items:flex-start;gap:7px;margin-top:9px;
-  font:400 10px/1.5 'IBM Plex Mono',monospace;letter-spacing:.04em;color:var(--km-redup-3);}
-.km-sumber-ket i{margin-top:4px;width:6px;height:6px;flex:none;border-radius:50%;
-  background:var(--km-redup-4);}
-.km-sumber-ket.km-baik i{background:var(--km-sian);}
-.km-sumber-ket.km-awas i{background:var(--km-kuning);}
-.km-sumber-ket.km-sibuk i{animation:km-kedip 1s steps(2,end) infinite;}
-@keyframes km-kedip{50%{opacity:.25;}}
-
-/* ---------- kaki: pita berjalan ---------- */
-.km-kaki{display:flex;align-items:center;border-top:1px solid var(--km-line);
-  background:var(--km-panel);overflow:hidden;}
-.km-pita{display:flex;width:max-content;animation:km-pita 42s linear infinite;}
-.km-pita>div{display:flex;align-items:center;gap:26px;padding:0 13px;}
-.km-pita span{display:flex;align-items:center;gap:8px;white-space:nowrap;
-  font:400 10px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;color:var(--km-redup-2);}
-.km-pita span i{width:5px;height:5px;border-radius:50%;background:var(--km-sian);flex:none;}
-@keyframes km-pita{from{transform:translateX(0);}to{transform:translateX(-50%);}}
-
-/* ---------- layar sempit ---------- */
-/* Rel kanan lalu rel kiri dilepas duluan; panggung dan kartu masuk yang
-   terakhir menyerah, karena tanpa kartu itu layar ini tidak ada gunanya. */
-@media (max-width:1180px){ .km-badan{grid-template-columns:236px 1fr;} .km-kanan{display:none;} }
-@media (max-width:900px){
-  .km-badan{grid-template-columns:1fr;}
-  .km-kiri{display:none;}
-  .km-lapis-masuk{justify-content:center;}
-  .km-detail{display:none !important;}
-  .km-picu{display:flex;}      /* rel kiri hilang — pemicu pindah ke panggung */
+    url('/images/indonesia-orbit-bg.png') center center / cover no-repeat,
+    #04070f;
+  filter:brightness(1.35) saturate(1.12) contrast(1.02);
 }
-@media (max-width:720px){
-  .km-kepala{padding:0 14px;gap:10px;}
-  .km-metrik>div:not(:last-child),.km-metrik .km-pisah{display:none;}
-  .km-status span{display:none;}
-  .km-status{padding:6px 8px;}
-  .km-petunjuk{display:none;}
+.lm-langit::after{
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(180deg,
+    rgba(6,12,26,.35) 0%,
+    rgba(6,12,26,.15) 40%,
+    rgba(4,7,16,.55) 100%);
 }
-/* Di HP yang dilepas "SISTEM NORMAL", bukan cap PROTOTIPE. */
-@media (max-width:560px){
-  .km-konsol{grid-template-rows:58px 1fr 34px;}
-  .km-kepala{gap:8px;}
-  .km-merek-teks b{font-size:12px;letter-spacing:.12em;}
-  .km-merek-teks span{display:none;}
-  .km-status{display:none;}
-  .km-lapis-masuk{padding:16px;}
-  .km-kartu{padding:18px 16px 16px;}
-}
-/* Layar pendek: kepala dan kaki dilepas. Barisnya ikut jadi satu — keduanya
-   display:none keluar dari grid, jadi kalau templatnya tetap tiga baris, badan
-   konsol jatuh ke baris pertama yang tingginya nol dan seluruh layar lenyap. */
-@media (max-height:520px){
-  .km-konsol{grid-template-rows:1fr;}
-  .km-kepala,.km-kaki{display:none;}
-}
-@media (prefers-reduced-motion:reduce){ .km-status i,.km-pita{animation:none;} }
 
+/* --- Kepala: merek kiri, jam UTC kanan.  */
+.lm-kanvas{
+  position:relative; z-index:3;
+  display:flex; align-items:flex-start; justify-content:space-between;
+  gap:16px; padding:26px 34px;
+}
+.lm-merek{display:flex; align-items:center; gap:14px;}
+.lm-tanda{
+  width:44px; height:44px; flex:none;
+  border:2px solid var(--lm-sian); border-radius:6px;
+  display:grid; place-items:center;
+  box-shadow:0 0 18px rgba(53,224,196,.4);
+}
+.lm-tanda i{
+  width:15px; height:15px; border-radius:50%;
+  background:var(--lm-sian);
+  box-shadow:0 0 12px var(--lm-sian);
+}
+.lm-merek-teks{display:flex; flex-direction:column; gap:2px; min-width:0; line-height:1.35;}
+.lm-merek-teks b{
+  font-family:'Rajdhani','IBM Plex Sans',sans-serif;
+  font-weight:700; font-size:18px; letter-spacing:.12em; color:var(--lm-teks);
+}
+.lm-merek-teks span{
+  font-family:'Share Tech Mono','IBM Plex Mono',monospace;
+  font-size:12px; letter-spacing:.18em; color:var(--lm-teks-remang);
+}
+.lm-jam{
+  display:flex; flex-direction:column; align-items:flex-end; gap:2px;
+  text-align:right;
+}
+.lm-jam span{
+  font-family:'Trebuchet MS','Barlow',sans-serif;
+  font-weight:700; font-size:15px; letter-spacing:.3em;
+  color:var(--lm-teks-remang);
+}
+.lm-jam b{
+  font-family:'Poppins','Barlow',sans-serif;
+  font-weight:600; font-size:23px; letter-spacing:.06em;
+  color:var(--lm-sian);
+  text-shadow:0 0 16px rgba(53,224,196,.5);
+}
+
+/* --- Panji AVENGERS. Judul memakai Lora italic tebal; isian huruf
+   gradien kuning ke jingga; bayangan navy berlapis (drop-shadow) meniru
+   poster film — dua lapis warna gelap kebiruan lalu satu blur lembut. */
+.lm-panji{
+  position:relative; z-index:2;
+  text-align:center;
+  margin:44px auto 0;
+  padding:0 22px;
+  user-select:none;
+}
+.lm-panji-judul{
+  margin:0;
+  font-family:Georgia,'Times New Roman',serif;
+  font-style:italic; font-weight:800;
+  font-size:clamp(76px, 12.5vw, 176px);
+  line-height:.9; letter-spacing:.015em;
+  background:linear-gradient(180deg,
+    #ffd257 0%,
+    #ffb52e 42%,
+    #f6971d 62%,
+    #e07d10 100%);
+  -webkit-background-clip:text; background-clip:text;
+  -webkit-text-fill-color:transparent; color:transparent;
+  filter:
+    drop-shadow(2px 3px 0 #2f4a70)
+    drop-shadow(4px 6px 0 #223449)
+    drop-shadow(6px 8px 6px rgba(0,0,0,.6));
+}
+.lm-panji-anak{
+  margin:14px 0 0;
+  font-family:'Barlow Semi Condensed','Barlow',sans-serif;
+  font-style:italic; font-weight:800;
+  font-size:clamp(16px, 2.2vw, 30px); letter-spacing:.02em; line-height:1.2;
+  color:var(--lm-jingga-terang);
+  text-decoration:none;
+  text-shadow:
+    2px 2px 0 #24384f,
+    3px 3px 6px rgba(0,0,0,.6),
+    0 0 24px rgba(246,151,29,.4);
+}
+
+/* --- Tengah: pemusat kartu login (panji berdiri sendiri di baris atasnya
+   pada grid #layarMasuk). Padding atas 56px = jarak dari sub-judul panji
+   ke kartu, persis seperti mock-up. */
+.lm-tengah{
+  position:relative; z-index:3;
+  display:flex; justify-content:center;
+  padding:56px 24px 40px;
+}
+
+/* --- Kartu login. Panel gelap navy, sudut kecil, tepi tipis biru.
+   Kesan "timbul": gradien vertikal halus (atas sedikit terang) + bingkai
+   ganda (garis biru + garis highlight putih tipis di dalam), bayangan
+   dua-lapis (bayangan jauh besar untuk kedalaman + ambient dekat untuk
+   pijakan), dan sorotan lampu lembut di tepi atas. */
+.lm-kartu{
+  width:100%; max-width:400px; position:relative;
+  padding:34px 34px 38px;
+  background:
+    linear-gradient(180deg, rgba(28,44,74,.32) 0%, rgba(9,17,33,0) 45%),
+    var(--lm-kartu-bg);
+  border:1px solid var(--lm-kartu-garis);
+  border-radius:6px;
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.08) inset,
+    0 -1px 0 rgba(0,0,0,.45) inset,
+    0 0 0 1px rgba(53,224,196,.08),
+    0 40px 100px -20px rgba(0,0,0,.85),
+    0 18px 40px -18px rgba(0,0,0,.7),
+    0 0 60px -20px rgba(53,224,196,.25);
+  animation:lm-datang .5s ease both;
+}
+.lm-kartu::before{
+  content:''; position:absolute; inset:0; border-radius:inherit;
+  pointer-events:none;
+  background:
+    radial-gradient(ellipse 60% 40% at 50% 0%, rgba(53,224,196,.12) 0%, rgba(53,224,196,0) 70%);
+}
+@keyframes lm-datang{
+  from{opacity:0; transform:translateY(12px);}
+  to  {opacity:1; transform:none;}
+}
+.lm-eyebrow{
+  font-family:'Share Tech Mono','IBM Plex Mono',monospace;
+  font-size:12px; letter-spacing:.3em;
+  color:var(--lm-jingga); text-transform:uppercase;
+  margin-bottom:14px;
+}
+.lm-kartu h2{
+  margin:0 0 16px;
+  font-family:'Rajdhani','IBM Plex Sans',sans-serif;
+  font-weight:700; font-size:30px; line-height:1.1;
+  color:var(--lm-teks);
+}
+.lm-sub{
+  margin:0 0 18px;
+  font-family:'Barlow','IBM Plex Sans',sans-serif;
+  font-size:14px; line-height:1.65;
+  color:var(--lm-teks-redup); text-wrap:pretty;
+}
+/* Status sambungan server duduk di posisi paragraf ke-2 milik mock
+   (empty placeholder). Diberi margin bawah 26px agar jarak ke kolom
+   USERNAME persis. */
+.lm-sumber-ket + .lm-kolom{margin-top:0;}
+
+/* --- Kolom isian.  */
+.lm-kolom{margin-bottom:20px;}
+.lm-kolom + .lm-kolom{margin-top:0;}
+.lm-kolom label{
+  display:block; margin-bottom:6px;
+  font-family:Helvetica,'Barlow',sans-serif;
+  font-size:11px; letter-spacing:.2em;
+  color:var(--lm-teks-remang); text-transform:uppercase;
+}
+.lm-kolom input{
+  width:100%; box-sizing:border-box;
+  padding:13px 15px;
+  background:var(--lm-input-bg);
+  border:1px solid var(--lm-input-garis);
+  border-radius:3px;
+  color:#eef3ff;
+  font-family:'Barlow','IBM Plex Sans',sans-serif;
+  font-size:15px;
+  outline:0;
+  transition:border-color .15s, box-shadow .15s, background .15s;
+}
+.lm-kolom input::placeholder{color:#54677a;}
+.lm-kolom input:focus{
+  border-color:var(--lm-sian);
+  box-shadow:0 0 0 3px rgba(53,224,196,.18);
+}
+
+/* --- Tombol utama.  */
+.lm-tombol{
+  width:100%; margin-top:6px; padding:15px;
+  background:var(--lm-sian); color:#04231e;
+  border:0; border-radius:3px;
+  font-family:'Rajdhani','IBM Plex Sans',sans-serif;
+  font-weight:700; font-size:16px; letter-spacing:.22em;
+  text-transform:uppercase; cursor:pointer;
+  box-shadow:0 10px 30px -10px rgba(53,224,196,.6);
+  transition:filter .16s, transform .16s, box-shadow .16s;
+}
+.lm-tombol:hover{filter:brightness(1.08); box-shadow:0 12px 34px -10px rgba(53,224,196,.75);}
+.lm-tombol:active{transform:translateY(1px);}
+
+/* --- Kaki kartu: tautan pindah tab (masuk / daftar).  */
+.lm-kaki-tautan{
+  display:flex; flex-wrap:wrap; align-items:baseline;
+  gap:6px 14px; margin-top:20px;
+  font-family:'Barlow','IBM Plex Sans',sans-serif;
+  font-size:13px; color:var(--lm-teks-remang);
+  line-height:1;
+}
+.lm-tautan{
+  background:transparent; border:0; padding:0; cursor:pointer;
+  color:var(--lm-sian); font:inherit;
+  text-decoration:underline; text-underline-offset:3px;
+}
+.lm-tautan:hover{color:var(--lm-sian-terang);}
+.lm-tautan:disabled{opacity:.5; cursor:progress; text-decoration:none;}
+.lm-tautan[hidden]{display:none;}
+
+/* --- Baris status sambungan server. Titik kecil di kiri, teks di kanan.  */
+.lm-sumber-ket{
+  display:flex; align-items:flex-start; gap:8px; margin:0 0 26px;
+  font-family:'Barlow','IBM Plex Sans',sans-serif;
+  font-size:12px; line-height:1.55; letter-spacing:.02em; font-weight:600;
+  color:#d7e2f4;
+}
+/* Ketika status baik & pesan sengaja dikosongkan (lihat srvKet di
+   12-jembatan-elogbook.js), baris ini disembunyikan biar tidak menyisakan
+   jarak kosong sebelum label USERNAME. */
+.lm-sumber-ket:has(span:empty){display:none;}
+.lm-sumber-ket i{
+  margin-top:5px; width:6px; height:6px; flex:none; border-radius:50%;
+  background:var(--lm-teks-remang);
+}
+.lm-sumber-ket.lm-baik i{background:var(--lm-sian);}
+.lm-sumber-ket.lm-awas i{background:var(--lm-jingga-terang);}
+.lm-sumber-ket.lm-sibuk i{animation:lm-kedip 1s steps(2,end) infinite;}
+@keyframes lm-kedip{50%{opacity:.25;}}
+/* Kelas versi lama (km-*) — 12-jembatan-elogbook.js masih membubuhkannya
+   pada elemen yang sama. Ditulis biar berkas JS-nya tidak perlu ikut disunting. */
+.lm-sumber-ket.km-baik i{background:var(--lm-sian);}
+.lm-sumber-ket.km-awas i{background:var(--lm-jingga-terang);}
+.lm-sumber-ket.km-sibuk i{animation:lm-kedip 1s steps(2,end) infinite;}
+
+/* --- Kaki halaman: dua baris pendek, transparan.  */
+.lm-kaki{
+  position:relative; z-index:3;
+  display:flex; justify-content:space-between; align-items:center;
+  gap:16px; padding:22px 34px;
+  font-family:'Share Tech Mono','IBM Plex Mono',monospace;
+  font-size:12px; letter-spacing:.12em;
+  color:var(--lm-teks-kabur);
+}
+
+/* --- Layar kecil.  */
+@media (max-width:640px){
+  .lm-kanvas{padding:18px 20px;}
+  .lm-merek-teks b{font-size:14px; letter-spacing:.1em;}
+  .lm-merek-teks span{display:none;}
+  .lm-jam span{font-size:11px; letter-spacing:.22em;}
+  .lm-jam b{font-size:18px;}
+  .lm-panji{margin-top:24px;}
+  .lm-tengah{padding:36px 18px 28px;}
+  .lm-kartu{padding:26px 22px 28px;}
+  .lm-kartu h2{font-size:24px;}
+  .lm-kaki{padding:14px 20px; flex-wrap:wrap; justify-content:center; text-align:center;}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .lm-kartu{animation:none;}
+  .lm-sumber-ket.lm-sibuk i, .lm-sumber-ket.km-sibuk i{animation:none;}
+}

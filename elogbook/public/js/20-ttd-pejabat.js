@@ -22,6 +22,52 @@
    (ttdUntuk kosong), pejabat mana pun tetap boleh membubuhkan seperti
    sebelum fitur penunjukan ini ada. */
 
+/* ============== PERIKSA KELENGKAPAN TTD SEBELUM CETAK ==============
+ * Kalau catatan belum bertanda tangan lengkap — teknisi ATAU manager/PJ belum —
+ * tombol Cetak menolak dengan pesan yang menyebut siapa yang belum. Ini yang
+ * mencegah cetakan resmi lolos tanpa paraf, dan yang meminta pembuatnya
+ * membubuhkan TTD-nya sebelum lembarnya keluar untuk manager.
+ *
+ * Aturan per jenis catatan:
+ *   entry (logbook)  → teknisiTtd + pjTtd
+ *   dailycheck       → teknisiTtd + managerTtd
+ *   ltk              → teknisiTtd + managerTtd
+ *   berkala          → teknisiTtd + managerTtd
+ *   dstest           → teknisiTtd + managerTtd
+ *   monitoring       → teknisiTtd + personilOpsTtd
+ */
+const TTD_LENGKAP_META = {
+  entry:      [['teknisiTtd','teknisi'],       ['pjTtd','penanggung jawab']],
+  logbook:    [['teknisiTtd','teknisi'],       ['pjTtd','penanggung jawab']],
+  dailycheck: [['teknisiTtd','teknisi'],       ['managerTtd','manager teknik']],
+  dc:         [['teknisiTtd','teknisi'],       ['managerTtd','manager teknik']],
+  ltk:        [['teknisiTtd','teknisi'],       ['managerTtd','manager teknik']],
+  berkala:    [['teknisiTtd','teknisi'],       ['managerTtd','manager teknik']],
+  dstest:     [['teknisiTtd','teknisi'],       ['managerTtd','manager teknik']],
+  monitoring: [['teknisiTtd','teknisi'],       ['personilOpsTtd','personil ops']]
+};
+
+/** { ok, alasan }. Lengkap → { ok:true }. Belum → { ok:false, alasan:'…' }. */
+function cekTtdLengkap(rec, kind){
+  const meta = TTD_LENGKAP_META[String(kind || '').toLowerCase()];
+  if(!meta || !rec) return { ok: true };
+  const kurang = meta.filter(([k]) => !rec[k]).map(([,label]) => label);
+  if(!kurang.length) return { ok: true };
+  return { ok: false, alasan: kurang.join(' & ') };
+}
+
+/**
+ * Guard sebelum memanggil doPrint: kalau catatan belum lengkap TTD-nya, tolak
+ * dengan toast yang menyebut siapa yang belum. Kembali true kalau boleh
+ * dicetak. Berlaku untuk semua peran — dokumen tanpa TTD tidak boleh keluar.
+ */
+function tolakCetakBilaBelumTtd(rec, kind){
+  const c = cekTtdLengkap(rec, kind);
+  if(c.ok) return true;
+  toast(`Belum ditandatangani oleh ${c.alasan} — cetak ditolak.`);
+  return false;
+}
+
 function bolehTtdSusulan(ttdUntuk){
   if(!userSaatIni) return false;
   if(userSaatIni.role === 'admin') return true;
@@ -52,6 +98,126 @@ function sigPejabatHtml(jenis, id, ttdUrl, rec){
   if(ttdUrl) return sigThumbHtml(ttdUrl) + statusTtdHtml(rec);
   if(!bolehTtdSusulan(rec?.ttdUntuk)) return sigThumbHtml('');
   return `<button class="btn btn-ttd" onclick="openTtdModal('${jenis}','${id}')">${T('bubuhkanTtd')}</button>`;
+}
+
+/* ---------- Ubah nama pihak-kedua dan akun tujuan TTD ----------
+   Selama pihak keduanya BELUM membubuhkan tanda tangan, admin bisa mengoreksi
+   nama yang salah tunjuk atau memindahkan tujuan TTD ke akun yang benar. Ini
+   yang menutup jalur "salah tunjuk MT → hapus catatan → ulang" — nama pada
+   formulir jadi bisa dibetulkan sampai batas terakhirnya, yaitu saat MT/PJ
+   membubuhkan paraf.
+
+   Kalau MT/PJ sudah tanda tangan, kolomnya beku — mengganti nama di bawah
+   tanda tangan yang tercetak sama dengan memalsu arsip; server juga menolak
+   (lihat updateTtdRouting di db.js dan db-pg.js). */
+
+/** Daftar akun kandidat untuk kirim TTD — dipakai bersama dengan create-form.
+    pejabatList sudah dihimpun listPejabatAktif dari server — admin + pejabat
+    yang aktif. Sumber yang sama membuat pilihan di layar edit rute cocok
+    persis dengan pilihan di layar pengisian awal. */
+function kandidatTtdUntuk(){
+  return (typeof pejabatList !== 'undefined' && Array.isArray(pejabatList)) ? pejabatList : [];
+}
+
+/**
+ * Tampilkan nama pihak kedua di jendela detail. Untuk admin dan belum ada TTD,
+ * berikan tombol kecil untuk mengganti nama & akun tujuan — modalnya sederhana,
+ * satu isian nama dan satu pemilih akun tujuan.
+ */
+function renderPihakKedua(kind, id, nama, ttdUrl, sebutan = 'manager teknik'){
+  const teks = escapeHtml(nama) || '<span style="color:var(--muted);">-</span>';
+  if(ttdUrl) return teks;
+  if(!adminAktif()) return teks;
+  return `${teks} <button class="btn ghost" style="padding:2px 6px;font-size:11px;vertical-align:middle;"
+    title="Ubah nama ${escapeHtml(sebutan)} atau akun tujuan TTD"
+    onclick="bukaEditRuteTtd('${kind}','${id}', ${JSON.stringify(String(nama||'')).replace(/'/g,'&#39;')})">${T('ubah','edit')}</button>`;
+}
+
+/** Modal ubah rute TTD: dibangun sekali, isinya diisi setiap kali dibuka. */
+let ruteTtdTarget = null;
+function bukaEditRuteTtd(kind, id, namaLama){
+  ruteTtdTarget = { kind, id };
+  let lapis = document.getElementById('ruteTtdBg');
+  if(!lapis){
+    lapis = document.createElement('div');
+    lapis.id = 'ruteTtdBg';
+    lapis.className = 'modal-bg';
+    lapis.innerHTML = `<div class="modal" style="max-width:420px;">
+      <div style="font-weight:bold;font-size:15px;margin-bottom:10px;">Ubah rute TTD</div>
+      <div class="field" style="margin-bottom:10px;">
+        <label style="display:block;font-size:11px;color:var(--muted);margin-bottom:4px;">Nama pihak kedua</label>
+        <input id="ruteTtdNama" type="text" style="width:100%;padding:6px 8px;background:var(--panel-2);
+          color:var(--text);border:1px solid var(--line);border-radius:5px;box-sizing:border-box;">
+      </div>
+      <div class="field" style="margin-bottom:10px;">
+        <label style="display:block;font-size:11px;color:var(--muted);margin-bottom:4px;">Kirim TTD ke akun</label>
+        <select id="ruteTtdAkun" style="width:100%;padding:6px 8px;background:var(--panel-2);
+          color:var(--text);border:1px solid var(--line);border-radius:5px;box-sizing:border-box;">
+          <option value="">Otomatis (dari nama di atas)</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
+        <button class="btn ghost" onclick="tutupEditRuteTtd()">Batal</button>
+        <button class="btn" onclick="simpanRuteTtd()">Simpan</button>
+      </div>
+    </div>`;
+    document.body.appendChild(lapis);
+    lapis.addEventListener('click', e=>{ if(e.target === lapis) tutupEditRuteTtd(); });
+  }
+  document.getElementById('ruteTtdNama').value = namaLama || '';
+  const sel = document.getElementById('ruteTtdAkun');
+  const kandidat = kandidatTtdUntuk();
+  sel.innerHTML = '<option value="">Otomatis (dari nama di atas)</option>' +
+    kandidat.map(u=>`<option value="${escapeHtml(u.username)}">${escapeHtml(u.nama||u.username)} (${escapeHtml(u.username)})</option>`).join('');
+  lapis.classList.add('show');
+}
+
+function tutupEditRuteTtd(){
+  const l = document.getElementById('ruteTtdBg');
+  if(l) l.classList.remove('show');
+  ruteTtdTarget = null;
+}
+
+async function simpanRuteTtd(){
+  if(!ruteTtdTarget) return;
+  const { kind, id } = ruteTtdTarget;
+  const nama = document.getElementById('ruteTtdNama').value.trim();
+  const akun = document.getElementById('ruteTtdAkun').value.trim();
+  const patch = { ttdUntuk: akun };
+  /* Nama field beda per kind: entry pakai pjNama, lainnya managerNama. Server
+     menerima keduanya dan memetakannya ke kolom yang benar. */
+  if(kind === 'entry') patch.pjNama = nama;
+  else                 patch.managerNama = nama;
+  try{
+    await gsRun('updateTtdRouting', kind, id, patch);
+    /* Perbarui data di memori supaya tampilan segera memantulkan perubahan
+       tanpa menunggu muat ulang. Tiap kind punya arraynya sendiri. */
+    const arr = kind === 'entry' ? entries
+              : kind === 'dc' ? (typeof dcHistory !== 'undefined' ? dcHistory : null)
+              : kind === 'ltk' ? (typeof ltkList !== 'undefined' ? ltkList : null)
+              : kind === 'berkala' ? (typeof berkalaList !== 'undefined' ? berkalaList : null)
+              : kind === 'dstest' ? (typeof dsList !== 'undefined' ? dsList : null)
+              : null;
+    if(Array.isArray(arr)){
+      const rec = arr.find(x=>x.id===id);
+      if(rec){
+        if(kind === 'entry'){ rec.pjNama = nama; }
+        else                { rec.managerNama = nama; }
+        rec.ttdUntuk = akun;
+      }
+    }
+    tutupEditRuteTtd();
+    toast('Rute TTD tersimpan.');
+    /* Panggil ulang render dari layar yang membuka detail. Jenis detail
+       menentukan renderer mana yang dipakai. */
+    if(kind === 'entry' && typeof renderEntries === 'function') renderEntries();
+    if(kind === 'dc' && typeof renderDcHistory === 'function') renderDcHistory();
+    if(kind === 'ltk' && typeof renderLtkList === 'function') renderLtkList();
+    if(kind === 'berkala' && typeof renderBerkalaList === 'function') renderBerkalaList();
+    if(kind === 'dstest' && typeof renderDsList === 'function') renderDsList();
+  }catch(e){
+    toast('Gagal menyimpan rute TTD — ' + (e.message || 'coba lagi.'));
+  }
 }
 
 /* ---------- Jendela pembubuhan ---------- */

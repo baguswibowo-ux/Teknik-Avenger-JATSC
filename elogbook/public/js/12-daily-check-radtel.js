@@ -7,24 +7,95 @@ const dcRightItems = ["SCU 12 E (UTPG)","SCU 12 P (UTPG)","SCU 13 E (UNTA)","SCU
 const dcCols = ['netA','netB','appA','appB','eqp'];
 let dcState = {};
 
+/** Item yang membawa selektor CPU Main/Standby (Gatevox punya dua CPU: A dan B).
+ *  Peran (Main atau Standby) disimpan di dcState[item].mainCpu = 'A' | 'B'. */
+function itemPunyaMainCpu(item){ return /^GATEVOX [1-9]$/.test(item); }
+/** Baris pasangan TMCS 1/2. Selektor Main/standby dipasang di BAWAH tiap TMCS
+ *  (satu tombol saja per baris) — begitu satunya jadi Main, satunya lagi
+ *  otomatis Standby. Nilai disimpan di dcState['TMCS 1'].mainTmcs = 1 | 2
+ *  (satu tempat, tidak ganda), jadi klik dari sisi mana pun konsisten. */
+function itemPunyaMainTmcs(item){ return item === 'TMCS 1' || item === 'TMCS 2'; }
+
 function initDcState(){
   dcState = {};
-  [...dcLeftItems, ...dcRightItems].forEach(name=>{ dcState[name] = {netA:'ok', netB:'ok', appA:'ok', appB:'ok', eqp:'ok'}; });
+  [...dcLeftItems, ...dcRightItems].forEach(name=>{
+    dcState[name] = {netA:'ok', netB:'ok', appA:'ok', appB:'ok', eqp:'ok'};
+    if(itemPunyaMainCpu(name)) dcState[name].mainCpu = 'A';
+  });
+  if(dcState['TMCS 1']) dcState['TMCS 1'].mainTmcs = 1;
 }
 function cycleStatus(s){ return s==='ok' ? 'warn' : (s==='warn' ? 'fail' : 'ok'); }
 function statusSymbol(s){ return s==='ok' ? '✓' : (s==='warn' ? '!' : '✕'); }
 function toggleDcStatus(item, col){ dcState[item][col] = cycleStatus(dcState[item][col]); renderDcTable(); }
 
+function setGatevoxMain(item, cpu){
+  if(!dcState[item]) return;
+  dcState[item].mainCpu = (cpu === 'B') ? 'B' : 'A';
+  renderDcTable();
+}
+function setTmcsMain(n){
+  if(!dcState['TMCS 1']) return;
+  dcState['TMCS 1'].mainTmcs = (Number(n) === 2) ? 2 : 1;
+  renderDcTable();
+}
+/** Membalik pasangan TMCS: yang tadinya Main jadi Standby, sebaliknya juga.
+ *  Dipanggil dari tombol di bawah TMCS 1 maupun TMCS 2 — hasilnya sama. */
+function toggleTmcsMain(){
+  if(!dcState['TMCS 1']) return;
+  const kini = Number(dcState['TMCS 1'].mainTmcs) || 1;
+  dcState['TMCS 1'].mainTmcs = kini === 1 ? 2 : 1;
+  renderDcTable();
+}
+
+/** Sub-baris di bawah item khusus (Gatevox / pasangan TMCS). Balikan berupa
+ *  HTML enam sel (Item + 5 status) supaya menyisip mulus di tabel utama —
+ *  sisi kiri/kanan yang tidak berselektor mengisi dengan sel kosong. */
+function subRowSelForItem(item){
+  if(!item) return null;
+  if(itemPunyaMainCpu(item)){
+    const cpu = (dcState[item] && dcState[item].mainCpu) || 'A';
+    const chip = (huruf, dipilih)=>{
+      const kelas = dipilih ? 'ok' : 'minus';
+      const label = dipilih ? `${huruf} · Main` : `${huruf} · Standby`;
+      return `<button class="status-btn ${kelas}" style="width:auto;padding:0 10px;font-size:11.5px;"
+                onclick="setGatevoxMain('${item.replace(/'/g,"\\'")}','${huruf}')">${label}</button>`;
+    };
+    return `<td class="name" style="padding-left:22px;color:var(--muted);font-size:12px;">CPU Main:</td>` +
+      `<td colspan="5" style="text-align:left;">${chip('A', cpu==='A')} ${chip('B', cpu==='B')}</td>`;
+  }
+  if(itemPunyaMainTmcs(item)){
+    const n = (dcState['TMCS 1'] && Number(dcState['TMCS 1'].mainTmcs)) || 1;
+    const angka = item === 'TMCS 1' ? 1 : 2;
+    const iniMain = n === angka;
+    const kelas = iniMain ? 'ok' : 'minus';
+    const label = iniMain ? 'Main' : 'Standby';
+    return `<td class="name" style="padding-left:22px;color:var(--muted);font-size:12px;">Main/standby:</td>` +
+      `<td colspan="5" style="text-align:left;">` +
+      `<button class="status-btn ${kelas}" style="width:auto;padding:0 14px;font-size:11.5px;"
+         onclick="toggleTmcsMain()">${label}</button></td>`;
+  }
+  return null;
+}
+
 function renderDcTable(){
   const body = document.getElementById('dcBody');
   const maxLen = Math.max(dcLeftItems.length, dcRightItems.length);
+  const kosong6 = '<td class="name"></td>'+'<td></td>'.repeat(5);
   let rows = '';
   for(let i=0;i<maxLen;i++){
     const l = dcLeftItems[i], r = dcRightItems[i];
     rows += '<tr>';
-    rows += l ? cellsForItem(l) : '<td class="name"></td>'+'<td></td>'.repeat(5);
-    rows += r ? cellsForItem(r) : '<td class="name"></td>'+'<td></td>'.repeat(5);
+    rows += l ? cellsForItem(l) : kosong6;
+    rows += r ? cellsForItem(r) : kosong6;
     rows += '</tr>';
+    const lSub = subRowSelForItem(l);
+    const rSub = subRowSelForItem(r);
+    if(lSub || rSub){
+      rows += '<tr class="dc-sub">';
+      rows += lSub || kosong6;
+      rows += rSub || kosong6;
+      rows += '</tr>';
+    }
   }
   body.innerHTML = rows;
 }

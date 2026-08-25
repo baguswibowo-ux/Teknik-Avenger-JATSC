@@ -49,7 +49,7 @@ const PAKAI_POSTGRES = String(process.env.ELOGBOOK_DB || '').toLowerCase() === '
 
 const {
   UPLOAD_DIR, LAMPIRAN_MAKS_BYTE, LAMPIRAN_MAKS_JUMLAH,
-  listEntries, insertEntry, removeEntry, updateEntry,
+  listEntries, insertEntry, removeEntry, updateEntry, updateTtdRouting,
   listDailyChecks, insertDailyCheck, removeDailyCheck, updateDailyCheck, getDailyCheckDetailById,
   listIssues, insertIssue, updateIssue, removeIssue, getIssue,
   tambahLampiranIsu, hapusLampiranIsu,
@@ -59,10 +59,11 @@ const {
   LOKASI,
   tambahLampiranLtk, hapusLampiranLtk, getLtk,
   listLtk, insertLtk, removeLtk,
+  listBapb, insertBapb, removeBapb,
   getUserByUsername, verifyPassword, createUser, countUsers, hapusUser,
   jenisTtdSah, unitCatatan, tandaTanganiCatatan, listPejabatAktif, getInboxTtd,
   getTtdTersimpan, simpanTtdTersimpan, hapusTtdTersimpan, rekapMentah,
-  listUsers, setPassword, setAktif, setRole, setNama, ROLE_VALID, SEMUA_UNIT, jumlahAdminAktif,
+  listUsers, setPassword, setAktif, setRole, setNama, setUsername, ROLE_VALID, SEMUA_UNIT, jumlahAdminAktif,
   UNIT, KODE_UNIT, unitSah, unitUntukUser, setUnitUser,
   createSession, getSessionUser, deleteSession, purgeExpiredSessions,
   ambilBerkas
@@ -449,7 +450,8 @@ async function unitDanHakAkses(user, unit) {
 /** Fungsi yang menambah atau mengubah data. Pejabat ditolak di sini. */
 const API_TULIS = new Set([
   'addEntry', 'addDailyCheck', 'addIssue', 'addMonitoring', 'addLtk', 'addDsTest', 'addBerkala',
-  'updateEntry', 'updateDailyCheck'
+  'addBapb',
+  'updateEntry', 'updateDailyCheck', 'updateTtdRouting'
 ]);
 
 /** Fungsi tanda tangan susulan: administrator dan pejabat, bukan teknisi. */
@@ -691,13 +693,14 @@ const API = {
      * pertama di Vercel memakan waktu detikan. Berbarengan, yang menentukan
      * hanya kueri paling lambat.
      */
-    const [entries, dcHistory, issues, monitoring, ltk, dstest, berkala,
+    const [entries, dcHistory, issues, monitoring, ltk, bapb, dstest, berkala,
            users, pejabatList, inboxTtd, ttdTersimpan] = await Promise.all([
       listEntries(u, MAX_ROWS),
       listDailyChecks(u, MAX_ROWS),
       listIssues(u),
       listMonitoring(u, MAX_ROWS),
       listLtk(u, MAX_ROWS),
+      listBapb(u, MAX_ROWS),
       listDsTest(u, MAX_ROWS),
       listBerkala(u, MAX_ROWS),
       isAdmin(user) ? listUsers() : [],
@@ -742,6 +745,7 @@ const API = {
       issues: jejak(issues),
       monitoring: jejak(monitoring),
       ltk: jejak(ltk),
+      bapb: jejak(bapb),
       dstest: jejak(dstest),
       dsSite: DS_SITE,
       kategoriDs: KATEGORI_DS,
@@ -811,6 +815,14 @@ const API = {
     { ...(rec || {}), unit: await unitDiminta(user, rec?.unit), ttdUntuk: await ttdUntukSah(rec?.ttdUntuk) },
     user.username, user.nama),
 
+  /* BAPB belum ikut jalur ttdUntuk: dua pihak kedua (Manager Pemakai + Manager
+     Teknik) tidak muat pada satu slot ttd_untuk, dan cara menunjuknya baru
+     ditentukan di langkah tanda tangan. Untuk sekarang tanda tangan dibubuhkan
+     saat isian, tidak susulan. */
+  addBapb: async (rec, user) => insertBapb(
+    { ...(rec || {}), unit: await unitDiminta(user, rec?.unit) },
+    user.username, user.nama),
+
   /**
    * Bubuhkan tanda tangan pihak kedua pada catatan yang belum ditandatangani.
    *
@@ -877,10 +889,21 @@ const API_ADMIN = {
   deleteEntry: (id) => removeEntry(String(id)),
   deleteDcRecord: (id) => removeDailyCheck(String(id)),
 
-  updateIssueField: (id, headerField, value) => updateIssue(String(id), String(headerField), value),
+  updateIssueField: (id, headerField, value, user) =>
+    updateIssue(String(id), String(headerField), value, user?.username || ''),
+
+  /**
+   * Ubah rute TTD manager/PJ (nama pejabat + akun tujuan) untuk catatan yang
+   * BELUM ditandatangani pihak keduanya. Terpisah dari updateEntry/updateDailyCheck
+   * supaya berlaku seragam ke lima form (entry/dc/ltk/berkala/dstest) tanpa
+   * menyusupkan slot pihak-kedua ke tiap update masing-masing.
+   */
+  updateTtdRouting: (kind, id, patch) =>
+    updateTtdRouting(String(kind || ''), String(id || ''), patch || {}),
   deleteIssue: (id) => removeIssue(String(id)),
   deleteMonitoring: (id) => removeMonitoring(String(id)),
   deleteLtk: (id) => removeLtk(String(id)),
+  deleteBapb: (id) => removeBapb(String(id)),
   deleteDsTest: (id) => removeDsTest(String(id)),
   deleteBerkala: (id) => removeBerkala(String(id)),
 
@@ -967,6 +990,29 @@ const API_ADMIN = {
     if (!n) throw new Error('Nama tidak boleh kosong.');
     if (!(await getUserByUsername(u))) throw new Error(`Pengguna "${u}" tidak ditemukan.`);
     await setNama(u, n);
+    return listUsers();
+  },
+
+  /**
+   * Ganti username akun. Sesi hidup — sessions merujuk user_id — tetapi hak
+   * petugas di dashboard (dinas-petugas.json di server dashboard) tidak ikut
+   * berubah dan perlu ditetapkan ulang di sana setelah rename.
+   *
+   * Dibatasi supaya admin tidak mengganti usernamenya sendiri lewat pintu ini
+   * — sesi yang sedang berjalan masih memakai username lama untuk mengenali
+   * admin di kolom "yang menutup / yang menandatangani" tabel baru, dan
+   * mengubahnya di tengah-tengah pemakaian akan meninggalkan jejak setengah
+   * pada catatan yang lahir tepat setelah rename dan sebelum admin masuk lagi.
+   */
+  setUserUsername: async (username, baru, user) => {
+    const u = String(username || '').trim();
+    const b = String(baru || '').trim().toLowerCase();
+    const target = await getUserByUsername(u);
+    if (!target) throw new Error(`Pengguna "${u}" tidak ditemukan.`);
+    if (sameUser(target.username, user.username)) {
+      throw new Error('Anda tidak bisa mengubah username akun Anda sendiri. Minta admin lain.');
+    }
+    await setUsername(u, b);
     return listUsers();
   },
 

@@ -9,15 +9,31 @@ function issuePrintRow(it, i){
       <td style="width:130px;font-size:8.5pt;">${escapeHtml(it.jenis)}</td>
       <td style="font-size:8.5pt;">${escapeHtml(it.keterangan).replace(/\n/g,'<br>')}</td>
       <td style="width:85px;font-size:8.5pt;">${escapeHtml(it.lokasi)}</td>
-      <td style="width:62px;font-size:8pt;text-align:center;">${escapeHtml(it.tglReport)||'-'}</td>
+      <td style="width:78px;font-size:8pt;text-align:center;">${escapeHtml(formatWaktuIsu(it.tglReport))||'-'}</td>
       <td style="width:52px;font-size:8pt;text-align:center;">${escapeHtml(it.status)}</td>
-      <td style="width:62px;font-size:8pt;text-align:center;">${escapeHtml(it.tglClosed)||'-'}</td>
+      <td style="width:78px;font-size:8pt;text-align:center;">${escapeHtml(formatWaktuIsu(it.tglClosed))||'-'}</td>
       <td style="width:95px;font-size:8.5pt;">${escapeHtml(it.dilaporkanOleh)||'-'}</td>
     </tr>`;
 }
 
 function printIssueList(list, subjudul){
-  const berbukti = list.filter(it=>it.lampiranOpen.length || it.lampiranClosed.length);
+  /* Halaman lampiran dipasang kalau ada bukti ATAU ada catatan penutupan —
+     tanpa bukti pun, siapa yang menutup + keterangannya perlu tercetak untuk
+     isu tertutup. Kalau semua isu di daftar ini belum ada apa-apanya, halaman
+     lampiran ikut absen. */
+  const berbukti = list.filter(it=>it.lampiranOpen.length || it.lampiranClosed.length
+                                   || (it.status === 'Closed' && (it.ditutupOleh || it.keteranganClosed)));
+  const barisPenutup = (it) => {
+    if(it.status !== 'Closed' && !it.ditutupOleh && !it.keteranganClosed) return '';
+    const rows = [];
+    if(it.ditutupOleh){
+      rows.push(`<div style="font-size:8.5pt;margin-top:4px;">Ditutup oleh: <b>${escapeHtml(it.ditutupOleh)}</b></div>`);
+    }
+    if(it.keteranganClosed){
+      rows.push(`<div style="font-size:8.5pt;margin-top:2px;white-space:pre-wrap;">Keterangan penutupan: ${escapeHtml(it.keteranganClosed)}</div>`);
+    }
+    return rows.join('');
+  };
   const halamanBukti = berbukti.length ? `
     <div style="page-break-before:always;">
       <div style="text-align:center;font-weight:bold;font-size:12pt;margin-bottom:10px;">
@@ -28,8 +44,9 @@ function printIssueList(list, subjudul){
           <div style="font-size:9.5pt;font-weight:bold;border-bottom:1px solid #999;padding-bottom:2px;">
             ${escapeHtml(it.jenis)||'(tanpa jenis)'}${it.lokasi ? ' — ' + escapeHtml(it.lokasi) : ''}
           </div>
-          ${lampiranPrintHtml(it.lampiranOpen, `Saat kejadian — dilaporkan ${escapeHtml(it.tglReport)||'-'}`)}
-          ${lampiranPrintHtml(it.lampiranClosed, `Saat selesai — ditutup ${escapeHtml(it.tglClosed)||'-'}`)}
+          ${barisPenutup(it)}
+          ${lampiranPrintHtml(it.lampiranOpen, `Saat kejadian — dilaporkan ${escapeHtml(formatWaktuIsu(it.tglReport))||'-'}`)}
+          ${lampiranPrintHtml(it.lampiranClosed, `Saat selesai — ditutup ${escapeHtml(formatWaktuIsu(it.tglClosed))||'-'}`)}
         </div>`).join('')}
     </div>` : '';
 

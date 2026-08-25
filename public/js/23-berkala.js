@@ -599,6 +599,13 @@ function bklIsi(unit){
                 }).join('')}</div>`
             : `<input type="number" min="1" max="28" data-bkl="${i}" data-kolom="tanggal"
                  value="${Number(k.tanggal) || 1}">`}</div>
+        <div class="isian" style="margin-bottom:0;min-width:150px">
+          <label>${T('Lokasi','Location')}</label>
+          <select data-bkl="${i}" data-kolom="lokasi">
+            <option value=""${!k.lokasi ? ' selected' : ''}>${esc(T('— (semua)','— (any)'))}</option>
+            <option value="new-jatsc"${k.lokasi === 'new-jatsc' ? ' selected' : ''}>New JATSC</option>
+            <option value="jatsc"${k.lokasi === 'jatsc' ? ' selected' : ''}>JATSC</option>
+          </select></div>
         <div class="isian" style="margin-bottom:0;min-width:130px">
           <label>${T('Shift','Shift')}</label>
           <select data-bkl="${i}" data-kolom="shift">${BERKALA_SHIFT.map(s=>
@@ -673,6 +680,9 @@ function bklIsi(unit){
         ${bklCipSumber(unit, k)}
         ${bklShift(k) ? `<span class="cip bkl-shift" title="${
           T('Dikerjakan rombongan ini','Done by this crew')}">${esc(bklShiftNama(bklShift(k)))}</span>` : ''}
+        ${k.lokasi ? `<span class="cip bkl-lokasi" title="${
+          T('Lokasi peralatan','Equipment location')}">${
+            k.lokasi === 'new-jatsc' ? 'New JATSC' : 'JATSC'}</span>` : ''}
         <span class="mono bkl-kapan">${esc(bklKapan(k))}</span>
       </div>
       <h4>${esc(k.nama)}</h4>
@@ -787,7 +797,7 @@ function bklPasang(unit){
   const sunting = kotak.querySelector('#bklSunting');
   if(sunting) sunting.addEventListener('click', ()=>{
     BKL.draf = bklDaftar(unit).map(k=>({ ...k }));
-    if(!BKL.draf.length) BKL.draf.push({ id:'', nama:'', jenis:'mingguan', hari:[1], bulan:1, tanggal:1, sumber:'', shift:'', ket:'', alat:'' });
+    if(!BKL.draf.length) BKL.draf.push({ id:'', nama:'', jenis:'mingguan', hari:[1], bulan:1, tanggal:1, sumber:'', shift:'', ket:'', alat:'', lokasi:'' });
     BKL.sunting = true; BKL.unit = unit;
     bklGambar();
   });
@@ -799,7 +809,7 @@ function bklPasang(unit){
 
   const tambah = kotak.querySelector('#bklTambah');
   if(tambah) tambah.addEventListener('click', ()=>{
-    BKL.draf.push({ id:'', nama:'', jenis:'mingguan', hari:[1], bulan:1, tanggal:1, sumber:'', shift:'', ket:'', alat:'' });
+    BKL.draf.push({ id:'', nama:'', jenis:'mingguan', hari:[1], bulan:1, tanggal:1, sumber:'', shift:'', ket:'', alat:'', lokasi:'' });
     bklGambar();
   });
 
@@ -843,6 +853,9 @@ function bklPasang(unit){
         tanggal: k.jenis === 'mingguan' ? null : Math.min(28, Math.max(1, Number(k.tanggal) || 1)),
         sumber: BERKALA_SUMBER[k.sumber] ? (k.sumber || '') : '',
         shift: bklShift(k),
+        // Hanya dua nilai yang dikenal — sisanya (termasuk kegiatan lama yang
+        // belum punya kolom ini) diperlakukan tanpa lokasi = berlaku unit-wide.
+        lokasi: ['new-jatsc','jatsc'].includes(k.lokasi) ? k.lokasi : '',
         alat: k.alat || '', ket: String(k.ket || '').trim()
       }))
       .filter(k=>k.nama);
@@ -901,7 +914,7 @@ function bklPasang(unit){
   kotak.querySelectorAll('[data-bkl-buang]').forEach(b=>{
     b.addEventListener('click', ()=>{
       BKL.draf.splice(Number(b.dataset.bklBuang), 1);
-      if(!BKL.draf.length) BKL.draf.push({ id:'', nama:'', jenis:'mingguan', hari:[1], bulan:1, tanggal:1, sumber:'', shift:'', ket:'', alat:'' });
+      if(!BKL.draf.length) BKL.draf.push({ id:'', nama:'', jenis:'mingguan', hari:[1], bulan:1, tanggal:1, sumber:'', shift:'', ket:'', alat:'', lokasi:'' });
       bklGambar();
     });
   });

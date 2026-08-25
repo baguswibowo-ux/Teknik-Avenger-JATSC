@@ -28,3 +28,21 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
     if(btn.dataset.tab === 'rekap' && typeof muatRekapKalauPerlu === 'function') muatRekapKalauPerlu();
   });
 });
+
+/* ============== SUB-TAB (di dalam Preventive Maintenance) ==============
+   Deretan sub-tab hanya menukar .subview di dalam wadah tab utamanya —
+   tidak menyentuh .view di luar. Jadi klik di sini tidak akan menutup
+   tab utama yang sedang aktif. */
+document.querySelectorAll('.subtab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const wadah = btn.closest('.view');
+    if(!wadah) return;
+    wadah.querySelectorAll('.subtab-btn').forEach(b=>b.classList.remove('active'));
+    wadah.querySelectorAll('.subview').forEach(v=>v.classList.remove('active'));
+    btn.classList.add('active');
+    const anak = document.getElementById('view-'+btn.dataset.subtab);
+    if(anak) anak.classList.add('active');
+    if(typeof tutupPratinjau === 'function' && tutupPratinjau()) window.scrollTo({ top:0, behavior:'auto' });
+    setTimeout(()=>{ if(typeof resizeAllVisibleSigPads === 'function') resizeAllVisibleSigPads(); }, 50);
+  });
+});

@@ -124,7 +124,29 @@ const TABEL_SUSULAN = [
      dibuat_pada       TEXT NOT NULL,
      dibuat_oleh       TEXT NOT NULL DEFAULT ''
    )`,
-  'CREATE INDEX IF NOT EXISTS idx_berkala_unit ON berkala(unit, jenis, tanggal)'
+  'CREATE INDEX IF NOT EXISTS idx_berkala_unit ON berkala(unit, jenis, tanggal)',
+  /* BAPB — Berita Acara Pemasangan Barang. Bentuknya harus sepadan dengan
+     CREATE TABLE bapb di db.js. Daftar barangnya disimpan sebagai teks JSON
+     di items_json (bukan tabel anak) — kolomnya ikut berkas Excel resminya. */
+  `CREATE TABLE IF NOT EXISTS bapb (
+     id               TEXT PRIMARY KEY,
+     unit             TEXT NOT NULL DEFAULT 'radkom',
+     nomor            TEXT NOT NULL DEFAULT '',
+     tanggal          TEXT NOT NULL DEFAULT '',
+     untuk_pekerjaan  TEXT NOT NULL DEFAULT '',
+     lokasi           TEXT NOT NULL DEFAULT '',
+     items_json       TEXT NOT NULL DEFAULT '[]',
+     pemakai_nama       TEXT NOT NULL DEFAULT '',
+     pemakai_ttd        TEXT NOT NULL DEFAULT '',
+     teknik_nama        TEXT NOT NULL DEFAULT '',
+     teknik_ttd         TEXT NOT NULL DEFAULT '',
+     petugas_nama       TEXT NOT NULL DEFAULT '',
+     petugas_nama_list  TEXT NOT NULL DEFAULT '[]',
+     petugas_ttd        TEXT NOT NULL DEFAULT '',
+     dibuat_pada        TEXT NOT NULL,
+     dibuat_oleh        TEXT NOT NULL DEFAULT ''
+   )`,
+  'CREATE INDEX IF NOT EXISTS idx_bapb_unit ON bapb(unit, tanggal)'
 ];
 for (const sql of TABEL_SUSULAN) {
   try {
@@ -166,7 +188,14 @@ const KOLOM_SUSULAN = [
   // menyimpan bentuk ISO-nya, khusus untuk ORDER BY riwayat.
   ['dailychecks', 'tanggal_urut', "TEXT NOT NULL DEFAULT ''"],
   // Tanda tangan tersimpan milik akun — lihat simpanTtdTersimpan.
-  ['users', 'ttd_tersimpan', "TEXT NOT NULL DEFAULT ''"]
+  ['users', 'ttd_tersimpan', "TEXT NOT NULL DEFAULT ''"],
+  // BAPB: daftar nama teknisi pelaksana (JSON) — disusulkan supaya tabel yang
+  // sudah dibuat tanpa kolom ini ikut mendapat kolomnya.
+  ['bapb', 'petugas_nama_list', "TEXT NOT NULL DEFAULT '[]'"],
+  // Isu tertutup: siapa yang menutup, dan keterangan penutupannya. Terpisah
+  // dari dibuat_oleh — pelapor/penginput bisa teknisi, penutup selalu admin.
+  ['issues', 'ditutup_oleh', "TEXT NOT NULL DEFAULT ''"],
+  ['issues', 'keterangan_closed', "TEXT NOT NULL DEFAULT ''"]
 ];
 try {
   const sudahAda = new Set(
@@ -445,6 +474,69 @@ export async function setNama(username, nama) {
   return n > 0;
 }
 
+/**
+ * Ganti username akun. Seluruh kolom teks yang menyimpan username lama ikut
+ * berpindah — dibuat_oleh/ttd_oleh/ttd_untuk/ditutup_oleh — dalam satu
+ * transaksi supaya tidak pernah ada keadaan setengah.
+ *
+ * Sesi hidup: sessions merujuk user_id, bukan username. Hak petugas di
+ * dashboard (dinas-petugas.json di server dashboard, TERPISAH dari database
+ * ini) tidak ikut berubah — admin perlu menetapkan ulang setelah rename.
+ */
+export async function setUsername(oldUsername, newUsername) {
+  const lama = String(oldUsername || '').trim();
+  const baru = String(newUsername || '').trim().toLowerCase();
+  if (lama === baru) return false;
+  if (!/^[a-z0-9._-]{3,32}$/.test(baru)) {
+    throw new Error('Username baru 3–32 karakter: huruf kecil, angka, titik, garis bawah, atau strip.');
+  }
+  const target = await getUserByUsername(lama);
+  if (!target) throw new Error(`Pengguna "${lama}" tidak ditemukan.`);
+  const bentrok = await getUserByUsername(baru);
+  if (bentrok && String(bentrok.id) !== String(target.id)) {
+    throw new Error(`Username "${baru}" sudah dipakai akun lain.`);
+  }
+
+  const TABEL_TEKS_USERNAME = [
+    ['entries',     ['dibuat_oleh', 'ttd_oleh', 'ttd_untuk']],
+    ['dailychecks', ['dibuat_oleh', 'ttd_oleh', 'ttd_untuk']],
+    ['issues',      ['dibuat_oleh', 'ditutup_oleh']],
+    ['monitoring',  ['dibuat_oleh', 'ttd_oleh', 'ttd_untuk']],
+    ['dstest',      ['dibuat_oleh', 'ttd_oleh', 'ttd_untuk']],
+    ['ltk',         ['dibuat_oleh', 'ttd_oleh', 'ttd_untuk']],
+    ['berkala',     ['dibuat_oleh', 'ttd_oleh', 'ttd_untuk']],
+    ['bapb',        ['dibuat_oleh']]
+  ];
+  const klien = await pool.connect();
+  try {
+    await klien.query('BEGIN');
+    await klien.query('UPDATE users SET username = $1 WHERE id = $2', [baru, target.id]);
+    for (const [tabel, kolom] of TABEL_TEKS_USERNAME) {
+      // Tabel BAPB dibuat lewat susulan; kalau belum ada di deployment ini,
+      // lewati saja tanpa membatalkan seluruh transaksi.
+      const cek = await klien.query(
+        `SELECT column_name FROM information_schema.columns
+          WHERE table_schema = current_schema() AND table_name = $1
+            AND column_name = ANY($2::text[])`,
+        [tabel, kolom]
+      );
+      const kolomAda = new Set(cek.rows.map((r) => r.column_name));
+      for (const k of kolom) {
+        if (!kolomAda.has(k)) continue;
+        await klien.query(`UPDATE ${tabel} SET ${k} = $1 WHERE ${k} = $2`, [baru, lama]);
+      }
+    }
+    await klien.query('COMMIT');
+  } catch (err) {
+    await klien.query('ROLLBACK').catch(() => {});
+    throw err;
+  } finally {
+    klien.release();
+  }
+  lupakanNamaPengguna();
+  return true;
+}
+
 export const jumlahAdminAktif = async () =>
   Number((await q1("SELECT COUNT(*) AS n FROM users WHERE role = 'admin' AND aktif = true")).n);
 
@@ -515,7 +607,7 @@ export const UNIT = [
     pakaiJamSelesai: true,
     pakaiFrek: false,
     labelUraian: 'Uraian Pekerjaan / Kejadian',
-    labelPj: 'Penanggung Jawab',
+    labelPj: 'Manager Teknik',
     adaDailyCheck: true,
     dcJudul: 'Daily Check VCS Garex 300 — Unit Radtel',
     adaMonitoring: false,
@@ -562,7 +654,7 @@ export const UNIT = [
     pakaiJamSelesai: true,
     pakaiFrek: false,
     labelUraian: 'Uraian Pekerjaan / Kejadian',
-    labelPj: 'Penanggung Jawab',
+    labelPj: 'Manager Teknik',
     // Formulir khusus unit ini menunggu form aslinya. Sampai itu ada, yang
     // tersedia baru Logbook Fasilitas, Isu, dan LTK yang memang berlaku umum.
     adaDailyCheck: false,
@@ -585,7 +677,7 @@ export const UNIT = [
     pakaiJamSelesai: true,
     pakaiFrek: false,
     labelUraian: 'Uraian Pekerjaan / Kejadian',
-    labelPj: 'Penanggung Jawab',
+    labelPj: 'Manager Teknik',
     // Formulir khusus unit ini menunggu form aslinya. Sampai itu ada, yang
     // tersedia baru Logbook Fasilitas, Isu, dan LTK yang memang berlaku umum.
     adaDailyCheck: false,
@@ -610,7 +702,7 @@ export const UNIT = [
     pakaiJamSelesai: true,
     pakaiFrek: false,
     labelUraian: 'Uraian Pekerjaan / Kejadian',
-    labelPj: 'Penanggung Jawab',
+    labelPj: 'Manager Teknik',
     // Formulir khusus unit ini menunggu form aslinya. Sampai itu ada, yang
     // tersedia baru Logbook Fasilitas, Isu, dan LTK yang memang berlaku umum.
     adaDailyCheck: false,
@@ -633,7 +725,7 @@ export const UNIT = [
     pakaiJamSelesai: true,
     pakaiFrek: false,
     labelUraian: 'Uraian Pekerjaan / Kejadian',
-    labelPj: 'Penanggung Jawab',
+    labelPj: 'Manager Teknik',
     // Formulir khusus unit ini menunggu form aslinya. Sampai itu ada, yang
     // tersedia baru Logbook Fasilitas, Isu, dan LTK yang memang berlaku umum.
     adaDailyCheck: false,
@@ -658,7 +750,7 @@ export const UNIT = [
     pakaiJamSelesai: true,
     pakaiFrek: false,
     labelUraian: 'Uraian Pekerjaan / Kejadian',
-    labelPj: 'Penanggung Jawab',
+    labelPj: 'Manager Teknik',
     // Formulir khusus unit ini menunggu form aslinya. Sampai itu ada, yang
     // tersedia baru Logbook Fasilitas, Isu, dan LTK yang memang berlaku umum.
     adaDailyCheck: false,
@@ -681,7 +773,7 @@ export const UNIT = [
     pakaiJamSelesai: true,
     pakaiFrek: false,
     labelUraian: 'Uraian Pekerjaan / Kejadian',
-    labelPj: 'Penanggung Jawab',
+    labelPj: 'Manager Teknik',
     // Formulir khusus unit ini menunggu form aslinya. Sampai itu ada, yang
     // tersedia baru Logbook Fasilitas, Isu, dan LTK yang memang berlaku umum.
     adaDailyCheck: false,
@@ -848,6 +940,30 @@ export async function simpanLampiran(entryId, daftar) {
 async function hapusBerkasLampiran(tabel, kolomInduk, indukId) {
   const rows = await q(`SELECT path FROM ${tabel} WHERE ${kolomInduk} = $1`, [indukId]);
   for (const l of rows) await hapusBerkas(l.path);
+}
+
+/**
+ * Tambah dan buang lampiran catatan tersimpan — cerminan dari versi SQLite.
+ * Berkas baru ditulis lebih dulu, baru yang lama dibuang.
+ */
+async function suntingLampiranEntry(entryId, tambah, buang) {
+  const daftarTambah = Array.isArray(tambah) ? tambah : [];
+  const idBuang = (Array.isArray(buang) ? buang : []).map(String);
+  if (daftarTambah.length === 0 && idBuang.length === 0) return;
+
+  const milik = await q('SELECT id, path FROM lampiran WHERE entry_id = $1', [entryId]);
+  const dibuang = milik.filter((l) => idBuang.includes(String(l.id)));
+  const sisa = milik.length - dibuang.length;
+  if (sisa + daftarTambah.length > LAMPIRAN_MAKS_JUMLAH) {
+    throw new Error(`Maksimal ${LAMPIRAN_MAKS_JUMLAH} lampiran per catatan. Sekarang sudah ada ${sisa}.`);
+  }
+
+  await simpanLampiran(entryId, daftarTambah);
+
+  for (const l of dibuang) {
+    await jalankan('DELETE FROM lampiran WHERE id = $1 AND entry_id = $2', [l.id, entryId]);
+    await hapusBerkas(l.path);
+  }
 }
 
 /* ---------- Lampiran isu (fase open / closed) ---------- */
@@ -1023,8 +1139,26 @@ export async function removeEntry(id) {
 
 /**
  * Sunting catatan logbook yang sudah tersimpan — cerminan dari updateEntry
- * di db.js. Sengaja TIDAK menyentuh nama teknisi, tanda tangan, atau lampiran.
+ * di db.js. Sengaja TIDAK menyentuh nama teknisi; lampiran boleh ditambah dan
+ * dibuang, dan TTD teknisi yang terlupa boleh dibubuhkan susulan — keduanya
+ * selama catatannya masih boleh disunting. Aturan TTD-nya diterangkan panjang
+ * di db.js: yang sudah terisi tidak pernah ditimpa, dan yang boleh membubuhkan
+ * hanya pembuat catatannya sendiri.
  */
+/** Cerminan dari periksaTtdSusulan di db.js — alasannya diterangkan di sana. */
+function periksaTtdSusulan(row, ttdBaru, actor = {}) {
+  if (!ttdBaru) return '';
+  if (row.teknisi_ttd) {
+    throw new Error('Catatan ini sudah bertanda tangan teknisi — yang sudah dibubuhkan tidak diganti dari sini.');
+  }
+  if (!row.dibuat_oleh || row.dibuat_oleh !== actor.username) {
+    throw new Error('Hanya pembuat catatan ini yang bisa membubuhkan TTD teknisinya.');
+  }
+  const teks = String(ttdBaru);
+  if (!teks.startsWith('data:image/')) throw new Error('Tanda tangannya tidak berbentuk gambar.');
+  return teks;
+}
+
 export async function updateEntry(id, patch = {}, actor = {}) {
   const row = await q1('SELECT * FROM entries WHERE id = $1', [String(id)]);
   if (!row) throw new Error('Catatan tidak ditemukan — mungkin sudah dihapus.');
@@ -1036,6 +1170,8 @@ export async function updateEntry(id, patch = {}, actor = {}) {
   const uraian = patch.uraian !== undefined ? String(patch.uraian || '').trim() : row.uraian;
   if (!uraian) throw new Error('Uraian pekerjaan tidak boleh kosong.');
 
+  const bubuhTtd = periksaTtdSusulan(row, patch.teknisiTtd, actor);
+
   const next = {
     tanggal: patch.tanggal !== undefined ? String(patch.tanggal || '') : row.tanggal,
     jam: patch.jam !== undefined ? String(patch.jam || '') : row.jam,
@@ -1046,10 +1182,17 @@ export async function updateEntry(id, patch = {}, actor = {}) {
     uraian
   };
 
+  // Lampiran lebih dulu — alasannya sama dengan versi SQLite.
+  await suntingLampiranEntry(String(id), patch.lampiranBaru, patch.lampiranHapus);
+
+  next.teknisi_ttd = bubuhTtd ? await saveSignature(bubuhTtd, 'logbook_teknisi') : row.teknisi_ttd;
+
   await jalankan(
-    `UPDATE entries SET tanggal = $1, jam = $2, jam_selesai = $3, frek = $4, dinas = $5, lokasi = $6, uraian = $7
-     WHERE id = $8`,
-    [next.tanggal, next.jam, next.jam_selesai, next.frek, next.dinas, next.lokasi, next.uraian, String(id)]
+    `UPDATE entries SET tanggal = $1, jam = $2, jam_selesai = $3, frek = $4, dinas = $5, lokasi = $6, uraian = $7,
+                        teknisi_ttd = $8
+     WHERE id = $9`,
+    [next.tanggal, next.jam, next.jam_selesai, next.frek, next.dinas, next.lokasi, next.uraian,
+     next.teknisi_ttd, String(id)]
   );
 
   const nama = await petaNamaPengguna();
@@ -1144,7 +1287,11 @@ export async function removeDailyCheck(id) {
   return true;
 }
 
-/** Ubah tanggal daily check yang sudah tersimpan — cerminan dari updateDailyCheck di db.js. */
+/** Ubah daily check yang sudah tersimpan — cerminan dari updateDailyCheck di db.js.
+ *  Manager teknik yang sudah bertanda tangan mengunci catatan. Sebelum itu,
+ *  seluruh bagian teknisi (tanggal/dinas/suhu/remark/state/nama/TTD teknisi/nama
+ *  manager) boleh disunting; TTD manager sendiri hanya berubah lewat pintu
+ *  tanda-tangan-susulan. */
 export async function updateDailyCheck(id, patch = {}, actor = {}) {
   const row = await q1('SELECT * FROM dailychecks WHERE id = $1', [String(id)]);
   if (!row) throw new Error('Catatan tidak ditemukan — mungkin sudah dihapus.');
@@ -1157,11 +1304,43 @@ export async function updateDailyCheck(id, patch = {}, actor = {}) {
   if (!tanggal) throw new Error('Tanggal tidak boleh kosong.');
   const tanggal_urut = String(patch.tanggalIso || '').trim() || isoDariTanggalPanjang(tanggal) || row.tanggal_urut;
 
-  await jalankan('UPDATE dailychecks SET tanggal = $1, tanggal_urut = $2 WHERE id = $3',
-    [tanggal, tanggal_urut, String(id)]);
+  const dinas    = patch.dinas    !== undefined ? String(patch.dinas || '') : row.dinas;
+  const suhu     = patch.suhu     !== undefined ? String(patch.suhu || '')  : row.suhu;
+  const remark   = patch.remark   !== undefined ? String(patch.remark || ''): row.remark;
+  const managerNama = patch.managerNama !== undefined ? String(patch.managerNama || '') : row.manager_nama;
+
+  const teknisiNamaList = Array.isArray(patch.teknisiNamaList) ? patch.teknisiNamaList : null;
+  const teknisiNama = patch.teknisiNama !== undefined
+    ? String(patch.teknisiNama || '')
+    : (teknisiNamaList ? teknisiNamaList.join(', ') : row.teknisi_nama);
+  const teknisi_nama_list = teknisiNamaList ? JSON.stringify(teknisiNamaList) : row.teknisi_nama_list;
+
+  let teknisi_ttd = row.teknisi_ttd;
+  if (patch.teknisiTtd !== undefined && patch.teknisiTtd !== null && String(patch.teknisiTtd).startsWith('data:')) {
+    if (row.teknisi_ttd) await hapusBerkas(row.teknisi_ttd);
+    teknisi_ttd = await saveSignature(patch.teknisiTtd, 'dailycheck_teknisi');
+  }
+
+  const state_json = patch.state !== undefined ? JSON.stringify(patch.state || {}) : row.state_json;
+  const fails_json = Array.isArray(patch.fails) ? JSON.stringify(patch.fails) : row.fails_json;
+  const warns_json = Array.isArray(patch.warns) ? JSON.stringify(patch.warns) : row.warns_json;
+
+  await jalankan(`UPDATE dailychecks SET tanggal = $1, tanggal_urut = $2, dinas = $3, suhu = $4, remark = $5,
+                                        teknisi_nama = $6, teknisi_nama_list = $7, teknisi_ttd = $8,
+                                        manager_nama = $9,
+                                        state_json = $10, fails_json = $11, warns_json = $12
+                                  WHERE id = $13`,
+    [tanggal, tanggal_urut, dinas, suhu, remark,
+     teknisiNama, teknisi_nama_list, teknisi_ttd,
+     managerNama,
+     state_json, fails_json, warns_json, String(id)]);
 
   const nama = await petaNamaPengguna();
-  return rowToDcRingkas({ ...row, tanggal, tanggal_urut }, {
+  const rowBaru = { ...row, tanggal, tanggal_urut, dinas, suhu, remark,
+                    teknisi_nama: teknisiNama, teknisi_nama_list, teknisi_ttd,
+                    manager_nama: managerNama,
+                    state_json, fails_json, warns_json };
+  return rowToDcRingkas(rowBaru, {
     diinputOleh: namaTampil(nama, row.dibuat_oleh),
     ttdOleh: namaTampil(nama, row.ttd_oleh)
   });
@@ -1174,6 +1353,8 @@ const rowToIssue = (r, extra = {}) => ({
   TanggalReport: r.tanggal_report || '', TanggalClosed: r.tanggal_closed || '',
   DilaporkanOleh: r.dilaporkan_oleh || '',
   DiinputOleh: extra.diinputOleh ?? (r.dibuat_oleh || ''),
+  DitutupOleh: extra.ditutupOleh ?? (r.ditutup_oleh || ''),
+  KeteranganClosed: r.keterangan_closed || '',
   DibuatPada: r.dibuat_pada || '',
   LampiranOpen: extra.lampiranOpen || [],
   LampiranClosed: extra.lampiranClosed || []
@@ -1189,6 +1370,7 @@ export async function listIssues(unit = 'radtel') {
     const kotak = lamp.get(r.id) || { open: [], closed: [] };
     return rowToIssue(r, {
       diinputOleh: namaTampil(nama, r.dibuat_oleh),
+      ditutupOleh: namaTampil(nama, r.ditutup_oleh),
       lampiranOpen: kotak.open,
       lampiranClosed: kotak.closed
     });
@@ -1198,9 +1380,14 @@ export async function listIssues(unit = 'radtel') {
 export async function getIssue(id) {
   const r = await q1('SELECT * FROM issues WHERE id = $1', [id]);
   if (!r) return null;
-  const kotak = (await lampiranIsuUntuk([id])).get(id) || { open: [], closed: [] };
+  const [nama, lamp] = await Promise.all([
+    petaNamaPengguna(),
+    lampiranIsuUntuk([id])
+  ]);
+  const kotak = lamp.get(id) || { open: [], closed: [] };
   return rowToIssue(r, {
-    diinputOleh: namaTampil(await petaNamaPengguna(), r.dibuat_oleh),
+    diinputOleh: namaTampil(nama, r.dibuat_oleh),
+    ditutupOleh: namaTampil(nama, r.ditutup_oleh),
     lampiranOpen: kotak.open,
     lampiranClosed: kotak.closed
   });
@@ -1218,32 +1405,46 @@ export async function insertIssue(isu = {}, olehUsername = '', olehNama = '') {
     keterangan: String(isu.keterangan || '').trim(),
     lokasi: String(isu.lokasi || '').trim(),
     status,
-    tanggal_report: String(isu.tanggalReport || '').trim() || today(),
-    tanggal_closed: status === 'Closed' ? today() : '',
+    // Sejak isu punya jam (bukan hanya tanggal), nilai bawaannya memakai
+    // waktu sekarang lengkap YYYY-MM-DDTHH:MM. Klien pengirim yang lama
+    // (hanya tanggal) tetap dihormati apa adanya — datanya tidak diubah.
+    tanggal_report: String(isu.tanggalReport || '').trim() || nowIso().slice(0, 16),
+    tanggal_closed: status === 'Closed' ? nowIso().slice(0, 16) : '',
+    /* Admin yang menciptakan isu langsung Closed berarti dialah penutupnya.
+       Untuk isu yang lahir Open lalu ditutup belakangan, ditutup_oleh diisi
+       oleh updateIssue saat statusnya berubah. */
+    ditutup_oleh: status === 'Closed' ? String(olehUsername || '') : '',
+    keterangan_closed: String(isu.keteranganClosed || '').trim(),
     dilaporkan_oleh: String(isu.dilaporkanOleh || '').trim() || olehNama || olehUsername,
     dibuat_pada: nowIso()
   };
   await jalankan(
     `INSERT INTO issues (id, unit, jenis, keterangan, lokasi, status, tanggal_report, tanggal_closed,
-                         dilaporkan_oleh, dibuat_pada, dibuat_oleh)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+                         ditutup_oleh, keterangan_closed, dilaporkan_oleh, dibuat_pada, dibuat_oleh)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
     [row.id, row.unit, row.jenis, row.keterangan, row.lokasi, row.status,
-     row.tanggal_report, row.tanggal_closed, row.dilaporkan_oleh, row.dibuat_pada, olehUsername]
+     row.tanggal_report, row.tanggal_closed, row.ditutup_oleh, row.keterangan_closed,
+     row.dilaporkan_oleh, row.dibuat_pada, olehUsername]
   );
 
   const lampiranOpen = await tambahLampiranIsu(id, 'open', isu.lampiranOpen);
   const lampiranClosed = status === 'Closed' ? await tambahLampiranIsu(id, 'closed', isu.lampiranClosed) : [];
-  return rowToIssue(row, { diinputOleh: olehNama || olehUsername, lampiranOpen, lampiranClosed });
+  return rowToIssue(row, {
+    diinputOleh: olehNama || olehUsername,
+    ditutupOleh: status === 'Closed' ? (olehNama || olehUsername) : '',
+    lampiranOpen, lampiranClosed
+  });
 }
 
 /** Nama kolom dibatasi daftar putih — nilai dari klien tidak boleh masuk ke SQL. */
 const ISSUE_FIELDS = {
   Jenis: 'jenis', Keterangan: 'keterangan', Lokasi: 'lokasi', Status: 'status',
   TanggalReport: 'tanggal_report', TanggalClosed: 'tanggal_closed',
-  DilaporkanOleh: 'dilaporkan_oleh'
+  DilaporkanOleh: 'dilaporkan_oleh',
+  KeteranganClosed: 'keterangan_closed'
 };
 
-export async function updateIssue(id, headerField, value) {
+export async function updateIssue(id, headerField, value, closerUsername = '') {
   const col = ISSUE_FIELDS[headerField];
   if (!col) return null;
   const sebelum = await q1('SELECT * FROM issues WHERE id = $1', [id]);
@@ -1251,13 +1452,26 @@ export async function updateIssue(id, headerField, value) {
 
   await jalankan(`UPDATE issues SET ${col} = $1 WHERE id = $2`, [String(value ?? ''), id]);
 
-  // Tanggal closed mengikuti status, sama seperti versi SQLite.
+  // Tanggal closed dan penutupnya mengikuti status: terisi saat isu ditutup,
+  // dikosongkan lagi saat dibuka kembali. Yang sudah ada tidak ditimpa —
+  // penutup pertama itu yang berlaku, penyuntingan status berikutnya bukan
+  // menutup ulang.
   if (col === 'status') {
     const status = String(value ?? '');
-    if (status === 'Closed' && !sebelum.tanggal_closed) {
-      await jalankan('UPDATE issues SET tanggal_closed = $1 WHERE id = $2', [today(), id]);
-    } else if (status !== 'Closed' && sebelum.tanggal_closed) {
-      await jalankan("UPDATE issues SET tanggal_closed = '' WHERE id = $1", [id]);
+    if (status === 'Closed') {
+      if (!sebelum.tanggal_closed) {
+        await jalankan('UPDATE issues SET tanggal_closed = $1 WHERE id = $2', [nowIso().slice(0, 16), id]);
+      }
+      if (!sebelum.ditutup_oleh && closerUsername) {
+        await jalankan('UPDATE issues SET ditutup_oleh = $1 WHERE id = $2', [String(closerUsername), id]);
+      }
+    } else if (status !== 'Closed') {
+      if (sebelum.tanggal_closed) {
+        await jalankan("UPDATE issues SET tanggal_closed = '' WHERE id = $1", [id]);
+      }
+      if (sebelum.ditutup_oleh) {
+        await jalankan("UPDATE issues SET ditutup_oleh = '' WHERE id = $1", [id]);
+      }
     }
   }
   return getIssue(id);
@@ -1266,6 +1480,48 @@ export async function updateIssue(id, headerField, value) {
 export async function removeIssue(id) {
   await hapusBerkasLampiran('lampiran_isu', 'issue_id', id);
   await jalankan('DELETE FROM issues WHERE id = $1', [id]);
+  return true;
+}
+
+/* ============== RUTE TTD (Nama pihak-kedua + akun tujuan) ==============
+ *
+ * Nama Manager Teknik/PJ dan akun yang dituju TTD-nya ditetapkan saat catatan
+ * dibuat, dan sebelum sekarang tidak ada jalan mengubahnya lagi. Kalau
+ * pengirimnya salah tunjuk — nama MT keliru, akun tujuan bukan orangnya — satu-
+ * satunya obat adalah menghapus catatan lalu mengulang. Fungsi ini menutup celah
+ * itu untuk kelima form yang punya slot pihak kedua: entry (logbook), daily
+ * check, LTK, berkala, DS test.
+ *
+ * Aturannya sengaja ketat: begitu pihak kedua sudah membubuhkan tanda tangannya
+ * (kolom *_ttd berisi PATH ke berkas TTD), rute-nya tidak boleh berubah lagi —
+ * mengganti nama di bawah tanda tangan yang sudah tercetak sama dengan memalsu
+ * arsipnya.
+ */
+const RUTE_TTD_META = {
+  entry:   { tabel: 'entries',     ttdCol: 'pj_ttd',      namaCol: 'pj_nama',      subyek: 'penanggung jawab' },
+  dc:      { tabel: 'dailychecks', ttdCol: 'manager_ttd', namaCol: 'manager_nama', subyek: 'manager teknik' },
+  ltk:     { tabel: 'ltk',         ttdCol: 'manager_ttd', namaCol: 'manager_nama', subyek: 'manager teknik' },
+  berkala: { tabel: 'berkala',     ttdCol: 'manager_ttd', namaCol: 'manager_nama', subyek: 'manager teknik' },
+  dstest:  { tabel: 'dstest',      ttdCol: 'manager_ttd', namaCol: 'manager_nama', subyek: 'manager teknik' }
+};
+
+export async function updateTtdRouting(kind, id, patch = {}) {
+  const meta = RUTE_TTD_META[String(kind || '').toLowerCase()];
+  if (!meta) throw new Error(`Jenis catatan tidak dikenal: ${kind}`);
+  const row = await q1(`SELECT ${meta.ttdCol}, ${meta.namaCol}, ttd_untuk FROM ${meta.tabel} WHERE id = $1`, [String(id)]);
+  if (!row) throw new Error('Catatan tidak ditemukan — mungkin sudah dihapus.');
+  if (row[meta.ttdCol]) {
+    throw new Error(`Catatan ini sudah ditandatangani ${meta.subyek} — nama dan akun tujuannya tidak bisa diubah lagi.`);
+  }
+  const setBaru = {};
+  if (patch.managerNama !== undefined) setBaru[meta.namaCol] = String(patch.managerNama || '').trim();
+  if (patch.pjNama !== undefined)      setBaru[meta.namaCol] = String(patch.pjNama || '').trim();
+  if (patch.ttdUntuk !== undefined)    setBaru.ttd_untuk    = String(patch.ttdUntuk || '').trim();
+  const kunci = Object.keys(setBaru);
+  if (!kunci.length) return true;
+  const potongan = kunci.map((k, i) => `${k} = $${i + 1}`).join(', ');
+  await jalankan(`UPDATE ${meta.tabel} SET ${potongan} WHERE id = $${kunci.length + 1}`,
+    [...kunci.map((k) => setBaru[k]), String(id)]);
   return true;
 }
 
@@ -1581,13 +1837,113 @@ export async function removeLtk(id) {
   return true;
 }
 
+/* ============== BAPB — BERITA ACARA PEMASANGAN BARANG ==============
+ * Sepadan dengan versi SQLite: item disimpan sebagai JSON di satu kolom,
+ * kolom per-item dibersihkan sebelum masuk. Tanpa lampiran, tanpa ttd
+ * susulan — dua pihak kedua (Pemakai + Teknik) belum muat di JENIS_TTD
+ * slot-tunggal, itu urusan langkah berikutnya. */
+
+const bapbItemBersih = (it = {}) => ({
+  no: String(it.no ?? '').trim(),
+  namaBarang: String(it.namaBarang ?? '').trim(),
+  ukuran: String(it.ukuran ?? '').trim(),
+  banyaknya: String(it.banyaknya ?? '').trim(),
+  tanggalPemasangan: String(it.tanggalPemasangan ?? '').trim(),
+  keterangan: String(it.keterangan ?? '').trim()
+});
+
+const rowToBapb = (r, extra = {}) => {
+  let items = [];
+  try { items = JSON.parse(r.items_json || '[]'); } catch { items = []; }
+  let petugasList = [];
+  try { petugasList = JSON.parse(r.petugas_nama_list || '[]'); } catch { petugasList = []; }
+  return {
+    ID: r.id, Unit: r.unit,
+    Nomor: r.nomor, Tanggal: r.tanggal,
+    UntukPekerjaan: r.untuk_pekerjaan, Lokasi: r.lokasi,
+    Items: Array.isArray(items) ? items : [],
+    PemakaiNama: r.pemakai_nama, PemakaiTTD: r.pemakai_ttd,
+    TeknikNama: r.teknik_nama, TeknikTTD: r.teknik_ttd,
+    PetugasNama: r.petugas_nama,
+    PetugasNamaList: Array.isArray(petugasList) ? petugasList : [],
+    PetugasTTD: r.petugas_ttd,
+    DiinputOleh: extra.diinputOleh ?? (r.dibuat_oleh || ''),
+    DibuatPada: r.dibuat_pada || ''
+  };
+};
+
+export async function listBapb(unit = 'radkom', limit = 200) {
+  const rows = await q(
+    'SELECT * FROM bapb WHERE unit = $1 ORDER BY tanggal DESC, dibuat_pada DESC LIMIT $2',
+    [unit, limit]
+  );
+  const nama = await petaNamaPengguna();
+  return rows.map((r) => rowToBapb(r, { diinputOleh: namaTampil(nama, r.dibuat_oleh) }));
+}
+
+export async function insertBapb(rec = {}, olehUsername = '', olehNama = '') {
+  const teks = (v) => String(v ?? '').trim();
+  const items = Array.isArray(rec.items) ? rec.items.map(bapbItemBersih) : [];
+
+  const petugasList = Array.isArray(rec.petugasNamaList)
+    ? rec.petugasNamaList.map((n) => teks(n)).filter(Boolean)
+    : (teks(rec.petugasNama) ? [teks(rec.petugasNama)] : []);
+  const petugasRingkas = petugasList.join(', ');
+
+  const row = {
+    id: newId(),
+    unit: unitSah(rec.unit) ? rec.unit : 'radkom',
+    nomor: teks(rec.nomor),
+    tanggal: teks(rec.tanggal) || today(),
+    untuk_pekerjaan: teks(rec.untukPekerjaan),
+    lokasi: teks(rec.lokasi),
+    items_json: JSON.stringify(items),
+    pemakai_nama: teks(rec.pemakaiNama),
+    pemakai_ttd: await saveSignature(rec.pemakaiTtd, 'bapb_pemakai'),
+    teknik_nama: teks(rec.teknikNama),
+    teknik_ttd: await saveSignature(rec.teknikTtd, 'bapb_teknik'),
+    petugas_nama: petugasRingkas,
+    petugas_nama_list: JSON.stringify(petugasList),
+    petugas_ttd: await saveSignature(rec.petugasTtd, 'bapb_petugas'),
+    dibuat_pada: nowIso()
+  };
+  await jalankan(
+    `INSERT INTO bapb (id, unit, nomor, tanggal, untuk_pekerjaan, lokasi, items_json,
+                       pemakai_nama, pemakai_ttd, teknik_nama, teknik_ttd,
+                       petugas_nama, petugas_nama_list, petugas_ttd, dibuat_pada, dibuat_oleh)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
+    [row.id, row.unit, row.nomor, row.tanggal, row.untuk_pekerjaan, row.lokasi, row.items_json,
+     row.pemakai_nama, row.pemakai_ttd, row.teknik_nama, row.teknik_ttd,
+     row.petugas_nama, row.petugas_nama_list, row.petugas_ttd, row.dibuat_pada, olehUsername]
+  );
+  return rowToBapb(row, { diinputOleh: olehNama || olehUsername });
+}
+
+export async function getBapb(id) {
+  const r = await q1('SELECT * FROM bapb WHERE id = $1', [id]);
+  if (!r) return null;
+  const nama = await petaNamaPengguna();
+  return rowToBapb(r, { diinputOleh: namaTampil(nama, r.dibuat_oleh) });
+}
+
+export async function removeBapb(id) {
+  const r = await q1('SELECT pemakai_ttd, teknik_ttd, petugas_ttd FROM bapb WHERE id = $1', [id]);
+  await jalankan('DELETE FROM bapb WHERE id = $1', [id]);
+  if (r) {
+    await hapusBerkas(r.pemakai_ttd);
+    await hapusBerkas(r.teknik_ttd);
+    await hapusBerkas(r.petugas_ttd);
+  }
+  return true;
+}
+
 /* ============== TANDA TANGAN SUSULAN ==============
  * Sama persis aturannya dengan versi SQLite: hanya petak tanda tangan pihak
  * kedua yang boleh disentuh, dan hanya kalau petak itu masih kosong. Nama tabel
  * dan kolom datang dari daftar tetap di bawah, bukan dari klien. */
 
 export const JENIS_TTD = {
-  logbook:    { tabel: 'entries',     nama: 'pj_nama',      ttd: 'pj_ttd',           prefix: 'logbook_pj',         label: 'Penanggung Jawab', tglKolom: 'tanggal' },
+  logbook:    { tabel: 'entries',     nama: 'pj_nama',      ttd: 'pj_ttd',           prefix: 'logbook_pj',         label: 'Manager Teknik',   tglKolom: 'tanggal' },
   dailycheck: { tabel: 'dailychecks', nama: 'manager_nama', ttd: 'manager_ttd',      prefix: 'dailycheck_manager', label: 'Manager Teknik',   tglKolom: 'tanggal' },
   monitoring: { tabel: 'monitoring',  nama: 'personil_ops', ttd: 'personil_ops_ttd', prefix: 'monitoring_ops',     label: 'Personil Operasi', tglKolom: 'tanggal' },
   dstest:     { tabel: 'dstest',      nama: 'manager_nama', ttd: 'manager_ttd',      prefix: 'dstest_manager',     label: 'Manager Teknik',   tglKolom: 'tanggal' },
@@ -1657,7 +2013,7 @@ export async function rekapMentah(unit, dari, sampai) {
                       FROM ltk WHERE unit = $1 AND tanggal_lapor BETWEEN $2 AND $3`),
     issues: await amb(`SELECT id, tanggal_report AS tanggal, status, jenis, keterangan, lokasi,
                               dilaporkan_oleh
-                         FROM issues WHERE unit = $1 AND tanggal_report BETWEEN $2 AND $3`)
+                         FROM issues WHERE unit = $1 AND substr(tanggal_report, 1, 10) BETWEEN $2 AND $3`)
   };
 }
 

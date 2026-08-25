@@ -116,6 +116,28 @@ function notifSaya(){
     });
   });
 
+  /* Tanda tangan yang belum dibubuhkan padahal jamnya sudah lewat. Disaring ke
+     unit yang boleh dibuka akun ini — kalau tidak boleh masuk ke unitnya,
+     mengingatkan bahwa lembarnya menggantung cuma menimbulkan pertanyaan yang
+     tidak bisa dijawab dari sini. */
+  (typeof TTD_TERLAMBAT === 'object' && TTD_TERLAMBAT ? TTD_TERLAMBAT : []).forEach(t=>{
+    if(!bolehBuka(t.unit)) return;
+    const sisiTeks = t.belum.map(s=>s.peran).join(' & ');
+    const namaTeks = t.belum
+      .filter(s=>s.nama).map(s=>`${s.peran}: ${s.nama}`).join(' · ');
+    keluar.push({
+      rupa: 'bahaya',
+      judul: T(`${t.judul} ${t.tgl} belum di-TTD ${sisiTeks}`,
+                `${t.judul} ${t.tgl} unsigned by ${sisiTeks}`),
+      rinci: `${namaUnit(t.unit)}${t.dinas ? ' · ' + T('dinas','shift') + ' ' + t.dinas : ''}${namaTeks ? ' · ' + namaTeks : ''}`,
+      // Diarahkan ke unitnya — layar unit sudah membawa daftar formulir tempat
+      // TTD-nya bisa dibubuhkan. Belum langsung membuka formulirnya (perlu
+      // parameter tambahan di router unit), tapi cukup untuk mengarahkan mata.
+      layar: 'unit', unit: t.unit, sub: 'berkala',
+      urut: -200        // TTD terlambat lebih mendesak daripada berkala hari ini
+    });
+  });
+
   return keluar.sort((a,b)=>a.urut - b.urut);
 }
 

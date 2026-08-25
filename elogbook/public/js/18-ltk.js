@@ -164,7 +164,7 @@ function openLtkDetail(id){
     ${lampiranGaleriHtml(l.lampiran)}
     <div class="detail-ttd">
       <div class="sig-block"><b>${T('teknisiTelekom')}</b>${escapeHtml(l.teknisiNama)||'-'}${sigThumbHtml(l.teknisiTtd)}</div>
-      <div class="sig-block"><b>${T('managerTeknik1')}</b>${escapeHtml(l.managerNama)||'-'}${sigPejabatHtml('ltk', l.id, l.managerTtd, l)}</div>
+      <div class="sig-block"><b>${T('managerTeknik1')}</b>${renderPihakKedua('ltk', l.id, l.managerNama, l.managerTtd)}${sigPejabatHtml('ltk', l.id, l.managerTtd, l)}</div>
     </div>
     <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line);">${diinputOlehHtml(l.diinputOleh, l.dibuatPada, String(l.tanggalLapor||'').slice(0,10))}</div>`;
   document.getElementById('formDetailPrintBtn').onclick = ()=>{ closeFormDetail(); printLtk(id); };
@@ -174,6 +174,7 @@ function openLtkDetail(id){
 function printLtk(id){
   const l = ltkList.find(x=>x.id===id);
   if(!l) return;
+  if(!tolakCetakBilaBelumTtd(l, 'ltk')) return;
   doPrint(`
     <div style="text-align:center;font-weight:bold;font-size:12pt;">LAPORAN TERJADINYA KERUSAKAN DAN KEGIATAN PERBAIKAN</div>
     <div style="text-align:center;font-weight:bold;font-size:11pt;margin-bottom:10px;">FASILITAS TELEKOMUNIKASI PENERBANGAN</div>
@@ -185,13 +186,13 @@ function printLtk(id){
           <div>Mengetahui,</div>
           <div style="margin-bottom:4px;">Manager Teknik 1</div>
           <div style="height:48px;">${ttdImg(l.managerTtd, 42)}</div>
-          <div style="border-top:1px solid #000;display:inline-block;padding:0 24px;">${escapeHtml(l.managerNama)||'&nbsp;'}</div>
+          <div style="border-top:1px solid #000;display:inline-block;padding:0 24px;">${l.managerTtd ? (escapeHtml(l.managerNama)||'&nbsp;') : '&nbsp;'}</div>
         </td>
         <td style="text-align:center;vertical-align:top;">
           <div>${escapeHtml(l.kota)||'Tangerang'}, ${escapeHtml(l.tanggalLapor)}</div>
           <div style="margin-bottom:4px;">Teknisi Telekomunikasi</div>
           <div style="height:48px;">${ttdImg(l.teknisiTtd, 42)}</div>
-          <div style="border-top:1px solid #000;display:inline-block;padding:0 24px;">${escapeHtml(l.teknisiNama)||'&nbsp;'}</div>
+          <div style="border-top:1px solid #000;display:inline-block;padding:0 24px;">${l.teknisiTtd ? (escapeHtml(l.teknisiNama)||'&nbsp;') : '&nbsp;'}</div>
         </td>
       </tr>
     </table>`, 'landscape');

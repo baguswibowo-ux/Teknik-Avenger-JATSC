@@ -1,25 +1,25 @@
-/* E-Logbook · css/10-login-identitas.css — Layar login/daftar, identitas pemakai, pemilih unit, tombol tema & bahasa
+/* E-Logbook · css/10-login-identitas.css — Panel pintu tertutup, identitas pemakai, pemilih unit, tombol tema & bahasa
    Dimuat dari index.html sesuai nomor berkas; urutannya berpengaruh. */
 
-/* ---------- layar login ---------- */
-#loginBg{position:fixed; inset:0; z-index:9000; background:var(--bg);
-         display:none; align-items:center; justify-content:center; padding:20px;}
-#loginBg.show{display:flex;}
-#loginBox, #daftarBox{width:100%; max-width:380px; background:var(--panel); border:1px solid var(--line);
-          border-radius:14px; padding:28px 26px;}
-#loginBox .brand-eyebrow, #daftarBox .brand-eyebrow{margin-bottom:4px;}
-#loginBox h3, #daftarBox h3{margin:0 0 4px; font-size:17px;}
-#loginBox .login-sub, #daftarBox .login-sub{color:var(--muted); font-size:12px; margin-bottom:20px;}
-#loginBox .btn, #daftarBox .btn{width:100%; justify-content:center; margin-top:6px;}
-#loginErr, #daftarErr{display:none; margin-top:12px; font-size:12px; color:var(--fail);}
-#loginErr.show, #daftarErr.show{display:block;}
-#daftarErr.sukses{color:var(--ok);}
-
-.login-alt{margin-top:16px; padding-top:14px; border-top:1px solid var(--line);
-           font-size:12px; color:var(--muted); text-align:center;}
-.login-alt button{background:none; border:none; color:var(--accent); cursor:pointer;
-                  font-family:inherit; font-size:12px; font-weight:600; padding:0 0 0 4px;
-                  text-decoration:underline;}
+/* ---------- pintu tertutup ---------- */
+/* Bukan layar masuk: tidak ada isian di dalamnya, dan tidak ada yang bisa
+   dikirim dari sini. Bentuknya diwarisi dari kartu masuk yang dulu berdiri di
+   tempat ini supaya yang pernah melihatnya tetap mengenali tempatnya. */
+#pintuTutup{position:fixed; inset:0; z-index:9000; background:var(--bg);
+            display:none; align-items:center; justify-content:center; padding:20px;}
+#pintuTutup.show{display:flex;}
+.pintu-kartu{width:100%; max-width:380px; background:var(--panel); border:1px solid var(--line);
+             border-radius:14px; padding:28px 26px; text-align:center;}
+.pintu-kartu .brand-eyebrow{margin-bottom:4px;}
+.pintu-kartu h3{margin:0 0 4px; font-size:17px;}
+.pintu-ket{color:var(--muted); font-size:12px; line-height:1.55; margin-bottom:16px;}
+.pintu-pesan{color:var(--fail); font-size:12px; line-height:1.55; margin-bottom:16px;}
+.pintu-kartu .btn{width:100%; justify-content:center;}
+/* Alamat dashboard baru terpasang sesudah halaman hidup, dan di sebagian
+   pemasangan tidak pernah diketahui sama sekali. Tautan yang dipencet lalu
+   diam lebih buruk daripada tautan yang tidak ada — aturan yang sama dipakai
+   tombol pulang di kepala halaman. */
+.pintu-kartu .btn:not([href^="http"]){display:none;}
 /* Identitas pemakai mentok ke kanan, tombol tema & bahasa di atasnya. */
 .pojok-kanan{margin-left:auto; display:flex; flex-direction:column;
              align-items:flex-end; gap:6px;}
@@ -66,4 +66,4 @@
 .pengaturan-chip a#tautanDashboard:not([href^="http"]){display:none;}
 #tombolTema{font-size:13px;}
 
-@media print{ #loginBg, .user-chip, .pengaturan-chip{display:none !important;} }
+@media print{ #pintuTutup, .user-chip, .pengaturan-chip{display:none !important;} }

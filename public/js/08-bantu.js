@@ -17,6 +17,12 @@ const BULAN = {
   id:['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'],
   en:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 };
+/* Tanggal kosong dijawab '—', bukan 'NaN undefined NaN'. Sebelum ada impor
+   sparepart, tiap kolom tanggal selalu terisi — kartu Tambah/Ubah mengisinya
+   dengan hari ini kalau dikosongkan — jadi jalur ini tidak pernah terlewati.
+   Lembar Excel gudang punya sel tanggal yang memang kosong, dan mengarangnya
+   jadi hari ini akan menuliskan pemakaian yang tidak pernah terjadi. */
 const tglRingkas  = (iso) => { const d=new Date(iso+'T00:00:00');
+  if(isNaN(d)) return '—';
   return d.getDate()+' '+BULAN[BHS][d.getMonth()]+' '+d.getFullYear(); };
 

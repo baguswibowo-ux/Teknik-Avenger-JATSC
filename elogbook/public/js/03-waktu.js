@@ -27,6 +27,16 @@ function sekarang(){ return new Date(Date.now() + selisihWaktuServer); }
 const tanggalHariIni = () => sekarang().toISOString().slice(0,10);
 /** Jam sekarang menurut server, format HH:MM untuk <input type="time">. */
 const jamSekarang = () => sekarang().toISOString().slice(11,16);
+/** Tanggal + jam sekarang, format YYYY-MM-DDTHH:MM untuk <input type="datetime-local">. */
+const waktuIsuSekarang = () => sekarang().toISOString().slice(0,16);
+/** Format tanggal/jam isu untuk tampil baca: "YYYY-MM-DD · HH:MM" kalau ada
+ *  jamnya, atau apa adanya (tanggal saja) untuk catatan lama. Nilai kosong
+ *  dikembalikan apa adanya supaya pemanggilnya bebas menaruh placeholder. */
+const formatWaktuIsu = (v) => {
+  const s = String(v || '').trim();
+  if(!s) return '';
+  return s.includes('T') ? `${s.slice(0,10)} · ${s.slice(11,16)}` : s;
+};
 
 
 

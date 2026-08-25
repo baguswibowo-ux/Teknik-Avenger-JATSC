@@ -117,6 +117,11 @@ function srvPasang(unitSaya, paket, unitSemua){
   TROUBLE = [];
   LOGBOOK = {};
   BUKTI   = {};
+  TTD_TERLAMBAT = [];
+  // Ambang "sudah lewat jamnya" — apa pun yang bertanggal sebelum HARI INI
+  // (UTC) dan salah satu tanda tangannya kosong dianggap terlambat. Dibaca
+  // sekali di awal supaya seluruh unit dibandingkan ke titik yang sama.
+  const CUTOFF = isoHariIni();
   Object.entries(paket).forEach(([kode, d])=>{
     /* Lembar-lembar yang dipakai kegiatan berkala bersumber E-Logbook — lihat
        blok KEGIATAN YANG TANDANYA DATANG DARI E-LOGBOOK. Tanggalnya saja yang
@@ -154,16 +159,72 @@ function srvPasang(unitSaya, paket, unitSemua){
         pic:   i.DilaporkanOleh || i.DiinputOleh || '—'
       });
     });
-    LOGBOOK[kode] = (d.entries || []).slice(0, 6).map(e=>({
-      tgl:     isoTgl(e.Tanggal) || isoTgl(e.DibuatPada) || isoHariIni(),
-      jam:     e.Jam || '—',
-      selesai: e.JamSelesai || '',
-      frek:    e.Frek || '',
-      dinas:   e.Dinas || '—',
-      uraian:  e.Uraian || '—',
-      pj:      e.PJNama || e.TeknisiNama || e.DiinputOleh || '—'
-    }));
+    LOGBOOK[kode] = (d.entries || []).slice(0, 6).map(e=>{
+      // Nama teknisi bisa lebih dari satu (rombongan dinas). Kalau daftarnya
+      // dikirim, dipakai; kalau tidak, jatuh ke satu nama TeknisiNama.
+      const namaTek = Array.isArray(e.TeknisiNamaListJSON) && e.TeknisiNamaListJSON.length
+        ? e.TeknisiNamaListJSON.join(', ')
+        : (e.TeknisiNama || '');
+      return {
+        tgl:     isoTgl(e.Tanggal) || isoTgl(e.DibuatPada) || isoHariIni(),
+        jam:     e.Jam || '—',
+        selesai: e.JamSelesai || '',
+        frek:    e.Frek || '',
+        dinas:   e.Dinas || '—',
+        uraian:  e.Uraian || '—',
+        teknisi: namaTek || e.DiinputOleh || '—',
+        pj:      e.PJNama || '—'
+      };
+    });
+
+    /* Formulir yang jamnya sudah lewat namun TTD-nya belum dibubuhkan. Enam
+       jenis lembar diperiksa dengan aturan yang sama: yang bertanggal sebelum
+       hari ini dan salah satu petak TTD-nya kosong. Nama sisi yang belum
+       ditandatangani ikut disebutkan supaya notif bisa mengarahkan tepat ke
+       petaknya. */
+    const cek = (jenis, judul, arr, ambilTgl, sisi)=>{
+      (arr || []).forEach(r=>{
+        const tgl = ambilTgl(r);
+        if(!tgl || tgl >= CUTOFF) return;
+        const belum = sisi.filter(s=>!s.ttd(r));
+        if(!belum.length) return;
+        TTD_TERLAMBAT.push({
+          jenis, judul, unit: kode, id: r.ID || r.Id || '',
+          tgl, dinas: r.Dinas || '',
+          belum: belum.map(s=>({ peran: s.peran, nama: s.nama(r) || '' }))
+        });
+      });
+    };
+    const tglTanggal = r => isoTgl(r.Tanggal);
+    const tglLapor   = r => isoTgl(r.TanggalLapor) || isoTgl(r.Tanggal);
+    cek('logbook',    'Logbook Fasilitas',    d.entries,    tglTanggal, [
+      { peran:'Teknisi Onduty', nama:r=>r.TeknisiNama, ttd:r=>r.TeknisiTTD },
+      { peran:'Manager Teknik', nama:r=>r.PJNama,      ttd:r=>r.PJTTD }
+    ]);
+    cek('dailycheck', 'Daily Check',          d.dcHistory,  tglTanggal, [
+      { peran:'Teknisi Onduty', nama:r=>r.TeknisiNama, ttd:r=>r.TeknisiTTD },
+      { peran:'Manager Teknik', nama:r=>r.ManagerNama, ttd:r=>r.ManagerTTD }
+    ]);
+    cek('monitoring', 'Monitoring Frekuensi', d.monitoring, tglTanggal, [
+      { peran:'Teknisi Onduty', nama:r=>r.PersonilTeknik, ttd:r=>r.TeknisiTTD },
+      { peran:'Personil Operasi', nama:r=>r.PersonilOps,  ttd:r=>r.PersonilOpsTTD }
+    ]);
+    cek('dstest',     'DS Test',              d.dstest,     tglTanggal, [
+      { peran:'Teknisi Onduty', nama:r=>r.TeknisiNama, ttd:r=>r.TeknisiTTD },
+      { peran:'Manager Teknik', nama:r=>r.ManagerNama, ttd:r=>r.ManagerTTD }
+    ]);
+    cek('berkala',    'Kegiatan Berkala',     d.berkala,    tglTanggal, [
+      { peran:'Teknisi Onduty', nama:r=>r.TeknisiNama, ttd:r=>r.TeknisiTTD },
+      { peran:'Manager Teknik', nama:r=>r.ManagerNama, ttd:r=>r.ManagerTTD }
+    ]);
+    cek('ltk',        'LTK',                  d.ltk,        tglLapor,   [
+      { peran:'Teknisi Onduty', nama:r=>r.TeknisiNama, ttd:r=>r.TeknisiTTD },
+      { peran:'Manager Teknik', nama:r=>r.ManagerNama, ttd:r=>r.ManagerTTD }
+    ]);
   });
+
+  // Yang paling lama menggantung ditaruh di atas — bukan yang terbaru.
+  TTD_TERLAMBAT.sort((a,b)=>a.tgl < b.tgl ? -1 : (a.tgl > b.tgl ? 1 : 0));
 
   const kodeBoleh = unitSaya.map(u=>u.kode);
   akun = {

@@ -167,16 +167,7 @@ function kmMulai(){
   };
   jam(); setInterval(jam, 1000);
 
-  el('kmSesi').addEventListener('click', ()=>kmSetMasuk(true));
-  el('kmPicuMasuk').addEventListener('click', ()=>kmSetMasuk(true));
-  el('kmTutupMasuk').addEventListener('click', ()=>kmSetMasuk(false));
-  /* Esc menutup kartu, tapi hanya selama layar masuk yang di depan — kalau
-     dashboardnya sudah terbuka, Esc di sana bukan urusan layar ini. */
-  document.addEventListener('keydown', e=>{
-    if(e.key === 'Escape' && !el('layarMasuk').classList.contains('pergi')) kmSetMasuk(false);
-  });
-  el('iUser').addEventListener('input', ()=>{ userDiketik = true; kmSegarkanSesi(); });
-  kmSegarkanSesi();
+  el('iUser').addEventListener('input', ()=>{ userDiketik = true; });
 
   // Kalimat pembuka aslinya diambil dari markup, bukan ditulis ulang di JS —
   // satu kalimat di dua tempat pasti berbeda cepat atau lambat.
@@ -188,33 +179,22 @@ function kmMulai(){
   ['dfNama','dfUser','dfPass','dfPass2'].forEach(id=>{
     el(id).addEventListener('keydown', e=>{ if(e.key === 'Enter') daftarKirim(); });
   });
-
-  /* Panggung dijeda begitu layar masuk pergi dan jalan lagi kalau pemakai
-     keluar dari dashboard. MutationObserver, bukan tambalan di masuk() dan
-     tombolKeluar — supaya kedua fungsi itu tidak perlu tahu soal panggung. */
-  const layar = el('layarMasuk');
-  new MutationObserver(()=>{
-    if(!kmPanggung) return;
-    if(layar.classList.contains('pergi')) kmPanggung.jeda();
-    else kmPanggung.jalankan();
-  }).observe(layar, { attributes:true, attributeFilter:['class'] });
-
-  el('kmUlangi').addEventListener('click', ()=>{ if(kmPanggung) kmPanggung.ulangi(); });
-
-  /* three.js datang dari CDN. Kalau dalam 8 detik belum ada, panggungnya
-     dilewatkan — kisi radar di CSS yang tersisa, kartu masuk tetap jalan. */
-  (function tunggu(sisa){
-    if(window.THREE){
-      try{
-        kmPanggung = kmBangunPanggung();
-        kmPanggung.jalankan();
-        el('kmUlangi').hidden = false;   // baru ada gunanya sekarang
-      }
-      catch(e){ console.error('Panggung layar masuk gagal dibangun:', e); }
-      return;
-    }
-    if(sisa <= 0){ console.warn('three.js tidak sampai — panggung 3D dilewatkan.'); return; }
-    setTimeout(()=>tunggu(sisa - 120), 120);
-  })(8000);
 }
+
+/* =======================================================================
+   STUB dari layar masuk 3D yang lama
+
+   kmSetMasuk() dan kmSegarkanSesi() dulu duduk di 06-panggung-3d.js. Layar
+   masuk sekarang tidak lagi menyembunyikan kartu masuk di balik pemandangan
+   3D — kartunya langsung terlihat, jadi kmSetMasuk() cukup memindahkan fokus
+   ke kolom yang tepat. Blok SESI di rel kiri sudah tidak ada, jadi
+   kmSegarkanSesi() tidak menggambar apa pun; ia disisakan agar pemanggilnya
+   di 12-jembatan-elogbook.js dan 11-sesi.js tidak perlu ikut disunting.
+   ======================================================================= */
+function kmSetMasuk(buka){
+  if(!buka) return;
+  (KM_TAB === 'daftar' ? el('dfNama') : el('iUser'))?.focus();
+  srvSegarkanSesi();
+}
+function kmSegarkanSesi(){ /* no-op — tidak ada lagi blok SESI di layar */ }
 

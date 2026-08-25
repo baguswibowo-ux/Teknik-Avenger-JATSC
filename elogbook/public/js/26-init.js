@@ -53,6 +53,8 @@ async function init(){
   catch(e){ document.getElementById('monList').innerHTML = '<div class="empty">Monitoring gagal ditampilkan: '+escapeHtml(String(e.message||e))+'</div>'; }
   try{ ltkList = (data.ltk||[]).map(mapLtk); renderLtkList(); }
   catch(e){ document.getElementById('ltkList').innerHTML = '<div class="empty">LTK gagal ditampilkan: '+escapeHtml(String(e.message||e))+'</div>'; }
+  try{ bapbList = (data.bapb||[]).map(mapBapb); renderBapbList(); }
+  catch(e){ document.getElementById('bapbList').innerHTML = '<div class="empty">BAPB gagal ditampilkan: '+escapeHtml(String(e.message||e))+'</div>'; }
   dsSiteSemua = data.dsSite || dsSiteSemua;
   dsKategoriUrut = (data.kategoriDs && data.kategoriDs.length) ? data.kategoriDs : dsKategoriUrut;
   isiPilihanKategoriDs();
@@ -138,13 +140,10 @@ function bukaTabDariTautan(){
  * AVENGER_TAUTAN dipakai kalau dashboardnya memang tidak di port sebelah —
  * misalnya sudah dipasang di belakang nama domain sendiri.
  */
-function pasangTautanDashboard(){
-  const a = document.getElementById('tautanDashboard');
-  if(!a) return;
-
+function alamatDashboard(){
   const disetel = (typeof window.AVENGER_TAUTAN === 'string' && window.AVENGER_TAUTAN)
     ? window.AVENGER_TAUTAN : '';
-  if(disetel){ a.href = disetel; return; }
+  if(disetel) return disetel;
 
   /* Tanpa AVENGER_TAUTAN, satu-satunya tebakan yang masuk akal adalah port
      sebelah di komputer yang sama. Itu benar di kantor dan PASTI salah di
@@ -152,14 +151,25 @@ function pasangTautanDashboard(){
      lalu menggantung tanpa pesan apa pun, dan pemakai terjebak di sini.
 
      Jadi tebakan itu hanya dipakai kalau halaman ini memang sedang disajikan
-     dari alamat berport atau alamat lokal. Kalau tidak, tombolnya
-     disembunyikan: tidak ada tombol lebih jujur daripada tombol yang dipencet
-     lalu diam. */
+     dari alamat berport atau alamat lokal. Kalau tidak, jawabannya kosong dan
+     yang memanggil memilih menyembunyikan tautannya: tidak ada tombol lebih
+     jujur daripada tombol yang dipencet lalu diam. */
   const lokal = !!location.port
     || location.hostname === 'localhost'
     || /^127\.|^10\.|^192\.168\.|^172\.(1[6-9]|2\d|3[01])\./.test(location.hostname);
 
-  if(lokal){ a.href = `${location.protocol}//${location.hostname}:3100`; return; }
+  return lokal ? `${location.protocol}//${location.hostname}:3100` : '';
+}
+
+/* Dipakai dua tempat, dan itu sebabnya alamatnya dipisah ke fungsi di atas:
+   tombol pulang di kepala halaman (di sini) dan tautan di panel pintu tertutup
+   (js/25-login.js). Satu jawaban untuk satu pertanyaan. */
+function pasangTautanDashboard(){
+  const a = document.getElementById('tautanDashboard');
+  if(!a) return;
+
+  const alamat = alamatDashboard();
+  if(alamat){ a.href = alamat; return; }
 
   a.hidden = true;
   console.warn('[dashboard] AVENGER_TAUTAN belum diisi, jadi tombol pulang disembunyikan '

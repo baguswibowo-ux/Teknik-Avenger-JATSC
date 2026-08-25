@@ -192,6 +192,34 @@ CREATE TABLE IF NOT EXISTS lampiran_ltk (
 );
 CREATE INDEX IF NOT EXISTS idx_lampiran_ltk ON lampiran_ltk(ltk_id);
 
+-- BAPB: Berita Acara Pemasangan Barang. Susunan meta dan tanda tangannya
+-- mengikuti berkas Excel resmi (kop PERUM LPPNPI · KANTOR CABANG GEDUNG 611).
+-- Daftar barang disimpan sebagai JSON di items_json — kolomnya sama dengan
+-- tabel Excel-nya (No, Nama Barang, Ukuran, Banyaknya, Tgl Pemasangan,
+-- Keterangan) tanpa kueri per-item, jadi tidak perlu tabel anak. Tiga panel
+-- tanda tangan: Manager Pemakai, Manager Teknik, Petugas Pemasangan. TTD
+-- susulan (ttd_oleh/ttd_pada/ttd_untuk) belum dipasang: dua slot pihak
+-- kedua tidak muat pada pola satu-slot di JENIS_TTD, itu urusan berikutnya.
+CREATE TABLE IF NOT EXISTS bapb (
+  id               TEXT PRIMARY KEY,
+  unit             TEXT NOT NULL DEFAULT 'radkom',
+  nomor            TEXT NOT NULL DEFAULT '',
+  tanggal          TEXT NOT NULL DEFAULT '',
+  untuk_pekerjaan  TEXT NOT NULL DEFAULT '',
+  lokasi           TEXT NOT NULL DEFAULT '',
+  items_json       TEXT NOT NULL DEFAULT '[]',
+  pemakai_nama       TEXT NOT NULL DEFAULT '',
+  pemakai_ttd        TEXT NOT NULL DEFAULT '',
+  teknik_nama        TEXT NOT NULL DEFAULT '',
+  teknik_ttd         TEXT NOT NULL DEFAULT '',
+  petugas_nama       TEXT NOT NULL DEFAULT '',
+  petugas_nama_list  TEXT NOT NULL DEFAULT '[]',
+  petugas_ttd        TEXT NOT NULL DEFAULT '',
+  dibuat_pada        TEXT NOT NULL,
+  dibuat_oleh        TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_bapb_unit ON bapb(unit, tanggal);
+
 -- DS Test: uji sambungan direct speech ke tiap site, satu lembar per sesi uji.
 CREATE TABLE IF NOT EXISTS dstest (
   id                TEXT PRIMARY KEY,
@@ -249,6 +277,13 @@ tambahKolom('issues', 'tanggal_report', "TEXT NOT NULL DEFAULT ''");
 tambahKolom('issues', 'tanggal_closed', "TEXT NOT NULL DEFAULT ''");
 tambahKolom('issues', 'dibuat_oleh', "TEXT NOT NULL DEFAULT ''");
 tambahKolom('issues', 'dilaporkan_oleh', "TEXT NOT NULL DEFAULT ''");
+/* Siapa yang menutup isu (username), dan keterangan penutupannya. Terpisah dari
+   dilaporkan_oleh — pelapor bisa teknisi lapangan, penutup selalu administrator
+   (peran yang boleh mengubah status). ditutup_oleh tersimpan sebagai username;
+   nama tampilan disusun listIssues/getIssue dari petaNamaPengguna, sama polanya
+   dengan diinputOleh. */
+tambahKolom('issues', 'ditutup_oleh', "TEXT NOT NULL DEFAULT ''");
+tambahKolom('issues', 'keterangan_closed', "TEXT NOT NULL DEFAULT ''");
 
 /* ---------- Unit logbook ----------
  * Seluruh data yang sudah ada berasal dari Radtel, jadi kolom baru ini
@@ -302,6 +337,10 @@ tambahKolom('dstest', 'manager_ttd', "TEXT NOT NULL DEFAULT ''");
    yang tidak bisa diurutkan langsung — lihat tanggal-lama.js. Kolom ini
    menyimpan bentuk ISO-nya, khusus untuk ORDER BY riwayat. */
 tambahKolom('dailychecks', 'tanggal_urut', "TEXT NOT NULL DEFAULT ''");
+
+// BAPB: daftar nama teknisi pelaksana (JSON), disusulkan supaya tabel yang
+// sudah terlanjur dibuat tanpa kolom ini ikut mendapat kolomnya.
+tambahKolom('bapb', 'petugas_nama_list', "TEXT NOT NULL DEFAULT '[]'");
 
 db.exec("CREATE INDEX IF NOT EXISTS idx_entries_unit ON entries(unit, tanggal)");
 
@@ -432,7 +471,7 @@ export const UNIT = [
     pakaiJamSelesai: true,
     pakaiFrek: false,
     labelUraian: 'Uraian Pekerjaan / Kejadian',
-    labelPj: 'Penanggung Jawab',
+    labelPj: 'Manager Teknik',
     adaDailyCheck: true,
     dcJudul: 'Daily Check VCS Garex 300 — Unit Radtel',
     adaMonitoring: false,
@@ -479,7 +518,7 @@ export const UNIT = [
     pakaiJamSelesai: true,
     pakaiFrek: false,
     labelUraian: 'Uraian Pekerjaan / Kejadian',
-    labelPj: 'Penanggung Jawab',
+    labelPj: 'Manager Teknik',
     // Formulir khusus unit ini menunggu form aslinya. Sampai itu ada, yang
     // tersedia baru Logbook Fasilitas, Isu, dan LTK yang memang berlaku umum.
     adaDailyCheck: false,
@@ -502,7 +541,7 @@ export const UNIT = [
     pakaiJamSelesai: true,
     pakaiFrek: false,
     labelUraian: 'Uraian Pekerjaan / Kejadian',
-    labelPj: 'Penanggung Jawab',
+    labelPj: 'Manager Teknik',
     // Formulir khusus unit ini menunggu form aslinya. Sampai itu ada, yang
     // tersedia baru Logbook Fasilitas, Isu, dan LTK yang memang berlaku umum.
     adaDailyCheck: false,
@@ -527,7 +566,7 @@ export const UNIT = [
     pakaiJamSelesai: true,
     pakaiFrek: false,
     labelUraian: 'Uraian Pekerjaan / Kejadian',
-    labelPj: 'Penanggung Jawab',
+    labelPj: 'Manager Teknik',
     // Formulir khusus unit ini menunggu form aslinya. Sampai itu ada, yang
     // tersedia baru Logbook Fasilitas, Isu, dan LTK yang memang berlaku umum.
     adaDailyCheck: false,
@@ -550,7 +589,7 @@ export const UNIT = [
     pakaiJamSelesai: true,
     pakaiFrek: false,
     labelUraian: 'Uraian Pekerjaan / Kejadian',
-    labelPj: 'Penanggung Jawab',
+    labelPj: 'Manager Teknik',
     // Formulir khusus unit ini menunggu form aslinya. Sampai itu ada, yang
     // tersedia baru Logbook Fasilitas, Isu, dan LTK yang memang berlaku umum.
     adaDailyCheck: false,
@@ -575,7 +614,7 @@ export const UNIT = [
     pakaiJamSelesai: true,
     pakaiFrek: false,
     labelUraian: 'Uraian Pekerjaan / Kejadian',
-    labelPj: 'Penanggung Jawab',
+    labelPj: 'Manager Teknik',
     // Formulir khusus unit ini menunggu form aslinya. Sampai itu ada, yang
     // tersedia baru Logbook Fasilitas, Isu, dan LTK yang memang berlaku umum.
     adaDailyCheck: false,
@@ -598,7 +637,7 @@ export const UNIT = [
     pakaiJamSelesai: true,
     pakaiFrek: false,
     labelUraian: 'Uraian Pekerjaan / Kejadian',
-    labelPj: 'Penanggung Jawab',
+    labelPj: 'Manager Teknik',
     // Formulir khusus unit ini menunggu form aslinya. Sampai itu ada, yang
     // tersedia baru Logbook Fasilitas, Isu, dan LTK yang memang berlaku umum.
     adaDailyCheck: false,
@@ -675,6 +714,67 @@ export function setNama(username, nama) {
   const r = db.prepare('UPDATE users SET nama = ? WHERE username = ?')
     .run(String(nama).trim(), String(username).trim());
   return r.changes > 0;
+}
+
+/**
+ * Ganti username akun. Username dulu tidak bisa diubah karena setiap kolom yang
+ * menyimpannya harus ikut berpindah — dibuat_oleh/ttd_oleh/ttd_untuk/ditutup_oleh
+ * di seluruh tabel catatan. Sekarang perpindahannya dijalankan dalam satu
+ * transaksi supaya tidak pernah ada keadaan setengah: username lama sudah lenyap
+ * tapi catatan lama masih memilikinya.
+ *
+ * Sesi tetap hidup — kolom sessions merujuk user_id, bukan username. Hak petugas
+ * di dashboard (dinas-petugas.json di server dashboard, TERPISAH dari database
+ * ini) tidak ikut terupdate; admin perlu menetapkan ulang penugasannya di sana
+ * setelah username diubah.
+ */
+export function setUsername(oldUsername, newUsername) {
+  const lama = String(oldUsername || '').trim();
+  const baru = String(newUsername || '').trim().toLowerCase();
+  if (lama === baru) return false;
+  if (!/^[a-z0-9._-]{3,32}$/.test(baru)) {
+    throw new Error('Username baru 3–32 karakter: huruf kecil, angka, titik, garis bawah, atau strip.');
+  }
+  const target = getUserByUsername(lama);
+  if (!target) throw new Error(`Pengguna "${lama}" tidak ditemukan.`);
+  const bentrok = getUserByUsername(baru);
+  if (bentrok && bentrok.id !== target.id) {
+    throw new Error(`Username "${baru}" sudah dipakai akun lain.`);
+  }
+
+  const TABEL_TEKS_USERNAME = [
+    ['entries',     ['dibuat_oleh', 'ttd_oleh', 'ttd_untuk']],
+    ['dailychecks', ['dibuat_oleh', 'ttd_oleh', 'ttd_untuk']],
+    ['issues',      ['dibuat_oleh', 'ditutup_oleh']],
+    ['monitoring',  ['dibuat_oleh', 'ttd_oleh', 'ttd_untuk']],
+    ['dstest',      ['dibuat_oleh', 'ttd_oleh', 'ttd_untuk']],
+    ['ltk',         ['dibuat_oleh', 'ttd_oleh', 'ttd_untuk']],
+    ['berkala',     ['dibuat_oleh', 'ttd_oleh', 'ttd_untuk']],
+    ['bapb',        ['dibuat_oleh']]
+  ];
+  const setUname = db.prepare('UPDATE users SET username = ? WHERE id = ?');
+  db.exec('BEGIN');
+  try {
+    setUname.run(baru, target.id);
+    for (const [tabel, kolom] of TABEL_TEKS_USERNAME) {
+      // Tabel yang mungkin belum ada di skema lama (BAPB dipasang belakangan) —
+      // lewati saja kalau memang bukan bagian dari basis data ini.
+      const ada = db.prepare(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name = ?"
+      ).get(tabel);
+      if (!ada) continue;
+      for (const k of kolom) {
+        try {
+          db.prepare(`UPDATE ${tabel} SET ${k} = ? WHERE ${k} = ?`).run(baru, lama);
+        } catch { /* kolomnya mungkin belum lahir di skema lama — abaikan */ }
+      }
+    }
+    db.exec('COMMIT');
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
+  }
+  return true;
 }
 
 /**
@@ -906,6 +1006,32 @@ function hapusBerkasLampiran(entryId) {
   for (const l of rows) removeSignatureFile(l.path);
 }
 
+/**
+ * Tambah dan buang lampiran catatan yang sudah tersimpan — dipakai updateEntry.
+ * Hak aksesnya sudah diperiksa di sana; di sini tinggal jatah dan kepemilikan
+ * barisnya.
+ *
+ * Berkas baru ditulis lebih dulu, baru yang lama dibuang: kalau ada berkas baru
+ * yang ditolak, tidak ada bukti lama yang sudah terlanjur hilang.
+ */
+function suntingLampiranEntry(entryId, tambah, buang) {
+  const daftarTambah = Array.isArray(tambah) ? tambah : [];
+  const idBuang = (Array.isArray(buang) ? buang : []).map(String);
+  if (daftarTambah.length === 0 && idBuang.length === 0) return;
+
+  const milik = db.prepare('SELECT id, path FROM lampiran WHERE entry_id = ?').all(entryId);
+  const dibuang = milik.filter((l) => idBuang.includes(String(l.id)));
+  const sisa = milik.length - dibuang.length;
+  if (sisa + daftarTambah.length > LAMPIRAN_MAKS_JUMLAH) {
+    throw new Error(`Maksimal ${LAMPIRAN_MAKS_JUMLAH} lampiran per catatan. Sekarang sudah ada ${sisa}.`);
+  }
+
+  simpanLampiran(entryId, daftarTambah);
+
+  const del = db.prepare('DELETE FROM lampiran WHERE id = ? AND entry_id = ?');
+  for (const l of dibuang) { del.run(l.id, entryId); removeSignatureFile(l.path); }
+}
+
 /* ---------- Lampiran isu (fase open / closed) ---------- */
 
 export const FASE_ISU = ['open', 'closed'];
@@ -1112,9 +1238,49 @@ export function removeEntry(id) {
  * tanggal, jam, atau uraian baru ketahuan belakangan, dan sebelum ini
  * satu-satunya jalan memperbaikinya adalah menghapus lalu mengetik ulang.
  *
- * Sengaja TIDAK menyentuh nama teknisi, tanda tangan, atau lampiran — itu
- * bukti kerja yang sudah dibubuhkan, bukan metadata yang boleh ditimpa diam-diam.
+ * Sengaja TIDAK menyentuh nama teknisi maupun tanda tangan — itu bukti kerja
+ * yang sudah dibubuhkan, bukan metadata yang boleh ditimpa diam-diam.
+ *
+ * Lampiran ikut bisa disunting, karena hasil scan sering baru dipegang setelah
+ * catatannya tersimpan. Pagarnya sama persis dengan pagar uraian di atas:
+ * selama belum ditandatangani penanggung jawab, dan hanya oleh pembuatnya
+ * (atau admin). Setelah ditandatangani, berkasnya terkunci bersama isinya.
+ *
+ * TTD TEKNISI YANG TERLUPA boleh dibubuhkan susulan dari sini, dan aturannya
+ * sama persis dengan tandaTanganiCatatan:
+ *
+ *   Petak yang sudah terisi TIDAK pernah ditimpa. Mengganti tanda tangan yang
+ *   sudah ada bukan melengkapi — itu menghapus paraf yang sudah dibubuhkan.
+ *
+ *   Yang boleh membubuhkan hanya pembuat catatannya sendiri, admin sekalipun
+ *   tidak. Menyunting kalimat orang lain adalah membetulkan; membubuhkan tanda
+ *   tangan orang lain adalah menandatangani atas namanya.
  */
+/**
+ * Boleh tidaknya sebuah TTD teknisi susulan dibubuhkan — dan kalau boleh,
+ * gambar yang akan disimpan. Kosong berarti memang tidak ada yang dibubuhkan.
+ *
+ * Tidak menyentuh database sama sekali, supaya versi SQLite dan Postgres bisa
+ * memegang aturan yang persis sama.
+ */
+function periksaTtdSusulan(row, ttdBaru, actor = {}) {
+  if (!ttdBaru) return '';
+  if (row.teknisi_ttd) {
+    throw new Error('Catatan ini sudah bertanda tangan teknisi — yang sudah dibubuhkan tidak diganti dari sini.');
+  }
+  if (!row.dibuat_oleh || row.dibuat_oleh !== actor.username) {
+    throw new Error('Hanya pembuat catatan ini yang bisa membubuhkan TTD teknisinya.');
+  }
+  /* Harus gambar, bukan path. saveSignature meneruskan apa adanya yang bukan
+     dataURL — itu memang dibutuhkan pengimpor lembar lama — dan klien yang
+     mengirim balik '/uploads/ttd_akun_....png' akan membuat catatan ini memakai
+     berkas TTD tersimpan milik akun. Menghapus catatannya kelak ikut
+     melenyapkan tanda tangan orang itu dari seluruh catatan lain. */
+  const teks = String(ttdBaru);
+  if (!teks.startsWith('data:image/')) throw new Error('Tanda tangannya tidak berbentuk gambar.');
+  return teks;
+}
+
 export function updateEntry(id, patch = {}, actor = {}) {
   const row = db.prepare('SELECT * FROM entries WHERE id = ?').get(String(id));
   if (!row) throw new Error('Catatan tidak ditemukan — mungkin sudah dihapus.');
@@ -1128,6 +1294,9 @@ export function updateEntry(id, patch = {}, actor = {}) {
   const uraian = patch.uraian !== undefined ? String(patch.uraian || '').trim() : row.uraian;
   if (!uraian) throw new Error('Uraian pekerjaan tidak boleh kosong.');
 
+  // Diperiksa sebelum apa pun ditulis — lihat catatan TTD di atas.
+  const bubuhTtd = periksaTtdSusulan(row, patch.teknisiTtd, actor);
+
   const next = {
     tanggal: patch.tanggal !== undefined ? String(patch.tanggal || '') : row.tanggal,
     jam: patch.jam !== undefined ? String(patch.jam || '') : row.jam,
@@ -1138,9 +1307,20 @@ export function updateEntry(id, patch = {}, actor = {}) {
     uraian
   };
 
-  db.prepare(`UPDATE entries SET tanggal = ?, jam = ?, jam_selesai = ?, frek = ?, dinas = ?, lokasi = ?, uraian = ?
+  // Lampiran lebih dulu: kalau jatahnya penuh atau berkasnya ditolak, suntingan
+  // teksnya ikut batal — tidak ada catatan yang diam-diam berubah sementara
+  // klien menerima pesan gagal.
+  suntingLampiranEntry(String(id), patch.lampiranBaru, patch.lampiranHapus);
+
+  // Berkas TTD ditulis paling akhir sebelum barisnya disimpan: kalau lampiran
+  // di atas ditolak, tidak ada berkas tanda tangan yatim yang tertinggal.
+  next.teknisi_ttd = bubuhTtd ? saveSignature(bubuhTtd, 'logbook_teknisi') : row.teknisi_ttd;
+
+  db.prepare(`UPDATE entries SET tanggal = ?, jam = ?, jam_selesai = ?, frek = ?, dinas = ?, lokasi = ?, uraian = ?,
+                                 teknisi_ttd = ?
               WHERE id = ?`)
-    .run(next.tanggal, next.jam, next.jam_selesai, next.frek, next.dinas, next.lokasi, next.uraian, String(id));
+    .run(next.tanggal, next.jam, next.jam_selesai, next.frek, next.dinas, next.lokasi, next.uraian,
+         next.teknisi_ttd, String(id));
 
   const nama = petaNamaPengguna();
   const lampiran = lampiranUntuk([String(id)]).get(String(id)) || [];
@@ -1240,10 +1420,18 @@ export function removeDailyCheck(id) {
 }
 
 /**
- * Ubah tanggal daily check yang sudah tersimpan — pemilih tanggal saat mengisi
- * bisa salah pencet, dan checklist-nya sendiri terlalu panjang untuk dibuat
- * ulang hanya karena itu. tanggal_urut ikut disegarkan supaya riwayatnya tetap
- * terurut benar (lihat tanggal-lama.js).
+ * Ubah daily check yang sudah tersimpan.
+ *
+ * Manager teknik yang sudah bertanda tangan MENGUNCI catatan — tidak lagi bisa
+ * disunting oleh siapa pun. Sebelum itu, seluruh bagian teknisi boleh diubah:
+ * tanggal, dinas, suhu, remark, seluruh sel checklist, nama-nama teknisi, dan
+ * tanda tangan teknisi (yang lama dihapus dari penyimpanan supaya tidak
+ * tertinggal sebagai berkas anak yatim). Nama manager teknik boleh disunting
+ * teknisinya (kolom pengetikan biasa), tapi tanda tangannya tidak — itu ranah
+ * pejabat lewat pintu tanda-tangan-susulan.
+ *
+ * tanggal_urut ikut disegarkan supaya riwayatnya tetap terurut benar
+ * (lihat tanggal-lama.js).
  */
 export function updateDailyCheck(id, patch = {}, actor = {}) {
   const row = db.prepare('SELECT * FROM dailychecks WHERE id = ?').get(String(id));
@@ -1257,11 +1445,46 @@ export function updateDailyCheck(id, patch = {}, actor = {}) {
   if (!tanggal) throw new Error('Tanggal tidak boleh kosong.');
   const tanggal_urut = String(patch.tanggalIso || '').trim() || isoDariTanggalPanjang(tanggal) || row.tanggal_urut;
 
-  db.prepare('UPDATE dailychecks SET tanggal = ?, tanggal_urut = ? WHERE id = ?')
-    .run(tanggal, tanggal_urut, String(id));
+  const dinas    = patch.dinas    !== undefined ? String(patch.dinas || '') : row.dinas;
+  const suhu     = patch.suhu     !== undefined ? String(patch.suhu || '')  : row.suhu;
+  const remark   = patch.remark   !== undefined ? String(patch.remark || ''): row.remark;
+  const managerNama = patch.managerNama !== undefined ? String(patch.managerNama || '') : row.manager_nama;
+
+  const teknisiNamaList = Array.isArray(patch.teknisiNamaList) ? patch.teknisiNamaList : null;
+  const teknisiNama = patch.teknisiNama !== undefined
+    ? String(patch.teknisiNama || '')
+    : (teknisiNamaList ? teknisiNamaList.join(', ') : row.teknisi_nama);
+  const teknisi_nama_list = teknisiNamaList ? JSON.stringify(teknisiNamaList) : row.teknisi_nama_list;
+
+  // TTD teknisi: kalau kirimannya URL data baru, disimpan sebagai berkas dan
+  // yang lama dihapus. Kalau kosong / null / undefined, TTD tidak diubah —
+  // supaya "tidak menyunting TTD" bukan berarti "menghapus TTD".
+  let teknisi_ttd = row.teknisi_ttd;
+  if (patch.teknisiTtd !== undefined && patch.teknisiTtd !== null && String(patch.teknisiTtd).startsWith('data:')) {
+    if (row.teknisi_ttd) removeSignatureFile(row.teknisi_ttd);
+    teknisi_ttd = saveSignature(patch.teknisiTtd, 'dailycheck_teknisi');
+  }
+
+  const state_json = patch.state !== undefined ? JSON.stringify(patch.state || {}) : row.state_json;
+  const fails_json = Array.isArray(patch.fails) ? JSON.stringify(patch.fails) : row.fails_json;
+  const warns_json = Array.isArray(patch.warns) ? JSON.stringify(patch.warns) : row.warns_json;
+
+  db.prepare(`UPDATE dailychecks SET tanggal = ?, tanggal_urut = ?, dinas = ?, suhu = ?, remark = ?,
+                                    teknisi_nama = ?, teknisi_nama_list = ?, teknisi_ttd = ?,
+                                    manager_nama = ?,
+                                    state_json = ?, fails_json = ?, warns_json = ?
+                              WHERE id = ?`)
+    .run(tanggal, tanggal_urut, dinas, suhu, remark,
+         teknisiNama, teknisi_nama_list, teknisi_ttd,
+         managerNama,
+         state_json, fails_json, warns_json, String(id));
 
   const nama = petaNamaPengguna();
-  return rowToDcRingkas({ ...row, tanggal, tanggal_urut }, {
+  const rowBaru = { ...row, tanggal, tanggal_urut, dinas, suhu, remark,
+                    teknisi_nama: teknisiNama, teknisi_nama_list, teknisi_ttd,
+                    manager_nama: managerNama,
+                    state_json, fails_json, warns_json };
+  return rowToDcRingkas(rowBaru, {
     diinputOleh: namaTampil(nama, row.dibuat_oleh),
     ttdOleh: namaTampil(nama, row.ttd_oleh)
   });
@@ -1274,6 +1497,8 @@ const rowToIssue = (r, extra = {}) => ({
   TanggalReport: r.tanggal_report || '', TanggalClosed: r.tanggal_closed || '',
   DilaporkanOleh: r.dilaporkan_oleh || '',
   DiinputOleh: extra.diinputOleh ?? (r.dibuat_oleh || ''),
+  DitutupOleh: extra.ditutupOleh ?? (r.ditutup_oleh || ''),
+  KeteranganClosed: r.keterangan_closed || '',
   DibuatPada: r.dibuat_pada || '',
   LampiranOpen: extra.lampiranOpen || [],
   LampiranClosed: extra.lampiranClosed || []
@@ -1287,6 +1512,7 @@ export function listIssues(unit = 'radtel') {
     const kotak = lamp.get(r.id) || { open: [], closed: [] };
     return rowToIssue(r, {
       diinputOleh: namaTampil(nama, r.dibuat_oleh),
+      ditutupOleh: namaTampil(nama, r.ditutup_oleh),
       lampiranOpen: kotak.open,
       lampiranClosed: kotak.closed
     });
@@ -1298,8 +1524,10 @@ export function getIssue(id) {
   const r = getIssueRow(id);
   if (!r) return null;
   const kotak = lampiranIsuUntuk([id]).get(id) || { open: [], closed: [] };
+  const nama = petaNamaPengguna();
   return rowToIssue(r, {
-    diinputOleh: namaTampil(petaNamaPengguna(), r.dibuat_oleh),
+    diinputOleh: namaTampil(nama, r.dibuat_oleh),
+    ditutupOleh: namaTampil(nama, r.ditutup_oleh),
     lampiranOpen: kotak.open,
     lampiranClosed: kotak.closed
   });
@@ -1323,37 +1551,55 @@ export function insertIssue(isu = {}, olehUsername = '', olehNama = '') {
     keterangan: String(isu.keterangan || '').trim(),
     lokasi: String(isu.lokasi || '').trim(),
     status,
-    tanggal_report: String(isu.tanggalReport || '').trim() || today(),
-    tanggal_closed: status === 'Closed' ? today() : '',
+    // Sejak isu punya jam (bukan hanya tanggal), nilai bawaannya memakai
+    // waktu sekarang lengkap YYYY-MM-DDTHH:MM. Klien pengirim yang lama
+    // (hanya tanggal) tetap dihormati apa adanya — datanya tidak diubah.
+    tanggal_report: String(isu.tanggalReport || '').trim() || nowIso().slice(0, 16),
+    tanggal_closed: status === 'Closed' ? nowIso().slice(0, 16) : '',
+    // Kalau admin membuat isunya langsung dalam status Closed, dialah penutupnya.
+    // Untuk isu yang lahir Open lalu ditutup belakangan, ditutup_oleh diisi oleh
+    // updateIssue saat statusnya berubah.
+    ditutup_oleh: status === 'Closed' ? String(olehUsername || '') : '',
+    keterangan_closed: String(isu.keteranganClosed || '').trim(),
     // Pelapor diketik sendiri: yang menemukan gangguan sering bukan orang yang
     // mengetikkannya ke sistem. Kalau dikosongkan, dipakai nama penginputnya.
     dilaporkan_oleh: String(isu.dilaporkanOleh || '').trim() || olehNama || olehUsername,
     dibuat_pada: nowIso()
   };
   db.prepare(`INSERT INTO issues (id, unit, jenis, keterangan, lokasi, status, tanggal_report, tanggal_closed,
-                                  dilaporkan_oleh, dibuat_pada, dibuat_oleh)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+                                  ditutup_oleh, keterangan_closed, dilaporkan_oleh, dibuat_pada, dibuat_oleh)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
     .run(row.id, row.unit, row.jenis, row.keterangan, row.lokasi, row.status,
-         row.tanggal_report, row.tanggal_closed, row.dilaporkan_oleh, row.dibuat_pada, olehUsername);
+         row.tanggal_report, row.tanggal_closed, row.ditutup_oleh, row.keterangan_closed,
+         row.dilaporkan_oleh, row.dibuat_pada, olehUsername);
 
   const lampiranOpen = tambahLampiranIsu(id, 'open', isu.lampiranOpen);
   const lampiranClosed = status === 'Closed' ? tambahLampiranIsu(id, 'closed', isu.lampiranClosed) : [];
 
-  return rowToIssue(row, { diinputOleh: olehNama || olehUsername, lampiranOpen, lampiranClosed });
+  return rowToIssue(row, {
+    diinputOleh: olehNama || olehUsername,
+    ditutupOleh: status === 'Closed' ? (olehNama || olehUsername) : '',
+    lampiranOpen, lampiranClosed
+  });
 }
 
 /** Nama kolom dibatasi daftar putih — nilai dari klien tidak boleh masuk ke SQL. */
 const ISSUE_FIELDS = {
   Jenis: 'jenis', Keterangan: 'keterangan', Lokasi: 'lokasi', Status: 'status',
   TanggalReport: 'tanggal_report', TanggalClosed: 'tanggal_closed',
-  DilaporkanOleh: 'dilaporkan_oleh'
+  DilaporkanOleh: 'dilaporkan_oleh',
+  KeteranganClosed: 'keterangan_closed'
 };
 
 /**
  * Ubah satu kolom isu. Mengembalikan isu versi terbaru (atau null kalau gagal),
  * karena mengubah Status ikut menggeser tanggal closed-nya.
+ *
+ * `closerUsername` dicatat sebagai ditutup_oleh saat status berubah ke 'Closed'
+ * — dan dikosongkan lagi saat isunya dibuka kembali. Kalau isunya sudah pernah
+ * ditutup dan cuma disunting lagi, penutupnya yang lama dipertahankan.
  */
-export function updateIssue(id, headerField, value) {
+export function updateIssue(id, headerField, value, closerUsername = '') {
   const col = ISSUE_FIELDS[headerField];
   if (!col) return null;
   const sebelum = getIssueRow(id);
@@ -1363,17 +1609,64 @@ export function updateIssue(id, headerField, value) {
 
   // Tanggal closed mengikuti status: terisi sendiri saat isu ditutup, dan
   // dikosongkan lagi kalau isunya dibuka kembali. Tanggal yang sudah diisi
-  // manual tidak ditimpa.
+  // manual tidak ditimpa. Penutupnya (username) ikut pola yang sama.
   if (col === 'status') {
     const status = String(value ?? '');
-    if (status === 'Closed' && !sebelum.tanggal_closed) {
-      db.prepare('UPDATE issues SET tanggal_closed = ? WHERE id = ?').run(today(), id);
-    } else if (status !== 'Closed' && sebelum.tanggal_closed) {
-      db.prepare("UPDATE issues SET tanggal_closed = '' WHERE id = ?").run(id);
+    if (status === 'Closed') {
+      if (!sebelum.tanggal_closed) {
+        db.prepare('UPDATE issues SET tanggal_closed = ? WHERE id = ?').run(nowIso().slice(0, 16), id);
+      }
+      if (!sebelum.ditutup_oleh && closerUsername) {
+        db.prepare('UPDATE issues SET ditutup_oleh = ? WHERE id = ?').run(String(closerUsername), id);
+      }
+    } else if (status !== 'Closed') {
+      if (sebelum.tanggal_closed) {
+        db.prepare("UPDATE issues SET tanggal_closed = '' WHERE id = ?").run(id);
+      }
+      if (sebelum.ditutup_oleh) {
+        db.prepare("UPDATE issues SET ditutup_oleh = '' WHERE id = ?").run(id);
+      }
     }
   }
 
   return getIssue(id);
+}
+
+/* ============== RUTE TTD (Nama pihak-kedua + akun tujuan) ==============
+ *
+ * Cerminan Postgres di db-pg.js. Nama Manager Teknik/PJ dan akun tujuan TTD
+ * (ttd_untuk) bisa diedit selama pihak keduanya BELUM membubuhkan tanda tangan;
+ * setelah tercetak, rute-nya beku — mengganti nama di bawah TTD yang sudah ada
+ * sama dengan memalsu arsip. Berlaku untuk kelima form yang punya slot pihak
+ * kedua: entry (logbook), daily check, LTK, berkala, DS test.
+ */
+const RUTE_TTD_META = {
+  entry:   { tabel: 'entries',     ttdCol: 'pj_ttd',      namaCol: 'pj_nama',      subyek: 'penanggung jawab' },
+  dc:      { tabel: 'dailychecks', ttdCol: 'manager_ttd', namaCol: 'manager_nama', subyek: 'manager teknik' },
+  ltk:     { tabel: 'ltk',         ttdCol: 'manager_ttd', namaCol: 'manager_nama', subyek: 'manager teknik' },
+  berkala: { tabel: 'berkala',     ttdCol: 'manager_ttd', namaCol: 'manager_nama', subyek: 'manager teknik' },
+  dstest:  { tabel: 'dstest',      ttdCol: 'manager_ttd', namaCol: 'manager_nama', subyek: 'manager teknik' }
+};
+
+export function updateTtdRouting(kind, id, patch = {}) {
+  const meta = RUTE_TTD_META[String(kind || '').toLowerCase()];
+  if (!meta) throw new Error(`Jenis catatan tidak dikenal: ${kind}`);
+  const row = db.prepare(`SELECT ${meta.ttdCol} AS ttd, ${meta.namaCol} AS nama, ttd_untuk FROM ${meta.tabel} WHERE id = ?`)
+                .get(String(id));
+  if (!row) throw new Error('Catatan tidak ditemukan — mungkin sudah dihapus.');
+  if (row.ttd) {
+    throw new Error(`Catatan ini sudah ditandatangani ${meta.subyek} — nama dan akun tujuannya tidak bisa diubah lagi.`);
+  }
+  const setBaru = {};
+  if (patch.managerNama !== undefined) setBaru[meta.namaCol] = String(patch.managerNama || '').trim();
+  if (patch.pjNama !== undefined)      setBaru[meta.namaCol] = String(patch.pjNama || '').trim();
+  if (patch.ttdUntuk !== undefined)    setBaru.ttd_untuk    = String(patch.ttdUntuk || '').trim();
+  const kunci = Object.keys(setBaru);
+  if (!kunci.length) return true;
+  const potongan = kunci.map((k) => `${k} = ?`).join(', ');
+  db.prepare(`UPDATE ${meta.tabel} SET ${potongan} WHERE id = ?`)
+    .run(...kunci.map((k) => setBaru[k]), String(id));
+  return true;
 }
 
 /* ============== FORM MONITORING FREKUENSI ============== */
@@ -1678,6 +1971,108 @@ export function removeLtk(id) {
   return true;
 }
 
+/* ============== BAPB — BERITA ACARA PEMASANGAN BARANG ==============
+ * Daftar barangnya dibaca-tulis utuh sebagai satu larik JSON. Setiap baris
+ * dilongarkan sebelum simpan — kolom yang tidak dikenal dibuang, angka
+ * dipaksa ke bentuk teks — supaya bentuk yang dikirim klien tidak menyusup
+ * ke database apa adanya. */
+
+const bapbItemBersih = (it = {}) => ({
+  no: String(it.no ?? '').trim(),
+  namaBarang: String(it.namaBarang ?? '').trim(),
+  ukuran: String(it.ukuran ?? '').trim(),
+  banyaknya: String(it.banyaknya ?? '').trim(),
+  tanggalPemasangan: String(it.tanggalPemasangan ?? '').trim(),
+  keterangan: String(it.keterangan ?? '').trim()
+});
+
+const rowToBapb = (r, extra = {}) => {
+  let items = [];
+  try { items = JSON.parse(r.items_json || '[]'); } catch { items = []; }
+  let petugasList = [];
+  try { petugasList = JSON.parse(r.petugas_nama_list || '[]'); } catch { petugasList = []; }
+  return {
+    ID: r.id, Unit: r.unit,
+    Nomor: r.nomor, Tanggal: r.tanggal,
+    UntukPekerjaan: r.untuk_pekerjaan, Lokasi: r.lokasi,
+    Items: Array.isArray(items) ? items : [],
+    PemakaiNama: r.pemakai_nama, PemakaiTTD: r.pemakai_ttd,
+    TeknikNama: r.teknik_nama, TeknikTTD: r.teknik_ttd,
+    // Nama teknisi pelaksana sekarang bisa jamak. Kolom lama `petugas_nama`
+    // tetap terisi versi rangkumannya (dipisah koma) supaya rekap/pencarian
+    // yang masih memanggilnya tidak putus.
+    PetugasNama: r.petugas_nama,
+    PetugasNamaList: Array.isArray(petugasList) ? petugasList : [],
+    PetugasTTD: r.petugas_ttd,
+    DiinputOleh: extra.diinputOleh ?? (r.dibuat_oleh || ''),
+    DibuatPada: r.dibuat_pada || ''
+  };
+};
+
+export function listBapb(unit = 'radkom', limit = 200) {
+  const rows = db.prepare(`SELECT * FROM bapb WHERE unit = ?
+                           ORDER BY tanggal DESC, dibuat_pada DESC LIMIT ?`).all(unit, limit);
+  const nama = petaNamaPengguna();
+  return rows.map((r) => rowToBapb(r, { diinputOleh: namaTampil(nama, r.dibuat_oleh) }));
+}
+
+export function insertBapb(rec = {}, olehUsername = '', olehNama = '') {
+  const teks = (v) => String(v ?? '').trim();
+  const items = Array.isArray(rec.items) ? rec.items.map(bapbItemBersih) : [];
+
+  // Nama teknisi pelaksana bisa jamak. Yang datang: `petugasNamaList` (larik).
+  // `petugas_nama` diisi rangkumannya (dipisah koma) supaya kolom aslinya tetap
+  // punya nilai bermakna kalau ada yang membacanya langsung tanpa JSON.
+  const petugasList = Array.isArray(rec.petugasNamaList)
+    ? rec.petugasNamaList.map((n) => teks(n)).filter(Boolean)
+    : (teks(rec.petugasNama) ? [teks(rec.petugasNama)] : []);
+  const petugasRingkas = petugasList.join(', ');
+
+  const row = {
+    id: newId(),
+    unit: unitSah(rec.unit) ? rec.unit : 'radkom',
+    nomor: teks(rec.nomor),
+    tanggal: teks(rec.tanggal) || today(),
+    untuk_pekerjaan: teks(rec.untukPekerjaan),
+    lokasi: teks(rec.lokasi),
+    items_json: JSON.stringify(items),
+    pemakai_nama: teks(rec.pemakaiNama),
+    pemakai_ttd: saveSignature(rec.pemakaiTtd, 'bapb_pemakai'),
+    teknik_nama: teks(rec.teknikNama),
+    teknik_ttd: saveSignature(rec.teknikTtd, 'bapb_teknik'),
+    petugas_nama: petugasRingkas,
+    petugas_nama_list: JSON.stringify(petugasList),
+    petugas_ttd: saveSignature(rec.petugasTtd, 'bapb_petugas'),
+    dibuat_pada: nowIso()
+  };
+  db.prepare(`INSERT INTO bapb (id, unit, nomor, tanggal, untuk_pekerjaan, lokasi, items_json,
+                                pemakai_nama, pemakai_ttd, teknik_nama, teknik_ttd,
+                                petugas_nama, petugas_nama_list, petugas_ttd, dibuat_pada, dibuat_oleh)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(row.id, row.unit, row.nomor, row.tanggal, row.untuk_pekerjaan, row.lokasi, row.items_json,
+         row.pemakai_nama, row.pemakai_ttd, row.teknik_nama, row.teknik_ttd,
+         row.petugas_nama, row.petugas_nama_list, row.petugas_ttd, row.dibuat_pada, olehUsername);
+  return rowToBapb(row, { diinputOleh: olehNama || olehUsername });
+}
+
+export function getBapb(id) {
+  const r = db.prepare('SELECT * FROM bapb WHERE id = ?').get(id);
+  if (!r) return null;
+  const nama = petaNamaPengguna();
+  return rowToBapb(r, { diinputOleh: namaTampil(nama, r.dibuat_oleh) });
+}
+
+export function removeBapb(id) {
+  const r = db.prepare('SELECT pemakai_ttd, teknik_ttd, petugas_ttd FROM bapb WHERE id = ?').get(id);
+  db.prepare('DELETE FROM bapb WHERE id = ?').run(id);
+  if (r) {
+    removeSignatureFile(r.pemakai_ttd);
+    removeSignatureFile(r.teknik_ttd);
+    removeSignatureFile(r.petugas_ttd);
+  }
+  return true;
+}
+
 export const removeIssue = (id) => {
   hapusBerkasLampiranIsu(id);
   db.prepare('DELETE FROM issues WHERE id = ?').run(id);
@@ -1696,7 +2091,7 @@ export const removeIssue = (id) => {
  */
 
 export const JENIS_TTD = {
-  logbook:    { tabel: 'entries',     nama: 'pj_nama',      ttd: 'pj_ttd',           prefix: 'logbook_pj',         label: 'Penanggung Jawab', tglKolom: 'tanggal' },
+  logbook:    { tabel: 'entries',     nama: 'pj_nama',      ttd: 'pj_ttd',           prefix: 'logbook_pj',         label: 'Manager Teknik',   tglKolom: 'tanggal' },
   dailycheck: { tabel: 'dailychecks', nama: 'manager_nama', ttd: 'manager_ttd',      prefix: 'dailycheck_manager', label: 'Manager Teknik',   tglKolom: 'tanggal' },
   monitoring: { tabel: 'monitoring',  nama: 'personil_ops', ttd: 'personil_ops_ttd', prefix: 'monitoring_ops',     label: 'Personil Operasi', tglKolom: 'tanggal' },
   dstest:     { tabel: 'dstest',      nama: 'manager_nama', ttd: 'manager_ttd',      prefix: 'dstest_manager',     label: 'Manager Teknik',   tglKolom: 'tanggal' },
@@ -1784,7 +2179,7 @@ export function rekapMentah(unit, dari, sampai) {
                 FROM ltk WHERE unit = ? AND tanggal_lapor BETWEEN ? AND ?`),
     issues: amb(`SELECT id, tanggal_report AS tanggal, status, jenis, keterangan, lokasi,
                         dilaporkan_oleh
-                   FROM issues WHERE unit = ? AND tanggal_report BETWEEN ? AND ?`)
+                   FROM issues WHERE unit = ? AND substr(tanggal_report, 1, 10) BETWEEN ? AND ?`)
   };
 }
 

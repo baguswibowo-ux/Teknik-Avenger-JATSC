@@ -379,7 +379,7 @@ function openBerkalaDetail(id, penuh){
     ${catatan}
     <div class="detail-ttd">
       <div class="sig-block"><b>${T('teknisiPelaksana')}</b>${escapeHtml(b.teknisiNama)||'-'}${sigThumbHtml(b.teknisiTtd)}</div>
-      <div class="sig-block"><b>${T('mengetahuiManager')}</b>${escapeHtml(b.managerNama)||'-'}${sigPejabatHtml('berkala', b.id, b.managerTtd, b)}</div>
+      <div class="sig-block"><b>${T('mengetahuiManager')}</b>${renderPihakKedua('berkala', b.id, b.managerNama, b.managerTtd)}${sigPejabatHtml('berkala', b.id, b.managerTtd, b)}</div>
     </div>
     <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line);">${diinputOlehHtml(b.diinputOleh, b.dibuatPada, String(b.tanggal||'').slice(0,10))}</div>`;
   document.getElementById('formDetailPrintBtn').onclick = ()=>{ closeFormDetail(); printBerkala(id); };
@@ -405,6 +405,7 @@ const BK_JUDUL_CETAK = {
 function printBerkala(id){
   const b = berkalaList.find(x=>x.id===id);
   if(!b) return;
+  if(!tolakCetakBilaBelumTtd(b, 'berkala')) return;
   const nama = (b.teknisiNamaList && b.teknisiNamaList.length) ? b.teknisiNamaList : [b.teknisiNama || ''];
   const judul = BK_JUDUL_CETAK[b.jenis] || BK_JUDUL_CETAK.neptuno;
   const n = berkalaHitung(b.state, b.jenis);
@@ -426,14 +427,14 @@ function printBerkala(id){
       <tr>
         <td style="width:55%;text-align:center;vertical-align:top;">
           <div style="margin-bottom:6px;">TEKNISI PELAKSANA :</div>
-          ${nama.map((n,i)=>`<div>${i+1}. ${escapeHtml(n) || '______________________'}</div>`).join('')}
+          ${nama.map((n,i)=>`<div>${i+1}. ${b.teknisiTtd ? (escapeHtml(n) || '______________________') : '______________________'}</div>`).join('')}
           <div style="height:40px;margin-top:4px;">${ttdImg(b.teknisiTtd, 34)}</div>
         </td>
         <td style="text-align:center;vertical-align:top;">
           <div>Mengetahui,</div>
           <div style="margin-bottom:4px;">Manager Teknik</div>
           <div style="height:46px;">${ttdImg(b.managerTtd, 40)}</div>
-          <div style="border-top:1px solid #000;display:inline-block;padding:0 24px;">${escapeHtml(b.managerNama)||'&nbsp;'}</div>
+          <div style="border-top:1px solid #000;display:inline-block;padding:0 24px;">${b.managerTtd ? (escapeHtml(b.managerNama)||'&nbsp;') : '&nbsp;'}</div>
         </td>
       </tr>
     </table>`, 'portrait');

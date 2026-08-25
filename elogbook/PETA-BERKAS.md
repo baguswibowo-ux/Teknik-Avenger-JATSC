@@ -34,8 +34,7 @@ untuk fungsi global.
 | `07-modal-toast.css` | Jendela modal dan pesan sekilas |
 | `08-layar-kecil.css` | Penyesuaian HP dan tablet (`max-width` 600px dan 360px) |
 | `09-cetak.css` | Area cetak, warna hasil cetak, pratinjau di layar, bilah cetak |
-| `10-login-identitas.css` | Layar login & daftar, identitas pemakai, pemilih unit, tombol tema/bahasa |
-| `11-login-avengers.css` | Wajah layar masuk: latar bumi, merek AVENGERS, kartu kaca. Menimpa bentuk polos di `10-`, tidak menggantikannya — dilepas dari `index.html`, layar masuk kembali seperti dulu dan tetap bisa dipakai. Asetnya di `public/assets/login/` (lihat `BACA-DULU.md` di sana) |
+| `10-login-identitas.css` | Panel pintu tertutup, identitas pemakai, pemilih unit, tombol tema/bahasa |
 
 Mencari sesuatu: **warna** → `01`. **Sesuatu yang salah di HP** → `08`.
 **Hasil cetak** → `09`.
@@ -95,7 +94,7 @@ Cetak untuk Monitoring, DS Test, dan LTK menyatu dengan tab masing-masing
 
 | Berkas | Isi |
 |---|---|
-| `25-login.js` | Layar login, pendaftaran mandiri, pemeriksaan sesi |
+| `25-login.js` | Sesi pemakai: identitas di kepala halaman, tombol Keluar, panel pintu tertutup. Tidak ada layar masuk di sini — masuknya di dashboard |
 | `26-init.js` | Pemuatan awal: ambil data server lalu render tiap bagian |
 
 ---

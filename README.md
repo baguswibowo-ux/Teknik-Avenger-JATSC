@@ -196,14 +196,32 @@ Arah baliknya kini juga satu: **Keluar di dalam E-Logbook mengantar ke layar
 masuk dashboard**, bukan ke layar masuk E-Logbook. Sesinya memang cuma satu
 sejak kedua aplikasi satu asal, jadi dua layar masuk untuk satu kunci hanya
 menyisakan pertanyaan mana yang sedang berlaku. Berlaku hanya kalau halamannya
-dibuka lewat `/logbook/`; dibuka langsung di alamat E-Logbook, ia memuat ulang
-seperti sebelumnya. Yang memutuskan servernya, lewat
-`window.LEWAT_PINTU_AVENGER` di `/avenger-tautan.js`.
+dibuka lewat `/logbook/`; dibuka langsung di alamat E-Logbook, ia memuat ulang,
+dan yang menyambut sesudahnya panel di alinea berikut. Yang memutuskan
+servernya, lewat `window.LEWAT_PINTU_AVENGER` di `/avenger-tautan.js`.
 
 Karena itu tulisan **"Bukan Anda? Ganti akun"** di kaki kartu ikut dibuang. Ia
 ada untuk kasus sesi-yang-menempel, dan kasus itu sudah tidak ada. Yang tersisa
 sesudah keluar cuma username yang sengaja diingat, dan itu tinggal ditimpa
 dengan mengetik.
+
+**E-Logbook tidak punya layar masuk sendiri lagi.** Kartu masuk dan kartu daftar
+akun di sana dibuang seluruhnya. Yang menerima keduanya tetap `/api/login` dan
+`/api/daftar` milik server E-Logbook — dipanggil dari kartu masuk dashboard
+lewat penerusan, jadi yang hilang layarnya, bukan pintunya. Alasannya sama
+dengan Kelola Akun yang lebih dulu pindah: satu pintu, bukan dua yang bisa
+saling berbeda.
+
+Halaman E-Logbook yang terbuka tanpa sesi yang sah karena itu tidak menawarkan
+isian apa pun. Disajikan lewat `/logbook/`, orangnya diantar langsung ke layar
+masuk dashboard — asal halaman itu memang dashboard, jadi `/` sudah pasti benar
+dan sudah pasti hidup. Dibuka langsung di alamat E-Logbook, yang tampil satu
+panel pemberitahuan dengan tautan ke dashboard; ia tidak memantulkan sendiri
+karena di keadaan itu alamat dashboard cuma tebakan, dan memantulkan orang ke
+alamat yang belum tentu hidup menukar satu kebingungan dengan kebingungan yang
+lebih sulit dibaca. Sesi yang mati di tengah jalan mendarat di panel yang sama,
+dengan sebabnya tertulis. Server yang tidak menjawab juga — dan yang itu
+sengaja tidak pernah dipantulkan ke mana pun, karena yang salah bukan sesinya.
 
 **Membuka aplikasi E-Logbook.** Tombol **Buka E-Logbook** ada di ikon buku pada
 kepala halaman, di layar unit, dan di Peta Modul. Semuanya berpindah **di tab
@@ -800,6 +818,59 @@ menempel di baris peralatannya hanya nama berkasnya — satu foto 3 MB dalam
 bentuk base64 akan menghabiskan seluruh jatah `localStorage` dalam sekali
 simpan. Melepas foto dari kartu hanya memutus tautannya; fotonya tetap di
 galeri.
+
+#### Impor sparepart dari Excel
+
+Daftar sparepart lahir di lembar Excel gudang, bukan di layar ini — alasan yang
+sama persis dengan jadwal dinas, dan pembaca berkasnya pun dipakai bersama:
+`.xlsx`, `.csv`, `.pdf`, dan tempelan, tanpa satu pun pustaka dari internet.
+Tombolnya **Impor dari berkas** di tab Sparepart, di samping *Tambah sparepart*.
+
+Yang ditebak di sini bukan barisan tanggal melainkan **judul kolomnya**: baris
+kepala dicari di antara 20 baris pertama — lembar gudang hampir selalu berkop
+lebih dulu — lalu tiap kolom dipasangkan ke satu medan. `NAMA BARANG`,
+`PART NUMBER`, `P/N`, `RAK`, `STOK`, `MIN`, `SATUAN`,
+`DIPAKAI TERAKHIR`, `MERK`, `TIPE`, `S/N`, dan `TAHUN` dikenali beserta
+kata-kata lain yang lazim dipakai untuk hal yang sama. Semua tebakan itu bisa
+dibetulkan sendiri lewat pemilih kolom di kartunya, berikut baris data mulai
+dari mana.
+
+Tiga hal yang dibaca khusus, karena ketiganya keluar dari Excel bukan sebagai
+apa yang terlihat di layarnya:
+
+- **Tanggal** sering keluar sebagai nomor hari Excel (`45231`) — sel bertanggal
+  menyimpan angka, dan gaya tampilannya yang membuatnya terbaca sebagai tanggal.
+  Angka di kolom *Dipakai terakhir* yang jatuh di rentang masuk akal
+  (1954–2064) ditafsirkan begitu; `17/08/2026` dan `2026-08-17` juga diterima.
+  Sel tanggal yang memang **kosong dibiarkan kosong** dan tampil sebagai `—`:
+  mengarangnya jadi hari ini berarti menuliskan pemakaian yang tidak pernah ada.
+- **Angka berpemisah ribuan** — `1.200` jadi 1200.
+- **Satuan** yang bisa disimpan cuma enam (`pcs · rol · drum · set · meter ·
+  liter`). `buah`, `roll`, `pasang`, `m`, `l` dan sebangsanya dipetakan;
+  yang benar-benar tidak dikenal jadi `pcs` dan **dilaporkan di kartunya**,
+  bukan diganti diam-diam.
+
+Pegangan satu baris adalah **part numbernya**, sama dengan di kartu Tambah/Ubah.
+Yang PN-nya sudah ada **diperbarui di tempat** — `id`-nya tetap — dan yang belum
+ada ditambahkan. Baris tanpa nama, tanpa part number, atau ber-PN kembar di
+dalam berkas yang sama **dilewati dan disebutkan satu per satu**, bukan hilang
+diam-diam; kaki tabel (`Jumlah`, `Mengetahui`, `Catatan`) dikenali dan tidak
+ikut masuk.
+
+Bedanya dengan impor jadwal dinas: jadwal punya draf, sparepart tidak — kartu
+Tambah/Ubah pun menyimpan langsung ke server. Jadi **pratinjau di kartu itulah
+langkah pemeriksaannya**, dan tombolnya menyebutkan sendiri apa yang akan
+terjadi: *Simpan — 4 baru, 1 diperbarui*.
+
+Bawaannya **menambah dan memperbarui**; tidak ada baris yang hilang. Kotak
+*Ganti seluruh daftar unit ini* mengubahnya jadi penggantian penuh — yang tidak
+ada di berkas ikut dihapus, dinamai satu per satu lebih dulu — dan kotak itu
+hanya digambar untuk akun yang memang boleh menghapus. Server tetap yang
+memutuskan; kotaknya cuma tidak ditawarkan kepada yang pasti ditolak.
+
+Server menyimpan **300 baris per unit**. Kalau hasil impornya akan melewati itu,
+kartunya mengatakannya sebelum tombolnya ditekan — sisanya akan terpotong tanpa
+pesan kalau tidak.
 
 Trouble dan logbook sengaja **tidak** ikut bisa disunting: keduanya datang dari
 E-Logbook begitu tersambung, dan salinan lokal yang berbeda dari aslinya tanpa

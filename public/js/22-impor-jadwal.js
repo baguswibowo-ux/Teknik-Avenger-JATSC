@@ -304,12 +304,22 @@ async function pdfBaca(berkas){
    'PS' dan 'M' polos ikut dilaporkan, bukan ditebak: keduanya belum menyebut
    JATSC atau New JATSC, dan menebak gedung tempat orang berdinas adalah hal
    terakhir yang boleh dilakukan diam-diam oleh pengimpor. */
-const IMPOR_LIBUR = new Set(['', '-', '—', '.', 'L', 'LIBUR', 'OFF', 'X', 'O', 'CUTI']);
+/* 'CUTI' pergi dari daftar ini: sekarang ia kode dinas tersendiri (lihat
+   KODE_DINAS di 01-unit-dan-dinas.js), bukan sinonim libur. Sel kosong betulan
+   dan tanda pemisah '-'/'.' tetap dibaca sebagai libur — cuti berbeda dari
+   libur karena orangnya sedang mengambil hak, bukan sedang di hari kosongnya. */
+const IMPOR_LIBUR = new Set(['', '-', '—', '.', 'L', 'LIBUR', 'OFF', 'X', 'O']);
 
-/* Nama panjang yang sudah pasti kodenya. Hanya untuk yang tidak punya
-   pasangan JATSC/New JATSC — 'MALAM' sengaja tidak ada di sini, karena ia
-   memang belum menyebut gedung. */
-const IMPOR_ALIAS = { 'PAGI':'P', 'SIANG':'S' };
+/* Nama panjang yang sudah pasti kodenya. Untuk yang tidak punya pasangan
+   JATSC/New JATSC — 'MALAM' sengaja tidak ada di sini, karena ia belum
+   menyebut gedung. Cuti/sakit/ijin ditulis panjang di lembar aslinya dan
+   dipetakan ke kodenya yang pendek. */
+const IMPOR_ALIAS = {
+  'PAGI':'P', 'SIANG':'S',
+  'CUTI TAHUNAN':'CUTI', 'CT':'CUTI',
+  'CUTI ALASAN PENTING':'CAP', 'SAKIT':'CAP',
+  'IZIN':'IJIN'
+};
 
 function imporKode(nilai, kodeUnit){
   const asli = String(nilai == null ? '' : nilai).trim();

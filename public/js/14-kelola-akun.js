@@ -388,13 +388,26 @@ function isiKartuAkun(u){
     </div>` : '';
 
   el('badanKartuAkun').innerHTML = `
-    ${baru ? `<div class="isian"><label for="aUser">Username</label>
-      <input id="aUser" autocomplete="off" spellcheck="false" placeholder="${
-        T('mis. budi.santoso','e.g. budi.santoso')}">
-      <div class="bantu">${T('3–32 karakter: huruf kecil, angka, titik, garis bawah, atau strip. '
-        + 'Tidak bisa diubah lagi setelah akunnya jadi.',
-        '3–32 characters: lowercase letters, digits, dots, underscores, or hyphens. '
-        + 'It cannot be changed once the account exists.')}</div></div>` : ''}
+    <div class="isian"><label for="aUser">Username</label>
+      <input id="aUser" autocomplete="off" spellcheck="false"
+        value="${baru ? '' : esc(u.username)}"
+        ${diri ? 'disabled' : ''}
+        placeholder="${T('mis. budi.santoso','e.g. budi.santoso')}">
+      <div class="bantu">${diri
+        ? T('Ini akun Anda sendiri. Username tidak bisa diganti dari akun sendiri — minta admin '
+            + 'lain kalau memang perlu.',
+            'This is your own account. Its username cannot be changed from itself — ask another '
+            + 'admin if it must be renamed.')
+        : baru
+          ? T('3–32 karakter: huruf kecil, angka, titik, garis bawah, atau strip.',
+              '3–32 characters: lowercase letters, digits, dots, underscores, or hyphens.')
+          : T('3–32 karakter: huruf kecil, angka, titik, garis bawah, atau strip. '
+              + 'Kalau diganti, sesi akun ini tetap hidup (yang berpindah cuma namanya), tetapi '
+              + 'hak petugas modul yang mungkin ditetapkan lewat username lama harus diperiksa '
+              + 'ulang.',
+              '3–32 characters: lowercase letters, digits, dots, underscores, or hyphens. '
+              + 'If it changes, the account’s session stays alive (only its name moves), but any '
+              + 'module-petugas rights that referenced the old username should be reviewed.')}</div></div>
 
     <div class="isian"><label for="aNama">${T('Nama tampilan','Display name')}</label>
       <input id="aNama" autocomplete="off" value="${baru ? '' : esc(u.nama || '')}"
@@ -508,6 +521,7 @@ async function buatAkunBaru(){
  * terkirim adalah yang paling tidak menyusahkan untuk diulang.
  */
 async function simpanUbahan(asal){
+  const usernameBaru = el('aUser').value.trim().toLowerCase();
   const nama  = el('aNama').value.trim();
   const role  = el('aRole').value;
   const aktif = el('aAktif').value === '1';
@@ -518,6 +532,10 @@ async function simpanUbahan(asal){
   if(!nama) throw new Error('Nama tampilan tidak boleh kosong.');
   if(pass && pass.length < 6) throw new Error('Password minimal 6 karakter.');
   if(!semua && !unit.length) throw new Error('Akun teknisi harus punya minimal satu unit logbook.');
+  const gantiUsername = usernameBaru && usernameBaru !== asal.username.toLowerCase();
+  if(gantiUsername && !/^[a-z0-9._-]{3,32}$/.test(usernameBaru)){
+    throw new Error('Username 3–32 karakter, hanya huruf kecil, angka, titik, garis bawah, atau strip.');
+  }
 
   // Administrator dan pejabat memegang seluruh unit tanpa satu pun baris di
   // tabel unitnya — daftar yang terbaca untuk mereka dihitung server, bukan
@@ -526,13 +544,20 @@ async function simpanUbahan(asal){
   // selalu dikirim ulang saat turun peran, sekalipun kelihatannya tidak berubah.
   const asalSemua = SEMUA_UNIT_PERAN.includes(asal.role);
 
+  /* Rename dijalankan PALING DULU — server-side setUsername mengubah kolom
+     dibuat_oleh/ttd_oleh di seluruh catatan sekaligus, dan seluruh langkah lain
+     merujuk akun lewat username yang berlaku SAAT permintaan berangkat. Kalau
+     rename ditaruh di belakang, langkah-langkah sebelumnya menaruh perubahan
+     memakai username lama, lalu rename memutus rujukan itu di sisi klien. */
   const kerja = [];
-  if(role !== asal.role)                             kerja.push(['setUserRole', [asal.username, role]]);
+  if(gantiUsername)                                  kerja.push(['setUserUsername', [asal.username, usernameBaru]]);
+  const kunci = gantiUsername ? usernameBaru : asal.username;
+  if(role !== asal.role)                             kerja.push(['setUserRole', [kunci, role]]);
   if(!semua && (asalSemua || !samaIsi(unit, asal.unit || [])))
-                                                     kerja.push(['setUserUnit', [asal.username, unit]]);
-  if(nama !== (asal.nama || ''))                     kerja.push(['setUserNama', [asal.username, nama]]);
-  if(aktif !== !!asal.aktif)                         kerja.push(['setUserAktif', [asal.username, aktif]]);
-  if(pass)                                           kerja.push(['setUserPassword', [asal.username, pass]]);
+                                                     kerja.push(['setUserUnit', [kunci, unit]]);
+  if(nama !== (asal.nama || ''))                     kerja.push(['setUserNama', [kunci, nama]]);
+  if(aktif !== !!asal.aktif)                         kerja.push(['setUserAktif', [kunci, aktif]]);
+  if(pass)                                           kerja.push(['setUserPassword', [kunci, pass]]);
 
   if(!kerja.length){ pesan(T('Tidak ada yang diubah.','Nothing was changed.')); return; }
 
@@ -546,6 +571,7 @@ async function simpanUbahan(asal){
      ada yang mengatakan bahwa unitnya ikut tidak tersimpan, jadi selama
      berhari-hari orangnya mengira unitnya sudah pindah padahal belum. */
   const NAMA_LANGKAH = {
+    setUserUsername: T('username','username'),
     setUserRole:     T('peran','role'),
     setUserUnit:     T('unit','unit'),
     setUserNama:     T('nama','name'),

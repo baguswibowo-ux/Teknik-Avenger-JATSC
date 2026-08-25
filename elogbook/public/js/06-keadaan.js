@@ -12,6 +12,7 @@ let lokasiPilihan = ['JATSC', 'New JATSC'];
 let users = [];
 let monitoring = [];
 let ltkList = [];
+let bapbList = [];
 let dsList = [];
 let berkalaList = [];
 

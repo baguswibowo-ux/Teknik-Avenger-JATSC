@@ -157,6 +157,7 @@ function openMonDetail(id){
 function printMon(id){
   const m = monitoring.find(x=>x.id===id);
   if(!m) return;
+  if(!tolakCetakBilaBelumTtd(m, 'monitoring')) return;
   doPrint(`
     <div style="text-align:center;font-weight:bold;font-size:12pt;margin-bottom:4px;">MONITORING FREKUENSI NEW JATSC</div>
     <div style="text-align:center;font-size:9pt;margin-bottom:10px;">TANGGAL : ${escapeHtml(m.tanggal)}</div>
@@ -166,12 +167,12 @@ function printMon(id){
         <td style="width:50%;text-align:center;vertical-align:top;">
           <div>Personil Operasi</div>
           <div style="height:46px;">${ttdImg(m.personilOpsTtd, 40)}</div>
-          <div style="border-top:1px solid #000;display:inline-block;padding:0 24px;">${escapeHtml(m.personilOps)||'&nbsp;'}</div>
+          <div style="border-top:1px solid #000;display:inline-block;padding:0 24px;">${m.personilOpsTtd ? (escapeHtml(m.personilOps)||'&nbsp;') : '&nbsp;'}</div>
         </td>
         <td style="text-align:center;vertical-align:top;">
           <div>Personil Teknik</div>
           <div style="height:46px;">${ttdImg(m.teknisiTtd, 40)}</div>
-          <div style="border-top:1px solid #000;display:inline-block;padding:0 24px;">${escapeHtml(m.personilTeknik)||'&nbsp;'}</div>
+          <div style="border-top:1px solid #000;display:inline-block;padding:0 24px;">${m.teknisiTtd ? (escapeHtml(m.personilTeknik)||'&nbsp;') : '&nbsp;'}</div>
         </td>
       </tr>
     </table>`, 'landscape');

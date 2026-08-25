@@ -24,80 +24,33 @@
 <link rel="stylesheet" href="css/08-layar-kecil.css">
 <link rel="stylesheet" href="css/09-cetak.css">
 <link rel="stylesheet" href="css/10-login-identitas.css">
-<link rel="stylesheet" href="css/11-login-avengers.css">
 </head>
 <body>
 
-<!-- ===== LAYAR LOGIN =====
-     Kartu masuk dan kartu daftar di bawah ini TIDAK berubah isinya: id, onclick,
-     dan urutan elemennya sama persis dengan sebelumnya, karena js/25-login.js
-     memegang semuanya lewat getElementById. Yang ditambahkan cuma bungkus di
-     sekelilingnya — merek AVENGERS di atas kartu, dan tombol tema/bahasa yang
-     sebelumnya tidak bisa dijangkau sebelum orang berhasil masuk. -->
-<div id="loginBg">
+<!-- ===== PINTU TERTUTUP =====
+     E-Logbook tidak punya layar masuk sendiri. Kartu masuk dan kartu daftar
+     akun berdiri di Dashboard Fasilitas Teknik, dan keduanya tetap memanggil
+     /api/login serta /api/daftar milik server INI lewat penerusan — yang
+     dibuang layarnya, bukan pintunya. Satu pintu, bukan dua yang bisa saling
+     berbeda; alasannya sama dengan Kelola Akun yang lebih dulu pindah.
 
-  <!-- Tema dan bahasa memanggil fungsi yang sama dengan tombol di kepala
-       dashboard; tidak ada penyimpanan pilihan yang kedua. -->
-  <div class="av-kendali">
-    <select id="pilihBahasaMasuk" onchange="setBahasa(this.value)" data-t-title="gantiBahasaJudul" title="Ganti bahasa / change language">
-      <option value="id">ID</option>
-      <option value="en">EN</option>
-      <option value="es">ES</option>
-    </select>
-    <!-- Tanpa data-t-title: judulnya sudah diisi terapkanTema() menurut mode
-         yang sedang berlaku, dan dua sumber untuk satu tulisan berarti yang
-         satu pasti pernah salah. -->
-    <button type="button" id="tombolTemaMasuk" onclick="gantiTema()" title="Ganti mode gelap / terang">🌙</button>
-  </div>
-
-  <div class="av-isi">
-
-    <!-- Identitasnya AVENGERS, bukan E-Logbook: layar ini pintu masuk seluruh
-         Fasilitas Teknik, dan E-Logbook cuma salah satu ruangan di baliknya.
-         Nama ruangannya disebut di kartu, bukan di papan namanya.
-
-         Logo dipasang sebagai berkas terpisah, dan kalau berkas itu belum ada
-         onerror menukarnya dengan tulisan cadangan. Bukan supaya layar terlihat
-         selesai padahal belum — supaya yang belum selesai cuma logonya, bukan
-         seluruh halaman. -->
-    <header class="av-merek">
-      <img class="av-logo" id="logoAvengers" src="assets/login/avengers-logo.webp" alt="AVENGERS"
-           onerror="this.style.display='none'; document.getElementById('logoAvengersCadangan').classList.add('tampil');">
-      <div class="av-logo-cadangan" id="logoAvengersCadangan">AVENGERS</div>
-      <div class="av-arti" data-t="avengersArti">Advanced Engineer Electronic Reporting System</div>
-    </header>
-
-    <div id="loginBox">
+     Yang di bawah ini cuma pemberitahuan: tidak ada satu pun isian di
+     dalamnya. Ia tampil kalau halaman ini terbuka tanpa sesi yang sah DAN
+     tidak sedang disajikan lewat dashboard. Kalau lewat dashboard, orangnya
+     diantar langsung ke layar masuk di sana dan panel ini tidak pernah
+     terlihat — lihat sesiTakSah() di js/25-login.js. -->
+<div id="pintuTutup">
+  <div class="pintu-kartu">
     <div class="brand-eyebrow">Perum LPPNPI &middot; Cabang JATSC</div>
-    <h3 data-t="loginJudul">E-Logbook Fasilitas</h3>
-    <div class="login-sub" data-t="loginSub">Masuk dengan akun teknisi Anda.</div>
-    <div class="field"><label data-t="username">Username</label><input type="text" id="loginUser" autocomplete="username" autocapitalize="off" spellcheck="false"></div>
-    <div class="field"><label data-t="password">Password</label><input type="password" id="loginPass" autocomplete="current-password"></div>
-    <button class="btn" id="loginBtn" onclick="doLogin()" data-t="masuk">Masuk</button>
-    <div id="loginErr"></div>
-    <div class="login-alt">
-      <span data-t="belumPunyaAkun">Belum punya akun?</span>
-      <button type="button" onclick="bukaDaftar()" data-t="buatAkunBaru">Buat akun</button>
-    </div>
+    <h3 data-t="pintuJudul">Masuk lewat Dashboard</h3>
+    <div class="pintu-ket" data-t="pintuKet">E-Logbook tidak punya layar masuk sendiri. Masuklah di Dashboard Fasilitas Teknik, lalu buka E-Logbook dari sana.</div>
+    <!-- Baris sebab. Kosong dan tersembunyi sampai memang ada yang perlu
+         diterangkan — sesi yang berakhir, atau server yang tidak menjawab. -->
+    <div class="pintu-pesan" id="pintuPesan" style="display:none;"></div>
+    <!-- Tanpa href bawaan: alamat dashboard baru diketahui sesudah halaman
+         hidup, dan CSS menyembunyikan tautan ini selama alamatnya belum ada. -->
+    <a class="btn" id="pintuTautan" data-t="kembaliDashboard">Dashboard Fasilitas Teknik</a>
   </div>
-
-  <div id="daftarBox" style="display:none;">
-    <div class="brand-eyebrow">Perum LPPNPI &middot; Cabang JATSC</div>
-    <h3 data-t="daftarJudul">Buat Akun</h3>
-    <div class="login-sub" data-t="daftarSub">Setelah dibuat, akun menunggu konfirmasi administrator sebelum bisa dipakai.</div>
-    <div class="field"><label data-t="namaLengkap">Nama Lengkap</label><input type="text" id="dfNama" data-t-ph="phNamaLengkap" placeholder="cth. Budi Santoso"></div>
-    <div class="field"><label data-t="username">Username</label><input type="text" id="dfUsername" autocapitalize="off" spellcheck="false" data-t-ph="phUsername" placeholder="cth. budi.santoso"></div>
-    <div class="field"><label data-t="password">Password</label><input type="password" id="dfPassword" autocomplete="new-password" data-t-ph="phMin6" placeholder="minimal 6 karakter"></div>
-    <div class="field"><label data-t="ulangiPassword">Ulangi Password</label><input type="password" id="dfPassword2" autocomplete="new-password"></div>
-    <button class="btn" id="dfBtn" onclick="doDaftar()" data-t="kirimPendaftaran">Kirim Pendaftaran</button>
-    <div id="daftarErr"></div>
-    <div class="login-alt">
-      <span data-t="sudahPunyaAkun">Sudah punya akun?</span>
-      <button type="button" onclick="bukaLogin()" data-t="kembaliMasuk">Masuk</button>
-    </div>
-  </div>
-
-  </div><!-- /.av-isi -->
 </div>
 
 <div class="console">
@@ -156,17 +109,23 @@
 
 <nav class="tabs">
   <button class="tab-btn active" data-tab="logbook" data-t="tabLogbook">📋 LOGBOOK FASILITAS</button>
-  <button class="tab-btn" data-tab="dailycheck" data-t="tabDailyCheck">🖥 DAILY CHECK GAREX 300</button>
+  <button class="tab-btn" data-tab="dailycheck" data-t="tabDailyCheck">🖥 DAILY CHECK</button>
+  <!-- Satu tab wadah untuk lima lembar preventive maintenance. Sub-tab di
+       dalamnya (DS TEST → CEK QUERY NEPTUNO → RESTART CPU GATEVOX →
+       CLEANING CWP → RESTART CWP) diatur di js/04-toast-tab.js. Ketampakan
+       sub-tab per unit ditangani di js/07-unit.js. Duduk di sebelah Daily
+       Check karena keduanya pemeriksaan terjadwal — LTK dan Isu di
+       sesudahnya adalah tanggapan atas kejadian, bukan agenda tetap. -->
+  <button class="tab-btn" data-tab="preventive" data-t="tabPreventive">🔧 PREVENTIVE MAINTENANCE</button>
+  <!-- Kategori FORM. Dulu berisi hanya LTK sebagai tab tingkat-atas
+       tersendiri; sekarang jadi wadah — sub-tab LTK dan BAPB duduk
+       berdampingan sebagai keluarga formulir resmi (laporan kerusakan
+       dan berita acara pemasangan). Kalau menambah formulir resmi
+       lain kelak, ia mendarat di sini juga, bukan jadi tab baru di
+       bilah utama. -->
+  <button class="tab-btn" data-tab="form" data-t="tabForm">📄 FORM</button>
   <button class="tab-btn" data-tab="issues" data-t="tabIsu">⚠ ISU / UPDATE ISSUE</button>
   <button class="tab-btn" data-tab="monitoring" data-t="tabMonitoring">📶 MONITORING FREKUENSI</button>
-  <button class="tab-btn" data-tab="dstest" data-t="tabDsTest">☎ DS TEST</button>
-  <!-- Empat pekerjaan berkala Radtel. Tabnya empat, tapi jendela pengisian
-       dan tabel penyimpanannya satu — lihat js/19-berkala.js. -->
-  <button class="tab-btn" data-tab="bk-neptuno" data-t="tabBkNeptuno">🎙 CEK QUERY NEPTUNO</button>
-  <button class="tab-btn" data-tab="bk-gatevox" data-t="tabBkGatevox">♻ RESTART CPU GATEVOX</button>
-  <button class="tab-btn" data-tab="bk-cleaning" data-t="tabBkCleaning">🧹 CLEANING CWP</button>
-  <button class="tab-btn" data-tab="bk-restart" data-t="tabBkRestart">⟳ RESTART CWP</button>
-  <button class="tab-btn" data-tab="ltk" data-t="tabLtk">🛠 LTK</button>
   <button class="tab-btn" data-tab="rekap" data-t="tabRekap">📊 REKAP &amp; MATRIK</button>
   <!-- KELOLA AKUN sudah tidak di sini. Pengelolaan akun diurus dari Dashboard
        Fasilitas Teknik (Avenger, port 3100), tab "Kelola Akun". Satu pintu, bukan
@@ -203,7 +162,7 @@
   <!-- ===== TAB 2: DAILY CHECK ===== -->
   <section class="view" id="view-dailycheck">
     <div class="section-head">
-      <div><h2 data-t="dcJudul">Daily Check VCS Garex 300 — Unit Radtel</h2><p data-t="dcSub">Klik status untuk mengubah kondisi: Normal → Alarm → Gangguan.</p></div>
+      <div><h2 data-t="dcJudul">Daily Check</h2><p data-t="dcSub">Klik status untuk mengubah kondisi: Normal → Alarm → Gangguan.</p></div>
     </div>
     <div class="card">
       <div class="grid3">
@@ -214,6 +173,34 @@
           <input type="date" id="dcTanggal" onchange="perbaruiHariDc()">
           <div class="hari-dc" id="dcHariTeks"></div>
         </div>
+      </div>
+      <!-- Nama peralatan dan lokasi fisiknya — dipakai Radtel; unit lain
+           menyembunyikannya lewat 07-unit.js. Nama peralatan menentukan bentuk
+           formnya (Garex 300 vs Frequentis 3020X); Lokasi cuma pelabelan
+           kertas — sebuah peralatan bisa saja dipindah, dan checklist di form
+           itu sendiri tetap sama. -->
+      <div class="grid2" id="dcAlatWrap" style="margin-top:6px;">
+        <div class="field">
+          <label data-t="namaPeralatan">Nama Peralatan</label>
+          <select id="dcLokasi" onchange="perbaruiLokasiDc()">
+            <option value="new-jatsc">VCS Garex 300</option>
+            <option value="jatsc">VCS Frequentis 3020X</option>
+          </select>
+        </div>
+        <div class="field">
+          <label data-t="lokasi">Lokasi</label>
+          <select id="dcTempat">
+            <option value="new-jatsc">New JATSC</option>
+            <option value="jatsc">JATSC</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Petunjuk sedang menyunting: catatan lama yang sedang diubah.
+           Tersembunyi sampai dcEditingId disetel (14-daily-check-umum.js). -->
+      <div id="dcEditingBanner" class="km-sumber-ket km-awas" style="display:none;margin-top:8px;">
+        <span id="dcEditingTeks">Menyunting daily check</span>
+        <button class="btn ghost" style="margin-left:8px;padding:5px 10px;" onclick="batalEditDc()">Batal Edit</button>
       </div>
       <div class="legend" id="dcLegendGarex">
         <span><i class="dot" style="background:var(--ok)"></i> <span data-t="lgNormal">Normal</span></span>
@@ -231,6 +218,7 @@
           <tbody id="dcBody"></tbody>
         </table>
       </div>
+      <div id="dcJatscWrap" style="display:none;"></div>
       <div id="dcRadkomWrap" style="display:none;"></div>
       <div class="field" style="margin-top:14px;"><label data-t="remark">Remark / Catatan Tambahan</label><textarea id="dcRemark" data-t-ph="phRemark" placeholder="cth. VR3 partial failure of element, masih dalam remote expert Madrid..."></textarea></div>
       <div class="grid2" style="margin-top:8px;">
@@ -308,8 +296,26 @@
     <div id="monList"></div>
   </section>
 
-  <!-- ===== TAB: DS TEST ===== -->
-  <section class="view" id="view-dstest">
+  <!-- ===== TAB: PREVENTIVE MAINTENANCE (wadah lima lembar) =====
+       Wadah untuk DS TEST + empat pekerjaan berkala. Kelima anak di
+       dalamnya dulu berdiri sebagai tab tingkat-atas sendiri-sendiri;
+       sekarang jadi satu tab agar bilah tab utama lebih ringkas dan
+       kelima lembar duduk berdampingan sebagai keluarga yang sama —
+       semuanya pemeriksaan terjadwal, bukan pekerjaan insidental.
+       Sub-tab di bawah dipilih dengan class="subtab-btn" dan lembar
+       anaknya class="subview" supaya logika tab utama tidak salah
+       menampilkan/menyembunyikannya. -->
+  <section class="view" id="view-preventive">
+    <nav class="subtabs">
+      <button class="subtab-btn active" data-subtab="dstest" data-t="tabDsTest">☎ DS TEST</button>
+      <button class="subtab-btn" data-subtab="bk-neptuno" data-t="tabBkNeptuno">🎙 CEK QUERY NEPTUNO</button>
+      <button class="subtab-btn" data-subtab="bk-gatevox" data-t="tabBkGatevox">♻ RESTART CPU GATEVOX</button>
+      <button class="subtab-btn" data-subtab="bk-cleaning" data-t="tabBkCleaning">🧹 CLEANING CWP</button>
+      <button class="subtab-btn" data-subtab="bk-restart" data-t="tabBkRestart">⟳ RESTART CWP</button>
+    </nav>
+
+    <!-- ===== SUB-TAB: DS TEST ===== -->
+    <section class="subview active" id="view-dstest">
     <div class="section-head">
       <div><h2 data-t="dsJudul">DS Test</h2><p data-t="dsSub">Uji sambungan direct speech ke seluruh site domestik.</p></div>
       <button class="btn btn-tambah" onclick="openDsModal()" data-t="tambahDs">+ Form Baru</button>
@@ -322,10 +328,10 @@
       <div class="subtle-note" data-t="noteCariDs">Isi tanggal untuk menampilkan hasil DS Test pada hari itu saja.</div>
     </div>
     <div id="dsList"></div>
-  </section>
+    </section>
 
-  <!-- ===== TAB: PEKERJAAN BERKALA (empat jenis) ===== -->
-  <section class="view" id="view-bk-neptuno">
+    <!-- ===== SUB-TAB: PEKERJAAN BERKALA (empat jenis) ===== -->
+    <section class="subview" id="view-bk-neptuno">
     <div class="section-head">
       <div><h2 data-t="bkJudul_neptuno"></h2><p data-t="bkSub_neptuno"></p></div>
       <button class="btn btn-tambah" onclick="openBerkalaModal('neptuno')" data-t="tambahBk">+ Form Baru</button>
@@ -340,7 +346,7 @@
     <div id="bkList-neptuno"></div>
   </section>
 
-  <section class="view" id="view-bk-gatevox">
+  <section class="subview" id="view-bk-gatevox">
     <div class="section-head">
       <div><h2 data-t="bkJudul_gatevox"></h2><p data-t="bkSub_gatevox"></p></div>
       <button class="btn btn-tambah" onclick="openBerkalaModal('gatevox')" data-t="tambahBk">+ Form Baru</button>
@@ -355,7 +361,7 @@
     <div id="bkList-gatevox"></div>
   </section>
 
-  <section class="view" id="view-bk-cleaning">
+  <section class="subview" id="view-bk-cleaning">
     <div class="section-head">
       <div><h2 data-t="bkJudul_cleaning-cwp"></h2><p data-t="bkSub_cleaning-cwp"></p></div>
       <button class="btn btn-tambah" onclick="openBerkalaModal('cleaning-cwp')" data-t="tambahBk">+ Form Baru</button>
@@ -370,7 +376,7 @@
     <div id="bkList-cleaning"></div>
   </section>
 
-  <section class="view" id="view-bk-restart">
+  <section class="subview" id="view-bk-restart">
     <div class="section-head">
       <div><h2 data-t="bkJudul_restart-cwp"></h2><p data-t="bkSub_restart-cwp"></p></div>
       <button class="btn btn-tambah" onclick="openBerkalaModal('restart-cwp')" data-t="tambahBk">+ Form Baru</button>
@@ -383,10 +389,22 @@
       <div class="subtle-note" data-t="noteCariBk">Isi tanggal untuk menampilkan lembar pada hari itu saja.</div>
     </div>
     <div id="bkList-restart"></div>
+    </section>
   </section>
 
-  <!-- ===== TAB: LTK ===== -->
-  <section class="view" id="view-ltk">
+  <!-- ===== TAB: FORM (wadah LTK + BAPB) =====
+       Pola yang sama dengan Preventive Maintenance: satu tab wadah
+       tingkat-atas, di dalamnya sub-tab per formulir. Isian LTK
+       dipindah utuh ke sini, tidak diubah bentuknya; BAPB masih
+       kerangka — modalnya, penyimpanannya, dan cetakannya menyusul. -->
+  <section class="view" id="view-form">
+    <nav class="subtabs">
+      <button class="subtab-btn active" data-subtab="ltk" data-t="tabLtk">🛠 LTK</button>
+      <button class="subtab-btn" data-subtab="bapb" data-t="tabBapb">📦 BAPB</button>
+    </nav>
+
+    <!-- ===== SUB-TAB: LTK ===== -->
+    <section class="subview active" id="view-ltk">
     <div class="section-head">
       <div><h2 data-t="ltkJudul">LTK — Laporan Terjadinya Kerusakan</h2><p data-t="ltkSub">Laporan kerusakan dan kegiatan perbaikan fasilitas telekomunikasi penerbangan.</p></div>
       <button class="btn btn-tambah" onclick="openLtkModal()" data-t="tambahLtk">+ Buat LTK</button>
@@ -402,6 +420,25 @@
       <div class="subtle-note" data-t="noteCariLtk">Pencarian kata memeriksa nama peralatan, bagian/modul yang rusak, dan analisa kerusakan. Rentang tanggal memakai Tanggal Pelaporan.</div>
     </div>
     <div id="ltkList"></div>
+    </section>
+
+    <!-- ===== SUB-TAB: BAPB — Berita Acara Pemasangan Barang =====
+         Kerangka tampilan; modal input, penyimpanan ke server, dan
+         cetakannya belum disambung. Susunan kolom tabel item mengikuti
+         berkas Excel resmi (BAPB.xlsx): No, Nama Barang, Ukuran,
+         Banyaknya, Tanggal Pemasangan, Keterangan — plus meta Nomor,
+         Tanggal, Untuk Pekerjaan, Lokasi, dan tiga panel tanda tangan
+         (Manager Pemakai / Manager Teknik / Petugas Pemasangan). -->
+    <section class="subview" id="view-bapb">
+    <div class="section-head">
+      <div>
+        <h2 data-t="bapbJudul">BAPB — Berita Acara Pemasangan Barang</h2>
+        <p data-t="bapbSub">Catatan resmi pemasangan alat: nomor berita acara, daftar barang yang terpasang, dan panel tanda tangan pemakai, teknik, serta petugas pemasangan.</p>
+      </div>
+      <button class="btn btn-tambah" onclick="openBapbModal()" data-t="tambahBapb">+ Buat BAPB</button>
+    </div>
+    <div id="bapbList"></div>
+    </section>
   </section>
 
   <!-- ===== TAB: REKAP & MATRIK ===== -->
@@ -460,7 +497,7 @@
         <div class="field" style="margin-top:6px;"><label data-t="ttdTeknisi">TTD Teknisi</label><div class="sig-wrap"><canvas id="sigFeTeknisi"></canvas><div class="sig-toolbar"><span class="sig-hint" data-t="ttdHintTeknisi">tanda tangan teknisi</span><button class="sig-clear" onclick="clearSig('sigFeTeknisi')" data-t="bersihkan">bersihkan</button></div></div></div>
       </div>
       <div>
-        <div class="field"><label id="fePjLabel" data-t="pjNama">Penanggung Jawab (nama)</label><input type="text" id="fePjNama" list="pejabatDatalist" data-t-ph="phNamaPj" placeholder="Nama penanggung jawab"></div>
+        <div class="field"><label id="fePjLabel" data-t="pjNama">Manager Teknik (nama)</label><input type="text" id="fePjNama" list="pejabatDatalist" data-t-ph="phNamaPj" placeholder="Nama manager teknik"></div>
         <div class="field" style="margin-top:6px;"><label data-t="kirimTtdKe">Kirim TTD ke akun</label><select id="fePjAkun"><option value="" data-t="kirimTtdOtomatis">Otomatis (dari nama di atas)</option></select></div>
       </div>
     </div>
@@ -479,7 +516,10 @@
     <div class="field"><label data-t="keterangan">Keterangan</label><textarea id="isKeterangan" data-t-ph="phKeteranganIsu" placeholder="cth. Masih dalam penanganan remote expert Madrid, menunggu penggantian modul."></textarea></div>
     <div class="grid2">
       <div class="field"><label data-t="lokasi">Lokasi</label><input type="text" id="isLokasi" data-t-ph="phLokasi" placeholder="cth. MER Lantai 2"></div>
-      <div class="field"><label data-t="tanggalReport">Tanggal Report</label><input type="date" id="isTanggalReport"></div>
+      <div class="grid2" style="gap:8px;align-items:end;">
+        <div class="field" style="margin-bottom:0;"><label data-t="tanggal">Tanggal</label><input type="date" id="isTanggalReport"></div>
+        <div class="field" style="margin-bottom:0;"><label data-t="jamReportUtc">Jam Report (UTC)</label><input type="time" id="isJamReport"></div>
+      </div>
     </div>
     <div class="field"><label data-t="dilaporkanOleh">Dilaporkan Oleh</label><input type="text" id="isDilaporkanOleh" data-t-ph="phPelapor" placeholder="Nama yang menemukan / melaporkan"></div>
     <div class="field">
@@ -698,6 +738,70 @@
   </div>
 </div>
 
+<!-- MODAL BAPB — Berita Acara Pemasangan Barang
+     Meta (Nomor, Tanggal, Untuk Pekerjaan, Lokasi) di bagian atas; tabel item
+     dengan baris dinamis; tiga panel tanda tangan sesuai berkas Excel resmi
+     (Manager Pemakai, Manager Teknik, Petugas Pemasangan). -->
+<div class="modal-bg" id="bapbModalBg">
+  <div class="modal" style="max-width:960px;">
+    <h3 data-t="bapbModal">Buat BAPB</h3>
+    <div class="grid2">
+      <div class="field"><label data-t="bapbNomor">Nomor</label><input type="text" id="bapbNomor" data-t-ph="phBapbNomor" placeholder="cth. 001/BAPB/VIII/2026"></div>
+      <div class="field"><label data-t="tanggal">Tanggal</label><input type="date" id="bapbTanggal"></div>
+    </div>
+    <div class="field"><label data-t="bapbUntukPekerjaan">Untuk Pekerjaan</label><input type="text" id="bapbUntukPekerjaan" data-t-ph="phBapbUntukPekerjaan" placeholder="cth. Pemasangan modul VHF A/G"></div>
+    <div class="field"><label data-t="bapbLokasi">Lokasi</label><input type="text" id="bapbLokasi" data-t-ph="phBapbLokasi" placeholder="cth. Ruang Equipment New JATSC"></div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:12px 0 6px;">
+      <label style="font-family:var(--font-mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);" data-t="bapbDaftarBarang">Daftar Barang</label>
+      <button class="btn ghost" style="padding:5px 10px;" onclick="tambahBarisBapb()" data-t="tambahBaris">+ Baris</button>
+    </div>
+    <div class="dc-table-wrap">
+      <table class="dc mon" id="bapbTable">
+        <thead><tr>
+          <th style="width:30px;" data-t="bapbNoKol">No</th>
+          <th data-t="bapbNamaBarang">Nama Barang</th>
+          <th data-t="bapbUkuran">Ukuran</th>
+          <th data-t="bapbBanyaknya">Banyaknya</th>
+          <th data-t="bapbTanggalPemasangan">Tgl Pemasangan</th>
+          <th data-t="bapbKeteranganKol">Keterangan</th>
+          <th style="width:30px;"></th>
+        </tr></thead>
+        <tbody id="bapbItemsBody"></tbody>
+      </table>
+    </div>
+
+    <!-- Tiga panel tanda tangan. Bentuknya sengaja tiga kolom sejajar,
+         mengikuti tata-letak formulir aslinya: Pemakai · Teknik · Petugas. -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:16px;">
+      <div>
+        <div class="field"><label data-t="bapbPemakai">Manager Pemakai</label><input type="text" id="bapbPemakaiNama" data-t-ph="phBapbPemakaiNama" placeholder="Nama manager pemakai"></div>
+        <div class="field"><label data-t="ttdDiSini">Tanda Tangan</label><div class="sig-wrap"><canvas id="sigBapbPemakai"></canvas><div class="sig-toolbar"><span class="sig-hint" data-t="ttdHintUmum">tanda tangan di sini</span><button class="sig-clear" onclick="clearSig('sigBapbPemakai')" data-t="bersihkan">bersihkan</button></div></div></div>
+      </div>
+      <div>
+        <div class="field"><label data-t="bapbTeknik">Manager Teknik</label><input type="text" id="bapbTeknikNama" data-t-ph="phBapbTeknikNama" placeholder="Nama manager teknik"></div>
+        <div class="field"><label data-t="ttdDiSini">Tanda Tangan</label><div class="sig-wrap"><canvas id="sigBapbTeknik"></canvas><div class="sig-toolbar"><span class="sig-hint" data-t="ttdHintUmum">tanda tangan di sini</span><button class="sig-clear" onclick="clearSig('sigBapbTeknik')" data-t="bersihkan">bersihkan</button></div></div></div>
+      </div>
+      <div>
+        <!-- Teknisi pelaksana bisa lebih dari satu — sama polanya seperti
+             Monitoring, DS Test, dan Berkala. Tombol "+ Nama" menambah baris;
+             tiap baris punya kolom nama sendiri, tanda tangan tetap satu. -->
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <label style="font-family:var(--font-mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);" data-t="namaTeknisiPelaksana">Nama Teknisi Pelaksana</label>
+          <button class="btn ghost" style="padding:5px 10px;" onclick="addBapbPetugas()" data-t="tambahNama">+ Nama</button>
+        </div>
+        <div id="bapbPetugasList" style="margin-top:8px;"></div>
+        <div class="field" style="margin-top:6px;"><label data-t="ttdTeknisi">TTD Teknisi</label><div class="sig-wrap"><canvas id="sigBapbPetugas"></canvas><div class="sig-toolbar"><span class="sig-hint" data-t="ttdHintTeknisi">tanda tangan teknisi</span><button class="sig-clear" onclick="clearSig('sigBapbPetugas')" data-t="bersihkan">bersihkan</button></div></div></div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn ghost" onclick="closeBapbModal()" data-t="batal">Batal</button>
+      <button class="btn" id="bapbSaveBtn" onclick="saveBapb()" data-t="simpanBapb">💾 Simpan BAPB</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL DETAIL ISU -->
 <div class="modal-bg" id="issueDetailBg">
   <div class="modal" style="max-width:680px;">
@@ -792,6 +896,28 @@
       <div class="field" id="feeFrekWrap" style="display:none;"><label data-t="frek">Frekuensi</label><input type="text" id="feeFrek" data-t-ph="phFrek" placeholder="cth. 132.900 MHz"></div>
     </div>
     <div class="field"><label id="feeUraianLabel">Uraian Pekerjaan / Kejadian</label><textarea id="feeUraian"></textarea></div>
+    <div class="field">
+      <label data-t-html="labelLampiranSunting">Lampiran — Hasil Scan / Foto <span style="text-transform:none;letter-spacing:0;">(bisa ditambah atau dibuang)</span></label>
+      <div id="feeLampiranAda"></div>
+      <input type="file" id="feeLampiran" multiple accept="image/jpeg,image/png,image/webp,application/pdf" onchange="pilihLampiran(this, 'feeLampiran')">
+      <div class="lampiran-hint" id="feeLampiranHint" data-t="hintLampiranPanjang">Maksimal 6 berkas, 8 MB per berkas. JPG, PNG, WEBP, atau PDF. Foto berukuran besar dikecilkan otomatis sebelum dikirim.</div>
+      <div id="feeLampiranList"></div>
+    </div>
+    <!-- TTD teknisi yang terlupa. Papannya hanya digambar untuk petak yang
+         memang masih kosong dan hanya untuk pembuat catatannya sendiri —
+         siapkanTtdSunting() yang memutuskan, dan server memutuskan lagi. -->
+    <div class="field" id="feeTtdWrap">
+      <label data-t="ttdTeknisi">TTD Teknisi</label>
+      <div id="feeTtdAda"></div>
+      <div class="sig-wrap" id="feeTtdPapan">
+        <canvas id="sigFeeTeknisi"></canvas>
+        <div class="sig-toolbar">
+          <span class="sig-hint" data-t="ttdHintTeknisi">tanda tangan teknisi</span>
+          <button class="sig-clear" onclick="clearSig('sigFeeTeknisi')" data-t="bersihkan">bersihkan</button>
+        </div>
+      </div>
+      <div class="lampiran-hint" id="feeTtdHint"></div>
+    </div>
     <div class="modal-footer">
       <button class="btn ghost" onclick="closeEntryEditModal()" data-t="batal">Batal</button>
       <button class="btn" id="feeSaveBtn" onclick="saveEntryEdit()" data-t="simpanPerubahan">💾 Simpan Perubahan</button>
@@ -799,17 +925,9 @@
   </div>
 </div>
 
-<!-- MODAL SUNTING TANGGAL DAILY CHECK -->
-<div class="modal-bg" id="dcEditModalBg">
-  <div class="modal" style="max-width:420px;">
-    <h3 data-t="modalSuntingTanggalDc">Ubah Tanggal Daily Check</h3>
-    <div class="field"><label data-t="tanggal">Tanggal</label><input type="date" id="dceTanggal"></div>
-    <div class="modal-footer">
-      <button class="btn ghost" onclick="closeDcEditModal()" data-t="batal">Batal</button>
-      <button class="btn" id="dceSaveBtn" onclick="saveDcEdit()" data-t="simpanPerubahan">💾 Simpan Perubahan</button>
-    </div>
-  </div>
-</div>
+<!-- Modal sunting-tanggal yang dulu ada di sini sudah dilepas: menyunting
+     daily check sekarang berlangsung di form utama itu sendiri (lihat
+     openDcEditModal di 14-daily-check-umum.js). -->
 
 <!-- MODAL KOTAK MASUK TTD (pejabat & admin) -->
 <div class="modal-bg" id="inboxModalBg">
@@ -882,12 +1000,14 @@
 <script src="js/10-lampiran.js"></script>
 <script src="js/11-logbook.js"></script>
 <script src="js/12-daily-check-radtel.js"></script>
+<script src="js/12b-daily-check-radtel-jatsc.js"></script>
 <script src="js/13-daily-check-radkom.js"></script>
 <script src="js/14-daily-check-umum.js"></script>
 <script src="js/15-isu.js"></script>
 <script src="js/16-monitoring.js"></script>
 <script src="js/17-ds-test.js"></script>
 <script src="js/18-ltk.js"></script>
+<script src="js/18b-bapb.js"></script>
 <script src="js/19-berkala.js"></script>
 <script src="js/20-ttd-pejabat.js"></script>
 <script src="js/21-cetak-dasar.js"></script>
