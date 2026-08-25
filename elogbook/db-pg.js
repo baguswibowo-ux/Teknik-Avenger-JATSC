@@ -332,7 +332,7 @@ export async function saveSignature(dataUrl, prefix) {
  * Kolom ttd_tersimpan menyimpan JSON `[{label,path}]`; bentuk lama sekadar path
  * juga tetap dibaca (satu slot tanpa label). Akun pejabat/admin boleh memegang
  * beberapa slot bertanda label; teknisi tetap satu slot. */
-export const MAX_SLOT_TTD_PEJABAT = 3;
+export const MAX_SLOT_TTD_PEJABAT = 7;
 
 function bacaSlotTtd(raw) {
   const s = String(raw || '').trim();
