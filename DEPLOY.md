@@ -920,6 +920,16 @@ Dan karena murni pemanggilan fungsi (tanpa socket maupun timer), perilakunya sam
 persis di komputer dan di Vercel — beda dari socket (1,2) yang lolos di komputer
 tapi gagal di Vercel.
 
+**Satu jebakan yang wajib diingat — Content-Length.** `teruskan()` di server.js
+membuang header `Content-Length` (`KEPALA_DIBUANG`), dan dulu `fetch()` yang
+memasangnya sendiri dari ukuran badan. Di dispatch buatan tidak ada fetch, jadi
+`req` mock HARUS dipasangi `Content-Length` sendiri — kalau tidak, body-parser
+E-Logbook menganggap permintaannya tak berbadan (`hasbody()` → false), melewati
+badannya, dan `req.body` jadi kosong. Akibatnya SEMUA POST/PUT/DELETE berbadan
+diam-diam mengirim badan kosong: login menerima username/password kosong → 401
+tanpa sesi, simpan/unggah gagal senyap. Gejalanya persis "login berhasil di versi
+lama, gagal di gabungan". Lihat pemasangan `content-length` di `dispatchElog`.
+
 ### 9.2 Yang harus dikerjakan di Vercel (proyek `teknik-avenger-jatsc`)
 
 1. **Salin environment variable** milik `e-log-book-server` ke proyek Avenger —
