@@ -7,32 +7,41 @@
  * cookie lintas-subdomain di DEPLOY.md lahir dari situ.
  *
  * Di sini keduanya menyatu dalam satu fungsi. E-Logbook tetap app Express-nya
- * sendiri (halaman di "/", API di "/api"), tidak dipindah alamatnya — tapi
- * penerusan tidak lagi lewat jaringan. server.js memanggilnya lewat fetch()
- * ke satu alamat internal, dan di sini fetch itu dicegat lalu dijalankan
- * LANGSUNG di dalam proses ini, tanpa socket sama sekali.
+ * sendiri (halaman di "/", API di "/api"), tidak dipindah alamatnya. server.js
+ * memanggilnya lewat fetch() ke satu alamat internal; fetch itu dicegat lalu
+ * dijalankan ke E-Logbook di dalam proses yang sama.
  *
- * Kenapa bukan server loopback (http.createServer + listen 127.0.0.1):
- * itu SUDAH DICOBA dan gagal di Vercel. Fungsinya boot normal — servernya
- * ter-bind dan dapat port — tapi fetch('http://127.0.0.1:port') dari dalam
- * fungsi yang sama tidak pernah tersambung: tiap permintaan yang diteruskan
- * menggantung sampai batas 30 detik lalu 500. Runtime Vercel tampaknya tidak
- * mengizinkan fungsi menyambung ke server loopback yang dinyalakannya sendiri.
+ * Transportnya: SOCKET DOMAIN UNIX. E-Logbook dinyalakan sebagai http.Server
+ * biasa yang mendengar di sebuah berkas socket di /tmp, dan permintaan internal
+ * dikirim ke situ lewat node:http. Ini HTTP sungguhan — req dan res asli di
+ * kedua ujung — tapi lewat berkas socket, bukan jaringan.
  *
- * Dispatch in-process tidak menyentuh jaringan sama sekali, jadi kebal soal
- * itu: kalau lolos di komputer, ia lolos di Vercel dengan alasan yang sama —
- * hanya panggilan fungsi Express biasa. light-my-request adalah alat baku
- * untuk menyuntik permintaan ke handler Node tanpa socket (dipakai Fastify).
+ * Kenapa bukan yang lain, keduanya sudah dicoba dan gagal di Vercel:
+ *
+ *  1. Server loopback TCP (listen 127.0.0.1:port): fungsinya boot, tapi fetch
+ *     ke 127.0.0.1 dari dalam fungsi yang sama tidak pernah tersambung —
+ *     tiap permintaan menggantung 30 detik lalu 500. Runtime Vercel tampaknya
+ *     menutup antarmuka loopback jaringan. Socket domain Unix bukan jaringan
+ *     (ia berkas), jadi lolos dari batasan itu.
+ *
+ *  2. Dispatch mock lewat light-my-request (menyuntik req/res palsu ke handler
+ *     tanpa socket): ~seperempat permintaan 500. Response palsunya melempar
+ *     galat TAK TERTANGKAP saat on-finished Express menulis ke sana setelah ia
+ *     usai (light-my-request/lib/response.js: undefined 'stream'), dan galat
+ *     tak tertangkap itu meracuni invocation-nya. req/res asli lewat socket
+ *     tidak punya daur hidup rapuh itu.
  *
  * Berkas inilah satu-satunya yang tahu soal Vercel. server.js dan
  * elogbook/server.js tetap dua app Express biasa yang tidak tahu di mana
  * mereka dijalankan.
  */
-import inject from 'light-my-request';
+import http from 'node:http';
+import os from 'node:os';
+import path from 'node:path';
 
 /* Alamat internal E-Logbook. Bukan alamat nyata — cuma penanda supaya fetch()
-   di server.js bisa dikenali dan dialihkan ke dispatch in-process. Harus URL
-   yang sah: server.js sempat memanggil new URL(ASAL) untuk membaca port-nya. */
+   di server.js bisa dikenali dan dialihkan ke socket. Harus URL yang sah:
+   server.js sempat memanggil new URL(ASAL) untuk membaca port-nya. */
 const ASAL_INTERNAL = 'http://elog.internal';
 
 /* E-Logbook diimpor sebagai app Express biasa — app.listen() dan persiapan DB
@@ -40,7 +49,26 @@ const ASAL_INTERNAL = 'http://elog.internal';
    ia cuma mengembalikan app-nya tanpa efek samping. */
 const { default: elogApp } = await import('../elogbook/server.js');
 
-/** Ubah headers apa pun (objek biasa atau Headers) jadi objek biasa untuk inject. */
+/* Nyalakan E-Logbook di socket domain Unix, sekali per cold-start. Nama berkasnya
+   diberi pid + waktu supaya dua wadah yang berbagi disk (jarang, tapi mungkin)
+   tidak berebut berkas yang sama.
+
+   Di Vercel (Linux) ini berkas di /tmp. Di Windows AF_UNIX lewat jalur berkas
+   tidak didukung Node — ia memakai named pipe (\\.\pipe\...) — jadi dipilih
+   sesuai platform. Yang berlaku di produksi selalu cabang Linux; cabang Windows
+   hanya supaya uji lokal bisa jalan (di kantor pemakaian sebenarnya lewat
+   jalankan-semua.js, dua proses, bukan berkas ini). */
+const NAMA_SOCKET = `elog-${process.pid}-${Date.now()}.sock`;
+const JALUR_SOCKET = process.platform === 'win32'
+  ? `\\\\.\\pipe\\${NAMA_SOCKET}`
+  : path.join(os.tmpdir(), NAMA_SOCKET);
+const serverElog = http.createServer(elogApp);
+await new Promise((selesai, gagal) => {
+  serverElog.once('error', gagal);
+  serverElog.listen(JALUR_SOCKET, selesai);
+});
+
+/** Ubah headers apa pun (objek biasa atau Headers) jadi objek biasa untuk node:http. */
 function keObjekHeaders(h) {
   if (!h) return {};
   if (typeof h.entries === 'function') return Object.fromEntries(h.entries());
@@ -48,35 +76,45 @@ function keObjekHeaders(h) {
 }
 
 /**
- * Jalankan satu permintaan lewat app Express E-Logbook di dalam proses ini,
- * lalu bungkus hasilnya sebagai Response standar — bentuk yang sama persis
- * dengan yang dikembalikan fetch(), supaya kode penerusan di server.js tidak
- * perlu tahu bahwa transportnya sudah bukan jaringan.
+ * Kirim satu permintaan ke E-Logbook lewat socket, kembalikan Response standar —
+ * bentuk yang sama persis dengan yang dikembalikan fetch(), supaya kode
+ * penerusan di server.js tidak perlu tahu transportnya bukan jaringan.
  */
-async function dispatchElog(url, init = {}) {
-  const jalur = url.slice(ASAL_INTERNAL.length) || '/';
-  const res = await inject(elogApp, {
-    method: init.method || 'GET',
-    url: jalur.startsWith('/') ? jalur : '/' + jalur,
-    headers: keObjekHeaders(init.headers),
-    // body fetch berupa Buffer/string; inject menerima keduanya sebagai payload.
-    payload: init.body,
+function dispatchElog(url, init = {}) {
+  const u = new URL(url);
+  return new Promise((resolve, reject) => {
+    const permintaan = http.request(
+      {
+        socketPath: JALUR_SOCKET,
+        method: init.method || 'GET',
+        path: u.pathname + u.search,
+        headers: keObjekHeaders(init.headers),
+      },
+      (res) => {
+        const potongan = [];
+        res.on('data', (c) => potongan.push(c));
+        res.on('end', () => {
+          const kepala = new Headers();
+          for (const [nama, nilai] of Object.entries(res.headers)) {
+            if (nilai == null) continue;
+            // set-cookie datang sebagai array dari node:http; di-append satu per
+            // satu supaya getSetCookie() di server.js membacanya utuh.
+            if (Array.isArray(nilai)) for (const v of nilai) kepala.append(nama, String(v));
+            else kepala.append(nama, String(nilai));
+          }
+          resolve(new Response(Buffer.concat(potongan), { status: res.statusCode, headers: kepala }));
+        });
+        res.on('error', reject);
+      }
+    );
+    permintaan.on('error', reject);
+    if (init.body != null) permintaan.write(init.body);
+    permintaan.end();
   });
-
-  /* Susun ulang headers. set-cookie sengaja di-append satu per satu: E-Logbook
-     bisa memasang lebih dari satu, dan server.js membacanya kembali lewat
-     getSetCookie() — bukan forEach yang menggabungnya jadi satu baris rusak. */
-  const kepala = new Headers();
-  for (const [nama, nilai] of Object.entries(res.headers)) {
-    if (nilai == null) continue;
-    if (Array.isArray(nilai)) for (const v of nilai) kepala.append(nama, String(v));
-    else kepala.append(nama, String(nilai));
-  }
-  return new Response(res.rawPayload, { status: res.statusCode, headers: kepala });
 }
 
 /* Cegat fetch HANYA untuk alamat internal; sisanya (mis. Supabase) lewat apa
-   adanya. Dipasang sebelum server.js diimpor supaya ia sudah berlaku saat
+   adanya. Dipasang sebelum server.js diimpor supaya sudah berlaku saat
    permintaan pertama datang. */
 const fetchAsli = globalThis.fetch;
 globalThis.fetch = function (input, init) {

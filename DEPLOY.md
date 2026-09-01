@@ -881,28 +881,36 @@ Avenger — tanpa jaringan sama sekali.
 
 ### 9.1 Apa yang berubah di kode
 
-- **`api/index.js`** — mengimpor `elogbook/server.js` sebagai app Express, lalu
-  **mencegat `fetch()`** hanya untuk satu alamat internal (`http://elog.internal`)
-  dan menjalankannya lewat `light-my-request` (`inject`) langsung ke app
-  E-Logbook, mengembalikan `Response` standar. `ELOGBOOK_ASAL` diarahkan ke
-  alamat internal itu **sebelum** `server.js` diimpor (server.js membacanya
-  sekali saat modul dimuat). Kode penerusan di `server.js` tidak disentuh sama
-  sekali — hanya transport-nya yang berganti dari HTTP jadi panggilan fungsi.
-- **`package.json`** — tambah `light-my-request` (alat baku untuk menyuntik
-  permintaan ke handler Node tanpa socket; dipakai Fastify).
+- **`api/index.js`** — mengimpor `elogbook/server.js` sebagai app Express dan
+  menyalakannya sebagai `http.Server` di sebuah **socket domain Unix** di `/tmp`.
+  Lalu **mencegat `fetch()`** hanya untuk satu alamat internal
+  (`http://elog.internal`) dan mengirimnya ke socket itu lewat `node:http`,
+  mengembalikan `Response` standar. `ELOGBOOK_ASAL` diarahkan ke alamat internal
+  itu **sebelum** `server.js` diimpor (server.js membacanya sekali saat modul
+  dimuat). Kode penerusan di `server.js` tidak disentuh — hanya transport-nya
+  yang berganti dari HTTP-jaringan jadi HTTP-lewat-socket.
 - **`vercel.json`** — `functions["api/index.js"].includeFiles` = `"elogbook/public/**"`.
   Vercel menelusuri `import`, bukan berkas yang disajikan `express.static`. Tanpa
   baris ini, halaman E-Logbook naik tanpa CSS/JS-nya.
 
-**Kenapa BUKAN server loopback (`http.createServer` + `listen` di 127.0.0.1):**
-itu dicoba lebih dulu dan **gagal di Vercel**. Fungsinya boot normal — servernya
-ter-bind dan dapat port, rute Avenger sendiri menjawab cepat — tapi
-`fetch('http://127.0.0.1:port')` dari dalam fungsi yang sama **tidak pernah
-tersambung**: tiap permintaan yang diteruskan menggantung sampai batas 30 detik
-lalu `500 INTERNAL_FUNCTION_INVOCATION_FAILED`. Runtime Vercel tampaknya tidak
-mengizinkan fungsi menyambung ke server loopback yang dinyalakannya sendiri.
-Dispatch in-process tidak menyentuh jaringan, jadi kebal soal itu: kalau lolos
-di komputer, ia lolos di Vercel — hanya panggilan fungsi Express biasa.
+**Dua transport lain dicoba lebih dulu dan gagal di Vercel** — dicatat supaya
+tidak diulang:
+
+1. **Server loopback TCP** (`http.createServer` + `listen(0, '127.0.0.1')`):
+   fungsinya boot normal, rute Avenger sendiri cepat, tapi
+   `fetch('http://127.0.0.1:port')` dari dalam fungsi yang sama **tidak pernah
+   tersambung** — tiap permintaan yang diteruskan menggantung 30 detik lalu
+   `500 INTERNAL_FUNCTION_INVOCATION_FAILED`. Runtime Vercel tampaknya menutup
+   antarmuka loopback **jaringan**. Socket domain Unix bukan jaringan (ia berkas),
+   jadi lolos dari batasan itu.
+
+2. **Dispatch mock lewat `light-my-request`** (menyuntik req/res palsu ke handler
+   tanpa socket): ~seperempat permintaan `500`, hanya pada rute yang lewat
+   dispatch (rute Avenger murni tetap stabil). Response palsunya melempar galat
+   **tak tertangkap** saat `on-finished` Express menulis ke sana setelah ia usai
+   (`light-my-request/lib/response.js` → `undefined 'stream'`), dan galat tak
+   tertangkap itu meracuni invocation. Tidak muncul di komputer; hanya di runtime
+   Vercel. req/res **asli** lewat socket tidak punya daur hidup rapuh itu.
 
 ### 9.2 Yang harus dikerjakan di Vercel (proyek `teknik-avenger-jatsc`)
 
