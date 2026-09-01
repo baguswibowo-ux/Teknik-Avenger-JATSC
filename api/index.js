@@ -103,6 +103,19 @@ function dispatchElog(url, init = {}) {
     if (badan && badan.length) req.headers['content-length'] = String(badan.length);
     else { delete req.headers['content-length']; delete req.headers['transfer-encoding']; }
 
+    /* IP asli pemakai. Soket buatan tidak tersambung ke mana pun, jadi
+       remoteAddress-nya kosong dan req.ip di E-Logbook ikut kosong — padahal
+       penahan tebak-password /api/login memakainya sebagai kunci. Tanpa ini
+       SEMUA pemakai berbagi satu penghitung gagal (kunci 'x'), dan delapan
+       kegagalan siapa pun mengunci semua orang. IP-nya diambil dari
+       x-forwarded-for yang sudah diteruskan teruskan() dari Vercel. */
+    const ipAsli = String(req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || '')
+      .split(',')[0].trim();
+    if (ipAsli) {
+      try { Object.defineProperty(soket, 'remoteAddress', { value: ipAsli, configurable: true }); }
+      catch { /* soket menolak: throttle jatuh ke 'x' seperti sebelumnya, tidak fatal */ }
+    }
+
     const res = new ServerResponse(req);
     res.assignSocket(soket);
 
