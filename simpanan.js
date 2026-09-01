@@ -155,9 +155,28 @@ function kolam() {
   return kolamJanji;
 }
 
-async function bacaTabel(kunci, bawaan) {
+/* Koneksi yang diputus pooler Supabase saat menganggur bisa terlanjur
+   diserahkan ke satu kueri sebelum pool tahu ia mati; kueri itu gagal seketika
+   dengan galat KONEKSI, bukan galat SQL. Percobaan kedua mengambil koneksi baru
+   dan lolos. Hanya galat koneksi yang diulang — galat SQL diteruskan apa adanya.
+   Lihat catatan sepadan di elogbook/db-pg.js. */
+const GALAT_KONEKSI = /ECONNRESET|Connection terminated|terminating connection|Connection ended|server closed the connection|encountered a connection error|socket hang up|ETIMEDOUT|EPIPE/i;
+const KODE_KONEKSI = new Set(['57P01', '57P02', '57P03', '08006', '08003', '08000', 'ECONNRESET', 'EPIPE', 'ETIMEDOUT']);
+
+async function kueri(sql, params = []) {
   const p = await kolam();
-  const baris = (await p.query('SELECT isi FROM avenger_state WHERE kunci = $1', [kunci])).rows[0];
+  try {
+    return await p.query(sql, params);
+  } catch (e) {
+    const koneksi = e && (KODE_KONEKSI.has(e.code) || GALAT_KONEKSI.test(e.message || ''));
+    if (!koneksi) throw e;
+    console.warn('[simpanan] koneksi basi, ulang sekali:', e.message || e.code);
+    return await (await kolam()).query(sql, params);
+  }
+}
+
+async function bacaTabel(kunci, bawaan) {
+  const baris = (await kueri('SELECT isi FROM avenger_state WHERE kunci = $1', [kunci])).rows[0];
   if (!baris) return bawaan;
   try {
     return JSON.parse(baris.isi);
@@ -172,8 +191,7 @@ async function bacaTabel(kunci, bawaan) {
 }
 
 async function tulisTabel(kunci, isi, oleh) {
-  const p = await kolam();
-  await p.query(
+  await kueri(
     'INSERT INTO avenger_state (kunci, isi, diubah_pada, diubah_oleh)'
     + ' VALUES ($1, $2, $3, $4)'
     + ' ON CONFLICT (kunci) DO UPDATE'
@@ -218,8 +236,7 @@ export async function hapusJson(berkas) {
     await fs.rm(berkas, { force: true });
     return;
   }
-  const p = await kolam();
-  await p.query('DELETE FROM avenger_state WHERE kunci = $1', [kunciDari(berkas)]);
+  await kueri('DELETE FROM avenger_state WHERE kunci = $1', [kunciDari(berkas)]);
 }
 
 /* ============== BERKAS BINER ==============

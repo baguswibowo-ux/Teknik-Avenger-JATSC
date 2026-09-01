@@ -72,12 +72,48 @@ pool.on('error', (err) => console.error('[pg] koneksi menganggur bermasalah:', e
 
 /* ============== PEMBANTU KUERI ============== */
 
+/* Galat yang berarti "koneksinya mati", bukan "kuerinya salah".
+ *
+ * Pooler Supabase memutus koneksi menganggur sepihak. Pool bisa terlanjur
+ * menyerahkan koneksi seperti itu ke satu kueri sebelum sempat tahu ia sudah
+ * mati — kueri itu gagal seketika dengan galat koneksi, bukan galat SQL.
+ * Percobaan kedua mengambil koneksi baru dan lolos.
+ *
+ * Ini lebih sering terjadi sejak E-Logbook jadi komponen internal di dalam
+ * fungsi Avenger (satu deploy): banyak permintaan dilayani rute Avenger sendiri
+ * tanpa menyentuh pool ini, jadi koneksinya lebih lama menganggur dan lebih
+ * sering diputus. Yang paling kena: /api/me, yang tiap dibuka menanyakan tabel
+ * sessions.
+ *
+ * Hanya galat koneksi yang diulang. Galat SQL (sintaks, batasan, tipe)
+ * diteruskan apa adanya — mengulangnya cuma menyembunyikan bug di balik
+ * percobaan kedua yang gagal dengan cara yang sama. */
+const GALAT_KONEKSI = /ECONNRESET|Connection terminated|terminating connection|Connection ended|server closed the connection|encountered a connection error|socket hang up|ETIMEDOUT|EPIPE|read ECONNRESET/i;
+const KODE_KONEKSI = new Set(['57P01', '57P02', '57P03', '08006', '08003', '08000', 'ECONNRESET', 'EPIPE', 'ETIMEDOUT']);
+
+function galatKoneksi(e) {
+  if (!e) return false;
+  if (e.code && KODE_KONEKSI.has(e.code)) return true;
+  return GALAT_KONEKSI.test(e.message || '');
+}
+
+/** Jalankan kueri; kalau gagal karena koneksi basi, ambil koneksi baru sekali lagi. */
+async function kueri(sql, params = []) {
+  try {
+    return await pool.query(sql, params);
+  } catch (e) {
+    if (!galatKoneksi(e)) throw e;
+    console.warn('[pg] koneksi basi, ulang sekali:', e.message || e.code);
+    return await pool.query(sql, params);
+  }
+}
+
 /** Jalankan kueri, kembalikan seluruh baris. */
-const q = async (sql, params = []) => (await pool.query(sql, params)).rows;
+const q = async (sql, params = []) => (await kueri(sql, params)).rows;
 /** Baris pertama saja, atau undefined. */
-const q1 = async (sql, params = []) => (await pool.query(sql, params)).rows[0];
+const q1 = async (sql, params = []) => (await kueri(sql, params)).rows[0];
 /** Jumlah baris yang terpengaruh. */
-const jalankan = async (sql, params = []) => (await pool.query(sql, params)).rowCount;
+const jalankan = async (sql, params = []) => (await kueri(sql, params)).rowCount;
 
 /* ============== TABEL SUSULAN ==============
  * Skema Supabase dibuat sekali di luar aplikasi, dan tabel yang lahir setelah
