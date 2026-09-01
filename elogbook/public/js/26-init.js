@@ -157,6 +157,14 @@ function alamatDashboard(){
     ? window.AVENGER_TAUTAN : '';
   if(disetel) return disetel;
 
+  /* Disajikan lewat pintu dashboard (/logbook/) berarti dashboardnya ada di
+     ASAL YANG SAMA — halaman ini memang halaman dashboard yang diteruskan, jadi
+     akar asal ini sudah menunjuk dashboard. Berlaku di produksi satu-deploy
+     (E-Logbook jadi komponen internal) maupun dua-proyek lama: saat lewat pintu,
+     peramban selalu di domain dashboard. Ini yang membuat tombol pulang muncul
+     di Vercel tanpa perlu AVENGER_TAUTAN. */
+  if(window.LEWAT_PINTU_AVENGER) return location.origin + '/';
+
   /* Tanpa AVENGER_TAUTAN, satu-satunya tebakan yang masuk akal adalah port
      sebelah di komputer yang sama. Itu benar di kantor dan PASTI salah di
      layanan seperti Vercel, yang tidak punya port 3100 sama sekali — tombolnya
