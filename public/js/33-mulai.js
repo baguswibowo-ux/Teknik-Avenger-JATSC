@@ -17,9 +17,6 @@ function gambarSemua(){
   // ke server.
   gambarAktivitas();
   pasangTabAkun(); gambarAkun();
-  el('modulBaris').innerHTML = MODUL.map(m=>`<div class="modul ${m.jalan?'jalan':''}">
-    <div class="st">${esc(T(m.st, m.stEn))}</div><h4>${esc(T(m.nama, m.namaEn))}</h4>
-    <p>${esc(T(m.ket, m.ketEn))}</p></div>`).join('');
 }
 
 /* Dulu baris ini menempel di ekor bagian KELOLA AKUN. Dalam satu berkas utuh

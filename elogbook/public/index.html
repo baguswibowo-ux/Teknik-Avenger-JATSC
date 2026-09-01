@@ -111,7 +111,7 @@
   <button class="tab-btn active" data-tab="logbook" data-t="tabLogbook">📋 LOGBOOK FASILITAS</button>
   <button class="tab-btn" data-tab="dailycheck" data-t="tabDailyCheck">🖥 DAILY CHECK</button>
   <!-- Satu tab wadah untuk lima lembar preventive maintenance. Sub-tab di
-       dalamnya (DS TEST → CEK QUERY NEPTUNO → RESTART CPU GATEVOX →
+       dalamnya (DS TEST → CEK INSPECTION NEPTUNO → CHANGE OVER CPU GATEVOX →
        CLEANING CWP → RESTART CWP) diatur di js/04-toast-tab.js. Ketampakan
        sub-tab per unit ditangani di js/07-unit.js. Duduk di sebelah Daily
        Check karena keduanya pemeriksaan terjadwal — LTK dan Isu di
@@ -168,6 +168,18 @@
     <div class="section-head">
       <div><h2 data-t="dcJudul">Daily Check</h2><p data-t="dcSub">Klik status untuk mengubah kondisi: Normal → Alarm → Gangguan.</p></div>
     </div>
+    <!-- Sub-tab pemilih lokasi Radtel (JATSC vs New JATSC). Kelas .subtabs
+         dan .subtab-btn ikut pola Preventive Maintenance — handler generik
+         di js/04-toast-tab.js yang menukar .active-nya. Fungsi setDcLokasi
+         di 14-daily-check-umum.js menyinkronkan pilihan ke dropdown dcLokasi
+         dan memicu perbaruiLokasiDc(), jadi bentuk form ikut berganti.
+         Wadahnya disembunyikan untuk unit non-Radtel oleh 07-unit.js. -->
+    <nav class="subtabs" id="dcSubtabs" style="display:none;">
+      <button class="subtab-btn active" data-subtab="dc-newjatsc"
+              onclick="setDcLokasi('new-jatsc')">📍 New JATSC</button>
+      <button class="subtab-btn" data-subtab="dc-jatsc"
+              onclick="setDcLokasi('jatsc')">📍 JATSC</button>
+    </nav>
     <div class="card">
       <div class="grid3">
         <div class="field" id="dcSuhuWrap"><label data-t="suhuMer">Suhu MER (°C)</label><input type="text" id="dcSuhu" data-t-ph="phSuhu" placeholder="cth. 22°C"></div>
@@ -178,26 +190,31 @@
           <div class="hari-dc" id="dcHariTeks"></div>
         </div>
       </div>
-      <!-- Nama peralatan dan lokasi fisiknya — dipakai Radtel; unit lain
-           menyembunyikannya lewat 07-unit.js. Nama peralatan menentukan bentuk
-           formnya (Garex 300 vs Frequentis 3020X); Lokasi cuma pelabelan
-           kertas — sebuah peralatan bisa saja dipindah, dan checklist di form
-           itu sendiri tetap sama. -->
-      <div class="grid2" id="dcAlatWrap" style="margin-top:6px;">
-        <div class="field">
-          <label data-t="namaPeralatan">Nama Peralatan</label>
-          <select id="dcLokasi" onchange="perbaruiLokasiDc()">
-            <option value="new-jatsc">VCS Garex 300</option>
-            <option value="jatsc">VCS Frequentis 3020X</option>
-          </select>
-        </div>
-        <div class="field">
-          <label data-t="lokasi">Lokasi</label>
-          <select id="dcTempat">
-            <option value="new-jatsc">New JATSC</option>
-            <option value="jatsc">JATSC</option>
-          </select>
-        </div>
+      <!-- Info peralatan + lokasi yang sedang aktif. Ditaruh di bawah baris
+           Suhu/Dinas/Tanggal supaya berdampingan dengan meta form; nama alat
+           spesifik (Garex vs Frequentis) tetap terbaca meski label sub-tab
+           dipendekkan. Diisi oleh sinkronSubtabDc() di 14-daily-check-umum.js. -->
+      <div id="dcInfoLokasi" style="display:none;margin-top:10px;font-size:12.5px;color:var(--muted);padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:var(--panel-2);">
+        <b style="color:var(--text);">Peralatan:</b> <span id="dcInfoPeralatan" style="color:var(--accent);font-weight:600;">VCS Garex 300</span>
+        &nbsp;·&nbsp;
+        <b style="color:var(--text);">Lokasi:</b> <span id="dcInfoTempat" style="color:var(--accent);font-weight:600;">New JATSC</span>
+      </div>
+      <!-- Nama peralatan dan lokasi fisik — dulu dua dropdown yang bisa dipilih
+           bebas. Sekarang keduanya PATEN mengikuti sub-tab di atas: Nama Peralatan
+           (dcLokasi) menentukan bentuk form (Garex vs Frequentis), Lokasi (dcTempat)
+           adalah label kertas yang selalu sama nilainya. Elemennya disembunyikan
+           tapi tetap ada — kode lain (saveDailyCheck, openDcDetail, 07-unit.js)
+           membacanya sebagai sumber kebenaran. setDcLokasi() di 14-daily-check-umum.js
+           menulis keduanya sekaligus. -->
+      <div id="dcAlatWrap" style="display:none;">
+        <select id="dcLokasi" onchange="perbaruiLokasiDc()">
+          <option value="new-jatsc">VCS Garex 300</option>
+          <option value="jatsc">VCS Frequentis 3020X</option>
+        </select>
+        <select id="dcTempat">
+          <option value="new-jatsc">New JATSC</option>
+          <option value="jatsc">JATSC</option>
+        </select>
       </div>
 
       <!-- Petunjuk sedang menyunting: catatan lama yang sedang diubah.
@@ -223,6 +240,7 @@
         </table>
       </div>
       <div id="dcJatscWrap" style="display:none;"></div>
+      <div id="dcNavWrap" style="display:none;"></div>
       <div id="dcRadkomWrap" style="display:none;"></div>
       <div class="field" style="margin-top:14px;"><label data-t="remark">Remark / Catatan Tambahan</label><textarea id="dcRemark" data-t-ph="phRemark" placeholder="cth. VR3 partial failure of element, masih dalam remote expert Madrid..."></textarea></div>
       <div class="grid2" style="margin-top:8px;">
@@ -321,8 +339,8 @@
   <section class="view" id="view-preventive">
     <nav class="subtabs">
       <button class="subtab-btn active" data-subtab="dstest" data-t="tabDsTest">☎ DS TEST</button>
-      <button class="subtab-btn" data-subtab="bk-neptuno" data-t="tabBkNeptuno">🎙 CEK QUERY NEPTUNO</button>
-      <button class="subtab-btn" data-subtab="bk-gatevox" data-t="tabBkGatevox">♻ RESTART CPU GATEVOX</button>
+      <button class="subtab-btn" data-subtab="bk-neptuno" data-t="tabBkNeptuno">🎙 CEK INSPECTION NEPTUNO</button>
+      <button class="subtab-btn" data-subtab="bk-gatevox" data-t="tabBkGatevox">♻ CHANGE OVER CPU GATEVOX</button>
       <button class="subtab-btn" data-subtab="bk-cleaning" data-t="tabBkCleaning">🧹 CLEANING CWP</button>
       <button class="subtab-btn" data-subtab="bk-restart" data-t="tabBkRestart">⟳ RESTART CWP</button>
     </nav>
@@ -619,29 +637,34 @@
 
 <!-- MODAL DS TEST -->
 <div class="modal-bg" id="dsModalBg">
-  <div class="modal" style="max-width:860px;">
+  <div class="modal" style="max-width:1080px;">
     <h3 data-t="dsModal">DS Test</h3>
     <div class="grid2">
       <div class="field"><label data-t="tanggal">Tanggal</label><input type="date" id="dsTanggal"></div>
-      <div class="field"><label data-t="kategoriDs">Kategori</label>
-        <!-- Isinya dibangun isiPilihanKategoriDs() dari daftar kategori yang
-             dikirim server; yang di bawah cuma isi sementara sebelum data masuk. -->
-        <select id="dsKategori" onchange="gantiKategoriDs()">
-          <option value="domestik" data-t="dsKat_domestik">Domestik</option>
-        </select>
+      <div class="field">
+        <label>Sesi Pengecekan</label>
+        <!-- Isinya dibangun renderDsTable() → dsSesiPilihanHtml(): sembilan sesi
+             sampling (ganjil 11, genap 10 baris). Pilih sesi → baris otomatis
+             ter-pre-fill dari DS_PLAN. Sesi yang barusan tersimpan diingat
+             lokal supaya form berikutnya lanjut ke sesi selanjutnya. -->
+        <select id="dsSesi" onchange="gantiDsSesi(this.value)"></select>
       </div>
     </div>
-    <div class="subtle-note" id="dsKosongNote" style="display:none;" data-t="dsDaftarKosong">Daftar site untuk kategori ini belum diisi. Kirimkan daftarnya dan formnya langsung bisa dipakai.</div>
-    <div class="legend">
-      <span><i class="dot" style="background:var(--ok)"></i> <span data-t="lgOk">OK</span></span>
-      <span><i class="dot" style="background:var(--fail)"></i> <span data-t="lgNotOk">NOT OK</span></span>
-      <span><i class="dot" style="background:var(--muted)"></i> <span data-t="lgTidakDicek">TIDAK DICEK</span></span>
-      <span style="color:var(--muted);" data-t="lgKlikUbah">Klik kotak status untuk mengubahnya.</span>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:4px 0 6px;">
+      <div style="font-size:12px;color:var(--muted);" id="dsSesiInfo">Sesi 1/9 — kuota 8 Dom + 3 Intl.</div>
+      <button class="btn ghost" style="padding:4px 10px;font-size:11.5px;" onclick="dsResetCycle()" title="Kosongkan daftar channel yang sudah dicek di siklus ini — mulai sesi 1 dari nol.">Reset siklus</button>
     </div>
-    <div class="dc-table-wrap">
+    <div class="legend">
+      <span><i class="dot" style="background:var(--ok)"></i> OK</span>
+      <span><i class="dot" style="background:var(--fail)"></i> NOT OK</span>
+      <span><i class="dot" style="background:var(--muted)"></i> NO ANSWER</span>
+      <span style="color:var(--muted);">Voltage indikasi: Off Hook 40–60 VDC · On Hook 0–15 VDC.</span>
+    </div>
+    <div class="dc-table-wrap" id="dsTableWrap">
       <table class="dc ds" id="dsTable">
-        <!-- Kepalanya diisi renderDsTable(): kolom SITE ikut hilang untuk
-             kategori yang barisnya cuma punya CODE. -->
+        <!-- Kepala & body diisi renderDsTable() dari dsRows (kolom: No,
+             Channel DS Sampling, Kategori, Test Incoming/Outgoing,
+             Voltage Off/On Hook, Indikasi Tegangan, Remark). -->
         <thead id="dsThead"></thead>
         <tbody id="dsBody"></tbody>
       </table>
@@ -683,6 +706,9 @@
       <span><i class="dot" style="background:var(--muted)"></i> <span data-t="lgTidakDikerjakan">TIDAK DIKERJAKAN</span></span>
       <span style="color:var(--muted);" data-t="bkLgBawaan">Semua baris dimulai dari ✓ — cukup tandai yang tidak beres.</span>
     </div>
+    <!-- Slot untuk kontrol tambahan di atas tabel (mis. pemilih Neptuno 1..4);
+         hanya diisi oleh renderer jenis tertentu, kosong untuk jenis lain. -->
+    <div id="bkExtraTop"></div>
     <div class="dc-table-wrap" style="max-height:52vh;overflow-y:auto;">
       <table class="dc" id="bkTable">
         <thead id="bkThead"></thead>
@@ -1065,6 +1091,7 @@
 <script src="js/11-logbook.js"></script>
 <script src="js/12-daily-check-radtel.js"></script>
 <script src="js/12b-daily-check-radtel-jatsc.js"></script>
+<script src="js/12c-daily-check-navigasi.js"></script>
 <script src="js/13-daily-check-radkom.js"></script>
 <script src="js/14-daily-check-umum.js"></script>
 <script src="js/15-isu.js"></script>

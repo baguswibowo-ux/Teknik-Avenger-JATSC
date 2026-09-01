@@ -48,21 +48,14 @@ const DC_JATSC = [
       ['VL B02','']
     ]}
   ]},
-  { kode:'C', judul:'C. DIRECT SPEECH', blok:[
-    { judul:'', kolom:['STATUS'], baris:[
-      'LINK DOMESTIK',
-      'LINK INTERNATIONAL — VSAT',
-      'LINK INTERNATIONAL — VPN',
-      'LINK INTERNATIONAL — SMC (Kabel Laut)'
-    ]}
-  ]},
+  // C. DIRECT SPEECH — 95 channel dibagi ke 9 sesi. Blok-nya kosong: seksi ini
+  // dirender terpisah oleh dsRender/dcJatscTabelBaca berdasarkan DS_PLAN dan
+  // sesi yang dipilih (dcJDsSesi / __sesiDs).
+  { kode:'C', judul:'C. DIRECT SPEECH', dsSampling:true, blok:[] },
   { kode:'D', judul:'D. MASTER CLOCK (BODET)', blok:[
     { judul:'Server', kolom:['STATUS'], baris:['NTP A','NTP B'] }
   ]},
-  { kode:'E', judul:'E. PLS', blok:[
-    { judul:'PC', kolom:['STATUS'], baris:['PLS 1','PLS 2','PLS 3'] }
-  ]},
-  { kode:'F', judul:'F. JARINGAN', blok:[
+  { kode:'E', judul:'E. JARINGAN', blok:[
     { judul:'MUX Megaplex 4100 (Jar. 720)', kolom:['A','B'], baris:[
       'Modul PSU','Link FO','Radio Link'
     ]},
@@ -78,15 +71,6 @@ const DC_JATSC = [
     { judul:'Jaringan FO ILS Selatan (Alcatel)', kolom:['A','B'], baris:[
       'Link FO SW. Alcatel'
     ]},
-    { judul:'Jaringan FO ILS Utara — Converter BNB', kolom:['STATUS'], baris:[
-      'LZ 25R','GP 07L','GP 25R','LZ 07L'
-    ]},
-    { judul:'Jaringan FO ILS Utara — Converter Moxa', kolom:['STATUS'], baris:[
-      'MM 07L','MM 25R'
-    ]},
-    { judul:'Jaringan FO MLAT', kolom:['A','B'], baris:[
-      'FO MLAT Utara','FO MLAT Selatan'
-    ]},
     { judul:'Radio Link CKG 3', kolom:['STATUS'], baris:['Link A','Link B'] }
   ]}
 ];
@@ -101,11 +85,74 @@ const DC_JATSC = [
  */
 function jatscKunci(sk, bi, ri, kk){ return `${sk}|${bi}|${ri}|${kk}`; }
 
+/* ---------- C. DIRECT SPEECH — sampling 9 sesi (95 channel) ----------
+   Daftar channel diambil dari workbook "Checklist Pengecekan DS" (sheet
+   DATABASE DS). 64 Domestik + 31 Internasional = 95, dibagi pola selang-seling
+   ke 9 sesi supaya setiap channel tersentuh persis sekali per siklus:
+
+     Sesi ganjil (1,3,5,7,9): 8 Domestik + 3 Internasional = 11 channel
+     Sesi genap  (2,4,6,8)  : 6 Domestik + 4 Internasional = 10 channel
+
+   Sesi yang sudah tersimpan otomatis "hilang" — sesi berikutnya lah yang
+   ditawarkan sebagai default. Setelah sesi 9 tersimpan, siklus balik ke 1. */
+const DS_DOM = [
+  'ATANG SJY','BTH','BTJ','CILA CAP','HLM PK','JOG','MDN FIC','MDN TMA',
+  'PGK TWR','PK.BUN','PKU EAST','PKU WEST','SRG','SUB','TASIK MALAYA','TJQ',
+  'UPG RUPKA','UPG UK','UPG US','KALI JATI','KTJ FSS','KTJ TMA','KTJ UJOG',
+  'PKU 4','PNK 2','PNK APP','PNK FIC','HLM FIC','PK UTARA','SPV TWR JATSC',
+  'SLI UM','SLI UK','SLI MWARA','BDO','BDT','CD1 JATSC','CD2 JATSC',
+  'GND1 JATSC','GND2 JATSC','PLB APP','PLB PKP','PNK TMA','TKG',
+  'TNJ NORTH','TNJ SOUTH','TWR1 JATSC','TWR2 JATSC','JKCN','JKTS','JKTE',
+  'JKTW','6165','SLI 6176','SLI 6129','CD-TWR','6103','ARO_JATSC','6187',
+  '5044','NOTOF','GSM','SLI ARO 6110','SLI FIC 6188','SLI FDO 6123'
+];
+const DS_INTL = [
+  'KUL ANSAX CRV','KUL PUGER CRV','KUL SALAX MDN','KUL SALAX PKU',
+  'SIN 5C LUSMO','SIN 5P LUSMO','SIN 6P ELGOR','SIN 6P OSERU',
+  'SIN 6C ELGOR','KBL OKADA','KCH AOBA','KCH PAPSA','BNE KIY',
+  'CHENNAI CRV','KBL VPN','KUL ANSAX','KUL PUGER','KUL SALAX',
+  'MLB1 POSOD','MLB2 SAPDA','SIN1-4C TOMAN','SIN1-4P TOMAN',
+  'SIN1C PARDI','SIN1P PARDI','SIN2P TAROS','SIN TAROS CRV',
+  'KBL CRV','KCH 1 VPN','KCH CRV','SIN RADIO','SZB 1 VPN'
+];
+
+const DS_PLAN = (function(){
+  const plan = []; let d = 0, i = 0;
+  for(let s = 1; s <= 9; s++){
+    const ganjil = (s % 2 === 1);
+    const nd = ganjil ? 8 : 6, ni = ganjil ? 3 : 4;
+    plan.push({ sesi:s, dom:DS_DOM.slice(d, d+nd), intl:DS_INTL.slice(i, i+ni) });
+    d += nd; i += ni;
+  }
+  return plan;
+})();
+
+/** Kunci status per channel. Karena satu channel hanya muncul di satu sesi,
+    kuncinya cukup pakai nama channel — tidak perlu ikut nomor sesi. */
+function dsKunci(nama){ return 'DS|' + nama; }
+
+/** Sesi yang sedang diisi di form. Nilai __sesiDs disimpan bersama state
+    supaya cetakan dan detail tahu ini sesi berapa. */
+let dcJDsSesi = 1;
+
 let dcJState = {};
 
 function initDcJState(){
   dcJState = {};
+  // dcJDsSesi TIDAK direset di sini — pemanggilnya yang menentukan sesi mana
+  // yang aktif (form baru vs. mengedit catatan lama). Init state hanya
+  // menyiapkan default 'ok' untuk sel-sel yang bakal dirender di sesi itu.
   DC_JATSC.forEach(seksi=>{
+    if(seksi.dsSampling){
+      // Section C: default-nya semua channel di sesi saat ini bernilai 'ok'.
+      // Channel di sesi lain tidak dibuatkan state-nya — nanti disimpan hanya
+      // milik sesi yang tersimpan (lihat dsAmbilStateSesi).
+      const rencana = DS_PLAN[dcJDsSesi - 1];
+      [...rencana.dom, ...rencana.intl].forEach(nama=>{
+        dcJState[dsKunci(nama)] = 'ok';
+      });
+      return;
+    }
     seksi.blok.forEach((blok, bi)=>{
       blok.baris.forEach((br, ri)=>{
         const pasang = Array.isArray(br) ? br : [br];
@@ -121,6 +168,20 @@ function initDcJState(){
       });
     });
   });
+}
+
+/** Sesi berikut yang belum tersimpan. Kunci LocalStorage-nya dishare per
+    browser — siklus 1..9 lanjut walau halaman dibuka lagi besoknya. Setelah
+    sesi 9 tersimpan, kembali ke sesi 1 sesuai permintaan "9 kali pengecekan
+    finish, tidak ada duplikat". */
+const DS_SESI_KEY = 'elogbook.radtelJatsc.dsSesiTerakhir';
+function dsSesiBerikut(){
+  let terakhir = 0;
+  try{ terakhir = +localStorage.getItem(DS_SESI_KEY) || 0; }catch(_){}
+  return (terakhir >= 1 && terakhir <= 9) ? (terakhir % 9) + 1 : 1;
+}
+function dsCatatSesiTersimpan(sesi){
+  try{ localStorage.setItem(DS_SESI_KEY, String(sesi)); }catch(_){}
 }
 
 function cycleJatscStatus(s){ return s==='ok' ? 'warn' : (s==='warn' ? 'fail' : 'ok'); }
@@ -139,6 +200,22 @@ function toggleDcJStatus(k){
 function jatscTemuan(){
   const fails = [], warns = [];
   DC_JATSC.forEach(seksi=>{
+    if(seksi.dsSampling){
+      // Section C: hanya channel di sesi aktif yang direkap. Label temuannya
+      // menyebut sesi supaya rekap harian terbaca: "C · Sesi 3 · BTH".
+      const rencana = DS_PLAN[dcJDsSesi - 1];
+      const semua = [
+        ...rencana.dom.map(n=>({nama:n, kat:'Dom'})),
+        ...rencana.intl.map(n=>({nama:n, kat:'Intl'}))
+      ];
+      semua.forEach(({nama, kat})=>{
+        const s = dcJState[dsKunci(nama)];
+        const label = `${seksi.kode} · Sesi ${dcJDsSesi} · ${nama} (${kat})`;
+        if(s === 'fail') fails.push(label);
+        else if(s === 'warn') warns.push(label);
+      });
+      return;
+    }
     seksi.blok.forEach((blok, bi)=>{
       blok.baris.forEach((br, ri)=>{
         const pasang = Array.isArray(br) ? br : [br];
@@ -167,6 +244,7 @@ function renderDcJatscTable(){
   if(!wrap) return;
   const bagian = DC_JATSC.map(seksi=>{
     const kepala = `<div class="dc-j-seksi-judul">${escapeHtml(seksi.judul)}</div>`;
+    if(seksi.dsSampling) return `<div class="dc-j-seksi">${kepala}${renderDsSection()}</div>`;
     const blok = seksi.blok.map((b, bi)=>{
       const sub = b.judul ? `<div class="dc-j-blok-judul">${escapeHtml(b.judul)}</div>` : '';
       const kols = b.kolom;
@@ -213,6 +291,68 @@ function renderDcJatscTable(){
   wrap.innerHTML = bagian;
 }
 
+/** Section C — dirender terpisah karena bentuknya beda: ada pemilih sesi
+ *  di atas, lalu dua tabel (Domestik & Internasional) untuk sesi terpilih.
+ *  Sesi lain tersembunyi — sudah selesai ATAU belum giliran. */
+function renderDsSection(){
+  const rencana = DS_PLAN[dcJDsSesi - 1];
+  const pilihSesi = DS_PLAN.map(p=>{
+    const jml = p.dom.length + p.intl.length;
+    const aktif = p.sesi === dcJDsSesi;
+    return `<option value="${p.sesi}"${aktif?' selected':''}>Sesi ${p.sesi} — ${p.dom.length} Dom + ${p.intl.length} Intl (${jml})</option>`;
+  }).join('');
+
+  const tabel = (judul, list)=>{
+    const rows = list.map(nama=>{
+      const k = dsKunci(nama);
+      const s = dcJState[k] || 'ok';
+      return `<tr>
+        <td class="name">${escapeHtml(nama)}</td>
+        <td><button class="status-btn ${s}" onclick="toggleDcJStatus('${k}')">${jatscSimbol(s)}</button></td>
+      </tr>`;
+    }).join('');
+    return `<div class="dc-j-blok-judul">${escapeHtml(judul)} (${list.length})</div>
+      <div class="dc-table-wrap">
+        <table class="dc dc-j">
+          <thead><tr><th>Channel DS</th><th>STATUS</th></tr></thead>
+          <tbody>${rows}</tbody></table></div>`;
+  };
+
+  const totalKumulatif = DS_PLAN.slice(0, dcJDsSesi).reduce((n,p)=>n + p.dom.length + p.intl.length, 0);
+  return `
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:4px 0 8px;">
+      <label style="font-size:13px;color:var(--muted);">Sesi Pengecekan DS</label>
+      <select id="dcJDsSesi" onchange="setDcJDsSesi(this.value)"
+              style="background:var(--panel-2);border:1px solid var(--line);color:var(--text);border-radius:6px;padding:6px 8px;font-size:14px;">
+        ${pilihSesi}
+      </select>
+      <span style="font-size:12px;color:var(--muted);">
+        (${rencana.dom.length + rencana.intl.length} channel · kumulatif ${totalKumulatif}/95)
+      </span>
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">
+      Pola selang-seling: sesi ganjil 8 Dom + 3 Intl, sesi genap 6 Dom + 4 Intl.
+      Sesi yang sudah tersimpan otomatis di-skip pada pengisian berikutnya.
+    </div>
+    ${tabel('Domestik', rencana.dom)}
+    ${tabel('Internasional', rencana.intl)}
+  `;
+}
+
+/** Ganti sesi DS yang sedang diisi. Nilai status channel di sesi lain tetap
+    disimpan di dcJState — kalau user gonta-ganti, isian tidak hilang. */
+function setDcJDsSesi(v){
+  const s = Math.max(1, Math.min(9, parseInt(v, 10) || 1));
+  dcJDsSesi = s;
+  const rencana = DS_PLAN[s - 1];
+  // Isi default 'ok' untuk channel sesi ini yang belum punya status.
+  [...rencana.dom, ...rencana.intl].forEach(nama=>{
+    const k = dsKunci(nama);
+    if(!dcJState[k]) dcJState[k] = 'ok';
+  });
+  renderDcJatscTable();
+}
+
 /** Baca-saja untuk modal detail dan halaman cetak — sel bertombol jadi span,
  *  dan ukuran hurufnya lebih kecil ketika cetak supaya muat di lembar A4. */
 function dcJatscTabelBaca(state, cetak){
@@ -220,8 +360,35 @@ function dcJatscTabelBaca(state, cetak){
     ? `<td style="text-align:center;"><span class="${s==='ok'?'p-ok':(s==='warn'?'p-warn':'p-fail')}">${jatscSimbol(s)}</span></td>`
     : `<td><span class="status-btn ${s}" style="cursor:default;">${jatscSimbol(s)}</span></td>`;
 
+  const sesiTersimpan = (state && +state.__sesiDs) || 0;
+
   return DC_JATSC.map(seksi=>{
     const kepala = `<div style="font-weight:bold;font-size:${cetak?'9pt':'12px'};margin:${cetak?'6px 0 3px':'10px 0 4px'};">${escapeHtml(seksi.judul)}</div>`;
+    if(seksi.dsSampling){
+      // Kalau catatan lama belum punya __sesiDs (form sebelum fitur ini), tidak
+      // ada yang bisa dirender secara akurat — tampilkan pesan supaya bisa
+      // dibedakan dari "kosong karena semua OK".
+      if(!sesiTersimpan){
+        return kepala + `<div style="font-size:${cetak?'8pt':'11px'};color:${cetak?'#333':'var(--muted)'};margin:${cetak?'3px 0':'6px 0'};">Catatan lama — sebelum sampling 9-sesi diberlakukan.</div>`;
+      }
+      const rencana = DS_PLAN[sesiTersimpan - 1];
+      const tabel = (judul, list)=>{
+        const rows = list.map(nama=>{
+          const s = state[dsKunci(nama)] || 'ok';
+          return `<tr><td style="text-align:left;">${escapeHtml(nama)}</td>${sel(s)}</tr>`;
+        }).join('');
+        return `<div style="font-size:${cetak?'8pt':'11px'};color:${cetak?'#333':'var(--muted)'};margin:${cetak?'3px 0 2px':'6px 0 2px'};">${escapeHtml(judul)} (${list.length})</div>
+          <table class="${cetak?'':'dc dc-j'}" style="font-size:${cetak?'7.5pt':''};">
+            <thead><tr class="p-kepala"><td>Channel DS</td><td>STATUS</td></tr></thead>
+            <tbody>${rows}</tbody></table>`;
+      };
+      const sub = `<div style="font-size:${cetak?'8pt':'11px'};color:${cetak?'#333':'var(--muted)'};margin:${cetak?'3px 0':'6px 0 4px'};">
+        Sampling Sesi ${sesiTersimpan}/9 — ${rencana.dom.length} Dom + ${rencana.intl.length} Intl (${rencana.dom.length + rencana.intl.length} channel).
+      </div>`;
+      const isiDom = cetak ? tabel('Domestik', rencana.dom) : `<div class="dc-table-wrap" style="margin-bottom:8px;">${tabel('Domestik', rencana.dom)}</div>`;
+      const isiIntl = cetak ? tabel('Internasional', rencana.intl) : `<div class="dc-table-wrap" style="margin-bottom:8px;">${tabel('Internasional', rencana.intl)}</div>`;
+      return kepala + sub + isiDom + isiIntl;
+    }
     const blok = seksi.blok.map((b, bi)=>{
       const sub = b.judul ? `<div style="font-size:${cetak?'8pt':'11px'};color:${cetak?'#333':'var(--muted)'};margin:${cetak?'3px 0 2px':'6px 0 2px'};">${escapeHtml(b.judul)}</div>` : '';
       const kols = b.kolom;

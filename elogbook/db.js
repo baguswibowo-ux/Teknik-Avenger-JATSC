@@ -335,6 +335,14 @@ for (const tabel of ['entries', 'dailychecks', 'monitoring', 'dstest', 'ltk', 'b
 tambahKolom('users', 'ttd_tersimpan', "TEXT NOT NULL DEFAULT ''");
 tambahKolom('users', 'ttd_aktif', "INTEGER NOT NULL DEFAULT 0");
 
+/* Penanda super-admin: berada DI ATAS peran, bukan menggantikannya. Peran tetap
+   menentukan pagar akses biasa (admin/pejabat/adminunit/pic/teknisi); superadmin
+   dipakai gerbang fitur yang belum ada di dunia peran biasa — dan yang belum
+   tentu berbentuk apa pun sampai fiturnya lahir. Kolomnya sengaja orthogonal
+   supaya jalur admin yang sudah ada tidak ikut berubah perilaku kalau flag ini
+   diisi atau dikosongkan. */
+tambahKolom('users', 'superadmin', "INTEGER NOT NULL DEFAULT 0");
+
 // DS Test: kategori daftar site, plus penandatangan Manager Teknik.
 tambahKolom('dstest', 'kategori', "TEXT NOT NULL DEFAULT 'domestik'");
 tambahKolom('dstest', 'manager_nama', "TEXT NOT NULL DEFAULT ''");
@@ -445,12 +453,17 @@ export function setAktif(username, aktif) {
  * menyimpan username sebagai teks biasa, jadi jejak siapa yang menginput tetap
  * terbaca walaupun akunnya sudah tidak ada.
  */
-export function hapusUser(username) {
+export function hapusUser(username, opts = {}) {
   const u = getUserByUsername(username);
   if (!u) return false;
-  if (u.aktif) throw new Error('Akun itu masih aktif. Nonaktifkan dulu sebelum dihapus.');
+  // Super-admin boleh langsung hapus akun aktif — satu langkah, tanpa
+  // nonaktifkan-dulu. Untuk peran lain, jalur dua-langkah tetap berlaku.
+  if (u.aktif && !opts.paksa) {
+    throw new Error('Akun itu masih aktif. Nonaktifkan dulu sebelum dihapus.');
+  }
   // Keduanya sebenarnya ikut terhapus lewat ON DELETE CASCADE; ditulis tegas
   // supaya tidak bergantung pada PRAGMA foreign_keys yang bisa saja mati.
+  // Lewat jalur paksa sesinya belum tentu putus — diputus di sini juga.
   db.prepare('DELETE FROM sessions WHERE user_id = ?').run(u.id);
   db.prepare('DELETE FROM user_unit WHERE user_id = ?').run(u.id);
   // Tanda tangan tersimpannya ikut hilang bersama akunnya. Yang sudah terlanjur
@@ -528,9 +541,10 @@ export const UNIT = [
     pakaiFrek: false,
     labelUraian: 'Uraian Pekerjaan / Kejadian',
     labelPj: 'Manager Teknik',
-    // Formulir khusus unit ini menunggu form aslinya. Sampai itu ada, yang
-    // tersedia baru Logbook Fasilitas, Isu, dan LTK yang memang berlaku umum.
-    adaDailyCheck: false,
+    // Daily Check sudah punya form-nya sendiri (ILS empat runway + DVOR/DME
+    // dua site) — lihat js/12c-daily-check-navigasi.js. Monitoring, DS Test,
+    // dan pekerjaan berkala belum berlaku di unit ini.
+    adaDailyCheck: true,
     adaMonitoring: false,
     adaDsTest: false,
     adaBerkala: false,
@@ -694,28 +708,54 @@ for (const u of db.prepare("SELECT id FROM users WHERE role NOT IN ('admin','pej
   if (punya === 0) db.prepare("INSERT INTO user_unit (user_id, unit) VALUES (?, 'radtel')").run(u.id);
 }
 
+/* ---------- Bootstrap super-admin ----------
+   Dua akun yang selalu berpenanda super-admin — kalau akunnya ada. Dijalankan
+   pada tiap cold start supaya penanda ini tidak bisa hilang tanpa disengaja
+   (misalnya diubah lewat SQL langsung, atau tabelnya diimpor ulang dari cadangan
+   lama). Kalau kelak perlu daftar yang bisa diubah dari UI, ganti bagian ini
+   dengan bacaan tabel — untuk sekarang cukup dua nama yang diminta pemilik
+   aplikasi ini. Perbandingannya case-insensitive lewat lower(). */
+export const SUPERADMIN_TETAP = ['bagus', 'admin'];
+db.prepare(
+  `UPDATE users SET superadmin = 1
+    WHERE lower(username) IN (${SUPERADMIN_TETAP.map(() => '?').join(',')})
+      AND superadmin = 0`
+).run(...SUPERADMIN_TETAP);
+
 /**
  * admin     — kendali penuh, termasuk menghapus dan mengelola akun
  * pejabat   — melihat seluruh unit; satu-satunya perubahan yang boleh dilakukannya
  *             adalah membubuhkan tanda tangannya pada petak yang masih kosong
  * adminunit — administrator yang wilayahnya satu unit: mengisi, mengubah,
  *             menghapus, dan membaca log aktivitas — semuanya hanya di unitnya
- * pic       — penanggung jawab satu unit: mengisi dan mengubah, tidak menghapus
  * teknisi   — hanya menambah, dan hanya pada unit yang diberikan kepadanya
  *
- * Dua yang di tengah dipakai Dashboard Fasilitas Teknik, bukan oleh E-Logbook
- * sendiri. E-Logbook tetap perlu mengenalnya: peran disimpan di sini, dan yang
- * tidak ada di daftar ini tidak akan pernah bisa diberikan kepada siapa pun —
- * jadi tanpa keduanya, pagar per unit di dashboard tidak punya akun untuk
- * dijaga. Di dalam E-Logbook sendiri keduanya berperilaku seperti teknisi:
- * bukan SEMUA_UNIT, jadi tetap dibatasi unit yang diberikan kepadanya.
+ * adminunit dipakai Dashboard Fasilitas Teknik, bukan oleh E-Logbook sendiri.
+ * E-Logbook tetap perlu mengenalnya: peran disimpan di sini, dan yang tidak
+ * ada di daftar ini tidak akan pernah bisa diberikan kepada siapa pun. Di
+ * dalam E-Logbook sendiri ia berperilaku seperti teknisi: bukan SEMUA_UNIT,
+ * jadi tetap dibatasi unit yang diberikan kepadanya.
+ *
+ * Peran `pic` sudah dihapus. Akun lama dengan role='pic' dimigrasikan
+ * otomatis jadi `adminunit` di blok migrasi cold start di bawah.
  */
-export const ROLE_VALID = ['admin', 'pejabat', 'adminunit', 'pic', 'teknisi'];
+export const ROLE_VALID = ['admin', 'pejabat', 'adminunit', 'teknisi'];
 
 /** Peran yang boleh membuka seluruh unit tanpa perlu diberi satu per satu.
-    adminunit dan pic sengaja TIDAK di sini: seluruh gunanya justru terletak
-    pada wilayahnya yang satu unit. */
+    adminunit sengaja TIDAK di sini: seluruh gunanya justru terletak pada
+    wilayahnya yang satu unit. */
 export const SEMUA_UNIT = ['admin', 'pejabat'];
+
+/* ---------- Migrasi role: pic → adminunit ----------
+   Peran `pic` dihapus. Akun lama diubah jadi `adminunit` — peran terdekat
+   yang masih satu unit. Idempoten: cold start berikutnya jadi no-op karena
+   sudah tidak ada baris pic. */
+try {
+  const r = db.prepare("UPDATE users SET role = 'adminunit' WHERE role = 'pic'").run();
+  if (r.changes > 0) console.log(`[db] migrasi peran: ${r.changes} akun pic → adminunit`);
+} catch (err) {
+  console.error('[db] gagal migrasi peran pic → adminunit:', err?.message || err);
+}
 
 export function setRole(username, role) {
   if (!ROLE_VALID.includes(role)) return false;
@@ -812,7 +852,7 @@ export const getUserByUsername = (username) =>
  * unit" yang membuat semua kotak selalu tampak tercentang.
  */
 export const listUsers = () =>
-  db.prepare('SELECT id, username, nama, role, aktif, dibuat_pada FROM users ORDER BY username')
+  db.prepare('SELECT id, username, nama, role, aktif, superadmin, dibuat_pada FROM users ORDER BY username')
     .all()
     .map((u) => {
       const rows = db.prepare('SELECT unit FROM user_unit WHERE user_id = ?').all(u.id);
@@ -836,14 +876,21 @@ export function createSession(userId) {
 export function getSessionUser(token) {
   if (!token) return null;
   const row = db.prepare(`
-    SELECT u.id, u.username, u.nama, u.role, u.aktif, s.kadaluarsa
+    SELECT u.id, u.username, u.nama, u.role, u.aktif, u.superadmin, s.kadaluarsa
     FROM sessions s JOIN users u ON u.id = s.user_id
     WHERE s.token = ?`).get(token);
   if (!row) return null;
   if (row.kadaluarsa < nowIso()) { deleteSession(token); return null; }
   if (!row.aktif) return null;
-  return { id: row.id, username: row.username, nama: row.nama, role: row.role };
+  return {
+    id: row.id, username: row.username, nama: row.nama, role: row.role,
+    superadmin: !!row.superadmin
+  };
 }
+
+/** Penanda super-admin, berlaku terpisah dari peran. Dipakai gerbang fitur yang
+    belum ada padanannya di dunia peran biasa. Aman dipanggil dengan null/undef. */
+export const isSuperadmin = (u) => !!(u && (u.superadmin === true || u.superadmin === 1));
 
 export const deleteSession = (token) =>
   db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
@@ -1444,7 +1491,19 @@ export function updateEntry(id, patch = {}, actor = {}) {
 
 /* ============== DAILY CHECK ============== */
 
-/** Ringkasan untuk daftar riwayat — state_json sengaja tidak ikut karena besar. */
+/** Lokasi form yang dipakai — 'jatsc' (Frequentis 3020X) atau 'new-jatsc'
+    (Garex 300). Ditanam ke state_json waktu simpan (saveDailyCheck di
+    14-daily-check-umum.js). Dashboard membaca kolom Lokasi ini untuk memisah
+    "Daily Check JATSC" dari "Daily Check New JATSC" pada pilihan sumber
+    Kegiatan Berkala. */
+function lokasiDariStateJson(stateJson) {
+  const s = parseJson(stateJson, {});
+  const v = String(s.__lokasi || '').toLowerCase();
+  return (v === 'jatsc' || v === 'new-jatsc') ? v : '';
+}
+
+/** Ringkasan untuk daftar riwayat — state_json ikut dibaca cuma untuk memetik
+    kolom Lokasi; isi state penuh tidak dikembalikan (masih besar). */
 const rowToDcRingkas = (r, extra = {}) => ({
   ID: r.id, Tanggal: r.tanggal, Dinas: r.dinas, Suhu: r.suhu, Remark: r.remark,
   TeknisiNama: r.teknisi_nama, TeknisiTTD: r.teknisi_ttd,
@@ -1456,13 +1515,14 @@ const rowToDcRingkas = (r, extra = {}) => ({
   DibuatPada: r.dibuat_pada || '',
   DibuatOlehUsername: r.dibuat_oleh || '',
   TtdOleh: extra.ttdOleh ?? (r.ttd_oleh || ''), TtdPada: r.ttd_pada || '', TtdUntuk: r.ttd_untuk || '',
-  TanggalIso: r.tanggal_urut || ''
+  TanggalIso: r.tanggal_urut || '',
+  Lokasi: extra.lokasi ?? lokasiDariStateJson(r.state_json)
 });
 
 export function listDailyChecks(unit = 'radtel', limit = 200) {
   const rows = db.prepare(`SELECT id, tanggal, tanggal_urut, dinas, suhu, remark, teknisi_nama, teknisi_ttd,
                                   manager_nama, manager_ttd, fails_json, warns_json, teknisi_nama_list,
-                                  dibuat_oleh, dibuat_pada, ttd_oleh, ttd_pada, ttd_untuk
+                                  dibuat_oleh, dibuat_pada, ttd_oleh, ttd_pada, ttd_untuk, state_json
                            FROM dailychecks WHERE unit = ?
                            ORDER BY tanggal_urut DESC, dibuat_pada DESC LIMIT ?`)
     .all(unit, limit);
@@ -2350,6 +2410,36 @@ export function listPejabatAktif() {
   return db.prepare(`SELECT username, nama FROM users
                       WHERE aktif = 1 AND role = 'pejabat'
                       ORDER BY nama COLLATE NOCASE`).all();
+}
+
+/**
+ * Daftar ringkas seluruh akun aktif — hanya username + nama, tanpa peran
+ * atau data lain. Dipakai dashboard untuk melengkapi nama dari daftar
+ * petugas di hak.json (yang isinya username saja). Non-admin: aman karena
+ * username & nama sudah tampil di formulir E-Logbook untuk siapa pun yang
+ * login.
+ */
+export function listAkunAktif() {
+  return db.prepare(`SELECT username, nama FROM users
+                      WHERE aktif = 1
+                      ORDER BY nama COLLATE NOCASE`).all();
+}
+
+/**
+ * Pejabat aktif yang sudah opt-in ke satu unit (mencentangnya di Kelola Akun).
+ * Dipakai kartu cetak dashboard untuk menaruh nama Manajer Teknik bidang itu
+ * pada kolom tanda tangan kanan. Kalau tidak ada satu pun yang opt-in, kartu
+ * cetak boleh jatuh balik ke listPejabatAktif().
+ */
+export function listPejabatUnit(unitKode) {
+  const kode = String(unitKode || '').trim();
+  if (!kode) return [];
+  return db.prepare(`
+    SELECT u.username, u.nama
+      FROM users u
+     WHERE u.aktif = 1 AND u.role = 'pejabat'
+       AND EXISTS (SELECT 1 FROM user_unit uu WHERE uu.user_id = u.id AND uu.unit = ?)
+     ORDER BY u.nama COLLATE NOCASE`).all(kode);
 }
 
 /**

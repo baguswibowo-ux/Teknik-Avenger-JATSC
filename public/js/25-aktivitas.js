@@ -119,13 +119,90 @@ async function aktMuat(){
   }
 }
 
-/** Kedua sumber digabung dan diurut dari yang terbaru. */
-const aktSemua = () => [...AKT.server, ...AKT.lokal]
-  .sort((a,b)=>String(b.jam || '').localeCompare(String(a.jam || '')));
+/** Kedua sumber digabung dan diurut dari yang terbaru. Entri LOKAL disaring
+ *  di sini juga: server sudah memagari entri server untuk admin unit, tapi
+ *  Peralatan/Sparepart yang tersimpan di localStorage tidak pernah lewat
+ *  server. Tanpa saringan ini, ubin "Tercatat" bocor jumlah aktivitas unit
+ *  lain, dan pencari orang bisa menemukannya. */
+function aktSemua(){
+  const lingkup = aktLingkupUnit();
+  const lokal = lingkup === null ? AKT.lokal : AKT.lokal.filter(a => {
+    const u = String((a && a.unit) || '').toLowerCase();
+    if(!u) return false;
+    const kode = u.split(',').map(s => s.trim()).filter(Boolean);
+    return kode.some(k => lingkup.includes(k));
+  });
+  return [...AKT.server, ...lokal]
+    .sort((a,b)=>String(b.jam || '').localeCompare(String(a.jam || '')));
+}
+
+/** Cakupan unit orang yang sedang melihat log. `null` = tidak dibatasi
+ *  (admin biasa/superadmin/pejabat). Array kode = admin unit — hanya entri
+ *  yang unitnya jatuh di sini yang boleh tampil. Dipakai untuk memagari entri
+ *  LOKAL (Peralatan/Sparepart yang tersimpan di localStorage peramban ini)
+ *  yang tidak lewat saringan server. Untuk entri server, saringan yang sama
+ *  sudah dijalankan di /aktivitas — di sini cuma jaring pengaman. */
+function aktLingkupUnit(){
+  if(!akun) return [];
+  if(akun.role === 'admin' || akun.superadmin === true) return null;
+  if(akun.unit === 'semua') return null;
+  return Array.isArray(akun.unit) ? akun.unit.map(k => String(k || '').toLowerCase()) : [];
+}
+
+/** Untuk entri Hak modul yang tidak menyimpan kolom `unit` (format lama,
+ *  sebelum server menulis CSV kode unit): tentukan apakah entri ini berkait
+ *  dengan salah satu unit di `lingkup` dengan cara silang — daftar petugas
+ *  saat ini pada modul yang disebut, dicocokkan ke daftar akun (USERS) yang
+ *  memberi tahu masing-masing orang unitnya di mana.
+ *
+ *  Pejabat & administrator dianggap cocok untuk unit mana pun (perannya
+ *  memang lintas unit); jadi kalau salah satu ditunjuk, entri ini pun
+ *  berlaku untuk admin unit mana pun. */
+function aktHakBerkaitDenganUnit(a, lingkup){
+  if(!a || a.modul !== 'hak') return false;
+  if(typeof HAK !== 'object' || !HAK) return false;
+  if(!Array.isArray(USERS) || !USERS.length) return false;
+  const teks = String(a.rincian || '');
+  const disebut = [];
+  for(const m of Object.keys(HAK)){
+    if(new RegExp('(^|[^a-z-])' + m.replace('-','\\-') + '\\s*[:(]').test(teks)
+       && !disebut.includes(m)) disebut.push(m);
+  }
+  if(!disebut.length) return false;
+  const peta = new Map();
+  for(const u of USERS) peta.set(String(u.username || '').toLowerCase(), u);
+  return disebut.some(m => {
+    const petugas = (HAK[m] && HAK[m].petugas) || [];
+    return petugas.some(nama => {
+      const u = peta.get(String(nama).toLowerCase());
+      if(!u) return false;
+      const peran = String(u.role || '').toLowerCase();
+      if(peran === 'admin' || peran === 'pejabat') return true;
+      return (u.unit || []).some(k => lingkup.includes(String(k).toLowerCase()));
+    });
+  });
+}
 
 function aktLolosSaring(a){
   const { modul, cari } = AKT.saring;
   if(modul && a.modul !== modul) return false;
+  // Pagar unit: admin unit tidak boleh melihat entri unit lain.
+  const lingkup = aktLingkupUnit();
+  if(lingkup !== null){
+    const u = String(a.unit || '').toLowerCase();
+    if(u){
+      // Nilai `unit` boleh CSV (mis. entri Hak modul yang menyentuh dua unit).
+      const kode = u.split(',').map(s => s.trim()).filter(Boolean);
+      if(!kode.some(k => lingkup.includes(k))) return false;
+    } else {
+      // Entri tanpa unit: satu-satunya jalan lolos adalah kalau ia entri Hak
+      // modul yang, dilihat dari daftar petugas saat ini, memang berkait
+      // dengan unit saya. Ini menampung entri lama yang belum sempat menulis
+      // `unit` — supaya "8 orang" tetap terlihat di layar unit yang
+      // orang-orangnya memang di sana.
+      if(!aktHakBerkaitDenganUnit(a, lingkup)) return false;
+    }
+  }
   if(cari){
     const isi = [a.nama, a.oleh, a.rincian, aktModulNama(a.modul),
       a.unit ? namaUnit(a.unit) : ''].filter(Boolean).join(' ').toLowerCase();
@@ -146,6 +223,36 @@ function aktJam(iso){
   return t.toLocaleString(LOKAL(), { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
 }
 
+/** Untuk entri Hak modul, tempel daftar nama petugas dari HAK yang sekarang —
+ *  supaya log LAMA yang cuma "+8 ditunjuk" tetap bisa dibaca "8 itu siapa".
+ *  Untuk entri baru, format servernya sudah sebut nama, jadi ini cuma penegasan
+ *  bahwa yang tercatat sekarang memang segitu. */
+function aktHakNama(a){
+  if(!a || a.modul !== 'hak') return '';
+  if(typeof HAK !== 'object' || !HAK) return '';
+  const teks = String(a.rincian || '');
+  // Cari kode modul yang disebut di rincian (dinas, berkala, dst.), pertahankan
+  // urutannya. Tanpa duplikat.
+  const disebut = [];
+  for(const m of Object.keys(HAK)){
+    if(new RegExp('(^|[^a-z-])' + m.replace('-','\\-') + '\\s*[:(]').test(teks)
+       && !disebut.includes(m)) disebut.push(m);
+  }
+  // Cuma modul yang sekarang memang punya orang di daftar Ditunjuk yang
+  // ditampilkan — daftar panjang berisi "tidak ada yang ditunjuk" cuma bising
+  // dan tidak menjawab pertanyaannya.
+  const berisi = disebut.filter(m => ((HAK[m] && HAK[m].petugas) || []).length);
+  if(!berisi.length) return '';
+  const baris = berisi.map(m=>{
+    const p = HAK[m].petugas;
+    return `<b>${esc(m)}</b> · ${p.length} ${T('orang','people')}: ${p.map(u=>esc(u)).join(', ')}`;
+  }).join('<br>');
+  return `<div style="margin-top:6px;padding:7px 10px;background:var(--panel-2);
+    border:1px solid var(--line);border-radius:6px;font-size:11.5px;line-height:1.55">
+    <div style="color:var(--muted);font-size:10.5px;margin-bottom:4px">${
+      T('Ditunjuk sekarang','Currently named')}</div>${baris}</div>`;
+}
+
 function gambarAktivitas(){
   const tabel = el('tblAktivitas'); if(!tabel || !akun) return;
 
@@ -155,14 +262,23 @@ function gambarAktivitas(){
   const orang = new Set(semua.map(a=>a.oleh).filter(x=>x && x !== '—')).size;
   const saya = semua.filter(a=>akun && a.oleh === akun.user).length;
 
-  el('ketAktivitas').textContent =
-    T('Dicatat server untuk seluruh pemakai, ditambah suntingan yang hanya hidup di peramban ini.',
-      'Recorded by the server for every user, plus edits that live only in this browser.');
+  // Kalau saringan unit aktif (admin unit), tampilkan cakupannya di ket —
+  // supaya kelihatan langsung dari layar apakah pagar-nya benar-benar hidup,
+  // dan apa saja unit yang lolos.
+  const lingkupUnit = aktLingkupUnit();
+  const namaLingkup = lingkupUnit === null ? ''
+    : lingkupUnit.map(k => namaUnit(k) || k).join(', ') || T('belum ada unit','no unit yet');
+  el('ketAktivitas').textContent = lingkupUnit === null
+    ? T('Dicatat server untuk seluruh pemakai, ditambah suntingan yang hanya hidup di peramban ini.',
+        'Recorded by the server for every user, plus edits that live only in this browser.')
+    : T(`Hanya unit Anda: ${namaLingkup}. Aktivitas unit lain tidak ditampilkan di layar ini.`,
+        `Only your unit: ${namaLingkup}. Other units' activities are not shown here.`);
   el('ketAktivitasJam').textContent = T(`${semua.length} catatan`, `${semua.length} entries`);
 
   el('ubinAktivitas').innerHTML =
     ubin('biru', T('Tercatat','Recorded'), semua.length,
-      T('perbuatan yang tersimpan','actions kept')) +
+      lingkupUnit === null ? T('perbuatan yang tersimpan','actions kept')
+                           : T(`di unit ${namaLingkup}`, `in unit ${namaLingkup}`)) +
     ubin(jumlahHariIni ? 'kuning' : 'hijau', T('Hari Ini','Today'), jumlahHariIni,
       T('sejak tengah malam','since midnight')) +
     ubin('biru', T('Orang','People'), orang,
@@ -190,8 +306,11 @@ function gambarAktivitas(){
         ? `<br><span class="mono" style="color:var(--muted);font-size:10.5px">${esc(a.oleh)}</span>` : ''}</td>
       <td>${esc(aktModulNama(a.modul))}</td>
       <td>${esc(aktAksiNama(a.aksi))}${a.rincian
-        ? ` — <span style="color:var(--muted)">${esc(a.rincian)}</span>` : ''}</td>
-      <td>${a.unit ? esc(namaUnit(a.unit)) : '<span class="mono" style="color:var(--muted)">—</span>'}</td>
+        ? ` — <span style="color:var(--muted)">${esc(a.rincian)}</span>` : ''}${
+          aktHakNama(a)}</td>
+      <td>${a.unit
+        ? String(a.unit).split(',').map(k=>k.trim()).filter(Boolean).map(k=>esc(namaUnit(k))).join(', ')
+        : '<span class="mono" style="color:var(--muted)">—</span>'}</td>
     </tr>`).join('')
     : `<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">${
         semua.length

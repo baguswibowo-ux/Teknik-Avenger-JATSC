@@ -52,6 +52,16 @@ let akun = null;          // akun yang sedang masuk
 let unitDibuka = null;    // unit yang sedang dibuka di layar Database Unit
 let subtabAktif = 'peralatan';
 let alatDipilih = null;
+// Sub-unit yang jadi tab aktif di panel Identity. null = alat induknya sendiri
+// yang ditampilkan. Kalau alat berpindah, ini dilepas dulu supaya id lama
+// tidak nyasar jadi rujukan tab di alat baru.
+let subDipilih = null;
+// Grup lokasi peralatan yang sedang jadi tab aktif di layar Peralatan.
+// '' = tab "Semua" (tidak ada penyaringan). Nilai selain '' menyaring kartu
+// alat ke yang punya grup ini — termasuk grup yang belum punya isi (baru
+// dibuat lewat tombol "+"), sehingga pemakai bisa menekan Tambah peralatan
+// dan alatnya langsung masuk grup itu.
+let grupDipilih = '';
 
 const bolehBuka = (kode) => !!akun && (akun.unit === 'semua' || akun.unit.includes(kode));
 const unitBoleh = () => UNIT.filter(u=>bolehBuka(u.kode));
@@ -75,5 +85,82 @@ function dinasUnit(kode){
 function pesan(teks){
   const p = el('pesan'); p.textContent = teks; p.classList.add('tampil');
   clearTimeout(pesan._t); pesan._t = setTimeout(()=>p.classList.remove('tampil'), 2600);
+}
+
+/**
+ * Pengganti window.prompt() yang menyatu dengan tema dashboard. Dialog
+ * bawaan peramban ("localhost:3100 says …") memaksa gaya sistem yang
+ * berbenturan tajam dengan sisa layar — dan pada layar sentuh ia sering
+ * memakai fokus tanpa tempat mengetik yang benar-benar terlihat.
+ *
+ * Opsi: { judul, keterangan, nilaiAwal, contoh, okTeks, batalTeks, ijinKosong }
+ * Kembalinya Promise<string|null>. null berarti Batal atau Esc; string
+ * kosong hanya ikut kalau ijinKosong=true (mis. hapus grup pakai nama kosong).
+ */
+function dialogInput(opts = {}){
+  return new Promise((selesai)=>{
+    const {
+      judul = '',
+      keterangan = '',
+      nilaiAwal = '',
+      contoh = '',
+      okTeks = 'OK',
+      batalTeks = T('Batal','Cancel'),
+      ijinKosong = false
+    } = opts;
+
+    const lapis = document.createElement('div');
+    lapis.className = 'lapis-ubah buka';
+    lapis.innerHTML = `
+      <div class="kartu-ubah" role="dialog" aria-modal="true" style="width:min(440px,100%)">
+        <div class="kepala"><h3></h3></div>
+        <div class="badan">
+          <div class="isian" style="margin-bottom:0">
+            <label></label>
+            <input type="text" autocomplete="off" spellcheck="false">
+          </div>
+        </div>
+        <div class="kaki">
+          <button type="button" class="btn garis kecil" data-dip-batal></button>
+          <button type="button" class="btn kecil" data-dip-ok></button>
+        </div>
+      </div>`;
+
+    // textContent, bukan innerHTML — teks datang dari pemanggil dan
+    // beberapa lokasinya lolos ke sini apa adanya. Kalau nanti perlu
+    // penekanan HTML kecil, ganti selektif per pemanggil, bukan seluruhnya.
+    lapis.querySelector('.kepala h3').textContent = judul;
+    lapis.querySelector('label').textContent = keterangan || judul;
+    const inp = lapis.querySelector('input');
+    inp.value = nilaiAwal;
+    if(contoh) inp.placeholder = contoh;
+    lapis.querySelector('[data-dip-ok]').textContent = okTeks;
+    lapis.querySelector('[data-dip-batal]').textContent = batalTeks;
+
+    const tutup = (nilai)=>{
+      document.removeEventListener('keydown', kunci);
+      lapis.remove();
+      selesai(nilai);
+    };
+    const kirim = ()=>{
+      const nilai = inp.value.trim();
+      if(!nilai && !ijinKosong) return; // Enter dengan input kosong = tidak melakukan apa-apa
+      tutup(nilai);
+    };
+    const kunci = (e)=>{
+      if(e.key === 'Escape') tutup(null);
+      if(e.key === 'Enter'){ e.preventDefault(); kirim(); }
+    };
+
+    lapis.querySelector('[data-dip-ok]').addEventListener('click', kirim);
+    lapis.querySelector('[data-dip-batal]').addEventListener('click', ()=>tutup(null));
+    // Klik latar (bukan kartu) = Batal — konsisten dengan lapis-ubah lain.
+    lapis.addEventListener('click', (e)=>{ if(e.target === lapis) tutup(null); });
+    document.addEventListener('keydown', kunci);
+
+    document.body.appendChild(lapis);
+    // Fokus & pilih setelah lapis masuk DOM supaya browser tidak abaikan.
+    requestAnimationFrame(()=>{ inp.focus(); inp.select(); });
+  });
 }
 

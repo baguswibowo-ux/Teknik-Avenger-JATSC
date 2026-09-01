@@ -257,6 +257,207 @@ app.all(JALUR_LOGBOOK, (req, res, next) => {
 app.use(JALUR_LOGBOOK, badanMentah, (req, res) => teruskan(req, res, JALUR_LOGBOOK));
 
 /* =====================================================================
+   SALINAN TTD DARI E-LOGBOOK
+
+   Dashboard membuat SALINAN sendiri dari berkas TTD tersimpan milik akun
+   yang datang dari E-Logbook, dan menyajikannya lewat /ttd-akun/. Alasan
+   pokoknya: kalau E-Logbook lambat atau sesaat mati, kartu cetak di
+   dashboard tetap punya gambar TTD untuk ditempel — sepanjang salinan
+   itu pernah dibuat sebelumnya.
+
+   Sumbernya tetap E-Logbook: tabel users.ttd_tersimpan, lihat
+   simpanTtdTersimpan di elogbook/db.js. Yang di sini cuma cermin di
+   disk dashboard — semua tulisan (simpanTtdSaya, simpanTtdMilik) tetap
+   berjalan lewat proxy /api/*, dan salinan lokal disegarkan sendiri
+   sesudahnya. Tidak ada jalur untuk MENULIS TTD dari sini.
+
+   Bentuknya dua endpoint sederhana:
+     GET  /ttd-akun/:user             → metadata JSON {ada,nama,role,dibuatPada,url}
+     GET  /ttd-akun/:user/gambar      → berkas PNG (dari salinan lokal, ambil dulu
+                                        dari E-Logbook kalau belum ada)
+     DELETE /ttd-akun/:user           → buang salinan (dipanggil klien sesudah simpan)
+   ===================================================================== */
+const DIR_TTD_AKUN = path.join(ROOT, 'data', 'ttd-akun');
+/* Username di E-Logbook: huruf/angka bawah/titik/strip, seperti akun Unix.
+   Dipakai sebagai bagian jalur berkas — daftar putih ini menutup jalur
+   `..` dan karakter path lainnya sekalian. */
+const usernameSah = (u) => /^[A-Za-z0-9_.-]{1,64}$/.test(String(u || ''));
+
+const KEPALA_DIBUANG_TTD = new Set([
+  'host', 'connection', 'keep-alive', 'transfer-encoding', 'upgrade',
+  'proxy-authorization', 'proxy-connection', 'te', 'trailer',
+  'content-length', 'accept-encoding'
+]);
+/** Kepala permintaan yang aman diteruskan ke E-Logbook — terutama cookie
+    sesinya, supaya getTtdMilik lolos requireAuth di sana. */
+function kepalaKeELogbook(req) {
+  const kepala = {};
+  for (const [nama, nilai] of Object.entries(req.headers)) {
+    const n = nama.toLowerCase();
+    if (KEPALA_DIBUANG_TTD.has(n) || n === KEPALA_TERUSAN) continue;
+    kepala[nama] = nilai;
+  }
+  kepala[KEPALA_TERUSAN] = '1';
+  return kepala;
+}
+
+/** Ambil metadata TTD dari E-Logbook. null kalau server tidak menjawab
+    atau menolaknya (401, dsb). {ada:false,...} artinya server menjawab
+    dengan sopan bahwa akun itu belum punya TTD. */
+async function tanyaMetaTtd(username, kepala) {
+  const henti = AbortSignal.timeout(15_000);
+  try {
+    const jawab = await fetch(ASAL + '/api/getTtdMilik', {
+      method: 'POST',
+      headers: { ...kepala, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ args: [username] }),
+      signal: henti
+    });
+    if (!jawab.ok) return null;
+    const j = await jawab.json().catch(() => null);
+    return (j && j.result) ? j.result : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+/** Ambil bytes gambar TTD dari E-Logbook — path aslinya "/uploads/xxx.png". */
+async function tarikGambarTtd(pathELogbook, kepala) {
+  const henti = AbortSignal.timeout(15_000);
+  const jawab = await fetch(ASAL + pathELogbook, { headers: kepala, signal: henti });
+  if (!jawab.ok) throw new Error('E-Logbook menjawab ' + jawab.status);
+  return {
+    buf: Buffer.from(await jawab.arrayBuffer()),
+    mime: jawab.headers.get('content-type') || 'image/png'
+  };
+}
+
+/** Salin satu TTD dari E-Logbook ke disk dashboard. Aman dipanggil ulang. */
+async function salinTtdKeLokal(username, meta, kepala) {
+  if (!meta || !meta.ada || !meta.path) return;
+  try {
+    const g = await tarikGambarTtd(meta.path, kepala);
+    await tulisBiner(
+      path.join(DIR_TTD_AKUN, username + '.png'),
+      g.buf,
+      g.mime
+    );
+    await tulisBiner(
+      path.join(DIR_TTD_AKUN, username + '.meta.json'),
+      Buffer.from(JSON.stringify({
+        ada: true, nama: meta.nama || '', role: meta.role || '',
+        path: meta.path, dibuatPada: meta.dibuatPada || '',
+        mime: g.mime, disalinPada: new Date().toISOString()
+      })),
+      'application/json'
+    );
+  } catch (e) {
+    /* Diabaikan — salinan lama tetap berlaku, salinan yang belum pernah
+       ada tidak akan lahir kali ini. Klien akan mencoba lagi berikutnya. */
+    console.warn('[ttd-akun] salin ' + username + ' gagal:', e && e.message || e);
+  }
+}
+
+async function bacaMetaLokal(username) {
+  const rek = await bacaBiner(path.join(DIR_TTD_AKUN, username + '.meta.json'));
+  if (!rek) return null;
+  try { return JSON.parse(rek.buf.toString('utf8')); }
+  catch { return null; }
+}
+
+/* Metadata JSON — dipakai klien untuk tahu ada/tidak, kapan dibuat, dan
+   URL gambar yang ditayangkan dashboard (bukan URL /uploads/... langsung).
+   Tiap panggilan menanyakan E-Logbook dulu; kalau ia menjawab, salinan
+   lokal ikut disegarkan supaya berikutnya cepat dan tahan mati sesaat.
+   Kalau E-Logbook diam, kembalikan salinan lokal apa adanya. */
+app.get('/ttd-akun/:user', async (req, res) => {
+  const u = String(req.params.user || '').trim();
+  if (!usernameSah(u)) return res.status(400).json({ error: 'username tidak sah' });
+
+  const kepala = kepalaKeELogbook(req);
+  const meta = await tanyaMetaTtd(u, kepala);
+  if (meta) {
+    /* Jawaban dari E-Logbook. Segarkan salinan lokal di latar (tidak
+       perlu ditunggu — respons ke klien tidak tergantung salinan). */
+    if (meta.ada && meta.path) {
+      const lokal = await bacaMetaLokal(u);
+      if (!lokal || lokal.dibuatPada !== meta.dibuatPada || lokal.path !== meta.path) {
+        salinTtdKeLokal(u, meta, kepala).catch(()=>{});
+      }
+    } else {
+      /* E-Logbook bilang TTD-nya sudah tidak ada — buang salinannya. */
+      try {
+        await hapusBiner(path.join(DIR_TTD_AKUN, u + '.png'));
+        await hapusBiner(path.join(DIR_TTD_AKUN, u + '.meta.json'));
+      } catch { /* tidak ada apa-apa: abaikan */ }
+    }
+    return res.json({
+      ada: !!meta.ada,
+      nama: meta.nama || '',
+      role: meta.role || '',
+      dibuatPada: meta.dibuatPada || '',
+      url: meta.ada
+        ? '/ttd-akun/' + encodeURIComponent(u) + '/gambar?v=' +
+          encodeURIComponent(meta.dibuatPada || '')
+        : '',
+      dariCache: false
+    });
+  }
+
+  /* E-Logbook diam. Salinan lokal jadi jawabannya. */
+  const lokal = await bacaMetaLokal(u);
+  if (lokal) {
+    return res.json({
+      ada: !!lokal.ada,
+      nama: lokal.nama || '',
+      role: lokal.role || '',
+      dibuatPada: lokal.dibuatPada || '',
+      url: lokal.ada
+        ? '/ttd-akun/' + encodeURIComponent(u) + '/gambar?v=' +
+          encodeURIComponent(lokal.dibuatPada || '')
+        : '',
+      dariCache: true
+    });
+  }
+  return res.status(502).json({ error: 'E-Logbook tidak menjawab, dan belum ada salinan lokal.' });
+});
+
+/* Gambar PNG dari salinan lokal. Kalau belum pernah tersalin, tarik
+   dari E-Logbook dulu — memang lebih lambat sekali ini, tetapi
+   berikutnya cepat dan berlangsung meski E-Logbook lagi bermasalah. */
+app.get('/ttd-akun/:user/gambar', async (req, res) => {
+  const u = String(req.params.user || '').trim();
+  if (!usernameSah(u)) return res.status(400).send('username tidak sah');
+
+  let lokalGbr = await bacaBiner(path.join(DIR_TTD_AKUN, u + '.png'));
+  if (!lokalGbr) {
+    /* Belum tersalin — tanyakan dan ambil dulu. */
+    const kepala = kepalaKeELogbook(req);
+    const meta = await tanyaMetaTtd(u, kepala);
+    if (!meta || !meta.ada || !meta.path) return res.status(404).send('TTD tidak ada');
+    await salinTtdKeLokal(u, meta, kepala);
+    lokalGbr = await bacaBiner(path.join(DIR_TTD_AKUN, u + '.png'));
+    if (!lokalGbr) return res.status(502).send('gagal menyalin dari E-Logbook');
+  }
+  res.setHeader('Content-Type', lokalGbr.mime || 'image/png');
+  res.setHeader('Cache-Control', 'private, max-age=300');
+  return res.end(lokalGbr.buf);
+});
+
+/* Klien memanggil ini sesudah simpanTtdSaya / simpanTtdMilik supaya
+   pengambilan berikutnya menyalin ulang dari E-Logbook, bukan
+   mengembalikan salinan lama. */
+app.delete('/ttd-akun/:user', async (req, res) => {
+  const u = String(req.params.user || '').trim();
+  if (!usernameSah(u)) return res.status(400).json({ error: 'username tidak sah' });
+  try {
+    await hapusBiner(path.join(DIR_TTD_AKUN, u + '.png'));
+    await hapusBiner(path.join(DIR_TTD_AKUN, u + '.meta.json'));
+  } catch { /* sudah tidak ada: abaikan */ }
+  return res.json({ ok: true });
+});
+
+/* =====================================================================
    GALERI FOTO — satu-satunya bagian yang menulis ke disk
 
    Foto tersimpan di public/foto/<unit>/, keterangannya di
@@ -513,6 +714,32 @@ async function siapa(req) {
   }
 }
 
+/** Cek super-admin status akun target (bukan pemanggil) dengan meminta
+    listUsers dari E-Logbook. null kalau tidak bisa ditanya — pemanggilnya
+    boleh memutuskan apakah null itu diterima atau dianggap gagal. */
+async function targetSuperadmin(username, req) {
+  if (!TERUS || !username) return null;
+  try {
+    const jawab = await fetch(ASAL + '/api/listUsers', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(req.headers.cookie ? { cookie: req.headers.cookie } : {})
+      },
+      body: JSON.stringify({ args: [] }),
+      signal: AbortSignal.timeout(8000)
+    });
+    if (!jawab.ok) return null;
+    const j = await jawab.json().catch(() => null);
+    const daftar = (j && Array.isArray(j.result)) ? j.result : [];
+    const u = String(username || '').toLowerCase();
+    const target = daftar.find((x) => String(x.username || '').toLowerCase() === u);
+    return target ? !!target.superadmin : false;
+  } catch {
+    return null;
+  }
+}
+
 /* ---------------------------------------------------------------------
    SIAPA BOLEH MENGISI APA
 
@@ -551,23 +778,23 @@ async function siapa(req) {
      pejabat    Seluruh unit, sebatas modul yang dibuka untuknya. Tidak menghapus
      adminunit  Satu unit: mengisi, mengubah, MENGHAPUS, dan membaca log
                 aktivitas unitnya. Administrator yang wilayahnya satu unit
-     pic        Satu unit: mengisi dan mengubah. Tidak menghapus
      teknisi    Satu unit: mengisi dan mengubah, sebatas modul yang dibuka
 
-   pic dan teknisi berangkat dari hak bawaan yang sama persis. Bedanya bukan di
-   bawaan melainkan di apa yang bisa dilakukan administrator terhadap keduanya:
-   satu modul bisa ditutup untuk teknisi dan tetap terbuka untuk pic, tanpa
-   menyentuh peran siapa pun di E-Logbook.
+   Peran `pic` sudah dihapus — akun lama dengan role='pic' dimigrasikan
+   otomatis jadi `adminunit` saat E-Logbook cold start (lihat elogbook/db.js
+   dan elogbook/db-pg.js).
    --------------------------------------------------------------------- */
 
-const MODUL_HAK = ['dinas', 'berkala', 'personel',
-                   'peralatan', 'sparepart', 'sejarah', 'dokumen', 'galeri'];
+const MODUL_HAK = ['dinas', 'dinas-ttd', 'dinas-cetak', 'berkala', 'personel',
+                   'peralatan', 'sparepart', 'sparepart-ttd',
+                   'sejarah', 'sejarah-ttd',
+                   'dokumen', 'galeri'];
 
-const PERAN_SAH = ['admin', 'pejabat', 'adminunit', 'pic', 'teknisi'];
+const PERAN_SAH = ['admin', 'pejabat', 'adminunit', 'teknisi'];
 
 /* Peran yang wilayahnya satu unit saja. Dipakai untuk memutuskan apakah
    penjagaan unit perlu ditegakkan — bukan untuk memutuskan haknya. */
-const PERAN_SATU_UNIT = new Set(['adminunit', 'pic', 'teknisi']);
+const PERAN_SATU_UNIT = new Set(['adminunit', 'teknisi']);
 
 /* Peran yang boleh menghapus. Sengaja pendek, dan sengaja terpisah dari
    hak.json: menghapus bukan sesuatu yang pantas terbuka karena satu centang
@@ -597,19 +824,39 @@ const MODUL_PER_UNIT = new Set(['dinas', 'berkala', 'peralatan', 'sparepart',
    bukan aturan mati. */
 const HAK_BAWAAN = {
   dinas:     { peran: ['admin', 'adminunit'],                          petugas: [] },
-  berkala:   { peran: ['admin', 'adminunit', 'pic', 'teknisi'],        petugas: [] },
-  personel:  { peran: ['admin', 'adminunit', 'pic', 'teknisi'],        petugas: [] },
+  /* Officer yang boleh membubuhkan TTD Jadwal Dinas. Pola sama dengan
+     `sejarah-ttd` di bawah: kolom peran kosong (peran view-only "pejabat"
+     tidak lolos rapikanHak), daftar pejabat diisi lewat kolom petugas di
+     layar Hak Akses. Kosong = semua pejabat unit boleh (perilaku lama). */
+  'dinas-ttd': { peran: [],                                            petugas: [] },
+  /* Siapa yang boleh MENEKAN tombol Cetak PUM / Cetak Teknik di subtab
+     Jadwal Dinas. Berbeda dari `dinas` (yang mengisi jadwal) dan
+     `dinas-ttd` (yang membubuhkan TTD di kertasnya). Bawaannya peran
+     kosong — admin memilih akun mana yang boleh lewat kolom Ditunjuk,
+     atau membuka untuk seluruh peran lewat centang. Admin selalu boleh. */
+  'dinas-cetak': { peran: [],                                          petugas: [] },
+  berkala:   { peran: ['admin', 'adminunit', 'teknisi'],               petugas: [] },
+  personel:  { peran: ['admin', 'adminunit', 'teknisi'],               petugas: [] },
   peralatan: { peran: ['admin'],                                       petugas: [] },
-  sparepart: { peran: ['admin', 'adminunit', 'pic', 'teknisi'],        petugas: [] },
+  sparepart: { peran: ['admin', 'adminunit', 'teknisi'],               petugas: [] },
+  /* Officer yang boleh membubuhkan TTD Sparepart. Sama polanya. */
+  'sparepart-ttd': { peran: [],                                        petugas: [] },
   /* Sejarah peralatan berhenti di teknisi, tidak ikut daftar induknya yang
      administrator. Keduanya memang menunjuk peralatan yang sama, tapi yang
      dijaga berbeda: mengganti nama atau membuang satu baris peralatan
      menggeser layar orang lain, sementara menuliskan apa yang terjadi pada
      alat itu adalah pekerjaan orang yang sedang berdinas di depannya. Kalau
      ia harus menunggu administrator, riwayatnya tidak akan pernah terisi. */
-  sejarah:   { peran: ['admin', 'adminunit', 'pic', 'teknisi'],        petugas: [] },
-  dokumen:   { peran: ['admin', 'adminunit', 'pic', 'teknisi'],        petugas: [] },
-  galeri:    { peran: ['admin', 'adminunit', 'pic', 'teknisi'],        petugas: [] }
+  sejarah:   { peran: ['admin', 'adminunit', 'teknisi'],               petugas: [] },
+  /* Officer yang boleh membubuhkan TTD Sejarah Peralatan. Berbeda dari
+     `sejarah` di atas: yang itu "siapa yang boleh MENULIS riwayat", ini
+     "siapa yang boleh menandatangani LEMBAR CETAK-nya". Kolom peran tidak
+     dipakai (peran view-only tidak lolos rapikanHak) — daftar pejabat diisi
+     lewat kolom petugas di layar Hak Akses. Kosong = semua pejabat unit
+     boleh menerima permintaan TTD (perilaku lama, sebelum daftar ini ada). */
+  'sejarah-ttd': { peran: [],                                          petugas: [] },
+  dokumen:   { peran: ['admin', 'adminunit', 'teknisi'],               petugas: [] },
+  galeri:    { peran: ['admin', 'adminunit', 'teknisi'],               petugas: [] }
 };
 
 /* Peran yang selalu view-only, apa pun yang tertulis di hak.json. Manajer
@@ -782,7 +1029,10 @@ async function catat(user, isi) {
       modul: String(isi.modul || ''),
       aksi:  String(isi.aksi  || ''),
       unit:  String(isi.unit  || ''),
-      rincian: String(isi.rincian || '').slice(0, 200)
+      // 500 supaya rincian hak — modul + daftar nama petugas — muat utuh.
+      // Yang lain (tambah/ubah/hapus data) rincianya tetap pendek, tidak
+      // terpengaruh; ini cuma menaikkan batas atas.
+      rincian: String(isi.rincian || '').slice(0, 500)
     });
     await tulisJson(AKTIVITAS_JSON, daftar.slice(0, AKTIVITAS_BATAS));
   } catch (e) {
@@ -826,11 +1076,21 @@ app.get('/aktivitas', async (req, res) => {
   }
   let daftar = await bacaJson(AKTIVITAS_JSON, []);
   if (izin.unit) {
-    // Catatan tanpa unit — perubahan hak, misalnya — melintasi seluruh unit.
-    // Menampilkannya pada admin unit berarti membocorkan yang justru
-    // dipagari saringan ini.
+    // Catatan tanpa unit — perubahan lama, sebelum kolom unit ditulis — akan
+    // dijaring lagi di klien pakai daftar petugas saat ini vs. akun. Modul
+    // NON-hak yang unitnya kosong berarti perubahan global admin utama; itu
+    // tetap dijauhkan dari admin unit di sini.
+    //
+    // Nilai `unit` boleh berbentuk CSV ("radtel,radkom") — dipakai oleh
+    // perubahan hak yang menyentuh lebih dari satu unit — supaya satu entri
+    // log tetap tampil di daftar semua unit yang terpengaruh.
     const punya = new Set(izin.unit);
-    daftar = daftar.filter((a) => a && a.unit && punya.has(String(a.unit).toLowerCase()));
+    daftar = daftar.filter((a) => {
+      if (!a) return false;
+      if (!a.unit) return a.modul === 'hak';   // biar klien yang memutuskan
+      const kode = String(a.unit).toLowerCase().split(',').map((s) => s.trim()).filter(Boolean);
+      return kode.some((u) => punya.has(u));
+    });
   }
   const batas = Math.min(AKTIVITAS_BATAS, Math.max(1, Number(req.query.batas) || 120));
   res.json({
@@ -857,7 +1117,11 @@ app.get('/dinas/saya', async (req, res) => {
       // untuk memutuskan unit mana yang digambar — bukan untuk memutuskan
       // siapa boleh menulis; itu diputuskan lagi di sini pada tiap permintaan.
       unit: punya === null ? [] : punya,
-      semuaUnit: punya === null
+      semuaUnit: punya === null,
+      // Diteruskan apa adanya dari /api/me E-Logbook. Orthogonal terhadap peran;
+      // halaman biasa boleh mengabaikan, fitur super-admin yang akan datang
+      // mengeceknya sendiri.
+      superadmin: !!user.superadmin
     } : null,
     // boleh tetap boolean supaya salinan halaman yang lebih tua tidak pecah;
     // yang baru membaca bolehModul di sebelahnya.
@@ -872,10 +1136,143 @@ app.get('/dinas/saya', async (req, res) => {
 });
 
 /** Berkas hak selengkapnya. Administrator saja — di dalamnya ada daftar nama. */
+/* Modul yang admin unit BOLEH menyentuh kolom Ditunjuk (petugas)-nya.
+   TTD/peralatan sengaja tidak: TTD hanya menerima pejabat (dan admin unit
+   tidak boleh mencentang pejabat), sedangkan daftar peralatan adalah bawaan
+   administrator (view-only bagi peran lain). */
+const HAK_MODUL_ADMINUNIT = new Set(MODUL_HAK.filter((m) => !m.endsWith('-ttd') && m !== 'peralatan'));
+
+/** Tarik listUsers dari E-Logbook dengan cookie milik pemanggil. Dipakai untuk
+    memvalidasi bahwa admin unit hanya menambah/mencabut nama akun yang memang
+    ada di unitnya. Mengembalikan Map<username, {unit:[], role, aktif}> atau
+    null kalau tidak berhasil (validasi lalu menolak setiap penambahan). */
+async function ambilUsersLewatCookie(req) {
+  if (!TERUS) return null;
+  try {
+    const jawab = await fetch(ASAL + '/api/listUsers', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(req.headers.cookie ? { cookie: req.headers.cookie } : {})
+      },
+      body: JSON.stringify({ args: [] }),
+      signal: AbortSignal.timeout(8000)
+    });
+    if (!jawab.ok) return null;
+    const j = await jawab.json().catch(() => null);
+    const daftar = (j && Array.isArray(j.result)) ? j.result : [];
+    const peta = new Map();
+    for (const u of daftar) {
+      const nama = String(u.username || '').toLowerCase();
+      if (nama) peta.set(nama, {
+        role: String(u.role || '').toLowerCase(),
+        aktif: !!u.aktif,
+        unit: (Array.isArray(u.unit) ? u.unit : []).map((k) => String(k || '').toLowerCase())
+      });
+    }
+    return peta;
+  } catch {
+    return null;
+  }
+}
+
+/** Peleburan hak baru dari admin unit ke atas hak lama:
+ *    - `peran` tidak pernah berubah (wewenang admin utama)
+ *    - modul TTD & peralatan tidak berubah sama sekali
+ *    - untuk modul lain, hanya baris `petugas` yang jatuh di unit pemanggil
+ *      boleh diubah. Nama di luar unitnya tetap dari yang lama — admin unit
+ *      tidak boleh menambahnya, tidak boleh mencabutnya.
+ *  Pemanggil harus memastikan `daftarAkun` (peta username→user) tersedia.
+ *  Return: [hakGabung, jejakUbah] */
+function gabungHakAdminUnit(hakLama, hakBaru, unitPemanggil, daftarAkun) {
+  const hasil = {};
+  const perubahan = [];
+  const lingkup = new Set((unitPemanggil || []).map((k) => String(k || '').toLowerCase()));
+  const dalamLingkup = (nama) => {
+    const u = daftarAkun && daftarAkun.get(String(nama || '').toLowerCase());
+    if (!u || !u.aktif) return false;
+    // Pejabat tidak boleh disentuh admin unit (mereka bukan ranah admin unit).
+    if (u.role === 'pejabat' || u.role === 'admin') return false;
+    return (u.unit || []).some((k) => lingkup.has(k));
+  };
+
+  for (const m of MODUL_HAK) {
+    const lama = hakLama[m] || { peran: [], petugas: [] };
+    if (!HAK_MODUL_ADMINUNIT.has(m)) { hasil[m] = { peran: lama.peran.slice(), petugas: lama.petugas.slice() }; continue; }
+    const baru = (hakBaru && hakBaru[m]) || {};
+    const baruPetugas = new Set((Array.isArray(baru.petugas) ? baru.petugas : lama.petugas)
+      .map((x) => String(x || '').trim().toLowerCase()).filter(Boolean));
+    const gabung = [];
+    // Nama di luar lingkup: bawa apa adanya dari yang lama.
+    for (const nama of lama.petugas) {
+      if (dalamLingkup(nama)) continue;
+      gabung.push(nama);
+    }
+    // Nama di dalam lingkup: ikuti keinginan admin unit — asalkan nama itu
+    // memang ada di unitnya. Nama asing yang muncul di badan permintaan
+    // (mis. diketik tangan) ditolak diam-diam supaya tidak jadi jalan menembus
+    // pagar.
+    for (const nama of baruPetugas) {
+      if (dalamLingkup(nama) && !gabung.includes(nama)) gabung.push(nama);
+    }
+    const sebelumnya = new Set(lama.petugas);
+    const setelah = new Set(gabung);
+    const tambah = [...setelah].filter((x) => !sebelumnya.has(x));
+    const kurang = [...sebelumnya].filter((x) => !setelah.has(x));
+    if (tambah.length || kurang.length) {
+      // Bukan hitungan, bukan cuma delta: langsung daftar nama yang tercatat
+      // sesudah simpan. Log aktivitas jadi menjawab "8 orang itu siapa" tanpa
+      // orang harus menyilang catatan sebelum-sesudah. Delta ikut supaya
+      // kelihatan berapa yang baru masuk dan berapa yang barusan dicabut.
+      const jejak = [tambah.length ? '+' + tambah.length : '',
+                     kurang.length ? '-' + kurang.length : ''].filter(Boolean).join(' ');
+      perubahan.push(`${m} (${jejak}): ${gabung.length ? gabung.join(',') : 'kosong'}`);
+    }
+    hasil[m] = { peran: lama.peran.slice(), petugas: gabung };
+  }
+  return [hasil, perubahan];
+}
+
+/** Ringkasan naratif seluruh perubahan hak — dipakai admin utama pada catat().
+ *  Hanya modul yang benar-benar berubah yang dicantumkan; setiap baris
+ *  membawa daftar penuh siapa yang tercatat sesudah simpan, bukan sekadar
+ *  peran + hitungan. Log lama yang cuma "+8 ditunjuk" menyembunyikan siapa
+ *  yang barusan diberi hak; format ini menjawab pertanyaan itu langsung di
+ *  rincian, tanpa membuka layar Kelola Akun. */
+function ringkasHakDelta(hakLama, hakBaru) {
+  const potong = [];
+  for (const m of MODUL_HAK) {
+    const lama = hakLama[m] || { peran: [], petugas: [] };
+    const baru = hakBaru[m] || { peran: [], petugas: [] };
+    const peranLama = new Set(lama.peran);
+    const peranBaru = new Set(baru.peran);
+    const peranBeda = peranBaru.size !== peranLama.size
+      || [...peranBaru].some((p) => !peranLama.has(p));
+    const petLama = new Set(lama.petugas);
+    const petBaru = new Set(baru.petugas);
+    const petTambah = [...petBaru].filter((x) => !petLama.has(x));
+    const petKurang = [...petLama].filter((x) => !petBaru.has(x));
+    if (!peranBeda && !petTambah.length && !petKurang.length) continue;
+    const bagian = [];
+    if (peranBeda) bagian.push('peran=' + (baru.peran.join('/') || '—'));
+    if (baru.petugas.length) {
+      const jejak = [petTambah.length ? '+' + petTambah.length : '',
+                     petKurang.length ? '-' + petKurang.length : ''].filter(Boolean).join(' ');
+      bagian.push(`ditunjuk${jejak ? ' (' + jejak + ')' : ''}=` + baru.petugas.join(','));
+    } else if (petKurang.length) {
+      bagian.push(`ditunjuk (-${petKurang.length})=kosong`);
+    }
+    potong.push(`${m}: ${bagian.join(' ')}`);
+  }
+  return potong.join(' · ') || 'tanpa perubahan';
+}
+
 app.get('/hak', async (req, res) => {
   const user = await siapa(req);
-  if (!user || user.role !== 'admin') {
-    return res.status(403).json({ error: 'Hanya administrator yang boleh melihat daftar hak.' });
+  const peran = user && String(user.role || '').toLowerCase();
+  const boleh = user && (peran === 'admin' || peran === 'adminunit' || user.superadmin);
+  if (!boleh) {
+    return res.status(403).json({ error: 'Hanya administrator atau admin unit yang boleh melihat daftar hak.' });
   }
   // Peran view-only sengaja tidak dikirim sebagai kolom di layar Hak Akses —
   // centangnya tidak akan pernah berpengaruh; menyingkirkannya di sini
@@ -889,29 +1286,240 @@ app.get('/hak', async (req, res) => {
 
 app.put('/hak', badanDinas, async (req, res) => {
   const user = await siapa(req);
-  if (!user || user.role !== 'admin') {
-    return res.status(403).json({ error: 'Hanya administrator yang boleh mengubah daftar hak.' });
+  const peran = user && String(user.role || '').toLowerCase();
+  const adminPenuh = user && (peran === 'admin' || user.superadmin);
+  const adminUnit  = user && peran === 'adminunit' && !user.superadmin;
+  if (!adminPenuh && !adminUnit) {
+    return res.status(403).json({ error: 'Hanya administrator atau admin unit yang boleh mengubah daftar hak.' });
   }
   if (!DINAS_TULIS) {
     return res.status(503).json({ error: 'Daftar hak tidak bisa disimpan di lingkungan ini.' });
   }
-  const hak = rapikanHak(req.body && req.body.hak);
+  const badan = req.body && req.body.hak;
+  const hakLama = await bacaHak();
+  let hak;
+  let jejakRingkas = '';
+  let unitTerpengaruh = '';   // CSV kode unit yang perlu muncul di log
+  if (adminPenuh) {
+    hak = rapikanHak(badan);
+    // Cari unit yang benar-benar tersentuh oleh perubahan petugas — dipakai
+    // supaya admin unit yang wilayahnya kena tetap melihat entri log ini.
+    // Perubahan peran tidak dihitung: itu global dan admin unit sengaja tidak
+    // menerimanya (bisa menyentuh kelas pejabat yang di luar wewenangnya).
+    const daftar = await ambilUsersLewatCookie(req);
+    if (daftar) {
+      const unit = new Set();
+      for (const m of MODUL_HAK) {
+        const lama = new Set((hakLama[m] || {}).petugas || []);
+        const baru = new Set((hak[m] || {}).petugas || []);
+        for (const nama of new Set([...lama, ...baru])) {
+          if (lama.has(nama) === baru.has(nama)) continue;   // tidak berubah
+          const u = daftar.get(nama);
+          if (u && Array.isArray(u.unit)) for (const k of u.unit) if (k) unit.add(k);
+        }
+      }
+      unitTerpengaruh = [...unit].join(',');
+    }
+  } else {
+    // Admin unit: gabungkan dengan hak lama, ditahan di pagar unit.
+    const daftar = await ambilUsersLewatCookie(req);
+    if (!daftar) return res.status(503).json({ error: 'Tidak bisa memverifikasi daftar akun. Coba lagi sebentar.' });
+    const unitSaya = unitDipegang(user) || [];
+    if (!unitSaya.length) return res.status(403).json({ error: 'Akun Anda belum diberi unit — tidak ada yang bisa ditunjuk.' });
+    const badanRapi = rapikanHak(badan);
+    const [gabung, jejak] = gabungHakAdminUnit(hakLama, badanRapi, unitSaya, daftar);
+    hak = gabung;
+    jejakRingkas = jejak.join(' · ');
+    unitTerpengaruh = unitSaya.join(',');
+  }
   try {
     await tulisJson(HAK_JSON, hak);
     // Berkas lama sudah dilebur ke dalam hak.json oleh bacaHak(); membiarkannya
     // hidup berarti nama yang baru dicabut muncul kembali pada pembacaan
     // berikutnya. Dihapus setelah penggantinya benar-benar tertulis.
     await hapusJson(PETUGAS_JSON);
+    // Rincian menyebut NAMA yang tercatat sesudah simpan, bukan sekadar
+    // hitungan — biar log aktivitas bisa dipakai menelusuri "8 orang itu siapa"
+    // langsung dari kolom keterangan, tanpa membuka Kelola Akun.
+    //
+    // Kolom `unit` diisi CSV kode unit yang benar-benar tersentuh: entri lolos
+    // saringan per-unit di /aktivitas. Untuk admin utama, itu dihitung dari
+    // unit-nya orang yang barusan ditambah/dicabut; untuk admin unit, ya unit
+    // wilayahnya sendiri.
     await catat(user, {
-      modul: 'hak', aksi: 'ubah',
-      rincian: MODUL_HAK.map((m) => `${m}: ${hak[m].peran.join('/') || '—'}`
-        + (hak[m].petugas.length ? ` +${hak[m].petugas.length} ditunjuk` : '')).join(' · ')
+      modul: 'hak', aksi: adminUnit ? 'ubah-unit' : 'ubah',
+      unit: unitTerpengaruh,
+      rincian: adminUnit
+        ? (jejakRingkas || 'tanpa perubahan')
+        : ringkasHakDelta(hakLama, hak)
     });
     res.json({ ok: true, hak });
   } catch (e) {
     console.error('[hak] gagal menyimpan:', e);
     res.status(500).json({ error: 'Gagal menyimpan daftar hak: ' + (e?.message || e) });
   }
+});
+
+/** Peta hak lanjut seluruh akun — admin/super-admin saja. */
+app.get('/hak-akun', async (req, res) => {
+  const user = await siapa(req);
+  if (!user || (user.role !== 'admin' && !user.superadmin)) {
+    return res.status(403).json({ error: 'Hanya administrator yang boleh melihat daftar hak akun.' });
+  }
+  res.json({
+    hakAkun: await bacaHakAkun(),
+    jenisTtd: CETAK_JENIS_TTD_SAH,
+    modul: MODUL_HAK
+  });
+});
+
+/**
+ * Data filter untuk dropdown pejabat di layar Cetak — cukup untuk teknisi
+ * dan adminunit menyaring daftarnya sendiri, tanpa membocorkan seluruh
+ * berkas hak. Yang dikembalikan hanya nama-nama:
+ *   - `ditunjuk[modul-ttd]` — pejabat yang di-whitelist untuk jenis itu
+ *     (dari HAK[`dinas-ttd`|`sparepart-ttd`|`sejarah-ttd`].petugas)
+ *   - `pejabatTtd[username]` — kalau akun itu punya bolehTtd non-kosong
+ *     (batasan per-akun di layar Kelola Akun). Yang kosong tidak diikutkan
+ *     — kosong berarti boleh semua jenis (bawaan), tidak perlu disebut.
+ *
+ * unitKhusus/bolehModul milik hak-akun sengaja tidak ikut — tidak relevan
+ * untuk penyaringan dropdown pejabat.
+ */
+/**
+ * Saran nama PIC di footer cetak Jadwal Dinas — irisan antara akun yang
+ * ditunjuk di hak modul `dinas` (Jadwal Dinas) dan akun yang terdaftar
+ * di unit ini (kolom UNIT LOGBOOK di Daftar Akun, yang datanya sama
+ * dengan listTeknisiUnit E-Logbook karena unit-nya memang dikelola di
+ * kartu akun basic).
+ *
+ * Alur:
+ *   1. hak['dinas'].petugas — username yang admin centang di
+ *      Kelola Akun → Hak Akses → Jadwal Dinas → Ditunjuk.
+ *   2. listTeknisiUnit(unit) — akun yang punya unit ini di kartu
+ *      akunnya (UNIT LOGBOOK di Daftar Akun).
+ *   3. listAkunAktif — sumber nama tampilan (username → nama).
+ * Kembali irisan #1 ∩ #2, dengan nama tampilan dari #3.
+ *
+ * Ketiganya lewat E-Logbook karena data akun (username, nama, unit
+ * membership) memang tinggal di sana. Kalau salah satu gagal, ini
+ * jatuh dengan aman: jawaban [] bukan galat, dan tombol tetap boleh
+ * disunting kalau memang tidak ada saran.
+ *
+ * Jawaban tidak boleh dicache peramban — daftar berubah begitu admin
+ * menyunting hak atau unit di kartu akun.
+ */
+app.get('/pic-cetak-dinas/:unit', async (req, res) => {
+  const user = await siapa(req);
+  if (!user) return res.status(401).json({ error: 'Masuk dulu.' });
+  const unit = String(req.params.unit || '').trim().toLowerCase();
+  if (!unitSah(unit)) return res.status(400).json({ error: 'Kode unit tidak sah.' });
+  res.setHeader('Cache-Control', 'no-store');
+
+  const hak = (await bacaHak())['dinas'] || { peran: [], petugas: [] };
+  const setPetugas = new Set((hak.petugas || []).map(x => String(x).toLowerCase()));
+  if (!setPetugas.size) return res.json([]);
+
+  const kepala = {
+    'Content-Type': 'application/json',
+    ...(req.headers.cookie ? { cookie: req.headers.cookie } : {})
+  };
+  let daftarUnit = [];
+  let daftarAktif = [];
+  try {
+    const [rUnit, rAktif] = await Promise.all([
+      fetch(ASAL + '/api/listTeknisiUnit', {
+        method: 'POST', headers: kepala,
+        body: JSON.stringify({ args: [unit] }),
+        signal: AbortSignal.timeout(8000)
+      }),
+      fetch(ASAL + '/api/listAkunAktif', {
+        method: 'POST', headers: kepala,
+        body: JSON.stringify({ args: [] }),
+        signal: AbortSignal.timeout(8000)
+      })
+    ]);
+    const jUnit  = rUnit.ok  ? await rUnit.json().catch(() => null)  : null;
+    const jAktif = rAktif.ok ? await rAktif.json().catch(() => null) : null;
+    daftarUnit  = (jUnit  && Array.isArray(jUnit.result))  ? jUnit.result  : [];
+    daftarAktif = (jAktif && Array.isArray(jAktif.result)) ? jAktif.result : [];
+  } catch (e) {
+    console.warn('[pic-cetak-dinas] gagal menanyakan E-Logbook:', e?.message || e);
+    return res.json([]);
+  }
+
+  const petaNama = new Map(daftarAktif.map(u =>
+    [String(u.username || '').toLowerCase(), u.nama || u.username]));
+  const setUnit = new Set(daftarUnit.map(u => String(u.username || '').toLowerCase()));
+
+  const hasil = [...setPetugas]
+    .filter(u => setUnit.has(u))
+    .map(u => ({ username: u, nama: petaNama.get(u) || u }))
+    .sort((a, b) => String(a.nama).localeCompare(String(b.nama), 'id'));
+
+  res.json(hasil);
+});
+
+app.get('/pejabat-hak-cetak', async (req, res) => {
+  const user = await siapa(req);
+  if (!user) return res.status(401).json({ error: 'Masuk dulu.' });
+  const hak = await bacaHak();
+  const hakAkun = await bacaHakAkun();
+  const petugas = {};
+  for (const m of ['dinas-ttd', 'sparepart-ttd', 'sejarah-ttd']) {
+    petugas[m] = (hak[m] && Array.isArray(hak[m].petugas)) ? hak[m].petugas : [];
+  }
+  const pejabatTtd = {};
+  for (const [u, v] of Object.entries(hakAkun)) {
+    if (v && Array.isArray(v.bolehTtd) && v.bolehTtd.length) {
+      pejabatTtd[String(u).toLowerCase()] = v.bolehTtd;
+    }
+  }
+  res.json({ ditunjuk: petugas, pejabatTtd });
+});
+
+/** Simpan hak lanjut untuk satu akun. Admin/super-admin saja. */
+app.put('/hak-akun/:user', badanDinas, async (req, res) => {
+  const admin = await siapa(req);
+  if (!admin || (admin.role !== 'admin' && !admin.superadmin)) {
+    return res.status(403).json({ error: 'Hanya administrator yang boleh mengubah hak akun.' });
+  }
+  const target = usernameKunci(req.params.user);
+  if (!target) return res.status(400).json({ error: 'Username kosong.' });
+  const targetSuper = await targetSuperadmin(target, req);
+  if (targetSuper && !admin.superadmin) {
+    return res.status(403).json({ error: 'Hak akun super-admin hanya boleh diubah oleh sesama super-admin.' });
+  }
+  const map = await bacaHakAkun();
+  const bersih = rapikanHakLanjut(req.body);
+  const kosong = !bersih.unitKhusus.length && !bersih.bolehTtd.length
+              && !Object.keys(bersih.bolehModul).length;
+  if (kosong) delete map[target]; else map[target] = bersih;
+  await tulisHakAkun(map);
+  await catat(admin, {
+    modul: 'hak-akun', aksi: kosong ? 'reset' : 'ubah',
+    rincian: `${target} → unit:${bersih.unitKhusus.join('/') || '-'} · ttd:${bersih.bolehTtd.join('/') || '-'}`
+  }).catch(() => {});
+  res.json({ ok: true, hakAkun: map[target] || null });
+});
+
+/** Hapus overrides — sama efeknya dengan PUT dengan objek kosong. */
+app.delete('/hak-akun/:user', async (req, res) => {
+  const admin = await siapa(req);
+  if (!admin || (admin.role !== 'admin' && !admin.superadmin)) {
+    return res.status(403).json({ error: 'Hanya administrator.' });
+  }
+  const target = usernameKunci(req.params.user);
+  const targetSuper = await targetSuperadmin(target, req);
+  if (targetSuper && !admin.superadmin) {
+    return res.status(403).json({ error: 'Hak akun super-admin hanya boleh diubah oleh sesama super-admin.' });
+  }
+  const map = await bacaHakAkun();
+  if (map[target]) {
+    delete map[target];
+    await tulisHakAkun(map);
+  }
+  res.json({ ok: true });
 });
 
 /** Jadwal satu bulan, seluruh unit. Terbuka untuk siapa saja — ini memang
@@ -963,6 +1571,9 @@ app.put('/dinas/bulan/:bulan/:unit', badanDinas, async (req, res) => {
   const orang = masuk.slice(0, 200).map((o) => ({
     nama:  String(o?.nama  || '').trim().slice(0, 80),
     peran: String(o?.peran || '').trim().slice(0, 60),
+    // NIK — pegawai. Dibatasi 30 karakter supaya format lokal (7–10 digit) dan
+    // format berkas yang lebih panjang (16 digit KTP) sama-sama muat.
+    nik:   String(o?.nik   || '').trim().slice(0, 30),
     hari:  Array.from({ length: hariMax }, (_, i) =>
              String((Array.isArray(o?.hari) ? o.hari[i] : '') || '').trim().slice(0, 12))
   })).filter((o) => o.nama);
@@ -1081,6 +1692,7 @@ function periodeSekarang(jenis, d = new Date()) {
   const tahun = d.getFullYear();
   const bulan = d.getMonth();                 // 0..11
   switch (jenis) {
+    case 'harian':     return `${tahun}-${String(bulan + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     case 'mingguan':   return pekanIso(d);
     case 'triwulan':   return `${tahun}-Q${Math.floor(bulan / 3) + 1}`;
     case 'semesteran': return `${tahun}-S${Math.floor(bulan / 6) + 1}`;
@@ -1089,7 +1701,7 @@ function periodeSekarang(jenis, d = new Date()) {
   }
 }
 
-const BERKALA_JENIS = new Set(['mingguan', 'bulanan', 'triwulan', 'semesteran', 'tahunan']);
+const BERKALA_JENIS = new Set(['harian', 'mingguan', 'bulanan', 'triwulan', 'semesteran', 'tahunan']);
 
 /* Rombongan yang mengerjakan. Kosong berarti siapa pun yang berdinas hari itu,
    dan itulah keadaan seluruh kegiatan yang sudah tersimpan sebelum kolom ini
@@ -1124,12 +1736,17 @@ const BERKALA_SUMBER = new Map([
   ['', ''],
   ['dstest',     'lembar DS Test'],
   ['dailycheck', 'lembar Daily Check'],
+  /* Daily Check per lokasi Radtel — pemisahan Garex 300 (New JATSC) dan
+     Frequentis 3020X (JATSC). Berdampingan dengan 'dailycheck' generik
+     supaya kegiatan lama yang menyebutnya tidak jadi "tidak dikenal". */
+  ['dailycheck-newjatsc', 'lembar Daily Check New JATSC (Garex 300)'],
+  ['dailycheck-jatsc',    'lembar Daily Check JATSC (Frequentis 3020X)'],
   ['monitoring', 'lembar Monitoring Frekuensi'],
   /* Empat lembar pekerjaan berkala Radtel. Di E-Logbook keempatnya tersimpan
      di satu tabel dan dibedakan kolom jenis; di sini tetap empat sumber
      terpisah, karena yang membuktikan Cleaning CWP bukan lembar Restart CWP. */
-  ['bk-neptuno',  'lembar Cek Query Neptuno'],
-  ['bk-gatevox',  'lembar Restart CPU Gatevox'],
+  ['bk-neptuno',  'lembar Cek Inspection Neptuno'],
+  ['bk-gatevox',  'lembar Change Over CPU Gatevox'],
   ['bk-cleaning', 'lembar Cleaning CWP'],
   ['bk-restart',  'lembar Restart CWP']
 ]);
@@ -1176,7 +1793,11 @@ function rapikanKegiatan(k, adaId) {
     // Tanpa kolom ini, pekerjaan triwulan tidak punya tanggal jatuh tempo sama
     // sekali: "sekali dalam tiga bulan" tidak memberi tahu bulan yang mana.
     bulan:   panjang ? Math.min(panjang, Math.max(1, Number(k?.bulan) || 1)) : null,
-    tanggal: jenis === 'mingguan' ? null : Math.min(28, Math.max(1, Number(k?.tanggal) || 1)),
+    // Harian jatuh tiap hari — tidak butuh tanggal. Mingguan pakai daftar hari
+    // di kolom `hari`. Sisanya berjatuh-tempo pada tanggal 1..28 di dalam
+    // periodenya (dibatasi 28 supaya tidak pernah melewatkan bulan Februari).
+    tanggal: (jenis === 'mingguan' || jenis === 'harian')
+      ? null : Math.min(28, Math.max(1, Number(k?.tanggal) || 1)),
     alat: String(k?.alat || '').trim().slice(0, 40),
     ket:  String(k?.ket  || '').trim().slice(0, 400),
     // Lokasi fisik peralatan: 'new-jatsc' atau 'jatsc'. Kegiatan lama tidak
@@ -1311,20 +1932,40 @@ app.post('/berkala/selesai', badanDinas, async (req, res) => {
      berjalan. Tanpa syarat kedua, satu permintaan bisa menandai selesai
      pekerjaan bulan depan. */
   let periode;
-  if (keg.jenis === 'mingguan') {
+  if (keg.jenis === 'mingguan' || keg.jenis === 'harian') {
+    /* Kedua-duanya ditandai per-tanggal, bukan per-periode:
+       - mingguan: DS Test Senin/Rabu/Sabtu masing-masing dicentang sendiri.
+       - harian:   tiap hari punya tandanya sendiri; tanpa itu satu klik akan
+                   membuat kartunya "sudah" untuk seluruh sisa bulan.
+       Tanggalnya datang dari peramban dan diperiksa di sini. Mingguan juga
+       harus salah satu hari yang dijadwalkan. */
     const tgl = String(req.body?.tanggal || '').slice(0, 10);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(tgl)) {
       return res.status(400).json({ error: 'Tanggal kejadian tidak sah.' });
     }
     const d = new Date(tgl + 'T00:00:00');
     if (isNaN(d)) return res.status(400).json({ error: 'Tanggal kejadian tidak sah.' });
-    if (!hariDaftar(keg).includes(d.getDay() || 7)) {
-      return res.status(400).json({ error: 'Kegiatan ini tidak dijadwalkan pada hari itu.' });
-    }
-    if (pekanIso(d) !== pekanIso(new Date())) {
-      return res.status(400).json({
-        error: 'Hanya kejadian di minggu yang sedang berjalan yang bisa ditandai.'
-      });
+    if (keg.jenis === 'mingguan') {
+      if (!hariDaftar(keg).includes(d.getDay() || 7)) {
+        return res.status(400).json({ error: 'Kegiatan ini tidak dijadwalkan pada hari itu.' });
+      }
+      if (pekanIso(d) !== pekanIso(new Date())) {
+        return res.status(400).json({
+          error: 'Hanya kejadian di minggu yang sedang berjalan yang bisa ditandai.'
+        });
+      }
+    } else {
+      /* Harian: hanya hari ini (waktu server). Tanpa ini, satu permintaan
+         bisa menandai kejadian minggu lalu atau minggu depan. */
+      const hariIni = new Date();
+      const sama = d.getFullYear() === hariIni.getFullYear()
+                && d.getMonth()    === hariIni.getMonth()
+                && d.getDate()     === hariIni.getDate();
+      if (!sama) {
+        return res.status(400).json({
+          error: 'Kegiatan harian hanya bisa ditandai untuk hari ini.'
+        });
+      }
     }
     periode = tgl;
   } else {
@@ -1535,6 +2176,12 @@ const UNITDB_JSON = {
   sparepart: path.join(DATA_DIR, 'sparepart.json')
 };
 
+/* Baris peralatan yang tampil di kepala unit ("VCS Garex, Recording Neptuno"
+   dll.). Nilai bawaannya datang dari E-Logbook (UNIT[].peralatan) dan tidak
+   bisa disunting dari sana; yang tersimpan di sini penimpanya, per unit.
+   Kalau kosong, sebutan dari E-Logbook tetap berlaku. */
+const NAMA_ALAT_JSON = path.join(DATA_DIR, 'nama-alat.json');
+
 const STATUS_ALAT = new Set(['Normal', 'Warning', 'Down']);
 const SATUAN_PART = new Set(['pcs', 'rol', 'drum', 'set', 'meter', 'liter']);
 
@@ -1589,7 +2236,46 @@ function rapikanAlat(a, adaId) {
     gambar: path.basename(String(a?.gambar || '')).slice(0, 120)
       .replace(/[^A-Za-z0-9._-]/g, ''),
     pn: String(a?.pn || '').trim().slice(0, 60),
+    // Grup lokasi — pengelompokan bebas per unit. Radtel dibagi mis. "JATSC"
+    // dan "NEW JATSC"; Radkom mis. "Radio ACC Primary" dan "ACC Secondary".
+    // Isian bebas: yang menentukan daftar tab di layar adalah nilai unik dari
+    // seluruh baris peralatan unit itu, bukan tabel terpisah — jadi tidak perlu
+    // migrasi kalau administrator ganti nama grupnya (cukup ubah semua barisnya).
+    grup: String(a?.grup || '').trim().slice(0, 80),
+    // Sub-unit — satu alat (mis. Neptuno) yang punya beberapa unit fisik
+    // (Neptuno 1..4), tiap sub-nya berdiri sendiri dengan identitas sendiri.
+    // Dipakai halaman sebagai tab horisontal di dalam panel Identity.
+    sub: rapikanSubList(a?.sub),
     ...papanNama(a)
+  };
+}
+
+/* ---------- Sub-unit alat ----------
+   Datar (tidak berjenjang). Batas 20 sub per alat — cukup untuk kasus
+   seperti Neptuno 1..4 sampai deretan radio kanal tanpa membuat panel
+   Identity jadi menara tab yang tidak terbaca. */
+const SUB_MAKS = 20;
+function rapikanSubList(list) {
+  if (!Array.isArray(list)) return [];
+  const dipakai = new Set();
+  return list.slice(0, SUB_MAKS).map((s) => rapikanSub(s, dipakai)).filter(Boolean);
+}
+function rapikanSub(s, dipakaiId) {
+  const nama = String(s?.nama || '').trim().slice(0, 120);
+  if (!nama) return null;
+  let id = String(s?.id || '').trim().slice(0, 24).replace(/[^A-Za-z0-9_-]/g, '');
+  if (!id || dipakaiId.has(id)) {
+    id = 's' + Math.random().toString(36).slice(2, 8);
+    while (dipakaiId.has(id)) id = 's' + Math.random().toString(36).slice(2, 8);
+  }
+  dipakaiId.add(id);
+  return {
+    id, nama,
+    tipe:   String(s?.tipe   || '').trim().slice(0, 120),
+    lokasi: String(s?.lokasi || '').trim().slice(0, 80),
+    status: STATUS_ALAT.has(s?.status) ? s.status : 'Normal',
+    pn:     String(s?.pn     || '').trim().slice(0, 60),
+    ...papanNama(s)
   };
 }
 
@@ -1622,7 +2308,9 @@ app.get('/unitdb', async (_req, res) => {
   res.json({
     peralatan: await bacaJson(UNITDB_JSON.peralatan, {}),
     sparepart: await bacaJson(UNITDB_JSON.sparepart, {}),
-    logo:      await bacaLogo()
+    logo:      await bacaLogo(),
+    // Baris peralatan pengganti — kosong berarti pakai bawaan dari E-Logbook.
+    namaAlat:  await bacaJson(NAMA_ALAT_JSON, {})
   });
 });
 
@@ -1924,6 +2612,46 @@ app.delete('/logo/:unit', galeriHidup, async (req, res) => {
   } catch (e) {
     console.error('[logo] gagal menghapus:', e);
     res.status(500).json({ error: 'Gagal menghapus logo: ' + (e?.message || e) });
+  }
+});
+
+/* =====================================================================
+   BARIS PERALATAN UNIT — sebutan di bawah nama unit
+
+   Nama unit dan baris peralatannya datang dari E-Logbook (UNIT[]) dan di
+   sana tidak bisa disunting selain lewat kode. Di sini kita hanya menerima
+   penimpa untuk barisnya — "VCS Garex, Recording Neptuno" di bawah judul
+   Radtel dan sepadannya di unit lain. Kalau kosong, sebutan dari E-Logbook
+   tetap berlaku. Berdampingan dengan logo: hanya administrator yang boleh
+   menggantinya, karena satu suntingan mengubah layar semua orang.
+   ===================================================================== */
+
+app.put('/nama-alat/:unit', badanDinas, async (req, res) => {
+  const unit = String(req.params.unit || '').toLowerCase();
+  if (!unitSah(unit)) return res.status(400).json({ error: 'Kode unit tidak sah.' });
+  if (!DINAS_TULIS) {
+    return res.status(503).json({
+      error: 'Baris peralatan tidak bisa disimpan di lingkungan ini: penyimpanannya tidak permanen.'
+    });
+  }
+
+  const user = await siapa(req);
+  if (!user) return res.status(401).json({ error: 'Masuk dengan akun E-Logbook Anda dulu.' });
+  if (peranUser(user) !== 'admin') {
+    return res.status(403).json({ error: 'Hanya administrator yang boleh mengganti baris peralatan unit.' });
+  }
+
+  const alat = String(req.body?.alat || '').trim().slice(0, 200);
+
+  try {
+    const semua = await bacaJson(NAMA_ALAT_JSON, {});
+    if (alat) semua[unit] = alat; else delete semua[unit];
+    await tulisJson(NAMA_ALAT_JSON, semua);
+    await catat(user, { modul: 'logo', aksi: alat ? 'baris' : 'baris-kosong', unit, rincian: alat });
+    res.json({ ok: true, alat });
+  } catch (e) {
+    console.error('[nama-alat] gagal menyimpan:', e);
+    res.status(500).json({ error: 'Gagal menyimpan baris peralatan: ' + (e?.message || e) });
   }
 });
 
@@ -2279,6 +3007,16 @@ app.patch('/dokumen/:unit/:id', dokumenHidup, badanGaleri, async (req, res) => {
   if (!(await bolehIsi(user, 'dokumen', unit))) {
     return res.status(403).json({ error: 'Akun Anda tidak berhak mengubah dokumen unit ini.' });
   }
+  // Mengubah kategori dijaga lebih ketat — hanya administrator. Kategori adalah
+  // bagaimana berkas dicari orang lain (SOP, Manual, Sertifikat), dan salah
+  // kategori bisa membuat dokumen "hilang" tanpa terhapus. Peran lain masih
+  // boleh menaruh berkas baru dan mengaitkannya ke peralatan; yang dikunci hanya
+  // menimpa kategori berkas yang sudah tersimpan.
+  if (req.body?.kategori !== undefined && String(user.role || '').toLowerCase() !== 'admin') {
+    return res.status(403).json({
+      error: 'Mengubah kategori dokumen hanya bisa dilakukan administrator.'
+    });
+  }
 
   try {
     const daftar = await bacaJson(DOK_JSON, {});
@@ -2617,6 +3355,468 @@ app.delete('/personel/:id/berkas/:bid', async (req, res) => {
     console.error('[personel] gagal menghapus berkas:', e);
     res.status(500).json({ error: 'Gagal menghapus: ' + (e?.message || e) });
   }
+});
+
+/* =====================================================================
+   ANTRIAN CETAK — permintaan cetak dari teknisi menunggu TTD pejabat
+
+   Kenapa ada. Lembar Sparepart dan Jadwal Dinas final ditandatangani
+   pejabat (Manajer Teknik atau officer yang ditunjuk), bukan teknisi.
+   Sebelum ini teknisi harus menghubungi pejabatnya sendiri, minta TTD
+   tersimpan, lalu cetak. Sekarang: teknisi kirim → antri di kotak masuk
+   pejabat → pejabat setujui (TTD tersimpannya dipasang otomatis) → cetak
+   atau simpan PDF.
+
+   Admin dan super-admin tidak masuk antrian ini — mereka boleh cetak
+   langsung, sebagaimana sebelumnya. Antrian ini murni untuk peran yang
+   BUKAN pengesah.
+
+   Snapshot. Isi data (baris sparepart, matriks dinas) DISALIN ke dalam
+   permintaan pada saat kirim. Kalau baris di database berubah setelah
+   itu, yang tercetak tetap yang dikirim — supaya lembar yang disetujui
+   pejabat tidak berbeda dari yang dilihatnya sewaktu memberi TTD.
+   ===================================================================== */
+
+const CETAK_ANTRIAN_JSON = path.join(DATA_DIR, 'cetak-antrian.json');
+// 'peralatan' ditambahkan setelah lembar Sejarah Peralatan ikut jalur pejabat
+// (form docx-nya menuntut tanda tangan Mengetahui). Tanpa entri ini, POST
+// /cetak-antrian menolak dengan "Jenis cetak tidak dikenal."
+const CETAK_JENIS_SAH    = new Set(['sparepart', 'dinas', 'peralatan']);
+const CETAK_STATUS_SAH   = new Set(['menunggu', 'disetujui', 'ditolak']);
+const CETAK_BATAS_SIMPAN = 500;  // baris tersimpan; yang lama dibuang
+
+/* ---------- Hak lanjut per akun ----------
+   Overlay peran biasa: peran menentukan bawaan, "hak lanjut" per akun
+   mempertegas untuk kasus khusus.
+
+     unitKhusus   — daftar unit yang HANYA dibuka akun ini; larik kosong
+                    berarti pagar unit mengikuti peran (biasa). Berguna
+                    untuk pejabat yang hanya membaca subset unit.
+     bolehTtd     — jenis dokumen yang boleh disetujui/di-TTD akun ini
+                    (untuk peran pejabat). Kosong = seluruh jenis. Dipakai
+                    filter kotak masuk antrian cetak.
+     bolehModul   — {[modul]: bolean} — kunci modul spesifik untuk akun
+                    ini. Nilai false = akun ini tidak boleh menyunting
+                    modul itu meskipun perannya mengizinkan. Belum
+                    dipakai penegakan; disediakan untuk perpanjangan.
+
+   Tidak ada baris = akun itu ikut aturan peran biasa. Menyimpan objek
+   kosong sama dengan menghapus overrides. */
+const HAK_AKUN_JSON = path.join(DATA_DIR, 'hak-akun.json');
+const CETAK_JENIS_TTD_SAH = ['sparepart', 'dinas', 'peralatan'];
+
+async function bacaHakAkun() {
+  const raw = await bacaJson(HAK_AKUN_JSON, {});
+  return (raw && typeof raw === 'object') ? raw : {};
+}
+async function tulisHakAkun(map) {
+  await tulisJson(HAK_AKUN_JSON, map || {});
+}
+function rapikanHakLanjut(x) {
+  const o = (x && typeof x === 'object') ? x : {};
+  const unitKhusus = Array.isArray(o.unitKhusus)
+    ? [...new Set(o.unitKhusus.filter(unitSah))] : [];
+  const bolehTtd = Array.isArray(o.bolehTtd)
+    ? [...new Set(o.bolehTtd.filter((j) => CETAK_JENIS_TTD_SAH.includes(j)))] : [];
+  const bolehModul = (o.bolehModul && typeof o.bolehModul === 'object') ? {} : {};
+  if (o.bolehModul && typeof o.bolehModul === 'object') {
+    for (const m of MODUL_HAK) {
+      if (Object.prototype.hasOwnProperty.call(o.bolehModul, m)) {
+        bolehModul[m] = !!o.bolehModul[m];
+      }
+    }
+  }
+  // Kalau semuanya kosong, biarkan objek "bersih" — tanda ikut peran biasa.
+  return { unitKhusus, bolehTtd, bolehModul };
+}
+const usernameKunci = (u) => String(u || '').trim().toLowerCase();
+
+const badanCetak = express.json({ limit: '8mb' });
+
+const cetakId = () => 'cet_' + crypto.randomBytes(8).toString('hex');
+
+async function bacaAntrianCetak() {
+  const daftar = await bacaJson(CETAK_ANTRIAN_JSON, []);
+  return Array.isArray(daftar) ? daftar : [];
+}
+
+async function tulisAntrianCetak(daftar) {
+  // Yang lama dipangkas — antrian ini bukan arsip.
+  const dipangkas = daftar.slice(0, CETAK_BATAS_SIMPAN);
+  await tulisJson(CETAK_ANTRIAN_JSON, dipangkas);
+}
+
+/** Kalau user boleh cetak langsung (admin/super-admin/pejabat sendiri).
+    Peran itu tidak perlu antrian karena mereka pengesahnya sendiri. */
+const bolehCetakLangsung = (user) =>
+  !!user && (user.role === 'admin' || user.role === 'pejabat' || user.superadmin === true);
+
+/** Kirim permintaan cetak — dipanggil dari layar cetak dashboard oleh
+    teknisi/adminunit. */
+app.post('/cetak-antrian', badanCetak, async (req, res) => {
+  const user = await siapa(req);
+  if (!user) return res.status(401).json({ error: 'Masuk dulu untuk mengirim permintaan cetak.' });
+
+  const jenis = String(req.body?.jenis || '').toLowerCase();
+  const unit  = String(req.body?.unit || '').toLowerCase();
+  const bulan = String(req.body?.bulan || '');
+  const pejabatUser = String(req.body?.pejabatUser || '').trim().toLowerCase();
+  const pejabatNama = String(req.body?.pejabatNama || '').trim();
+  const snapshot    = req.body?.snapshot;
+  const catatan     = String(req.body?.catatan || '').slice(0, 500);
+
+  if (!CETAK_JENIS_SAH.has(jenis)) {
+    return res.status(400).json({ error: 'Jenis cetak tidak dikenal.' });
+  }
+  if (!unitSah(unit)) return res.status(400).json({ error: 'Kode unit tidak sah.' });
+  if (jenis === 'dinas' && !bulanSah(bulan)) {
+    return res.status(400).json({ error: 'Bulan tidak sah (format YYYY-MM).' });
+  }
+  if (!pejabatUser) return res.status(400).json({ error: 'Pejabat penyetuju belum dipilih.' });
+  if (!snapshot || typeof snapshot !== 'object') {
+    return res.status(400).json({ error: 'Snapshot data cetak kosong.' });
+  }
+
+  /* Sejarah Peralatan: pejabat penerima wajib termasuk dalam daftar TTD
+     Sejarah Peralatan (kalau daftar itu memang diisi admin). Kalau kosong,
+     jatuh balik ke pengaturan lama — semua pejabat unit boleh — supaya
+     alurnya tidak macet begitu fitur baru dinyalakan tanpa ada yang mengisi.
+     Pengecekan client-side saja tidak cukup: siapa pun bisa merangkai
+     permintaan lewat curl. */
+  if (jenis === 'peralatan') {
+    const hakSekarang = await bacaHak();
+    const ditunjuk = (hakSekarang['sejarah-ttd'] && hakSekarang['sejarah-ttd'].petugas) || [];
+    if (ditunjuk.length && !ditunjuk.includes(pejabatUser)) {
+      return res.status(403).json({
+        error: 'Pejabat ini tidak berhak menandatangani Sejarah Peralatan. '
+             + 'Administrator mengatur daftarnya di layar Hak Akses (modul TTD Sejarah Peralatan).'
+      });
+    }
+  }
+
+  /* Jadwal Dinas: hak menekan tombol Cetak PUM/Teknik dijaga modul
+     `dinas-cetak`. Client sudah menyembunyikan tombolnya, tapi tanpa
+     penjagaan di sini seseorang bisa merangkai POST /cetak-antrian
+     sendiri. Admin/super-admin selalu lolos lewat bolehIsi. */
+  if (jenis === 'dinas' && !(await bolehIsi(user, 'dinas-cetak', unit))) {
+    return res.status(403).json({
+      error: 'Anda tidak berhak mencetak Jadwal Dinas. '
+           + 'Administrator mengatur daftarnya di layar Hak Akses (modul Cetak Jadwal Dinas).'
+    });
+  }
+
+  const kini = new Date().toISOString();
+  const baris = {
+    id:            cetakId(),
+    jenis, unit,
+    bulan:         jenis === 'dinas' ? bulan : '',
+    pembuatUser:   String(user.username || '').toLowerCase(),
+    pembuatNama:   user.nama || user.username,
+    pejabatUser, pejabatNama,
+    tanggalKirim:  kini,
+    status:        'menunggu',
+    snapshot,
+    catatan,
+    // Diisi saat disetujui — TTD pejabat diambil dari E-Logbook (TTD tersimpannya).
+    ttdPejabatUrl:   '',
+    ttdPejabatNama:  '',
+    tanggalTtd:      ''
+  };
+
+  const daftar = await bacaAntrianCetak();
+  daftar.unshift(baris);
+  await tulisAntrianCetak(daftar);
+
+  await catat(user, {
+    modul: 'cetak', aksi: 'kirim-permintaan', unit,
+    rincian: `${jenis} → ${pejabatNama || pejabatUser}`
+  }).catch(() => { /* aktivitas boleh gagal senyap */ });
+
+  res.json({ ok: true, permintaan: baris });
+});
+
+/** Daftar permintaan untuk user login: yang tertuju ke dia (kalau pejabat)
+    dan yang dia kirim sendiri (kalau pembuat). Admin/super-admin melihat
+    semuanya. */
+app.get('/cetak-antrian', async (req, res) => {
+  const user = await siapa(req);
+  if (!user) return res.status(401).json({ error: 'Masuk dulu untuk melihat antrian cetak.' });
+
+  const daftar = await bacaAntrianCetak();
+  const saya = String(user.username || '').toLowerCase();
+  const superAtauAdmin = user.role === 'admin' || user.superadmin === true;
+
+  /* Kalau akun ini adalah pejabat dengan bolehTtd tersaring, sembunyikan
+     permintaan yang jenisnya bukan haknya. Kalau bolehTtd kosong
+     (bawaan), semua jenis boleh dia setujui — perilaku lama.
+
+     'peralatan' punya dua lapis pagar: modul HAK 'sejarah-ttd' menyaring
+     pejabat mana yang berhak sama sekali (dicek di POST /cetak-antrian),
+     lalu bolehTtd di sini boleh dipakai untuk membatasi pejabat itu ke
+     jenis tertentu saja. Keduanya harus lolos. */
+  const hakAkun = (await bacaHakAkun())[saya] || {};
+  const bolehTtd = Array.isArray(hakAkun.bolehTtd) ? hakAkun.bolehTtd : [];
+  const jenisLolos = (b) => !bolehTtd.length || bolehTtd.includes(b.jenis);
+
+  /* Kotak masuk Anda berisi:
+       · permintaan yang menanti tanda tangan MT (pejabatUser=saya, status='menunggu')
+       · permintaan yang sudah diteruskan ke Deputy MT dan menanti tanda
+         tangannya (deputyUser=saya, status='menunggu-deputy')
+       · permintaan lain yang sudah selesai / ditolak dengan Anda sebagai
+         MT atau Deputy — supaya arsipnya tetap terlihat di sana. */
+  const untukSaya  = daftar.filter((b) => (
+    (b.pejabatUser === saya) || (b.deputyUser && b.deputyUser === saya)
+  ) && jenisLolos(b));
+  const dariSaya   = daftar.filter((b) => b.pembuatUser === saya);
+  const semuanya   = superAtauAdmin ? daftar : [];
+
+  res.json({
+    untukSaya, dariSaya, semua: semuanya,
+    // Ringkasan untuk lencana rel di dashboard.
+    menungguSaya: untukSaya.filter((b) =>
+      (b.status === 'menunggu' && b.pejabatUser === saya)
+      || (b.status === 'menunggu-deputy' && b.deputyUser === saya)).length
+  });
+});
+
+/** Detail satu permintaan — dipakai halaman review pejabat. */
+app.get('/cetak-antrian/:id', async (req, res) => {
+  const user = await siapa(req);
+  if (!user) return res.status(401).json({ error: 'Masuk dulu.' });
+
+  const daftar = await bacaAntrianCetak();
+  const b = daftar.find((x) => x.id === req.params.id);
+  if (!b) return res.status(404).json({ error: 'Permintaan cetak tidak ada (mungkin sudah dihapus).' });
+
+  const saya = String(user.username || '').toLowerCase();
+  const boleh = saya === b.pejabatUser || saya === b.pembuatUser
+             || (b.deputyUser && saya === b.deputyUser)
+             || user.role === 'admin' || user.superadmin === true;
+  if (!boleh) return res.status(403).json({ error: 'Anda bukan pihak yang berhak melihat permintaan ini.' });
+
+  res.json({ permintaan: b });
+});
+
+/**
+ * Arsip cetak Sejarah Peralatan yang sudah disetujui — dipakai layar
+ * Peralatan supaya unit bisa mengambil lembar akhirnya untuk dicetak
+ * kembali kapan pun setelah pejabat menandatangani. Beda dari
+ * `/cetak-antrian`: yang itu berfokus pada kotak masuk pejabat/pembuat;
+ * yang ini fokusnya "apa yang sudah ada di rak" per unit. Terbuka untuk
+ * siapa saja yang punya akses ke unit itu.
+ */
+app.get('/cetak-arsip/:unit', async (req, res) => {
+  const user = await siapa(req);
+  if (!user) return res.status(401).json({ error: 'Masuk dulu untuk melihat arsip cetak.' });
+  const unit = String(req.params.unit || '').toLowerCase();
+  if (!unitSah(unit)) return res.status(400).json({ error: 'Kode unit tidak sah.' });
+  if (!bolehUnit(user, unit)) {
+    return res.status(403).json({ error: 'Akun Anda tidak memegang unit ini.' });
+  }
+  const daftar = await bacaAntrianCetak();
+  const arsip = daftar
+    .filter((b) => b.unit === unit
+                && b.jenis === 'peralatan'
+                && b.status === 'disetujui')
+    // Terbaru di atas — pemakai lebih sering mencari cetakan minggu ini
+    // daripada yang setahun lalu.
+    .sort((a, b) => String(b.tanggalTtd || '').localeCompare(String(a.tanggalTtd || '')));
+  res.json({ arsip });
+});
+
+/** Setujui — dipanggil pejabat (atau admin/super-admin atas namanya).
+    TTD-nya diambil dari E-Logbook. Kalau body membawa `ttdUrl`, ia
+    dipakai apa adanya (misal pejabat baru saja gambar ulang).
+
+    Dua cabang berdasar status permintaan:
+      · 'menunggu'         → Manager Teknik menandatangani (tahap 1).
+                             Untuk dinas, tombol "Setujui & Cetak" langsung
+                             finalisasi tanpa Deputy; kalau Deputy diperlukan,
+                             pakai POST .../teruskan yang menyetel deputy +
+                             status='menunggu-deputy'.
+      · 'menunggu-deputy'  → Deputy MT menandatangani (tahap 2). TTD-nya
+                             disimpan di ttdDeputyUrl/Nama + tanggalTtdDeputy,
+                             lalu status='disetujui'. */
+app.post('/cetak-antrian/:id/setujui', badanCetak, async (req, res) => {
+  const user = await siapa(req);
+  if (!user) return res.status(401).json({ error: 'Masuk dulu.' });
+
+  const daftar = await bacaAntrianCetak();
+  const i = daftar.findIndex((x) => x.id === req.params.id);
+  if (i < 0) return res.status(404).json({ error: 'Permintaan cetak tidak ada.' });
+
+  const b = daftar[i];
+  const saya = String(user.username || '').toLowerCase();
+  const superAtauAdmin = user.role === 'admin' || user.superadmin === true;
+
+  if (b.status === 'disetujui') return res.json({ ok: true, permintaan: b });
+
+  const menungguDeputy = b.status === 'menunggu-deputy';
+  const bolehTahapIni = menungguDeputy
+    ? (saya === b.deputyUser || superAtauAdmin)
+    : (saya === b.pejabatUser || superAtauAdmin);
+  if (!bolehTahapIni) {
+    return res.status(403).json({
+      error: menungguDeputy
+        ? 'Hanya Deputy Manager Teknik penerima yang boleh menyetujui tahap ini.'
+        : 'Hanya pejabat penerima atau administrator yang boleh menyetujui.'
+    });
+  }
+
+  /* Kalau pejabat ini punya batasan jenis, dan jenis permintaan bukan
+     salah satunya, tolak. Admin/super-admin lewat pemeriksaan ini.
+     Untuk 'peralatan', modul HAK 'sejarah-ttd' sudah menjaga di POST
+     /cetak-antrian; bolehTtd di sini adalah lapis kedua per-akun. */
+  if (!superAtauAdmin) {
+    const hak = (await bacaHakAkun())[saya] || {};
+    const bolehTtd = Array.isArray(hak.bolehTtd) ? hak.bolehTtd : [];
+    if (bolehTtd.length && !bolehTtd.includes(b.jenis)) {
+      return res.status(403).json({ error: `Anda tidak berwenang menandatangani dokumen jenis "${b.jenis}".` });
+    }
+  }
+
+  const kini = new Date().toISOString();
+  const ttdUrlBaru = String(req.body?.ttdUrl || '');
+  if (menungguDeputy) {
+    /* Tahap 2: TTD Deputy MT dibubuhkan; permintaan selesai. */
+    b.ttdDeputyUrl = ttdUrlBaru || `/ttd-akun/${encodeURIComponent(b.deputyUser)}/gambar`;
+    b.ttdDeputyNama = b.deputyNama || saya;
+    b.tanggalTtdDeputy = kini;
+    b.status = 'disetujui';
+    b.tanggalTtd = b.tanggalTtd || kini;   // jangan menimpa waktu TTD MT
+  } else {
+    /* Tahap 1 (atau non-dinas): TTD Manager Teknik dibubuhkan, langsung
+       disetujui. Cabang ini juga tetap dipakai lembar peralatan/sparepart
+       yang cuma butuh satu tanda tangan. */
+    b.status = 'disetujui';
+    b.tanggalTtd = kini;
+    b.ttdPejabatNama = b.pejabatNama || saya;
+    b.ttdPejabatUrl = ttdUrlBaru || `/ttd-akun/${encodeURIComponent(b.pejabatUser)}/gambar`;
+  }
+
+  daftar[i] = b;
+  await tulisAntrianCetak(daftar);
+
+  await catat(user, {
+    modul: 'cetak', aksi: menungguDeputy ? 'setujui-deputy' : 'setujui-permintaan', unit: b.unit,
+    rincian: `${b.jenis} dari ${b.pembuatNama || b.pembuatUser}`
+  }).catch(() => {});
+
+  res.json({ ok: true, permintaan: b });
+});
+
+/**
+ * Manager Teknik menandatangani lalu meneruskan Jadwal Dinas ke Deputy MT.
+ *
+ * Cabang ini KHUSUS untuk jenis 'dinas' — jenis lain hanya butuh satu tanda
+ * tangan, tidak ada "mengetahui" di atas Manager Teknik. Yang terjadi:
+ *   1. TTD Manager Teknik dibubuhkan (dari TTD tersimpan-nya).
+ *   2. Deputy MT yang dipilih dicatat sebagai penerima berikutnya.
+ *   3. Status berpindah ke 'menunggu-deputy' — kotak masuk Deputy MT
+ *      menampilkannya sebagai permintaan menunggu tanda tangan mereka.
+ *   4. Kalau Deputy menyetujui, status → 'disetujui' dan lembar final
+ *      keluar dengan DUA TTD berdampingan.
+ *
+ * MT yang sudah ada di sistem tetap bisa memakai /setujui biasa kalau
+ * lembar tidak perlu diketahui Deputy — mis. dokumen darurat. Tombol
+ * "Setujui & Cetak" di kartu review MT tetap ada untuk cabang itu.
+ */
+app.post('/cetak-antrian/:id/teruskan', badanCetak, async (req, res) => {
+  const user = await siapa(req);
+  if (!user) return res.status(401).json({ error: 'Masuk dulu.' });
+
+  const daftar = await bacaAntrianCetak();
+  const i = daftar.findIndex((x) => x.id === req.params.id);
+  if (i < 0) return res.status(404).json({ error: 'Permintaan cetak tidak ada.' });
+
+  const b = daftar[i];
+  const saya = String(user.username || '').toLowerCase();
+
+  if (b.jenis !== 'dinas') {
+    return res.status(400).json({ error: 'Meneruskan ke Deputy hanya berlaku untuk Jadwal Dinas.' });
+  }
+  if (b.status !== 'menunggu') {
+    return res.status(409).json({ error: `Permintaan ini tidak sedang menunggu Manager Teknik (status: ${b.status}).` });
+  }
+  const boleh = saya === b.pejabatUser
+             || user.role === 'admin' || user.superadmin === true;
+  if (!boleh) return res.status(403).json({ error: 'Hanya Manager Teknik penerima yang boleh meneruskan.' });
+
+  const deputyUser = String(req.body?.deputyUser || '').trim().toLowerCase();
+  const deputyNama = String(req.body?.deputyNama || '').trim().slice(0, 80);
+  if (!deputyUser) return res.status(400).json({ error: 'Deputy Manager Teknik belum dipilih.' });
+  if (deputyUser === b.pejabatUser) {
+    return res.status(400).json({ error: 'Deputy MT tidak boleh sama dengan Manager Teknik yang menandatangani.' });
+  }
+  if (deputyUser === b.pembuatUser) {
+    return res.status(400).json({ error: 'Deputy MT tidak boleh pembuat permintaan sendiri.' });
+  }
+
+  // TTD Manager Teknik dibekukan di sini — sama dengan setujui biasa.
+  b.ttdPejabatUrl  = String(req.body?.ttdUrl || '') || `/ttd-akun/${encodeURIComponent(b.pejabatUser)}/gambar`;
+  b.ttdPejabatNama = b.pejabatNama || saya;
+  b.tanggalTtd     = new Date().toISOString();
+
+  // Deputy dicatat sebagai penerima tahap kedua.
+  b.deputyUser = deputyUser;
+  b.deputyNama = deputyNama || deputyUser;
+  b.status = 'menunggu-deputy';
+
+  daftar[i] = b;
+  await tulisAntrianCetak(daftar);
+
+  await catat(user, {
+    modul: 'cetak', aksi: 'teruskan-deputy', unit: b.unit,
+    rincian: `${b.jenis} → ${b.deputyNama}`
+  }).catch(() => {});
+
+  res.json({ ok: true, permintaan: b });
+});
+
+/** Tolak — mengembalikan permintaan ke pembuat dengan alasan. */
+app.post('/cetak-antrian/:id/tolak', badanCetak, async (req, res) => {
+  const user = await siapa(req);
+  if (!user) return res.status(401).json({ error: 'Masuk dulu.' });
+
+  const daftar = await bacaAntrianCetak();
+  const i = daftar.findIndex((x) => x.id === req.params.id);
+  if (i < 0) return res.status(404).json({ error: 'Permintaan cetak tidak ada.' });
+
+  const b = daftar[i];
+  const saya = String(user.username || '').toLowerCase();
+  const boleh = saya === b.pejabatUser
+             || (b.deputyUser && saya === b.deputyUser)
+             || user.role === 'admin' || user.superadmin === true;
+  if (!boleh) return res.status(403).json({ error: 'Hanya pejabat penerima atau administrator yang boleh menolak.' });
+
+  b.status = 'ditolak';
+  b.catatanTolak = String(req.body?.alasan || '').slice(0, 500);
+  b.tanggalTtd = new Date().toISOString();
+  daftar[i] = b;
+  await tulisAntrianCetak(daftar);
+  res.json({ ok: true, permintaan: b });
+});
+
+/** Hapus — pembuat boleh menarik permintaannya, pejabat/admin boleh
+    membuang yang sudah dicetak. */
+app.delete('/cetak-antrian/:id', async (req, res) => {
+  const user = await siapa(req);
+  if (!user) return res.status(401).json({ error: 'Masuk dulu.' });
+
+  const daftar = await bacaAntrianCetak();
+  const i = daftar.findIndex((x) => x.id === req.params.id);
+  if (i < 0) return res.status(404).json({ error: 'Permintaan cetak tidak ada.' });
+
+  const b = daftar[i];
+  const saya = String(user.username || '').toLowerCase();
+  const boleh = saya === b.pembuatUser || saya === b.pejabatUser
+             || (b.deputyUser && saya === b.deputyUser)
+             || user.role === 'admin' || user.superadmin === true;
+  if (!boleh) return res.status(403).json({ error: 'Bukan pihak yang berhak menghapus.' });
+
+  daftar.splice(i, 1);
+  await tulisAntrianCetak(daftar);
+  res.json({ ok: true });
 });
 
 /* =====================================================================

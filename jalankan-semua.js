@@ -81,8 +81,19 @@ if (!fs.existsSync(path.join(ELOG, 'server.js'))) {
 const anak = [];
 let berhenti = false;
 
+/* Mode watch — auto-restart tiap kali server.js atau elogbook/server.js
+   diubah. Aktifkan dengan `--watch` di argumen atau `DEV=1` di env,
+   atau lewat skrip `npm run dev-all`. Nyaman pas sedang menyunting kode
+   server bertubi-tubi: perubahan langsung terpakai tanpa Ctrl+C manual. */
+const MODE_WATCH = process.argv.includes('--watch') || process.env.DEV === '1';
+
 function nyalakan(nama, berkas, cwd, env) {
-  const p = spawn(process.execPath, [berkas], {
+  /* --watch adalah flag Node bawaan (Node 18+). Ia mengamati modul yang
+     diimpor oleh entry-point dan menyalakan ulang prosesnya sendiri saat
+     berkasnya berubah. Yang di-watch cuma berkas .js/.mjs — .env dan
+     asset statis di public/ diabaikan (dan memang tidak perlu). */
+  const args = MODE_WATCH ? ['--watch', berkas] : [berkas];
+  const p = spawn(process.execPath, args, {
     cwd,
     env: { ...process.env, ...env },
     stdio: ['ignore', 'pipe', 'pipe']
@@ -103,6 +114,18 @@ function nyalakan(nama, berkas, cwd, env) {
 
   p.on('exit', (kode, sinyal) => {
     if (berhenti) return;
+    if (MODE_WATCH) {
+      /* --watch di dalam anak biasanya me-restart dirinya sendiri tanpa
+         benar-benar keluar. Kalau kita di sini, artinya anaknya memang
+         berhenti — mungkin crash saat memuat kode baru. Respawn saja,
+         jangan bunuh saudara-saudaranya: itu inti gunanya mode watch.
+         Debounce sebentar supaya loop crash tidak menghantam CPU. */
+      const idx = anak.indexOf(p);
+      if (idx >= 0) anak.splice(idx, 1);
+      console.error(`\n[${nama}] berhenti (${sinyal || 'kode ' + kode}) — respawn (mode watch).`);
+      setTimeout(() => nyalakan(nama, berkas, cwd, env), 500);
+      return;
+    }
     console.error(`\n[${nama}] berhenti (${sinyal || 'kode ' + kode}). Mematikan sisanya.`);
     matikan(kode === 0 ? 1 : (kode ?? 1));
   });

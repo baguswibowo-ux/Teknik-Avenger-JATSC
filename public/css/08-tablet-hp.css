@@ -68,7 +68,7 @@
      colspan pada kolom nama, dan menghilangkan kolom peran dengan display:none
      akan menggeser seluruh baris itu sejauh satu tanggal. */
   table.jdw th.jdw-nama,table.jdw td.jdw-nama{max-width:104px;}
-  table.jdw th.jdw-peran,table.jdw td.jdw-peran{max-width:62px;}
+  table.jdw th.jdw-nik,table.jdw td.jdw-nik{max-width:78px;}
   .imp-atur{grid-template-columns:1fr;}
   .bkl-sunting .isian,.sert-sunting .isian{min-width:100%!important;}
 }

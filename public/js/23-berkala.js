@@ -22,8 +22,9 @@
    menandai selesai seluruh daftarnya ikut ditulis ulang.
    ======================================================================= */
 
-const BERKALA_JENIS = ['mingguan','bulanan','triwulan','semesteran','tahunan'];
+const BERKALA_JENIS = ['harian','mingguan','bulanan','triwulan','semesteran','tahunan'];
 const BERKALA_NAMA = {
+  harian:     ['Harian','Daily'],
   mingguan:   ['Mingguan','Weekly'],
   bulanan:    ['Bulanan','Monthly'],
   triwulan:   ['Triwulan','Quarterly'],
@@ -148,12 +149,43 @@ const BERKALA_SUMBER = {
   /* Daily Check diisi tiap dinas, jadi satu tanggal bisa punya beberapa lembar
      — dan yang membedakannya kolom Dinas, bukan kategori. Tanggalnya diambil
      dari TanggalIso lebih dulu: kolom Tanggal di formulir itu teks yang
-     diketik orang, dan yang dicocokkan di sini tanggal kalender. */
-  dailycheck: {
-    label: ['Lembar Daily Check E-Logbook', 'E-Logbook Daily Check sheet'],
-    cip:   'DAILY CHECK',  judul: 'Daily Check',
-    sebut: ['lembar Daily Check', 'the Daily Check sheet'],
+     diketik orang, dan yang dicocokkan di sini tanggal kalender.
+
+     Dua sumber, satu per lokasi: New JATSC (Garex 300) dan JATSC (Frequentis
+     3020X). Kegiatan berkala menunjuk peralatan tertentu, dan peralatan
+     tertentu jatuh di satu lokasi — pilihan "gabungan" (semua lokasi) sudah
+     dihapus karena tidak lagi mewakili kejadian yang bisa dibedakan.
+     Saring-nya membaca kolom Lokasi pada baris ringkasan dcHistory, yang
+     datang dari state.__lokasi di E-Logbook. Baris lama sebelum kolom Lokasi
+     ada dianggap New JATSC — itu keadaan seluruh Radtel sebelum lembar
+     Frequentis muncul, dan menghitungnya sebagai "tidak ada" akan membuat
+     kegiatan berkala mundur ke merah tanpa sebab.
+
+     CATATAN untuk perluasan berikutnya: kalau ada unit yang cuma punya
+     SALAH SATU bentuk (mis. unit baru dengan Garex saja, tanpa Frequentis),
+     labelnya dipendekkan jadi "Lembar Daily Check E-Logbook" — nama lokasi
+     dilepas karena tidak ada yang perlu dibedakan. Belum diperlukan
+     sekarang: dua unit yang punya adaDailyCheck (Radtel & Radkom); Radtel
+     punya keduanya, Radkom punya formnya sendiri (bukan Garex/Frequentis)
+     yang lebih tepat ditangani dengan sumber tersendiri kalau kelak
+     dipakai kegiatan berkala. */
+  'dailycheck-newjatsc': {
+    label: ['Lembar Daily Check New JATSC (Garex 300)', 'E-Logbook Daily Check sheet — New JATSC (Garex 300)'],
+    cip:   'DAILY CHECK · NEW JATSC',  judul: 'Daily Check (New JATSC)',
+    sebut: ['lembar Daily Check New JATSC', 'the New JATSC Daily Check sheet'],
     paket: 'dcHistory',  tab: 'dailycheck',  ada: 'adaDailyCheck',
+    /* Lokasi kosong dibaca sebagai New JATSC — lihat blok di atas. */
+    saring:(x)=> !x.Lokasi || x.Lokasi === 'new-jatsc',
+    tgl:   (x)=> isoTgl(x.TanggalIso) || isoTgl(x.Tanggal) || isoTgl(x.DibuatPada),
+    nama:  (x)=> x.TeknisiNama || x.DiinputOleh,
+    rinci: (x)=> x.Dinas || ''
+  },
+  'dailycheck-jatsc': {
+    label: ['Lembar Daily Check JATSC (Frequentis 3020X)', 'E-Logbook Daily Check sheet — JATSC (Frequentis 3020X)'],
+    cip:   'DAILY CHECK · JATSC',  judul: 'Daily Check (JATSC)',
+    sebut: ['lembar Daily Check JATSC', 'the JATSC Daily Check sheet'],
+    paket: 'dcHistory',  tab: 'dailycheck',  ada: 'adaDailyCheck',
+    saring:(x)=> x.Lokasi === 'jatsc',
     tgl:   (x)=> isoTgl(x.TanggalIso) || isoTgl(x.Tanggal) || isoTgl(x.DibuatPada),
     nama:  (x)=> x.TeknisiNama || x.DiinputOleh,
     rinci: (x)=> x.Dinas || ''
@@ -183,9 +215,9 @@ const BERKALA_SUMBER = {
      yang memilih sumber ini akan diberi tahu lembarnya tidak ada di sana —
      lihat salahForm di bklIsi(). */
   'bk-neptuno': {
-    label: ['Lembar Cek Query Neptuno E-Logbook', 'E-Logbook Neptuno query check sheet'],
-    cip:   'CEK NEPTUNO',  judul: 'Cek Query Neptuno',
-    sebut: ['lembar Cek Query Neptuno', 'the Neptuno query check sheet'],
+    label: ['Lembar Cek Inspection Neptuno E-Logbook', 'E-Logbook Neptuno inspection sheet'],
+    cip:   'INSPECTION NEPTUNO',  judul: 'Cek Inspection Neptuno',
+    sebut: ['lembar Cek Inspection Neptuno', 'the Neptuno inspection sheet'],
     paket: 'berkala',  tab: 'bk-neptuno',  ada: 'adaBerkala',
     saring:(x)=> x.Jenis === 'neptuno',
     tgl:   (x)=> isoTgl(x.Tanggal) || isoTgl(x.DibuatPada),
@@ -194,9 +226,9 @@ const BERKALA_SUMBER = {
   },
 
   'bk-gatevox': {
-    label: ['Lembar Restart CPU Gatevox E-Logbook', 'E-Logbook Gatevox CPU restart sheet'],
-    cip:   'RESTART GATEVOX',  judul: 'Restart CPU Gatevox',
-    sebut: ['lembar Restart CPU Gatevox', 'the Gatevox CPU restart sheet'],
+    label: ['Lembar Change Over CPU Gatevox E-Logbook', 'E-Logbook Gatevox CPU change-over sheet'],
+    cip:   'CHANGE OVER GATEVOX',  judul: 'Change Over CPU Gatevox',
+    sebut: ['lembar Change Over CPU Gatevox', 'the Gatevox CPU change-over sheet'],
     paket: 'berkala',  tab: 'bk-gatevox',  ada: 'adaBerkala',
     saring:(x)=> x.Jenis === 'gatevox',
     tgl:   (x)=> isoTgl(x.Tanggal) || isoTgl(x.DibuatPada),
@@ -333,6 +365,7 @@ function pekanIso(d){
 function periodeKini(jenis, d = new Date()){
   const tahun = d.getFullYear(), bulan = d.getMonth();
   switch(jenis){
+    case 'harian':     return bklTgl(d);
     case 'mingguan':   return pekanIso(d);
     case 'triwulan':   return `${tahun}-Q${Math.floor(bulan / 3) + 1}`;
     case 'semesteran': return `${tahun}-S${Math.floor(bulan / 6) + 1}`;
@@ -347,9 +380,11 @@ function periodeKini(jenis, d = new Date()){
 const bklTgl = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${
   String(d.getDate()).padStart(2,'0')}`;
 
-/** Kunci selesai untuk satu kejadian. Mingguan berkunci tanggal, sisanya tetap
-    berkunci periode — bentuknya harus sama persis dengan server.js. */
-const bklKunciTgl = (unit, k, tanggal) => k.jenis === 'mingguan'
+/** Kunci selesai untuk satu kejadian. Harian dan mingguan berkunci tanggal
+    (per-hari — DS Test Senin, Rabu, Sabtu masing-masing dicentang sendiri;
+    dan yang harian tentu tiap hari sendiri-sendiri), sisanya tetap berkunci
+    periode. Bentuknya harus sama persis dengan server.js. */
+const bklKunciTgl = (unit, k, tanggal) => (k.jenis === 'mingguan' || k.jenis === 'harian')
   ? `${unit}|${k.id}|${tanggal}`
   : `${unit}|${k.id}|${periodeKini(k.jenis)}`;
 /**
@@ -398,6 +433,7 @@ function bklJatuh(k, acuan = new Date()){
   const ke = Math.max(1, Number(k.bulan) || 1) - 1;
 
   switch(k.jenis){
+    case 'harian':     return new Date(tahun, bulan, acuan.getDate());
     case 'bulanan':    return new Date(tahun, bulan, tanggal);
     case 'triwulan':   return new Date(tahun, Math.floor(bulan / 3) * 3 + Math.min(2, ke), tanggal);
     case 'semesteran': return new Date(tahun, Math.floor(bulan / 6) * 6 + Math.min(5, ke), tanggal);
@@ -438,7 +474,7 @@ function bklKejadian(k, acuan = new Date()){
    memang paling sering datang; tiga yang lebih panjang dibiarkan polos supaya
    warna di kartu ini tetap berarti "seberapa sering", bukan "seberapa gawat".
    Warna kegawatan sudah dipakai di kaki kartunya. */
-const bklRupaJenis = (j) => j === 'mingguan' ? 'aman' : j === 'bulanan' ? 'awas' : '';
+const bklRupaJenis = (j) => j === 'harian' ? 'aman' : j === 'mingguan' ? 'aman' : j === 'bulanan' ? 'awas' : '';
 
 /** Kalimat pendek "kapan pekerjaan ini jatuh", untuk kepala kartunya. */
 function bklKapan(k){
@@ -446,6 +482,8 @@ function bklKapan(k){
   const ke  = Number(k.bulan) || 1;
   const urutEn = tgl === 1 ? 'st' : tgl === 2 ? 'nd' : tgl === 3 ? 'rd' : 'th';
   switch(k.jenis){
+    case 'harian':
+      return T('tiap hari', 'every day');
     case 'bulanan':
       return T(`tiap tanggal ${tgl}`, `on the ${tgl}${urutEn} of the month`);
     case 'triwulan':
@@ -587,6 +625,7 @@ function bklIsi(unit){
                 k.jenis === 'tahunan' ? esc(T(...BULAN_NAMA[b]))
                                       : esc(T(`Bulan ke-${b+1}`, `Month ${b+1}`))}</option>`).join('')}
           </select></div>` : ''}
+        ${k.jenis === 'harian' ? '' : `
         <div class="isian" style="margin-bottom:0;min-width:${k.jenis === 'mingguan' ? 230 : 120}px">
           <label>${k.jenis === 'mingguan' ? T('Hari','Weekdays') : T('Tanggal','Day of month')}</label>
           ${k.jenis === 'mingguan'
@@ -598,7 +637,7 @@ function bklIsi(unit){
                     ${esc(hariNama(h+1).slice(0,3))}</label>`;
                 }).join('')}</div>`
             : `<input type="number" min="1" max="28" data-bkl="${i}" data-kolom="tanggal"
-                 value="${Number(k.tanggal) || 1}">`}</div>
+                 value="${Number(k.tanggal) || 1}">`}</div>`}
         <div class="isian" style="margin-bottom:0;min-width:150px">
           <label>${T('Lokasi','Location')}</label>
           <select data-bkl="${i}" data-kolom="lokasi">
@@ -850,7 +889,11 @@ function bklPasang(unit){
         hari:    k.jenis === 'mingguan' ? bklHariDaftar(k) : null,
         bulan:   BERKALA_PANJANG[k.jenis]
           ? Math.min(BERKALA_PANJANG[k.jenis], Math.max(1, Number(k.bulan) || 1)) : null,
-        tanggal: k.jenis === 'mingguan' ? null : Math.min(28, Math.max(1, Number(k.tanggal) || 1)),
+        // Harian dan mingguan tidak punya tanggal jatuh — harian jatuh tiap
+        // hari, mingguan ditentukan daftar hari sepekan. Sisanya butuh tanggal
+        // 1..28 di dalam periodenya.
+        tanggal: (k.jenis === 'mingguan' || k.jenis === 'harian')
+          ? null : Math.min(28, Math.max(1, Number(k.tanggal) || 1)),
         sumber: BERKALA_SUMBER[k.sumber] ? (k.sumber || '') : '',
         shift: bklShift(k),
         // Hanya dua nilai yang dikenal — sisanya (termasuk kegiatan lama yang

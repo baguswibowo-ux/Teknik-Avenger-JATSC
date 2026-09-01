@@ -62,7 +62,7 @@ const {
   listLtk, insertLtk, removeLtk,
   listBapb, insertBapb, removeBapb,
   getUserByUsername, verifyPassword, createUser, countUsers, hapusUser,
-  jenisTtdSah, unitCatatan, tandaTanganiCatatan, listPejabatAktif, listTeknisiUnit, getInboxTtd,
+  jenisTtdSah, unitCatatan, tandaTanganiCatatan, listPejabatAktif, listPejabatUnit, listTeknisiUnit, listAkunAktif, getInboxTtd,
   getTtdTersimpan, simpanTtdTersimpan, hapusTtdTersimpan, pilihTtdTersimpanAktif, rekapMentah,
   listUsers, setPassword, setAktif, setRole, setNama, setUsername, ROLE_VALID, SEMUA_UNIT, jumlahAdminAktif,
   UNIT, KODE_UNIT, unitSah, unitUntukUser, setUnitUser,
@@ -202,11 +202,12 @@ const isAdmin = (user) => user?.role === 'admin';
  * "asal bukan pejabat": peran baru harus disebut namanya di sini sebelum bisa
  * mengisi apa pun, dan itu keputusan yang pantas diambil sadar-sadar.
  *
- * adminunit dan pic ikut karena di dalam E-Logbook keduanya memang berperilaku
- * seperti teknisi — yang membedakannya adalah haknya di Dashboard Fasilitas
- * Teknik, bukan di sini. Lihat catatan ROLE_VALID di db.js.
+ * adminunit ikut karena di dalam E-Logbook ia memang berperilaku seperti
+ * teknisi — yang membedakannya adalah haknya di Dashboard Fasilitas Teknik,
+ * bukan di sini. Lihat catatan ROLE_VALID di db.js. Peran `pic` sudah
+ * dihapus (dimigrasikan ke adminunit di cold start).
  */
-const PERAN_TULIS = new Set(['admin', 'adminunit', 'pic', 'teknisi']);
+const PERAN_TULIS = new Set(['admin', 'adminunit', 'teknisi']);
 const bolehMenulis = (user) => PERAN_TULIS.has(user?.role);
 
 /**
@@ -283,7 +284,10 @@ app.post('/api/login', async (req, res) => {
 
   gagalLogin.delete(ip);
   setSessionCookie(res, await createSession(user.id));
-  res.json({ user: { username: user.username, nama: user.nama, role: user.role } });
+  res.json({ user: {
+    username: user.username, nama: user.nama, role: user.role,
+    superadmin: !!user.superadmin
+  } });
 
   // Di serverless tidak ada proses yang hidup terus untuk menjadwalkan
   // pembersihan, jadi disisipkan di sini: login jarang terjadi (sesi berumur
@@ -364,7 +368,10 @@ app.get('/api/me', async (req, res) => {
       nama: user.nama,
       role: user.role,
       unit,
-      semuaUnit: unit.length === KODE_UNIT.length
+      semuaUnit: unit.length === KODE_UNIT.length,
+      // Penanda super-admin — orthogonal terhadap peran. Halaman biasa boleh
+      // mengabaikan; fitur yang belum ada padanannya di peran akan mengeceknya.
+      superadmin: !!user.superadmin
     }
   });
 });
@@ -896,6 +903,87 @@ const API = {
     return pilihTtdTersimpanAktif(user.username, slotIdx);
   },
 
+  /* ---------- TTD milik orang lain — dipakai kartu cetak dashboard ----------
+     getTtdMilik: siapa pun yang login boleh menanyakannya. Isinya bukan rahasia:
+     TTD tersimpan memang dibubuhkan pada formulir yang bisa dilihat semua orang
+     yang berhak atas unit itu, jadi jawaban di sini bukan pintu tembusan menuju
+     apa pun yang tidak sudah terbuka lewat jalan lain. Yang dijaga cuma penulisan.
+
+     Bentuk jawabannya sengaja padat, cocok untuk kartu cetak: nama tampil,
+     peran, dan path aktif kalau ada. Yang belum menyimpan TTD dijawab dengan
+     ada:false — kartu cetak yang memutuskan mau menyediakan tombol bubuh atau
+     tidak. */
+  getTtdMilik: async (username) => {
+    const u = String(username || '').trim();
+    if (!u) return { ada: false, nama: '', role: '', path: '', dibuatPada: '' };
+    const target = await getUserByUsername(u);
+    if (!target) return { ada: false, nama: '', role: '', path: '', dibuatPada: '' };
+    const rek = await getTtdTersimpan(target.username);
+    const idx = rek.aktif | 0;
+    const slot = rek.slots[idx] || { path: '', dibuatPada: '' };
+    return {
+      ada: !!slot.path,
+      nama: target.nama || target.username,
+      role: target.role,
+      path: slot.path || '',
+      dibuatPada: slot.dibuatPada || ''
+    };
+  },
+
+  /* Bubuhkan TTD atas nama pejabat lain — untuk kartu cetak dashboard.
+     Hanya admin dan super-admin, dan targetnya harus berperan pejabat.
+     Batasan target = pejabat sengaja: fitur ini bukan pintu untuk mengganti
+     TTD siapa pun (mis. teknisi punya TTD sendiri; admin lain punya slot
+     multi-nya sendiri). Ia hanya menutup lubang praktis: pejabat yang belum
+     sempat menggambar TTD-nya di E-Logbook tapi namanya sudah harus tercetak
+     di lembar sparepart atau daftar dinas malam ini. */
+  simpanTtdMilik: async (payload, user) => {
+    const p = (payload && typeof payload === 'object') ? payload : {};
+    const target = String(p.username || '').trim();
+    const d = String(p.dataUrl || '');
+    if (!target) throw new Error('Username kosong.');
+    if (!d.startsWith('data:image/')) throw new Error('Tanda tangannya masih kosong.');
+    if (user?.role !== 'admin' && !user?.superadmin) {
+      throw new Error('Hanya administrator atau super-admin yang bisa membubuhkan TTD atas nama akun lain.');
+    }
+    const t = await getUserByUsername(target);
+    if (!t) throw new Error(`Pengguna "${target}" tidak ditemukan.`);
+    if (t.role !== 'pejabat') {
+      throw new Error('TTD atas nama akun lain hanya boleh dibubuhkan pada akun berperan pejabat.');
+    }
+    // Slot 0 dan set aktif — pejabat masih punya 4 slot cadangan lain untuk
+    // memisahkan TTD alternatif miliknya sendiri kalau kelak mau.
+    await simpanTtdTersimpan(t.username, d, 0);
+    await pilihTtdTersimpanAktif(t.username, 0);
+    return { ok: true };
+  },
+
+  /* Pejabat aktif yang opt-in ke satu unit — dipakai kartu cetak dashboard
+     untuk mengisi kolom Manajer Teknik bidang itu. Jawaban kosong berarti belum
+     ada pejabat yang mencentang unit itu di Kelola Akun; kartu cetak menjatuh
+     balik ke listPejabatAktif() di bawah. */
+  listPejabatUnit: async (unitKode) => listPejabatUnit(String(unitKode || '')),
+
+  /* Semua pejabat aktif — pintasan buat pemanggil yang butuh daftarnya lepas
+     dari unit (mis. kartu cetak dashboard yang jatuh balik saat listPejabatUnit
+     kosong). Data yang sama sudah ikut getAllData, tapi memaksa pemanggilnya
+     menunggu getAllData hanya untuk daftar pendek ini boros. */
+  listPejabatAktif: async () => listPejabatAktif(),
+
+  /* Daftar ringkas seluruh akun aktif (username + nama). Dipakai dashboard
+     untuk melengkapi nama dari daftar petugas di hak.json — yang isinya
+     username tanpa nama tampilan. Non-admin: aman karena data ini sudah
+     terlihat siapa pun yang login lewat formulir. */
+  listAkunAktif: async () => listAkunAktif(),
+
+  /* Akun anggota satu unit — dipakai formulir E-Logbook (daftar saran
+     teknisi) DAN dashboard (menyaring PIC cetak per unit). Sudah dipanggil
+     langsung di getAllData, tapi juga perlu dieksposkan lewat /api supaya
+     dashboard bisa memanggilnya tanpa mengambil seluruh getAllData. Aman
+     ke non-admin: nama & username yang muncul di sini sama dengan yang
+     tampil sebagai saran teknisi di formulir. */
+  listTeknisiUnit: async (unitKode) => listTeknisiUnit(String(unitKode || '')),
+
   addIssue: async (isu, user) => insertIssue(
     {
       ...(isAdmin(user) ? (isu || {}) : { ...(isu || {}), status: 'Open', lampiranClosed: [] }),
@@ -926,6 +1014,19 @@ const API = {
 };
 
 const sameUser = (a, b) => String(a).toLowerCase() === String(b).toLowerCase();
+
+/**
+ * Pagar khusus untuk akun super-admin: setiap perubahan pada akun super-admin
+ * — nama, username, password, unit, peran, aktif/nonaktif, hapus — hanya
+ * boleh dilakukan sesama super-admin. Admin biasa tidak boleh menyentuh
+ * super-admin sama sekali, meskipun tombol UI-nya kelihatan. Penjagaannya di
+ * sini supaya siapa pun memanggil API langsung juga tetap dijaga.
+ */
+const pastikanBolehUbahTarget = (target, user) => {
+  if (!!target?.superadmin && !user?.superadmin) {
+    throw new Error('Akun super-admin hanya boleh diubah oleh sesama super-admin.');
+  }
+};
 
 /**
  * Fungsi khusus administrator: seluruh perubahan, penghapusan, dan pengelolaan
@@ -1005,9 +1106,10 @@ const API_ADMIN = {
     return listUsers();
   },
 
-  setUserUnit: async (username, daftar) => {
+  setUserUnit: async (username, daftar, user) => {
     const target = await getUserByUsername(String(username || '').trim());
     if (!target) throw new Error(`Pengguna "${username}" tidak ditemukan.`);
+    pastikanBolehUbahTarget(target, user);
     const unit = (Array.isArray(daftar) ? daftar : []).filter(unitSah);
     if (!SEMUA_UNIT.includes(target.role) && unit.length === 0) {
       throw new Error('Akun teknisi harus punya minimal satu unit logbook.');
@@ -1016,10 +1118,12 @@ const API_ADMIN = {
     return listUsers();
   },
 
-  setUserPassword: async (username, password) => {
+  setUserPassword: async (username, password, user) => {
     const u = String(username || '').trim();
     if (String(password || '').length < 6) throw new Error('Password minimal 6 karakter.');
-    if (!(await getUserByUsername(u))) throw new Error(`Pengguna "${u}" tidak ditemukan.`);
+    const target = await getUserByUsername(u);
+    if (!target) throw new Error(`Pengguna "${u}" tidak ditemukan.`);
+    pastikanBolehUbahTarget(target, user);
     await setPassword(u, String(password));
     return true;
   },
@@ -1031,11 +1135,13 @@ const API_ADMIN = {
    * (mis. "PH Budi" saat penggantian sementara) cukup dengan mengubah nama
    * di sini, tanpa membuat akun baru.
    */
-  setUserNama: async (username, nama) => {
+  setUserNama: async (username, nama, user) => {
     const u = String(username || '').trim();
     const n = String(nama || '').trim();
     if (!n) throw new Error('Nama tidak boleh kosong.');
-    if (!(await getUserByUsername(u))) throw new Error(`Pengguna "${u}" tidak ditemukan.`);
+    const target = await getUserByUsername(u);
+    if (!target) throw new Error(`Pengguna "${u}" tidak ditemukan.`);
+    pastikanBolehUbahTarget(target, user);
     await setNama(u, n);
     return listUsers();
   },
@@ -1056,6 +1162,7 @@ const API_ADMIN = {
     const b = String(baru || '').trim().toLowerCase();
     const target = await getUserByUsername(u);
     if (!target) throw new Error(`Pengguna "${u}" tidak ditemukan.`);
+    pastikanBolehUbahTarget(target, user);
     if (sameUser(target.username, user.username)) {
       throw new Error('Anda tidak bisa mengubah username akun Anda sendiri. Minta admin lain.');
     }
@@ -1068,7 +1175,12 @@ const API_ADMIN = {
     if (!ROLE_VALID.includes(role)) throw new Error('Role tidak dikenal.');
     const target = await getUserByUsername(u);
     if (!target) throw new Error(`Pengguna "${u}" tidak ditemukan.`);
-    if (target.role === 'admin' && role !== 'admin' && (await jumlahAdminAktif()) <= 1) {
+    pastikanBolehUbahTarget(target, user);
+    // Super-admin boleh menurunkan administrator terakhir — pagarnya justru
+    // dijaga oleh super-admin itu sendiri (yang tetap boleh mengelola akun
+    // tanpa peran admin).
+    if (target.role === 'admin' && role !== 'admin'
+        && (await jumlahAdminAktif()) <= 1 && !user?.superadmin) {
       throw new Error('Ini administrator aktif terakhir — turunkan perannya hanya setelah ada administrator lain.');
     }
     if (sameUser(target.username, user.username) && role !== 'admin') {
@@ -1087,16 +1199,19 @@ const API_ADMIN = {
     const u = String(username || '').trim();
     const target = await getUserByUsername(u);
     if (!target) throw new Error(`Pengguna "${u}" tidak ditemukan.`);
+    pastikanBolehUbahTarget(target, user);
     if (sameUser(target.username, user.username)) {
       throw new Error('Anda tidak bisa menghapus akun Anda sendiri.');
     }
-    // Admin nonaktif tidak terhitung admin aktif, jadi menghapusnya tidak
-    // mungkin membuat sistem kehabisan pengelola. Syarat nonaktif itulah yang
-    // sekaligus menjaga administrator terakhir.
-    if (target.aktif) {
+    // Untuk admin biasa: wajib nonaktif dulu — jalur dua-langkah yang sekaligus
+    // menjaga administrator terakhir (nonaktifkan-nya sendiri terjaga di
+    // setUserAktif). Super-admin boleh melewati keduanya: sengaja satu langkah,
+    // dan sengaja tanpa jaring "administrator terakhir" — pengelolaan akun
+    // tidak lagi bergantung pada peran admin selagi super-adminnya ada.
+    if (target.aktif && !user?.superadmin) {
       throw new Error('Nonaktifkan akun itu dulu — hanya akun nonaktif yang boleh dihapus.');
     }
-    await hapusUser(target.username);
+    await hapusUser(target.username, { paksa: !!user?.superadmin });
     return listUsers();
   },
 
@@ -1104,16 +1219,26 @@ const API_ADMIN = {
     const u = String(username || '').trim();
     const target = await getUserByUsername(u);
     if (!target) throw new Error(`Pengguna "${u}" tidak ditemukan.`);
+    pastikanBolehUbahTarget(target, user);
     if (sameUser(target.username, user.username)) {
       throw new Error('Anda tidak bisa menonaktifkan akun Anda sendiri.');
     }
-    if (!aktif && target.role === 'admin' && (await jumlahAdminAktif()) <= 1) {
+    // Super-admin boleh menonaktifkan administrator terakhir — lihat penjelasan
+    // di setUserRole/deleteUser.
+    if (!aktif && target.role === 'admin' && (await jumlahAdminAktif()) <= 1 && !user?.superadmin) {
       throw new Error('Ini administrator aktif terakhir — nonaktifkan hanya setelah ada administrator lain.');
     }
     await setAktif(u, !!aktif);
     return listUsers();
   }
 };
+
+/* Fungsi API_ADMIN yang secara khusus dibuka untuk peran non-admin tertentu.
+   Admin unit butuh listUsers agar dashboard bisa memvalidasi penunjukan orang
+   di panel "Siapa Boleh Mengisi Apa" — tanpa itu, ia tidak tahu nama siapa
+   saja yang jatuh di unitnya. Fungsi ini hanya membaca (username, nama, role,
+   aktif, unit), tidak menyentuh password. */
+const API_ADMIN_UNTUK_ADMINUNIT = new Set(['listUsers']);
 
 app.post('/api/:fn', requireAuth, async (req, res) => {
   const fn = req.params.fn;
@@ -1124,7 +1249,11 @@ app.post('/api/:fn', requireAuth, async (req, res) => {
   if (!handler) return res.status(404).json({ error: 'Fungsi tidak dikenal: ' + fn });
 
   if (adminOnly && !isAdmin(req.user)) {
-    return res.status(403).json({ error: 'Hanya administrator yang boleh melakukan ini.' });
+    const peran = String(req.user?.role || '').toLowerCase();
+    const bolehAdminUnit = peran === 'adminunit' && API_ADMIN_UNTUK_ADMINUNIT.has(fn);
+    if (!bolehAdminUnit) {
+      return res.status(403).json({ error: 'Hanya administrator yang boleh melakukan ini.' });
+    }
   }
   // Peran pejabat sengaja hanya bisa melihat: seluruh unit terbuka baginya,
   // tetapi tidak satu pun jalur penambahan data.

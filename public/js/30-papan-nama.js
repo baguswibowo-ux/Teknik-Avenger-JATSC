@@ -421,14 +421,6 @@ function kotakDokumentasi(asal){
   </div>`;
 }
 
-function kotakDicatat(asal){
-  const dibuat = asal && asal.dibuat;
-  return `<div class="isian"><label>${T('Dicatat','Recorded')}</label>
-    <div class="bantu">${dibuat
-      ? T('Baris ini dibuat ','This record was created ') + new Date(dibuat).toLocaleString(LOKAL())
-      : T('Tanggal dan jam pencatatan diisi sendiri saat disimpan.',
-          'The recording date and time are filled in automatically on save.')}</div></div>`;
-}
 
 /** Pendengar untuk kotak papan nama. Dipanggil tiap kali kartunya dibuka. */
 function papanNamaPasang(){

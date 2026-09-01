@@ -102,10 +102,13 @@ function buildDcRkPrintHtml(r, state){
 }
 
 /** Halaman cetak daily check JATSC (Frequentis 3020X) — pakai render baca-saja
-    dcJatscTabelBaca yang sama dengan modal detail, dengan gaya cetak. */
+    dcJatscTabelBaca yang sama dengan modal detail, dengan gaya cetak.
+    Bilah meta atas sengaja disamakan bentuknya dengan cetakan Garex 300:
+    tiga kolom, tanpa PETUGAS di atas — nama petugas sudah muncul lengkap
+    di blok TTD di bawah, jadi menaruhnya dua kali cuma menyempitkan ruang
+    HARI/TANGGAL. Kolom pertama diisi LOKASI (bukan SUHU MER) karena
+    Frequentis di JATSC tidak mengukur suhu MER. */
 function buildDcJatscPrintHtml(r, state){
-  const petugas = (r.teknisiNamaList && r.teknisiNamaList.length)
-    ? r.teknisiNamaList.join(', ') : (r.teknisiNama || '-');
   return `
     <div style="text-align:center;font-weight:bold;font-size:12pt;margin-bottom:2px;">
       CHECKLIST PERAWATAN HARIAN RADTEL
@@ -115,9 +118,9 @@ function buildDcJatscPrintHtml(r, state){
     </div>
     <table class="no-border" style="font-size:9pt;margin-bottom:8px;">
       <tr>
+        <td style="width:33%;">LOKASI : JATSC</td>
         <td style="width:33%;">DINAS : ${escapeHtml(r.dinas)||'________'}</td>
-        <td style="width:33%;">HARI/TANGGAL : ${escapeHtml(r.tanggal)||'________'}</td>
-        <td>PETUGAS : ${escapeHtml(petugas)}</td>
+        <td>HARI/TANGGAL : ${escapeHtml(r.tanggal)||'________'}</td>
       </tr>
     </table>
 
@@ -146,8 +149,54 @@ function buildDcJatscPrintHtml(r, state){
     </table>`;
 }
 
+/** Halaman cetak daily check Navigasi (unit ppabn) — sama pola dengan JATSC:
+    kepala judul, tiga kolom meta tanpa PETUGAS (nama petugas sudah muncul di
+    blok TTD), tabel per-fasilitas dari dcNavTabelBaca, catatan legenda
+    NB, keterangan/remark opsional, lalu blok TTD teknisi dan manager. */
+function buildDcNavPrintHtml(r, state){
+  return `
+    <div style="text-align:center;font-weight:bold;font-size:12pt;margin-bottom:2px;">
+      DAILY CHECK FASILITAS PENDARATAN PRESISI &amp; ALAT BANTU NAVIGASI
+    </div>
+    <div style="text-align:center;font-weight:bold;font-size:10pt;margin-bottom:8px;">
+      ILS, DVOR/DME — JATSC
+    </div>
+    <table class="no-border" style="font-size:9pt;margin-bottom:8px;">
+      <tr>
+        <td style="width:33%;">LOKASI : JATSC</td>
+        <td style="width:33%;">DINAS : ${escapeHtml(r.dinas)||'________'}</td>
+        <td>HARI/TANGGAL : ${escapeHtml(r.tanggal)||'________'}</td>
+      </tr>
+    </table>
+
+    ${dcNavTabelBaca(state, true)}
+
+    <div style="font-size:8.5pt;margin-top:6px;">
+      <b>NB :</b> ✓ : Normal / Serviceable &nbsp;&nbsp; ! : Alarm &nbsp;&nbsp; ✕ : Gangguan / Unserviceable
+    </div>
+    ${r.remark ? `<div style="font-size:8.5pt;margin-top:4px;"><b>KETERANGAN :</b> ${escapeHtml(r.remark).replace(/\n/g,'<br>')}</div>` : ''}
+
+    <table class="no-border" style="font-size:9pt;margin-top:14px;">
+      <tr>
+        <td style="width:55%;text-align:left;vertical-align:top;">
+          <div style="margin-bottom:6px;">PETUGAS :</div>
+          ${teknisiPrintBlock(r)}
+        </td>
+        <td style="text-align:center;vertical-align:top;">
+          <div>Mengetahui,</div>
+          <div style="margin-bottom:4px;">Manager Teknik</div>
+          <div style="height:46px;">${ttdImg(r.managerTtd, 40)}</div>
+          <div style="border-top:1px solid #000;display:inline-block;padding:0 24px;">
+            ${r.managerTtd ? (escapeHtml(r.managerNama) || '&nbsp;') : '&nbsp;'}
+          </div>
+        </td>
+      </tr>
+    </table>`;
+}
+
 function buildDcPrintHtml(r, state){
   if(dcRadkomAktif()) return buildDcRkPrintHtml(r, state);
+  if(state && state.__lokasi === 'navigasi') return buildDcNavPrintHtml(r, state);
   if(state && state.__lokasi === 'jatsc') return buildDcJatscPrintHtml(r, state);
   const remarkLines = (r.remark || '').split('\n')
     .filter(s=>s.trim()).map((s,i)=>`<div>${i+1}. ${escapeHtml(s)}</div>`).join('') || '<div>&nbsp;</div>';
@@ -213,16 +262,19 @@ function teknisiPrintBlock(r){
 /** Cetak form daily check yang sedang diisi (belum disimpan). */
 function printCurrentDailyCheck(){
   const jatsc = dcRadtelJatscAktif();
+  const nav   = (typeof dcNavAktif === 'function') && dcNavAktif();
   const r = {
     tanggal: tanggalDcTersimpan(),
     dinas: document.getElementById('dcDinas').value,
-    suhu: jatsc ? '' : document.getElementById('dcSuhu').value.trim(),
+    suhu: (jatsc || nav) ? '' : document.getElementById('dcSuhu').value.trim(),
     remark: document.getElementById('dcRemark').value.trim(),
     teknisiNamaList: collectTeknisiNama(),
     teknisiTtd: getSigDataUrl('sigDcTeknisi'),
     managerNama: document.getElementById('dcManagerNama').value.trim()
   };
-  const state = jatsc ? { ...dcJState, __lokasi:'jatsc' } : dcState;
+  const state = nav   ? { ...dcNState, __lokasi:'navigasi' }
+              : jatsc ? { ...dcJState, __lokasi:'jatsc' }
+                      : dcState;
   doPrint(buildDcPrintHtml(r, state), 'landscape');
 }
 

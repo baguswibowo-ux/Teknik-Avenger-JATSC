@@ -341,6 +341,17 @@ function gambarBerkas(){
     return;
   }
 
+  // Mengubah kategori berkas yang sudah masuk sengaja dibatasi ke administrator.
+  // Kategori adalah bagaimana berkas dicari orang lain — SOP, Manual, Sertifikat —
+  // dan salah kategori bisa membuat dokumen "hilang" tanpa terhapus. Yang boleh
+  // menghapus juga administrator, jadi keputusan mengelolanya berhenti di satu
+  // peran. Server juga menolak PATCH kategori dari non-admin; ini hanya supaya
+  // dropdown-nya tidak terlihat aktif untuk peran yang pasti ditolak.
+  const bolehUbahKat = !!(akun && akun.role === 'admin');
+  const katTitle = bolehUbahKat ? ''
+    : ` disabled title="${T('Hanya administrator yang boleh mengubah kategori.',
+                            'Only an administrator may change the category.')}"`;
+
   // Pembungkus yang bisa digulir: enam kolom tidak muat di lebar HP, dan .panel
   // memotong apa pun yang lewat. Tanpa ini kolom Keluarkan hilang di layar kecil.
   kotak.innerHTML = saring + `<div class="gulir" style="max-height:none">
@@ -361,7 +372,7 @@ function gambarBerkas(){
         <span><span class="n">${esc(b.nama)}</span>
           <span class="j">${esc(brkJenis(b.jenis))}</span></span>
       </div></td>
-      <td><select class="brk-kat" data-kat="${b.id}">${BRK_KATEGORI.map(k=>
+      <td><select class="brk-kat" data-kat="${b.id}"${katTitle}>${BRK_KATEGORI.map(k=>
         `<option value="${esc(k)}"${k===b.kategori?' selected':''}>${esc(brkKategoriNama(k))}</option>`).join('')}</select></td>
       <td>${nmAlat ? esc(nmAlat)
         : '<span class="mono" style="color:var(--muted)">—</span>'}</td>

@@ -78,7 +78,36 @@ const PABX = [
 /** Blok tanpa kolom SITE: kodenya jadi baris bernomor, site dibiarkan kosong. */
 const dariKode = (daftar) => daftar.map((code, i) => ({ no: i + 1, site: '', code }));
 
+/** Blok SAMPLING JATSC — 95 channel (64 Domestik + 31 Internasional) mengikuti
+    workbook "Checklist Pengecekan DS" (sheet DATABASE DS). Dipakai form DS Test
+    yang baru — sampling 9 sesi selang-seling sesuai lembar fisiknya. */
+const SAMPLING_DOM = [
+  'ATANG SJY','BTH','BTJ','CILA CAP','HLM PK','JOG','MDN FIC','MDN TMA',
+  'PGK TWR','PK.BUN','PKU EAST','PKU WEST','SRG','SUB','TASIK MALAYA','TJQ',
+  'UPG RUPKA','UPG UK','UPG US','KALI JATI','KTJ FSS','KTJ TMA','KTJ UJOG',
+  'PKU 4','PNK 2','PNK APP','PNK FIC','HLM FIC','PK UTARA','SPV TWR JATSC',
+  'SLI UM','SLI UK','SLI MWARA','BDO','BDT','CD1 JATSC','CD2 JATSC',
+  'GND1 JATSC','GND2 JATSC','PLB APP','PLB PKP','PNK TMA','TKG',
+  'TNJ NORTH','TNJ SOUTH','TWR1 JATSC','TWR2 JATSC','JKCN','JKTS','JKTE',
+  'JKTW','6165','SLI 6176','SLI 6129','CD-TWR','6103','ARO_JATSC','6187',
+  '5044','NOTOF','GSM','SLI ARO 6110','SLI FIC 6188','SLI FDO 6123'
+];
+const SAMPLING_INTL = [
+  'KUL ANSAX CRV','KUL PUGER CRV','KUL SALAX MDN','KUL SALAX PKU',
+  'SIN 5C LUSMO','SIN 5P LUSMO','SIN 6P ELGOR','SIN 6P OSERU',
+  'SIN 6C ELGOR','KBL OKADA','KCH AOBA','KCH PAPSA','BNE KIY',
+  'CHENNAI CRV','KBL VPN','KUL ANSAX','KUL PUGER','KUL SALAX',
+  'MLB1 POSOD','MLB2 SAPDA','SIN1-4C TOMAN','SIN1-4P TOMAN',
+  'SIN1C PARDI','SIN1P PARDI','SIN2P TAROS','SIN TAROS CRV',
+  'KBL CRV','KCH 1 VPN','KCH CRV','SIN RADIO','SZB 1 VPN'
+];
+const SAMPLING = [
+  ...SAMPLING_DOM.map(code => ({ code, kat:'Domestik' })),
+  ...SAMPLING_INTL.map(code => ({ code, kat:'Internasional' }))
+].map((x, i) => ({ no: i + 1, site: '', code: x.code, kat: x.kat }));
+
 export const DS_SITE = {
+  sampling:      SAMPLING,
   domestik:      DOMESTIK,
   internasional: dariKode(INTERNASIONAL),
   'sli-gsm':     dariKode(SLI_GSM),

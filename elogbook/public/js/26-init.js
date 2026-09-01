@@ -61,9 +61,11 @@ async function init(){
   catch(e){ document.getElementById('ltkList').innerHTML = '<div class="empty">LTK gagal ditampilkan: '+escapeHtml(String(e.message||e))+'</div>'; }
   try{ bapbList = (data.bapb||[]).map(mapBapb); renderBapbList(); }
   catch(e){ document.getElementById('bapbList').innerHTML = '<div class="empty">BAPB gagal ditampilkan: '+escapeHtml(String(e.message||e))+'</div>'; }
+  // Katalog site/kategori DS lama masih diterima — dipakai renderer catatan
+  // lama (dsTabelLamaBaca). Form baru pakai sampling 9 sesi dari DS_PLAN,
+  // jadi tidak ada pilihan kategori lagi yang perlu diisi ulang di sini.
   dsSiteSemua = data.dsSite || dsSiteSemua;
   dsKategoriUrut = (data.kategoriDs && data.kategoriDs.length) ? data.kategoriDs : dsKategoriUrut;
-  isiPilihanKategoriDs();
   try{ dsList = (data.dstest||[]).map(mapDs); renderDsList(); }
   catch(e){ document.getElementById('dsList').innerHTML = '<div class="empty">DS Test gagal ditampilkan: '+escapeHtml(String(e.message||e))+'</div>'; }
   berkalaItemSemua = data.berkalaItem || berkalaItemSemua;

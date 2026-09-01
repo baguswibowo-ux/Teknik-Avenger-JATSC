@@ -192,6 +192,10 @@ const KOLOM_SUSULAN = [
   // tetap satu. ttd_aktif menunjuk slot yang sedang dipakai.
   ['users', 'ttd_tersimpan', "TEXT NOT NULL DEFAULT ''"],
   ['users', 'ttd_aktif', "INTEGER NOT NULL DEFAULT 0"],
+  // Penanda super-admin — orthogonal terhadap peran. Peran tetap menentukan
+  // pagar akses; superadmin dipakai gerbang fitur yang belum ada padanannya
+  // di dunia peran biasa. Lihat catatan senama di db.js.
+  ['users', 'superadmin', "INTEGER NOT NULL DEFAULT 0"],
   // BAPB: daftar nama teknisi pelaksana (JSON) — disusulkan supaya tabel yang
   // sudah dibuat tanpa kolom ini ikut mendapat kolomnya.
   ['bapb', 'petugas_nama_list', "TEXT NOT NULL DEFAULT '[]'"],
@@ -218,6 +222,32 @@ try {
   }
 } catch (err) {
   console.error('[db-pg] gagal memeriksa kolom susulan:', err?.message || err);
+}
+
+/* ---------- Bootstrap super-admin ----------
+   Dua akun yang selalu berpenanda super-admin — kalau akunnya ada. Dijalankan
+   pada tiap cold start; kalau flag hilang karena impor ulang dari cadangan
+   lama, ia dipulihkan sendiri. Perbandingannya case-insensitive. */
+export const SUPERADMIN_TETAP = ['bagus', 'admin'];
+try {
+  await jalankan(
+    `UPDATE users SET superadmin = 1
+      WHERE lower(username) = ANY($1::text[]) AND superadmin = 0`,
+    [SUPERADMIN_TETAP]
+  );
+} catch (err) {
+  console.error('[db-pg] gagal menandai super-admin:', err?.message || err);
+}
+
+/* ---------- Migrasi role: pic → adminunit ----------
+   Peran `pic` dihapus. Akun lama diubah jadi `adminunit` — peran terdekat
+   yang masih satu unit. Idempoten: cold start berikutnya jadi no-op karena
+   sudah tidak ada baris pic. */
+try {
+  const n = await jalankan("UPDATE users SET role = 'adminunit' WHERE role = 'pic'");
+  if (n > 0) console.log(`[db-pg] migrasi peran: ${n} akun pic → adminunit`);
+} catch (err) {
+  console.error('[db-pg] gagal migrasi peran pic → adminunit:', err?.message || err);
 }
 
 // Daily check lama belum punya tanggal_urut — tafsir balik dari teks panjangnya,
@@ -489,10 +519,14 @@ export async function setAktif(username, aktif) {
  * yang sudah nonaktif, dan catatan yang pernah diinputnya tetap tinggal karena
  * dibuat_oleh menyimpan username sebagai teks biasa.
  */
-export async function hapusUser(username) {
+export async function hapusUser(username, opts = {}) {
   const u = await getUserByUsername(username);
   if (!u) return false;
-  if (u.aktif) throw new Error('Akun itu masih aktif. Nonaktifkan dulu sebelum dihapus.');
+  // Super-admin boleh langsung hapus akun aktif — satu langkah, tanpa
+  // nonaktifkan-dulu. Untuk peran lain, jalur dua-langkah tetap berlaku.
+  if (u.aktif && !opts.paksa) {
+    throw new Error('Akun itu masih aktif. Nonaktifkan dulu sebelum dihapus.');
+  }
   await jalankan('DELETE FROM sessions WHERE user_id = $1', [u.id]);
   await jalankan('DELETE FROM user_unit WHERE user_id = $1', [u.id]);
   // Tanda tangan tersimpannya ikut hilang; yang sudah dibubuhkan pada catatan
@@ -511,23 +545,24 @@ export async function hapusUser(username) {
  *             adalah membubuhkan tanda tangannya pada petak yang masih kosong
  * adminunit — administrator yang wilayahnya satu unit: mengisi, mengubah,
  *             menghapus, dan membaca log aktivitas — semuanya hanya di unitnya
- * pic       — penanggung jawab satu unit: mengisi dan mengubah, tidak menghapus
  * teknisi   — hanya menambah, dan hanya pada unit yang diberikan kepadanya
  *
- * Daftar ini WAJIB sama persis dengan yang di db.js. Dua peran di tengah dulu
- * hanya ditambahkan di sana dan lapisan ini tertinggal — akibatnya bukan
- * sekadar peran yang tidak bisa diberikan. setUserRole menolak dengan "Role
- * tidak dikenal.", sementara Kelola Akun di dashboard mengirim peran lebih
- * dulu lalu unit; lemparan itu menghentikan antreannya sebelum unitnya sempat
- * tersimpan. Yang terlihat orang: unit yang dipilih tidak pernah berubah dan
- * akunnya tetap mendarat di unit lamanya. SQLite dipakai di laptop, Postgres di
- * produksi — jadi selisih dua kata ini hanya rusak setelah dideploy.
+ * Daftar ini WAJIB sama persis dengan yang di db.js. SQLite dipakai di laptop,
+ * Postgres di produksi — selisih peran antara keduanya hanya rusak setelah
+ * dideploy: setUserRole menolak dengan "Role tidak dikenal.", sementara
+ * Kelola Akun di dashboard mengirim peran lebih dulu lalu unit; lemparan itu
+ * menghentikan antreannya sebelum unitnya sempat tersimpan. Yang terlihat
+ * orang: unit yang dipilih tidak pernah berubah dan akunnya tetap mendarat di
+ * unit lamanya.
+ *
+ * Peran `pic` sudah dihapus. Akun lama dengan role='pic' dimigrasikan
+ * otomatis jadi `adminunit` di blok migrasi cold start di bawah.
  */
-export const ROLE_VALID = ['admin', 'pejabat', 'adminunit', 'pic', 'teknisi'];
+export const ROLE_VALID = ['admin', 'pejabat', 'adminunit', 'teknisi'];
 
 /** Peran yang boleh membuka seluruh unit tanpa perlu diberi satu per satu.
-    adminunit dan pic sengaja TIDAK di sini: seluruh gunanya justru terletak
-    pada wilayahnya yang satu unit. */
+    adminunit sengaja TIDAK di sini: seluruh gunanya justru terletak pada
+    wilayahnya yang satu unit. */
 export const SEMUA_UNIT = ['admin', 'pejabat'];
 
 export async function setRole(username, role) {
@@ -619,7 +654,7 @@ export const countUsers = async () =>
 
 export async function listUsers() {
   const [rows, unit] = await Promise.all([
-    q('SELECT id, username, nama, role, aktif, dibuat_pada FROM users ORDER BY username'),
+    q('SELECT id, username, nama, role, aktif, superadmin, dibuat_pada FROM users ORDER BY username'),
     q('SELECT user_id, unit FROM user_unit')
   ]);
   const peta = new Map();
@@ -652,15 +687,21 @@ export async function createSession(userId) {
 export async function getSessionUser(token) {
   if (!token) return null;
   const row = await q1(
-    `SELECT u.id, u.username, u.nama, u.role, u.aktif, s.kadaluarsa
+    `SELECT u.id, u.username, u.nama, u.role, u.aktif, u.superadmin, s.kadaluarsa
      FROM sessions s JOIN users u ON u.id = s.user_id
      WHERE s.token = $1`, [token]
   );
   if (!row) return null;
   if (row.kadaluarsa < nowIso()) { await deleteSession(token); return null; }
   if (!row.aktif) return null;
-  return { id: row.id, username: row.username, nama: row.nama, role: row.role };
+  return {
+    id: row.id, username: row.username, nama: row.nama, role: row.role,
+    superadmin: !!row.superadmin
+  };
 }
+
+/** Penanda super-admin, berlaku terpisah dari peran. Aman dipanggil dengan null. */
+export const isSuperadmin = (u) => !!(u && (u.superadmin === true || u.superadmin === 1));
 
 export const deleteSession = (token) =>
   jalankan('DELETE FROM sessions WHERE token = $1', [token]);
@@ -731,9 +772,10 @@ export const UNIT = [
     pakaiFrek: false,
     labelUraian: 'Uraian Pekerjaan / Kejadian',
     labelPj: 'Manager Teknik',
-    // Formulir khusus unit ini menunggu form aslinya. Sampai itu ada, yang
-    // tersedia baru Logbook Fasilitas, Isu, dan LTK yang memang berlaku umum.
-    adaDailyCheck: false,
+    // Daily Check sudah punya form-nya sendiri (ILS empat runway + DVOR/DME
+    // dua site) — lihat js/12c-daily-check-navigasi.js. Monitoring, DS Test,
+    // dan pekerjaan berkala belum berlaku di unit ini.
+    adaDailyCheck: true,
     adaMonitoring: false,
     adaDsTest: false,
     adaBerkala: false,
@@ -1282,6 +1324,17 @@ export async function updateEntry(id, patch = {}, actor = {}) {
 
 /* ============== DAILY CHECK ============== */
 
+/** Lokasi form yang dipakai — 'jatsc' (Frequentis 3020X) atau 'new-jatsc'
+    (Garex 300). Marker ini ditanam ke state_json waktu simpan (lihat
+    saveDailyCheck di 14-daily-check-umum.js). Dashboard membaca kolom Lokasi
+    di sini untuk memisah "Daily Check JATSC" dari "Daily Check New JATSC"
+    pada pilihan sumber Kegiatan Berkala. */
+function lokasiDariStateJson(stateJson) {
+  const s = parseJson(stateJson, {});
+  const v = String(s.__lokasi || '').toLowerCase();
+  return (v === 'jatsc' || v === 'new-jatsc') ? v : '';
+}
+
 const rowToDcRingkas = (r, extra = {}) => ({
   ID: r.id, Tanggal: r.tanggal, Dinas: r.dinas, Suhu: r.suhu, Remark: r.remark,
   TeknisiNama: r.teknisi_nama, TeknisiTTD: r.teknisi_ttd,
@@ -1293,14 +1346,15 @@ const rowToDcRingkas = (r, extra = {}) => ({
   DibuatPada: r.dibuat_pada || '',
   DibuatOlehUsername: r.dibuat_oleh || '',
   TtdOleh: extra.ttdOleh ?? (r.ttd_oleh || ''), TtdPada: r.ttd_pada || '', TtdUntuk: r.ttd_untuk || '',
-  TanggalIso: r.tanggal_urut || ''
+  TanggalIso: r.tanggal_urut || '',
+  Lokasi: extra.lokasi ?? lokasiDariStateJson(r.state_json)
 });
 
 export async function listDailyChecks(unit = 'radtel', limit = 200) {
   const rows = await q(
     `SELECT id, tanggal, tanggal_urut, dinas, suhu, remark, teknisi_nama, teknisi_ttd,
             manager_nama, manager_ttd, fails_json, warns_json, teknisi_nama_list, dibuat_oleh,
-            dibuat_pada, ttd_oleh, ttd_pada, ttd_untuk
+            dibuat_pada, ttd_oleh, ttd_pada, ttd_untuk, state_json
      FROM dailychecks WHERE unit = $1
      ORDER BY tanggal_urut DESC, dibuat_pada DESC LIMIT $2`, [unit, limit]
   );
@@ -2152,6 +2206,33 @@ export async function listPejabatAktif() {
   return q(`SELECT username, nama FROM users
             WHERE aktif = true AND role = 'pejabat'
             ORDER BY nama`);
+}
+
+/**
+ * Daftar ringkas seluruh akun aktif — hanya username + nama, tanpa peran.
+ * Dipakai dashboard untuk melengkapi nama dari daftar petugas di hak.json.
+ * Cerminan Postgres dari listAkunAktif di db.js.
+ */
+export async function listAkunAktif() {
+  return q(`SELECT username, nama FROM users
+            WHERE aktif = true
+            ORDER BY nama`);
+}
+
+/**
+ * Pejabat aktif yang opt-in ke satu unit — cerminan Postgres dari listPejabatUnit
+ * di db.js. Dipakai kartu cetak dashboard untuk memasang Manajer Teknik bidang
+ * itu pada kolom tanda tangan kanan.
+ */
+export async function listPejabatUnit(unitKode) {
+  const kode = String(unitKode || '').trim();
+  if (!kode) return [];
+  return q(`
+    SELECT u.username, u.nama
+      FROM users u
+     WHERE u.aktif = true AND u.role = 'pejabat'
+       AND EXISTS (SELECT 1 FROM user_unit uu WHERE uu.user_id = u.id AND uu.unit = $1)
+     ORDER BY u.nama`, [kode]);
 }
 
 /**

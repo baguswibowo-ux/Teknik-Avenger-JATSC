@@ -17,7 +17,9 @@
    seharusnya membetulkannya.
    ======================================================================= */
 
-const HAK_MODUL = ['dinas','berkala','personel','peralatan','sparepart','sejarah','dokumen','galeri'];
+const HAK_MODUL = ['dinas','dinas-ttd','dinas-cetak','berkala','personel','peralatan',
+                   'sparepart','sparepart-ttd','sejarah','sejarah-ttd',
+                   'dokumen','galeri'];
 /* Peran yang selalu view-only di dashboard ini. Manajer Teknik (pejabat) memang
    perannya melihat & membubuhkan TTD di E-Logbook — tidak menyunting apa pun di
    sini. Sama persis dengan PERAN_HANYA_LIHAT di server.js. */
@@ -25,14 +27,29 @@ const PERAN_HANYA_LIHAT = new Set(['pejabat']);
 /* Peran yang dipertimbangkan di layar Hak Akses. Peran view-only sengaja tidak
    dimasukkan — centangnya toh tidak berpengaruh; menyingkirkannya menghindarkan
    janji palsu. Server sudah menyaring peranSah untuk alasan yang sama. */
-const HAK_PERAN = ['admin','adminunit','pic','teknisi'];
+const HAK_PERAN = ['admin','adminunit','teknisi'];
 const HAK_NAMA  = {
   dinas:     ['Jadwal Dinas','Duty Roster'],
+  // Officer yang boleh menandatangani lembar cetak Jadwal Dinas — pola sama
+  // dengan sejarah-ttd. Pilih pejabatnya lewat tombol "Ditunjuk". Kosong =
+  // semua pejabat unit boleh.
+  'dinas-ttd': ['TTD Jadwal Dinas','Duty Roster Signing'],
+  // Yang boleh MENEKAN tombol Cetak PUM / Cetak Teknik di subtab Jadwal
+  // Dinas. Bawaannya peran kosong; admin memilih akun mana yang boleh lewat
+  // kolom Ditunjuk, atau membuka untuk peran tertentu lewat centang.
+  'dinas-cetak': ['Cetak Jadwal Dinas','Print Duty Roster'],
   berkala:   ['Kegiatan Berkala','Recurring Jobs'],
   personel:  ['Data Personel','Personnel Records'],
   peralatan: ['Daftar Peralatan','Equipment List'],
   sparepart: ['Sparepart','Spare Parts'],
+  // Officer yang boleh menandatangani lembar cetak Sparepart — pola sama
+  // dengan sejarah-ttd.
+  'sparepart-ttd': ['TTD Sparepart','Spare Parts Signing'],
   sejarah:   ['Sejarah Peralatan','Equipment History'],
+  // Officer yang boleh menandatangani lembar cetak Sejarah Peralatan.
+  // Peran view-only (pejabat) tidak lolos ke kolom peran — pilih pejabatnya
+  // lewat tombol "Ditunjuk" di baris ini. Kosong = semua pejabat unit boleh.
+  'sejarah-ttd': ['TTD Sejarah Peralatan','Equipment History Signing'],
   dokumen:   ['Dokumen','Documents'],
   galeri:    ['Galeri Foto','Photo Gallery']
 };
@@ -49,18 +66,32 @@ const HAK_PERAN_HAPUS = ['admin','adminunit'];
    yang berganti-ganti sendiri. */
 const hakBawaan = () => ({
   dinas:     { peran:['admin','adminunit'],                              petugas:[] },
-  berkala:   { peran:['admin','adminunit','pic','teknisi'],              petugas:[] },
-  personel:  { peran:['admin','adminunit','pic','teknisi'],              petugas:[] },
+  /* Pejabat penerima TTD Jadwal Dinas. Pola sama dengan sejarah-ttd:
+     kolom peran kosong (peran view-only tidak lolos rapikanHak),
+     dipilih lewat kolom "Ditunjuk". Kosong = semua pejabat unit boleh. */
+  'dinas-ttd': { peran:[],                                               petugas:[] },
+  /* Boleh menekan Cetak Jadwal Dinas. Bawaan peran kosong — supaya cetak
+     memang dibatasi pada akun yang ditunjuk (atau peran yang secara sengaja
+     dibuka admin). Sepadan dengan HAK_BAWAAN['dinas-cetak'] di server.js. */
+  'dinas-cetak': { peran:[],                                             petugas:[] },
+  berkala:   { peran:['admin','adminunit','teknisi'],                    petugas:[] },
+  personel:  { peran:['admin','adminunit','teknisi'],                    petugas:[] },
   /* Daftar peralatan hanya administrator — alasannya ada di HAK_BAWAAN
      server.js: ia daftar induk yang ditunjuk modul lain lewat id. */
   peralatan: { peran:['admin'],                                          petugas:[] },
-  sparepart: { peran:['admin','adminunit','pic','teknisi'],              petugas:[] },
+  sparepart: { peran:['admin','adminunit','teknisi'],                    petugas:[] },
+  /* Pejabat penerima TTD Sparepart. Sama polanya. */
+  'sparepart-ttd': { peran:[],                                           petugas:[] },
   /* Sejarah alat dibuka sampai teknisi walau daftar alatnya tidak — yang
      menuliskan apa yang terjadi pada alat adalah yang berdinas di depannya.
      Alasan lengkapnya di HAK_BAWAAN server.js. */
-  sejarah:   { peran:['admin','adminunit','pic','teknisi'],              petugas:[] },
-  dokumen:   { peran:['admin','adminunit','pic','teknisi'],              petugas:[] },
-  galeri:    { peran:['admin','adminunit','pic','teknisi'],              petugas:[] }
+  sejarah:   { peran:['admin','adminunit','teknisi'],                    petugas:[] },
+  /* Pejabat yang boleh menandatangani lembar cetak Sejarah Peralatan.
+     Kosong = seluruh pejabat unit boleh menerima permintaan TTD (perilaku
+     lama). Dinamakan lewat kolom "Ditunjuk" — kolom peran tidak dipakai. */
+  'sejarah-ttd': { peran:[],                                             petugas:[] },
+  dokumen:   { peran:['admin','adminunit','teknisi'],                    petugas:[] },
+  galeri:    { peran:['admin','adminunit','teknisi'],                    petugas:[] }
 });
 
 let HAK = hakBawaan();
@@ -160,9 +191,10 @@ async function hakMuat(){
     JDW.sebab = T('Tidak bisa menanyakan hak ke server: ','Could not ask the server about permissions: ')
               + (e && e.message || e);
   }
-  // Isi berkas haknya hanya dijawab untuk administrator; 403 di sini bukan
-  // kesalahan, cuma berarti panel pengaturannya memang tidak untuk akun ini.
-  if(akun && akun.role === 'admin'){
+  // Isi berkas haknya dijawab untuk administrator dan admin unit (yang boleh
+  // menunjuk orang di unitnya sendiri). 403 di sini bukan kesalahan, cuma
+  // berarti panel pengaturannya memang tidak untuk akun ini.
+  if(akun && (akun.role === 'admin' || akun.role === 'adminunit' || akun.superadmin === true)){
     try{
       const r = await srvFetch('/hak', {}, 8000);
       const j = await r.json().catch(()=>null);

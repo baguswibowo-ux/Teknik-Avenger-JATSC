@@ -78,6 +78,128 @@ function kotakButir(){
     berhenti dibaca dalam sepekan. */
 const kotakUntukSaya = () => kotakButir().filter(b=>b.untukSaya && !b.sudah);
 
+/* ---------- Antrian Cetak: permintaan cetak menunggu TTD ----------
+   Sumbernya dashboard server (/cetak-antrian), bukan berkala. Pejabat
+   melihat yang tertuju ke dia; pembuat melihat yang dikirimnya sendiri;
+   admin/super-admin melihat semuanya. */
+let CETAK_ANTRIAN = { untukSaya:[], dariSaya:[], semua:[], menungguSaya:0 };
+
+async function muatAntrianCetak(){
+  try{
+    const jawab = await fetch('/cetak-antrian', { credentials:'include' });
+    if(!jawab.ok) throw new Error(`HTTP ${jawab.status}`);
+    const j = await jawab.json();
+    CETAK_ANTRIAN = {
+      untukSaya:    Array.isArray(j.untukSaya) ? j.untukSaya : [],
+      dariSaya:     Array.isArray(j.dariSaya) ? j.dariSaya : [],
+      semua:        Array.isArray(j.semua) ? j.semua : [],
+      menungguSaya: Number(j.menungguSaya) || 0
+    };
+  }catch(e){
+    console.warn('[kotak] gagal memuat antrian cetak:', e && e.message || e);
+    CETAK_ANTRIAN = { untukSaya:[], dariSaya:[], semua:[], menungguSaya:0 };
+  }
+}
+
+function cetakAntrianKartu(p){
+  const menunggu = p.status === 'menunggu';
+  const menungguDeputy = p.status === 'menunggu-deputy';
+  const belumFinal = menunggu || menungguDeputy;
+  const disetujui = p.status === 'disetujui';
+  const ditolak = p.status === 'ditolak';
+  const rupaCip = belumFinal ? 'awas' : disetujui ? 'aman' : 'bahaya';
+  const teksCip = menunggu ? T('Menunggu TTD','Awaiting signature')
+                : menungguDeputy ? T('Menunggu TTD Deputy','Awaiting Deputy signature')
+                : disetujui ? T('Disetujui','Approved')
+                : T('Ditolak','Rejected');
+  const jenisNama = p.jenis === 'sparepart'
+    ? T('Sparepart','Spare Part')
+    : p.jenis === 'dinas' ? T('Jadwal Dinas','Duty Roster')
+    : p.jenis === 'peralatan' ? T('Sejarah Peralatan','Equipment History')
+    : p.jenis;
+  return `<article class="kmk">
+    <div class="kmk-kiri">
+      <div class="kmk-jd">
+        <span class="cip ${rupaCip}">${esc(teksCip.toUpperCase())}</span>
+        <span class="cip">${esc(jenisNama.toUpperCase())}</span>
+        <b>${esc(namaUnit(p.unit))}${p.bulan ? ' · ' + esc(namaBulan(p.bulan)) : ''}</b>
+      </div>
+      <div class="kmk-rn">${T('Dari','From')}: <b>${esc(p.pembuatNama || p.pembuatUser)}</b>
+        · ${T('untuk','for')}: <b>${esc(p.pejabatNama || p.pejabatUser)}</b>
+        · ${esc(cetakWaktuRingkas(p.tanggalKirim))}</div>
+      ${p.catatan ? `<div class="kmk-rn" style="font-style:italic">"${esc(p.catatan)}"</div>` : ''}
+    </div>
+    <div class="kmk-kanan">
+      <span class="kmk-tombol">
+        <button class="btn kecil" data-cetak-buka="${esc(p.id)}">${
+          belumFinal ? T('Buka & TTD','Open & sign')
+          : disetujui ? T('Cetak lagi','Reprint')
+          : T('Lihat','View')}</button>
+        <button class="btn garis kecil" data-cetak-hapus="${esc(p.id)}">${
+          T('Hapus','Delete')}</button>
+      </span>
+    </div>
+  </article>`;
+}
+
+function gambarSeksiAntrianCetak(kotak){
+  const p = CETAK_ANTRIAN;
+  const untuk = p.untukSaya || [];
+  const dari  = p.dariSaya  || [];
+  if(!untuk.length && !dari.length) return '';
+
+  const seksi = (judul, daftar, kosongPesan)=>`
+    <div class="panel" style="margin-bottom:14px">
+      <div class="kepala"><h3>${esc(judul)}</h3>
+        <span class="ket">${daftar.length ? daftar.length + ' ' + T('permintaan','requests') : ''}</span></div>
+      <div class="badan" style="display:grid;gap:10px">${daftar.length
+        ? daftar.map(cetakAntrianKartu).join('')
+        : `<div style="color:var(--muted);font-size:12.5px">${esc(kosongPesan)}</div>`}</div>
+    </div>`;
+
+  return (untuk.length ? seksi(T('Permintaan Cetak untuk Anda','Print Requests for You'),
+                                untuk, T('Tidak ada.','None.'))
+                        : '')
+       + (dari.length ? seksi(T('Permintaan Cetak yang Anda Kirim','Print Requests You Sent'),
+                              dari, T('Anda belum mengirim.','You have not sent any.'))
+                       : '');
+}
+
+function pasangAksiAntrianCetak(){
+  document.querySelectorAll('[data-cetak-buka]').forEach(b=>{
+    b.addEventListener('click', async ()=>{
+      const id = b.dataset.cetakBuka;
+      try{
+        const jawab = await fetch('/cetak-antrian/' + encodeURIComponent(id),
+          { credentials:'include' });
+        const j = await jawab.json();
+        if(!jawab.ok) throw new Error(j.error || `HTTP ${jawab.status}`);
+        if(typeof cetakBukaPermintaan === 'function') cetakBukaPermintaan(j.permintaan);
+      }catch(e){
+        pesan(T('Gagal membuka permintaan: ','Failed to open: ') + (e && e.message || e));
+      }
+    });
+  });
+  document.querySelectorAll('[data-cetak-hapus]').forEach(b=>{
+    b.addEventListener('click', async ()=>{
+      const id = b.dataset.cetakHapus;
+      if(!confirm(T('Hapus permintaan cetak ini?','Delete this print request?'))) return;
+      try{
+        const jawab = await fetch('/cetak-antrian/' + encodeURIComponent(id),
+          { method:'DELETE', credentials:'include' });
+        if(!jawab.ok){
+          const j = await jawab.json().catch(()=>({}));
+          throw new Error(j.error || `HTTP ${jawab.status}`);
+        }
+        await muatAntrianCetak();
+        gambarKotakMasuk();
+      }catch(e){
+        pesan(T('Gagal menghapus: ','Failed to delete: ') + (e && e.message || e));
+      }
+    });
+  });
+}
+
 let KOTAK_SARING = 'saya';    // 'saya' | 'semua'
 
 function gambarKotakMasuk(){
@@ -87,7 +209,7 @@ function gambarKotakMasuk(){
   const tampil = KOTAK_SARING === 'saya' ? milikSaya : semua;
 
   const lencana = el('lencanaKotak');
-  const n = kotakUntukSaya().length;
+  const n = kotakUntukSaya().length + (CETAK_ANTRIAN.menungguSaya || 0);
   if(lencana){ lencana.textContent = n; lencana.hidden = !n; }
 
   el('ketKotak').textContent =
@@ -100,8 +222,10 @@ function gambarKotakMasuk(){
   ].map(([nilai, teks])=>`<button class="btn ${KOTAK_SARING === nilai ? '' : 'garis '}kecil"
       data-saring-kotak="${nilai}">${esc(teks)}</button>`).join('');
 
+  const seksiCetak = gambarSeksiAntrianCetak(kotak);
+
   if(!tampil.length){
-    kotak.innerHTML = `<div class="panel"><div class="badan" style="color:var(--muted);font-size:12.5px;line-height:1.7">${
+    kotak.innerHTML = seksiCetak + `<div class="panel"><div class="badan" style="color:var(--muted);font-size:12.5px;line-height:1.7">${
       KOTAK_SARING === 'saya'
         ? T('Tidak ada kegiatan berkala yang tertuju ke Anda di periode ini. Anda tidak tercantum '
           + 'berdinas pada tanggal-tanggal kejadiannya, atau pekerjaannya sudah beres semua.',
@@ -110,6 +234,7 @@ function gambarKotakMasuk(){
         : T('Belum ada kegiatan berkala di unit yang boleh Anda buka.',
             'No recurring jobs in the units you may open yet.')}</div></div>`;
     kotakPasang();
+    pasangAksiAntrianCetak();
     return;
   }
 
@@ -118,7 +243,7 @@ function gambarKotakMasuk(){
   const perTanggal = {};
   tampil.forEach(b=>{ (perTanggal[b.tanggal] = perTanggal[b.tanggal] || []).push(b); });
 
-  kotak.innerHTML = Object.entries(perTanggal).map(([tanggal, butir])=>{
+  kotak.innerHTML = seksiCetak + Object.entries(perTanggal).map(([tanggal, butir])=>{
     const s = butir[0].sisa;
     const rupa = butir.every(b=>b.sudah) ? 'aman' : s < 0 ? 'bahaya' : s === 0 ? 'awas' : '';
     const kapan = s < 0 ? T(`lewat ${-s} hari`, `${-s} days ago`)
@@ -135,6 +260,7 @@ function gambarKotakMasuk(){
   }).join('');
 
   kotakPasang();
+  pasangAksiAntrianCetak();
 }
 
 /** Satu baris pekerjaan di dalam kelompok tanggalnya. */

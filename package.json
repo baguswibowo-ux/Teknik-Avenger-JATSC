@@ -11,7 +11,7 @@
     "start": "node jalankan-semua.js",
     "dashboard": "node server.js",
     "elogbook": "node elogbook/server.js",
-    "dev": "node --watch server.js"
+    "dev": "node jalankan-semua.js --watch"
   },
   "dependencies": {
     "express": "^5.1.0",

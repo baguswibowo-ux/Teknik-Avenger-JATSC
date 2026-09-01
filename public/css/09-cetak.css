@@ -1,0 +1,718 @@
+/* ==============================================================
+   CETAK — kartu pilihan + area cetak
+
+   Dashboard ini punya tiga lembar cetak: Sparepart, Peralatan,
+   dan Jadwal Dinas. Yang di layar sengaja tetap gelap-terang seperti
+   sisanya; yang ke kertas selalu hitam di atas putih. Aturan @media
+   print di bawah membalik semuanya sekali jalan: seluruh isi halaman
+   dinas dashboard disembunyikan, dan hanya #printArea yang keluar.
+
+   Kartu pilih pejabat memakai bentuk .lapis-ubah yang sudah ada, jadi
+   berkas ini cuma menambah sedikit isian dan kanvas TTD. Bentuk kartu,
+   tombol, dan gulirnya diwarisi dari 07-dashboard-unit.css.
+   ============================================================== */
+
+/* Area cetak — tempat HTML lembarnya ditempel sesaat sebelum
+   window.print(). Tersembunyi di layar; muncul hanya saat mencetak. */
+#printArea {
+  display: none;
+}
+
+/* Kartu cetak: pilihan pejabat + kanvas TTD kalau perlu.
+   Sengaja lebih ringan daripada kartu data — sisanya tidak perlu
+   digambar ulang, hanya pilihan sederhana. */
+.cetak-baris {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.cetak-baris label {
+  font-size: 12px;
+  color: var(--muted);
+  min-width: 128px;
+}
+.cetak-baris select,
+.cetak-baris input,
+.cetak-baris textarea {
+  flex: 1;
+  min-width: 180px;
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.cetak-baris textarea {
+  resize: vertical;
+  font-family: var(--font-body);
+}
+.cetak-baris textarea::placeholder,
+.cetak-baris input::placeholder {
+  color: var(--muted);
+  font-family: var(--font-body);
+  font-style: normal;
+  opacity: 0.75;
+}
+.cetak-baris select:focus,
+.cetak-baris input:focus,
+.cetak-baris textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.cetak-ket {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: -4px;
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+.cetak-ket.awas { color: var(--warn); }
+.cetak-ket.baik { color: var(--ok); }
+
+/* Pratinjau lembar di dalam kartu review — pejabat harus lihat isi
+   dulu sebelum menekan Setujui. Kotaknya bergulir dua arah supaya
+   matriks dinas lebar tetap muat, dan latarnya putih supaya baca
+   tabelnya identik dengan hasil cetak. */
+.cetak-pratinjau {
+  max-height: 380px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+.cetak-pratinjau .cetak-lembar {
+  padding: 6mm 5mm;
+  max-width: none;
+}
+/* Pratinjau lembar Jadwal Dinas: lebar lanskap dan font/padding tabel diperas
+   supaya yang terlihat di layar sudah seperti yang akan keluar dari printer.
+   Kalau kelasnya tidak dipasang (mode non-dinas), pratinjaunya tetap seperti
+   sedia kala — lebar bebas, font normal. */
+.cetak-pratinjau .cetak-lembar.lanskap {
+  min-width: 275mm;
+  padding: 4mm 4mm;
+}
+.cetak-pratinjau .cetak-lembar.lanskap h1 { font-size: 12pt; margin-bottom: 2pt; }
+.cetak-pratinjau .cetak-lembar.lanskap h2 { font-size: 10pt; margin-bottom: 6pt; }
+.cetak-pratinjau .cetak-lembar.lanskap table.jdw { font-size: 7pt; table-layout: fixed; width: 100%; }
+.cetak-pratinjau .cetak-lembar.lanskap table.jdw th,
+.cetak-pratinjau .cetak-lembar.lanskap table.jdw td { padding: 1pt 1pt; }
+.cetak-pratinjau .cetak-lembar.lanskap table.jdw td.no    { padding: 1pt 2pt; }
+.cetak-pratinjau .cetak-lembar.lanskap table.jdw td.nama  { padding: 1pt 3pt; font-size: 7.5pt; }
+.cetak-pratinjau .cetak-lembar.lanskap table.jdw td.nik   { padding: 1pt 3pt; font-size: 7pt; }
+.cetak-pratinjau .cetak-lembar.lanskap table.jdw thead th { font-size: 7pt; }
+.cetak-pratinjau .cetak-lembar.lanskap table.ttd-blok { margin-top: 6pt; }
+
+/* Bergaya sama seperti modal Detail Catatan Logbook di E-Logbook:
+   deretan cip di atas untuk status/jenis/unit/tanggal, isi menonjol
+   di kotak besar, meta pembuat & pejabat dikelompokkan dua kolom di
+   bawah supaya "siapa mengesahkan siapa" jelas sekali pandang. */
+.cetak-review-cip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 14px;
+}
+.cetak-review-sek {
+  margin-bottom: 14px;
+}
+.cetak-review-lab {
+  font-size: 10.5px;
+  letter-spacing: 0.6px;
+  color: var(--muted);
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+.cetak-review-catatan {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  color: var(--text);
+  font-style: italic;
+  line-height: 1.5;
+}
+.cetak-review-orang {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin-bottom: 14px;
+}
+.cetak-review-nama {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-top: 2px;
+}
+.cetak-review-sub {
+  font-size: 11px;
+  color: var(--muted);
+  font-family: var(--font-mono, monospace);
+}
+@media (max-width: 560px){
+  .cetak-review-orang { grid-template-columns: 1fr; }
+}
+
+/* Kanvas TTD — muncul di baris pejabat atau baris diri sendiri kalau
+   TTD tersimpan belum ada. Dua kanvas bisa hadir sekaligus, jadi
+   tingginya dijaga sedang supaya kartu tidak melompat panjang. */
+.cetak-ttd-kanvas {
+  border: 1px dashed var(--line);
+  border-radius: 6px;
+  background: #fff;
+  display: block;
+  width: 100%;
+  max-width: 460px;
+  height: 120px;
+  margin-top: 6px;
+  touch-action: none;
+  cursor: crosshair;
+}
+.cetak-ttd-alat {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+/* Segmented control: dua tombol berdampingan yang saling menggantikan
+   ("Gambar di sini" | "Serahkan ke pejabat"). Bentuknya ringkas, tidak
+   memakai tampilan radio bawaan peramban supaya sepadan dengan tombol
+   lain di sekitarnya. */
+.cetak-cara-ttd {
+  display: inline-flex;
+  gap: 0;
+  margin: 4px 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.cetak-cara-btn {
+  background: var(--panel-2);
+  color: var(--muted);
+  border: 0;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.cetak-cara-btn + .cetak-cara-btn { border-left: 1px solid var(--line); }
+.cetak-cara-btn:hover { color: var(--text); }
+.cetak-cara-btn.aktif {
+  background: var(--accent);
+  color: var(--panel);
+  font-weight: 600;
+}
+
+/* Pratinjau TTD tersimpan — meniru pola E-Logbook: latar gelap tetap
+   (--tinta-bg) supaya goresan yang di E-Logbook digambar putih di atas
+   papan gelap kelihatan; menjejakkannya di latar putih di sini akan
+   menyembunyikannya sama sekali. Sekali cetak ke kertas, ttdKeHitam
+   membalik warnanya jadi hitam pekat untuk kertas putih. */
+.cetak-ttd-bing {
+  display: inline-block;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #0d1319;
+  padding: 6px 10px;
+  max-width: 300px;
+}
+.cetak-ttd-pratinjau {
+  display: block;
+  height: 60px;
+  max-width: 100%;
+  object-fit: contain;
+}
+.cetak-ttd-meta {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 4px;
+  margin-bottom: 10px;
+  line-height: 1.45;
+}
+.cetak-ttd-meta b {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* ============== CETAK: kertas hitam-putih ============== */
+/* Yang tampil di kertas tinggal blok #printArea; sisanya benar-benar
+   disingkirkan lewat display:none — bukan visibility:hidden yang tetap
+   menyisakan ruang layout. Pendekatan lama membuat #printArea harus
+   dipasang position:absolute untuk melampaui sisa ruang itu, dan Chrome
+   TIDAK menghitung tinggi halaman dari absolute element dengan tepat —
+   akibatnya max-height/overflow tidak bisa memaksa satu halaman. Sekarang
+   #printArea berdiri di normal flow, satu-satunya anak body yang tampak,
+   dan aturan max-height + overflow:hidden benar-benar dihormati. */
+@media print {
+  html, body { background: #fff; margin: 0; padding: 0; }
+  body > * { display: none !important; }
+  #printArea { display: block !important; }
+  #printArea {
+    padding: 0;
+    color: #000;
+    font-family: 'Times New Roman', Times, serif;
+    font-size: 10.5pt;
+    background: #fff;
+  }
+
+  /* Ukuran halaman bawaan: potret A4 dengan margin biasa. Untuk cetakan
+     Jadwal Dinas, JS menyisipkan <style id="pageOrientasi">@page { size:
+     A4 landscape; ... }</style> tepat sebelum window.print() dan
+     mencabutnya setelah selesai — lihat lakukanCetak() di 36-cetak.js.
+     Ini lebih dapat diandalkan daripada named-page + `page:` selector,
+     yang tidak konsisten diterapkan Chrome untuk element ber-`position:
+     absolute` + `visibility` seperti #printArea. */
+  @page { size: A4 portrait; margin: 14mm 12mm; }
+
+  /* Cetakan lanskap Jadwal Dinas: cegah halaman kosong ke-dua.
+     Chrome menambahkan halaman kosong kalau ada margin/padding bawah yang
+     mendorong akhir konten sedikit melewati batas halaman, atau kalau
+     elemen terakhir minta page-break-after. Yang dilakukan di sini —
+     berlapis, supaya tidak ada satu jalur bocor pun:
+       · #printArea diberi overflow: hidden sebagai jaring pengaman
+         terakhir: apa pun yang berhasil menjulur setinggi 1px tetap
+         tidak melahirkan halaman kedua.
+       · Padding bawah .cetak-lembar dan margin bawah semua elemen di
+         kaki footer dipepetkan menjadi 0.
+       · .dinas-footer ditandai page-break-after: avoid supaya Chrome
+         tidak memaksa halaman baru sesudahnya. */
+  /* PENJARA satu halaman: max-height + overflow:hidden bersamaan.
+     Tanpa max-height eksplisit, Chrome menghitung tinggi halaman dari
+     tinggi konten mentah — overflow:hidden hanya memotong visual, tidak
+     mencegah halaman ke-dua. Kombinasi keduanya memaksa: konten disunat
+     bila melewati batas, tapi halaman baru tidak dibuat.
+     A4 lanskap = 297×210mm, margin 8mm semua sisi → ruang tulis 194mm. */
+  #printArea.lanskap {
+    height: 194mm;
+    max-height: 194mm;
+    overflow: hidden;
+    page-break-after: avoid;
+    break-after: avoid;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  #printArea.lanskap .cetak-lembar {
+    padding-bottom: 0;
+    margin-bottom: 0;
+    height: 194mm;
+    max-height: 194mm;
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+  #printArea.lanskap .dinas-footer {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+  #printArea.lanskap .dinas-ttd-kanan table.ttd-blok,
+  #printArea.lanskap .dinas-note { margin-bottom: 0; }
+
+  /* Padatkan tinggi bagian-bagian tinggi supaya sisa ruang mencukupi
+     tanpa kehilangan keterbacaan. Angka-angka di sini dipilih setelah
+     menghitung: h1+h2 ~10mm, jdw 16 baris ~65mm, pic ~7mm, cuti ~25mm,
+     bawah (note vs ttd) max ~40mm → total ~150mm, aman di bawah 194mm.
+     Kotak TTD 46pt cukup untuk tanda tangan; gambar diskalakan turun. */
+  #printArea.lanskap .kotak-ttd { height: 46pt; }
+  #printArea.lanskap .kotak-ttd img { max-height: 42pt; }
+  #printArea.lanskap .dinas-pic td { padding: 2pt 8pt; }
+  #printArea.lanskap table.dinas-cuti { font-size: 8pt; }
+  #printArea.lanskap table.dinas-cuti th,
+  #printArea.lanskap table.dinas-cuti td { padding: 1pt 4pt; }
+  #printArea.lanskap .dinas-note { font-size: 8pt; line-height: 1.4; }
+  #printArea.lanskap .dinas-note-butir { padding-left: 14pt; text-indent: -14pt; }
+  #printArea.lanskap .cetak-lembar h1 { font-size: 11pt; margin-bottom: 1pt; }
+  #printArea.lanskap .cetak-lembar h2 { font-size: 9.5pt; margin-bottom: 4pt; }
+  #printArea.lanskap .ttd-blok .peran-ttd { margin-bottom: 2pt; }
+  #printArea.lanskap .dinas-ttd-kanan .ttd-blok .jabatan-ttd { margin-bottom: 3pt; }
+  #printArea.lanskap .dinas-ttd-tanggal { margin-bottom: 2pt; }
+  #printArea.lanskap .dinas-footer { margin-top: 6pt; }
+}
+
+/* Lembar Jadwal Dinas versi cetak: satu halaman lanskap.
+   Font tabel dan kolom diperas supaya 31 hari + Nama + NIK + No muat di
+   satu halaman A4 landscape (~270mm ruang tulis). Padding tabel jadwal
+   diperkecil khusus di dalam #printArea.lanskap supaya tidak mengganggu
+   pratinjau di layar (yang muat lebih longgar). */
+#printArea.lanskap .cetak-lembar { max-width: 275mm; padding: 4mm 4mm; }
+#printArea.lanskap .cetak-lembar h1 { font-size: 12pt; margin-bottom: 2pt; }
+#printArea.lanskap .cetak-lembar h2 { font-size: 10pt; margin-bottom: 6pt; }
+#printArea.lanskap table.jdw { font-size: 7pt; table-layout: fixed; width: 100%; }
+#printArea.lanskap table.jdw th,
+#printArea.lanskap table.jdw td { padding: 1pt 1pt; }
+#printArea.lanskap table.jdw td.no    { padding: 1pt 2pt; }
+#printArea.lanskap table.jdw td.nama  { padding: 1pt 3pt; font-size: 7.5pt; }
+#printArea.lanskap table.jdw td.nik   { padding: 1pt 3pt; font-size: 7pt; }
+#printArea.lanskap table.jdw thead th { font-size: 7pt; }
+/* TTD blok di kaki lanskap: dipepetkan supaya masih muat halaman yang sama. */
+#printArea.lanskap table.ttd-blok { margin-top: 6pt; }
+
+/* ============== Kaki lembar Jadwal Dinas ==============
+   PIC di kiri atas, tanggal + TTD di kanan atas, tabel cuti/SAP tengah,
+   note 5 poin di kiri bawah, TTD dua kolom di kanan bawah. Semua ini
+   satu blok .dinas-footer supaya tidak terpecah antar halaman. */
+.cetak-lembar .dinas-footer {
+  margin-top: 10pt;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+.cetak-lembar .dinas-pic {
+  border-collapse: collapse;
+  margin-bottom: 8pt;
+  font-size: 9pt;
+}
+.cetak-lembar .dinas-pic td {
+  border: 1px solid #000;
+  padding: 3pt 8pt;
+  vertical-align: top;
+}
+.cetak-lembar .dinas-pic .pic-lab {
+  width: 46pt;
+  font-weight: 600;
+  text-align: center;
+  background: #f4f4f4;
+}
+.cetak-lembar .dinas-pic .pic-nama {
+  min-width: 220pt;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.cetak-lembar table.dinas-cuti {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9pt;
+  margin-bottom: 8pt;
+}
+.cetak-lembar table.dinas-cuti th,
+.cetak-lembar table.dinas-cuti td {
+  border: 1px solid #000;
+  padding: 2pt 5pt;
+  text-align: center;
+}
+.cetak-lembar table.dinas-cuti thead th { background: #eee; font-weight: 600; }
+.cetak-lembar table.dinas-cuti .cuti-nama { text-align: left; font-weight: 500; }
+.cetak-lembar table.dinas-cuti .cuti-nik  { font-family: 'Consolas','Courier New',monospace; }
+.cetak-lembar table.dinas-cuti .cuti-ket  { text-align: center; }
+.cetak-lembar table.dinas-cuti .cuti-tgl  { text-align: center; }
+.cetak-lembar table.dinas-cuti .cuti-kosong {
+  text-align: center; font-style: italic; padding: 6pt; color: #555;
+}
+.cetak-lembar .dinas-bawah {
+  display: flex;
+  align-items: flex-start;
+  gap: 12pt;
+}
+.cetak-lembar .dinas-note {
+  flex: 1;
+  font-size: 9pt;
+  line-height: 1.55;
+}
+.cetak-lembar .dinas-note-jd {
+  font-weight: 600;
+  margin-bottom: 3pt;
+}
+.cetak-lembar .dinas-note-butir {
+  font-style: italic;
+  padding-left: 16pt;
+  text-indent: -16pt;
+}
+.cetak-lembar .dinas-note-no {
+  display: inline-block;
+  width: 12pt;
+  font-style: normal;
+}
+.cetak-lembar .dinas-ttd-kanan {
+  width: 340pt;
+  flex: none;
+}
+.cetak-lembar .dinas-ttd-tanggal {
+  text-align: right;
+  font-size: 9.5pt;
+  margin-bottom: 3pt;
+  padding-right: 12pt;
+}
+.cetak-lembar .dinas-ttd-kanan table.ttd-blok { margin-top: 0; }
+/* Garis di ATAS nama tetap ada (border-top pada .nama-ttd bawaan) — pengguna
+   sepakat itu dipertahankan sebagai garis tanda tangan. Yang perlu dijaga:
+   jangan ada padding/margin bawah yang mendorong konten lewat batas halaman
+   dan melahirkan halaman kosong ke-dua. */
+
+/* Ratakan nama officer di dua kolom TTD:
+     · td vertical-align: top supaya semua elemen mengalir dari atas
+     · jabatan-ttd min-height 2 baris — sisi kiri "DEPUTY GENERAL MANAGER
+       TEKNIK" pecah 2 baris, sisi kanan "MANAGER TEKNIK" 1 baris; tanpa
+       ini kotak-ttd sisi kanan naik satu baris dan nama officer-nya
+       jadi tidak sejajar. */
+.cetak-lembar .dinas-ttd-kanan .ttd-blok td {
+  vertical-align: top;
+  /* Timpa aturan global `td { border-bottom: 1px solid var(--line) }` di
+     05-ubin-panel-tabel.css yang menempel ke SEMUA <td> — tanpa penimpaan
+     ini muncul garis horizontal panjang di bawah tiap sel TTD, melintasi
+     seluruh lebar footer sebagai satu garis tak terputus. Padding tetap
+     mengikuti aturan .ttd-blok td (4pt 8pt) — tidak diubah di sini. */
+  border-bottom: 0;
+}
+.cetak-lembar .dinas-ttd-kanan .ttd-blok .jabatan-ttd {
+  min-height: calc(2em * 1.2);   /* 2 baris pada font-size 9pt line-height 1.2 */
+}
+
+/* Garis tanda tangan (border-top pada .nama-ttd) DIBIARKAN, tetapi tiap
+   sisi diberi margin horizontal supaya garisnya berhenti sebelum tepi
+   cell. Tanpa margin ini, dua garis dari cell kiri dan kanan yang
+   bersebelahan tanpa jarak terlihat menyatu jadi satu garis panjang
+   melintang seluruh lebar footer — bukan yang dimaksud dua garis
+   terpisah per officer. */
+.cetak-lembar .dinas-ttd-kanan .ttd-blok .nama-ttd {
+  margin-left: 24pt;
+  margin-right: 24pt;
+}
+
+/* Isi cetak — sama untuk pratinjau di layar dan di kertas. */
+.cetak-lembar {
+  max-width: 190mm;
+  margin: 0 auto;
+  padding: 8mm 6mm;
+  color: #000;
+  background: #fff;
+  font-family: 'Times New Roman', Times, serif;
+  font-size: 10.5pt;
+  line-height: 1.4;
+}
+.cetak-lembar h1 {
+  font-size: 13pt;
+  text-align: center;
+  margin: 0 0 4pt;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.cetak-lembar h2 {
+  font-size: 11pt;
+  text-align: center;
+  margin: 0 0 12pt;
+  font-weight: 600;
+}
+.cetak-lembar .kop-tabel {
+  font-size: 9.5pt;
+  margin-bottom: 10pt;
+  border-collapse: collapse;
+}
+.cetak-lembar .kop-tabel td {
+  padding: 1pt 6pt 1pt 0;
+  vertical-align: top;
+}
+.cetak-lembar .kop-tabel td:first-child { width: 155px; }
+
+.cetak-lembar table.data {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9.5pt;
+}
+.cetak-lembar table.data th,
+.cetak-lembar table.data td {
+  border: 1px solid #000;
+  padding: 3pt 5pt;
+  vertical-align: top;
+}
+.cetak-lembar table.data th {
+  background: #eee;
+  text-align: center;
+  font-weight: 600;
+}
+.cetak-lembar table.data td.mono {
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 9pt;
+}
+.cetak-lembar table.data td.tengah { text-align: center; }
+.cetak-lembar table.data td.kanan  { text-align: right; }
+
+/* Kalender jadwal dinas — kolom sangat sempit. Pakai teks kecil dan
+   biarkan kepala tabelnya melipat kalau perlu. */
+.cetak-lembar table.jdw {
+  font-size: 8pt;
+}
+.cetak-lembar table.jdw th,
+.cetak-lembar table.jdw td {
+  padding: 2pt 2pt;
+  text-align: center;
+}
+.cetak-lembar table.jdw td.no {
+  text-align: right;
+  padding: 2pt 4pt;
+  font-family: 'Consolas', 'Courier New', monospace;
+  color: #444;
+}
+.cetak-lembar table.jdw td.nama {
+  text-align: left;
+  padding: 2pt 4pt;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.cetak-lembar table.jdw td.nik {
+  text-align: left;
+  padding: 2pt 4pt;
+  font-family: 'Consolas', 'Courier New', monospace;
+  color: #444;
+  white-space: nowrap;
+}
+.cetak-lembar table.jdw th.hari-libur,
+.cetak-lembar table.jdw td.hari-libur {
+  background: #f4f4f4;
+}
+
+/* Lembar Peralatan: tiap alat jadi satu blok — identitas + sejarahnya
+   sekali jalan. Blok berikutnya dipisah garis dan sedapat mungkin
+   tidak dipatahkan di antara halaman. */
+.cetak-lembar .alat-cetak {
+  margin-top: 10pt;
+  padding-top: 8pt;
+  border-top: 1px solid #000;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+.cetak-lembar .alat-cetak:first-of-type {
+  margin-top: 4pt;
+  padding-top: 0;
+  border-top: 0;
+}
+.cetak-lembar .alat-cetak h3 {
+  font-size: 11pt;
+  font-weight: 700;
+  margin: 0 0 4pt;
+}
+.cetak-lembar .alat-cetak-sub {
+  font-size: 9pt;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  margin: 6pt 0 3pt;
+  color: #000;
+}
+.cetak-lembar table.spek-cetak {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9.5pt;
+}
+.cetak-lembar table.spek-cetak td {
+  vertical-align: top;
+  padding: 1pt 6pt 1pt 0;
+}
+.cetak-lembar table.spek-cetak td:first-child {
+  /* Diperlebar dari 130px supaya "Merek dan Tipe Peralatan" dan
+     "Nomor Seri Peralatan" (docx form) tidak terpotong ke dua baris. */
+  width: 180px;
+  color: #333;
+}
+/* Sub-unit lembar cetak — indent kecil dan margin agar terbaca sebagai
+   turunan alat di atasnya, tidak berdiri sendiri seperti alat baru. */
+.cetak-lembar .alat-cetak.sub-cetak {
+  margin-left: 12pt;
+  padding-top: 6pt;
+  border-top: 1px dashed #999;
+}
+.cetak-lembar .alat-cetak.sub-cetak h3 {
+  font-size: 10pt;
+  font-weight: 600;
+  color: #222;
+}
+.cetak-lembar table.data.sjr-tabel {
+  margin-top: 1pt;
+}
+.cetak-lembar .sjr-kosong {
+  font-size: 9pt;
+  color: #444;
+  font-style: italic;
+  padding: 2pt 0 4pt;
+}
+
+/* Blok tanda tangan di kaki lembar. Dulu dua kolom setara (Dibuat oleh
+   + Mengetahui) — sekarang cuma satu kolom (Mengetahui) karena pembuat
+   tidak lagi menandatangani lembar. Bentuk kolom tunggal (ttd-blok-tunggal)
+   dipusatkan dan dilebarkan sedang supaya tidak melar ke seluruh baris. */
+.cetak-lembar .ttd-blok {
+  margin-top: 18pt;
+  width: 100%;
+  border-collapse: collapse;
+  page-break-inside: avoid;
+}
+.cetak-lembar .ttd-blok td {
+  width: 50%;
+  vertical-align: top;
+  padding: 4pt 8pt;
+  text-align: center;
+}
+.cetak-lembar .ttd-blok-tunggal {
+  margin-left: auto;
+  margin-right: 0;
+  width: 240pt;    /* selebar satu kotak TTD nyaman — meniru docx Sejarah */
+}
+.cetak-lembar .ttd-blok-tunggal td {
+  width: 100%;
+}
+.cetak-lembar .ttd-blok .peran-ttd {
+  font-size: 9.5pt;
+  margin-bottom: 4pt;
+}
+.cetak-lembar .ttd-blok .kotak-ttd {
+  height: 68pt;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cetak-lembar .ttd-blok .kotak-ttd img {
+  max-height: 64pt;
+  max-width: 90%;
+  object-fit: contain;
+}
+.cetak-lembar .ttd-blok .nama-ttd {
+  font-weight: 600;
+  border-top: 1px solid #000;
+  padding-top: 3pt;
+  margin-top: 3pt;
+}
+.cetak-lembar .ttd-blok .jabatan-ttd {
+  font-size: 9pt;
+  color: #444;
+}
+/* Di lembar Dinas, jabatan naik ke atas mengikat peran + di atas kotak TTD
+   — ia jadi judul, bukan subtitle nama. Warnanya dipekatkan dan
+   ketebalannya dinaikkan supaya terbaca sepadan dengan peran di atasnya,
+   plus sedikit jarak ke kotak TTD di bawahnya. */
+.cetak-lembar .dinas-ttd-kanan .ttd-blok .jabatan-ttd {
+  color: #000;
+  font-weight: 600;
+  margin-bottom: 4pt;
+}
+.cetak-lembar .ttd-blok .kosong-ket {
+  font-size: 8.5pt;
+  color: #666;
+  font-style: italic;
+}
+
+/* Struktur turunan alat: satu baris per node, indentasi sudah dihitung
+   inline lewat padding-left. Font agak lebih kecil supaya pohonan berlapis
+   tetap muat di lebar A4. */
+.cetak-lembar .str-cetak {
+  font-size: 9pt;
+  line-height: 1.4;
+  border: 1px solid #ccc;
+  padding: 4pt 6pt;
+  margin-bottom: 6pt;
+  page-break-inside: avoid;
+}
+.cetak-lembar .str-cetak .str-lembar {
+  padding-bottom: 1pt;
+}
+.cetak-lembar .str-cetak b { font-weight: 600; }
+.cetak-lembar .str-cetak i { color: #555; font-size: 8.5pt; }

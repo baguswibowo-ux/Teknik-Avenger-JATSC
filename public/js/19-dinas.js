@@ -22,7 +22,8 @@ function kartuShift(s, kodeHari){
     ${libur
       ? `<div class="jam-shift"><span class="jam-lokal">${esc(nama)}</span></div>`
       : `<div class="jam-shift">${labelUtc(jam)}<br><span class="jam-lokal">${labelWib(jam)}</span></div>`}
-    ${s.o.length ? s.o.map(o=>`<div class="orang">
+    ${s.o.length ? s.o.map((o,i)=>`<div class="orang">
+        <span class="no-urut">${i+1}.</span>
         <span class="avatar" style="color:${warna}">${inisial(o.n)}</span>
         <span><span class="nm">${esc(o.n)}</span><br><span class="pr">${esc(o.p)}</span></span>
       </div>`).join('')

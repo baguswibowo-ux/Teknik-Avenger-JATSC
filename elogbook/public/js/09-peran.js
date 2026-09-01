@@ -9,7 +9,7 @@ function adminAktif(){ return userSaatIni?.role === 'admin'; }
 function pejabatAktif(){ return userSaatIni?.role === 'pejabat'; }
 /* Sepadan dengan PERAN_TULIS di server.js — kalau keduanya berselisih, yang
    kalah adalah layar: tombolnya tampil lalu permintaannya ditolak 403. */
-const PERAN_TULIS = new Set(['admin', 'adminunit', 'pic', 'teknisi']);
+const PERAN_TULIS = new Set(['admin', 'adminunit', 'teknisi']);
 function bolehMenulis(){ return PERAN_TULIS.has(userSaatIni?.role); }
 
 /** Menyunting catatan yang sudah tersimpan: admin, atau pembuat aslinya

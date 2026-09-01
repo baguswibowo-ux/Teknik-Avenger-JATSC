@@ -153,8 +153,7 @@ function jdwTabel(unit){
   const iniBulanIni = bulan === JDW.bulanIni;
   const hariIni = iniBulanIni ? new Date().getDate() : 0;
 
-  const kepala = `<tr><th class="jdw-nama">${T('Nama','Name')}</th><th class="jdw-peran">${
-    T('Peran','Role')}</th>` +
+  const kepala = `<tr><th class="jdw-no">${T('No','No')}</th><th class="jdw-nama">${T('Nama','Name')}</th><th class="jdw-nik">NIK</th>` +
     Array.from({length:hariN}, (_,i)=>`<th class="${i+1===hariIni?'jdw-hari-ini':''}">${i+1}</th>`).join('') +
     (JDW.sunting ? '<th></th>' : '') + '</tr>';
 
@@ -164,6 +163,7 @@ function jdwTabel(unit){
      sekaligus melihat tanggal berapa saja yang ada pekerjaan tetapnya. */
   const adaBerkala = bklDaftar(unit).length;
   const barisBerkala = adaBerkala ? `<tr class="jdw-berkala">
+    <td class="jdw-no"></td>
     <td class="jdw-nama" colspan="2">${T('Kegiatan berkala','Recurring jobs')}</td>
     ${Array.from({length:hariN}, (_,i)=>{
       const keg = bklPadaHari(unit, bulan, i + 1);
@@ -180,7 +180,7 @@ function jdwTabel(unit){
 
   if(!baris.length){
     return `<table class="jdw"><thead>${kepala}</thead><tbody>${barisBerkala}
-      <tr><td colspan="${hariN + 2 + (JDW.sunting?1:0)}" style="text-align:center;color:var(--muted);padding:22px">
+      <tr><td colspan="${hariN + 3 + (JDW.sunting?1:0)}" style="text-align:center;color:var(--muted);padding:22px">
         ${T('Belum ada jadwal untuk bulan ini.','No roster for this month yet.')}
       </td></tr></tbody></table>`;
   }
@@ -199,12 +199,14 @@ function jdwTabel(unit){
       </select></td>`;
     };
     return `<tr>
+      <td class="jdw-no">${i+1}</td>
       <td class="jdw-nama">${JDW.sunting
         ? `<input type="text" data-baris="${i}" data-kolom="nama" value="${esc(o.nama || '')}">`
         : esc(o.nama || '')}</td>
-      <td class="jdw-peran">${JDW.sunting
-        ? `<input type="text" data-baris="${i}" data-kolom="peran" value="${esc(o.peran || '')}">`
-        : esc(o.peran || '—')}</td>
+      <td class="jdw-nik">${JDW.sunting
+        ? `<input type="text" data-baris="${i}" data-kolom="nik" value="${esc(o.nik || '')}" placeholder="${
+            T('NIK pegawai','Employee ID')}">`
+        : esc(o.nik || '—')}</td>
       ${Array.from({length:hariN}, (_,h)=>sel(h)).join('')}
       ${JDW.sunting ? `<td><button class="btn garis kecil" data-jdw-buang="${i}">✕</button></td>` : ''}
     </tr>`;
@@ -231,9 +233,18 @@ function jdwIsi(unit){
              <button class="btn garis kecil" id="jdwImpor">${T('Impor dari berkas','Import from a file')}</button>
              <button class="btn garis kecil" id="jdwTambahOrang">${T('Tambah orang','Add person')}</button>
              <button class="btn kecil" id="jdwSimpan">${T('Simpan jadwal','Save roster')}</button>`
-          : bolehSunting
-            ? `<button class="btn kecil" id="jdwSunting">${T('Sunting jadwal','Edit roster')}</button>`
-            : ''}
+          : `${bolehSunting
+              ? `<button class="btn kecil" id="jdwSunting">${T('Sunting jadwal','Edit roster')}</button>`
+              : ''}
+             ${BOLEH['dinas-cetak'] ? `
+             <button class="btn garis kecil" id="jdwCetakPum" title="${
+               T('Versi untuk PUM: hanya kode PS/M/P/S; SPKL, cuti, dan lainnya dikosongkan.',
+                 'PUM version: only PS/M/P/S codes; SPKL, leave, and others are blanked.')}">${
+               T('Cetak PUM','Print (PUM)')}</button>
+             <button class="btn garis kecil" id="jdwCetakTeknik" title="${
+               T('Versi internal Teknik: seluruh kode ditampilkan apa adanya.',
+                 'Internal Teknik version: every code is shown as-is.')}">${
+               T('Cetak Teknik','Print (Teknik)')}</button>` : ''}`}
       </span>
     </div>
     ${bolehSunting || JDW.sunting ? '' : `<div class="catatan" style="margin-top:0"><b>${
@@ -307,8 +318,8 @@ function jdwPasang(unit){
   if(btnSunting) btnSunting.addEventListener('click', ()=>{
     // Salinan dalam, bukan rujukan: Batal harus benar-benar mengembalikan
     // keadaan sebelum disunting, termasuk kalau sudah puluhan sel diubah.
-    JDW.draf = jdwBaris(unit).map(o=>({ nama:o.nama, peran:o.peran, hari:[...(o.hari||[])] }));
-    if(!JDW.draf.length) JDW.draf.push({ nama:'', peran:'', hari:[] });
+    JDW.draf = jdwBaris(unit).map(o=>({ nama:o.nama, peran:o.peran, nik:o.nik || '', hari:[...(o.hari||[])] }));
+    if(!JDW.draf.length) JDW.draf.push({ nama:'', peran:'', nik:'', hari:[] });
     JDW.sunting = true;
     jdwGambar();
   });
@@ -321,9 +332,14 @@ function jdwPasang(unit){
   const btnImpor = kotak.querySelector('#jdwImpor');
   if(btnImpor) btnImpor.addEventListener('click', ()=>imporBuka(unit));
 
+  const btnCetakPum = kotak.querySelector('#jdwCetakPum');
+  if(btnCetakPum) btnCetakPum.addEventListener('click', ()=>cetakBuka('dinas', unit, { formatDinas:'pum' }));
+  const btnCetakTeknik = kotak.querySelector('#jdwCetakTeknik');
+  if(btnCetakTeknik) btnCetakTeknik.addEventListener('click', ()=>cetakBuka('dinas', unit, { formatDinas:'teknik' }));
+
   const btnTambah = kotak.querySelector('#jdwTambahOrang');
   if(btnTambah) btnTambah.addEventListener('click', ()=>{
-    JDW.draf.push({ nama:'', peran:'', hari:[] });
+    JDW.draf.push({ nama:'', peran:'', nik:'', hari:[] });
     jdwGambar();
   });
 
@@ -338,6 +354,7 @@ function jdwPasang(unit){
       .map(o=>({
         nama:  String(o.nama || '').trim(),
         peran: String(o.peran || '').trim(),
+        nik:   String(o.nik || '').trim(),
         hari:  Array.from({length:hariN}, (_,i)=>String((o.hari || [])[i] || ''))
       }))
       .filter(o=>o.nama);
@@ -382,7 +399,7 @@ function jdwPasang(unit){
   kotak.querySelectorAll('.jdw button[data-jdw-buang]').forEach(b=>{
     b.addEventListener('click', ()=>{
       JDW.draf.splice(Number(b.dataset.jdwBuang), 1);
-      if(!JDW.draf.length) JDW.draf.push({ nama:'', peran:'', hari:[] });
+      if(!JDW.draf.length) JDW.draf.push({ nama:'', peran:'', nik:'', hari:[] });
       jdwGambar();
     });
   });

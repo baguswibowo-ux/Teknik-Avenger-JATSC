@@ -127,22 +127,36 @@ function terapkanUnit(){
     }
   }
 
-  // Tiga formulir daily check dengan bentuk berbeda: Garex (Radtel/unit lain),
-  // Frequentis 3020X (Radtel di JATSC), dan Radkom. Radtel dapat pemilih lokasi
-  // di form-nya sendiri — dan selector itu yang menentukan mana yang tampak.
+  // Empat formulir daily check dengan bentuk berbeda: Garex (Radtel/unit lain),
+  // Frequentis 3020X (Radtel di JATSC), Radkom, dan Navigasi (unit ppabn).
+  // Radtel dapat pemilih lokasi di form-nya sendiri — dan selector itu yang
+  // menentukan mana yang tampak.
   const radkom = u.kode === 'radkom';
+  const nav = u.kode === 'ppabn';            // Fasilitas Navigasi (ILS + DVOR/DME)
   const punyaLokasi = u.kode === 'radtel';   // JATSC vs New JATSC
   document.getElementById('dcRadkomWrap').style.display  = radkom ? '' : 'none';
   document.getElementById('dcLegendRadkom').style.display= radkom ? '' : 'none';
-  document.getElementById('dcSuhuWrap').style.display    = radkom ? 'none' : '';
+  // Suhu MER hanya untuk Radtel Garex/Frequentis di gedung MER — Radkom dan
+  // Navigasi tidak mengukurnya (Navigasi tersebar di site ILS/DVOR luar MER).
+  document.getElementById('dcSuhuWrap').style.display    = (radkom || nav) ? 'none' : '';
+  // dcAlatWrap sekarang cuma menampung dua <select> tersembunyi (dcLokasi &
+  // dcTempat) — sumber kebenaran yang ditulis lewat setDcLokasi(). Selalu
+  // sembunyi, apa pun unitnya.
   const dcAlatWrap = document.getElementById('dcAlatWrap');
-  if(dcAlatWrap) dcAlatWrap.style.display = (radkom || !punyaLokasi) ? 'none' : '';
+  if(dcAlatWrap) dcAlatWrap.style.display = 'none';
+  // Sub-tab pemilih lokasi (Frequentis vs Garex) — hanya Radtel yang butuh.
+  const dcSubtabs = document.getElementById('dcSubtabs');
+  if(dcSubtabs) dcSubtabs.style.display = punyaLokasi ? '' : 'none';
   const dcLegendGarex = document.getElementById('dcLegendGarex');
   const dcJatscWrap = document.getElementById('dcJatscWrap');
   const dcGarexWrap = document.getElementById('dcGarexWrap');
+  const dcNavWrap = document.getElementById('dcNavWrap');
   const jatsc = punyaLokasi && document.getElementById('dcLokasi')?.value === 'jatsc';
-  dcGarexWrap.style.display = (radkom || jatsc) ? 'none' : '';
-  if(dcJatscWrap) dcJatscWrap.style.display = (!radkom && jatsc) ? '' : 'none';
+  dcGarexWrap.style.display = (radkom || jatsc || nav) ? 'none' : '';
+  if(dcJatscWrap) dcJatscWrap.style.display = (!radkom && !nav && jatsc) ? '' : 'none';
+  if(dcNavWrap) dcNavWrap.style.display = nav ? '' : 'none';
+  // Legenda Normal/Alarm/Gangguan dipakai Garex, JATSC, dan Navigasi — hanya
+  // Radkom yang legendanya sendiri (OK / NOT OK). Sembunyikan saat radkom.
   if(dcLegendGarex) dcLegendGarex.style.display = radkom ? 'none' : '';
   // Judul tab tetap "Daily Check" apa pun peralatannya — nama alat sudah
   // disebut di selector di dalam form, tidak perlu diulang di kepala.
@@ -151,7 +165,9 @@ function terapkanUnit(){
   if(dcJudul) dcJudul.textContent = T('dcJudul');
   if(dcSub) dcSub.textContent = radkom ? T('dcRadkomSub') : T('dcSub');
   if(radkom && Object.keys(dcRkState).length === 0){ initDcRkState(); renderDcRkTable(); }
-  if(!radkom && jatsc && Object.keys(dcJState || {}).length === 0){ initDcJState(); renderDcJatscTable(); }
+  if(!radkom && !nav && jatsc && Object.keys(dcJState || {}).length === 0){ initDcJState(); renderDcJatscTable(); }
+  if(nav && Object.keys(dcNState || {}).length === 0){ initDcNState(); renderDcNavTable(); }
+  if(punyaLokasi && typeof sinkronSubtabDc === 'function') sinkronSubtabDc();
 
   // Judul seksi logbook mengikuti nama form unit itu
   const judul = document.querySelector('[data-t="logbookJudul"]');
@@ -180,6 +196,11 @@ function terapkanUnit(){
   isiDinas(document.getElementById('feDinas'), false);
   isiDinas(document.getElementById('prDinas'), true);
   isiDinas(document.getElementById('dcDinas'), false);
+
+  // Info peralatan + lokasi di bawah sub-tab Daily Check. Disegarkan setiap
+  // kali terapkanUnit() jalan supaya pindah unit (Radtel ↔ Radkom/lainnya)
+  // ikut menyembunyikan/menampilkan info bar sesuai visibilitas #dcSubtabs.
+  if(typeof sinkronSubtabDc === 'function') sinkronSubtabDc();
 }
 
 /** Dipakai terapkanUnit saat tab aktif harus dipindah paksa. */

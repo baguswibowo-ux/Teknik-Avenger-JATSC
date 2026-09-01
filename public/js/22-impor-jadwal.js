@@ -374,7 +374,7 @@ function imporCariKepala(baris){
 /** Dari larik baris mentah ke { peta, orang } yang siap ditunjukkan. */
 function imporTebak(baris, hariN){
   const kepala = imporCariKepala(baris);
-  let kolomHari, mulai, namaKol = 0, peranKol = -1;
+  let kolomHari, mulai, namaKol = 0, peranKol = -1, nikKol = -1;
 
   if(kepala){
     kolomHari = kepala.kolom.slice(0, hariN).map(x=>x.k);
@@ -387,26 +387,46 @@ function imporTebak(baris, hariN){
     // Baris judul kolom tetap harus dilewati, kalau tidak ia masuk sebagai
     // orang bernama "NAMA" yang berdinas pada kode "1", "2", "3".
     const pertama = String((baris[0] || [])[0] || '').trim();
-    mulai = /^(no\.?|nama|name|nip|nrp)$/i.test(pertama) ? 1 : 0;
+    mulai = /^(no\.?|nama|name|nip|nrp|nik)$/i.test(pertama) ? 1 : 0;
   }
 
   const hariMulai = Math.min(...kolomHari);
   const sebelum = [];
   for(let k = 0; k < hariMulai; k++) sebelum.push(k);
 
+  /* Kolom NIK. Diambil dari sel judul kolom, bukan ditebak dari isi barisnya:
+     NIK terkadang berupa digit murni dan terkadang berupa huruf+digit — mencari
+     berdasar isi akan salah menuduh kolom apa pun yang kebetulan berisi angka.
+     Judul kolom biasanya persis di baris kepala tanggal (satu baris dengan
+     "1 2 3 ...") atau satu baris di atasnya. Kalau tidak ketemu, dibiarkan -1
+     dan pemakai bisa menunjuknya sendiri lewat pemilih "Kolom NIK". */
+  const kepalaCari = kepala
+    ? [baris[kepala.indeks] || [], kepala.indeks > 0 ? (baris[kepala.indeks - 1] || []) : []]
+    : [baris[0] || []];
+  for(const kb of kepalaCari){
+    for(let k = 0; k < hariMulai; k++){
+      const teks = String(kb[k] || '').trim().toUpperCase();
+      if(/\b(NIK|NIP|NRP)\b/.test(teks)){ nikKol = k; break; }
+    }
+    if(nikKol >= 0) break;
+  }
+
   if(sebelum.length){
     // Kolom nama: yang paling sering berisi huruf di baris-baris datanya.
+    // Kolom NIK dikecualikan supaya tidak salah ditunjuk sebagai nama waktu
+    // NIK-nya ditulis dengan awalan huruf.
     const nilai = sebelum.map(k=>({
       k, n: baris.slice(mulai).filter(r=>/[A-Za-z]{3,}/.test(String(r[k] || ''))).length
     })).sort((a,b)=>b.n - a.n);
-    namaKol = nilai[0] ? nilai[0].k : 0;
+    const nama0 = nilai.find(x=>x.k !== nikKol);
+    namaKol = nama0 ? nama0.k : (nilai[0] ? nilai[0].k : 0);
     if(peranKol < 0){
-      const lain = nilai.find(x=>x.k !== namaKol && x.n > 0);
+      const lain = nilai.find(x=>x.k !== namaKol && x.k !== nikKol && x.n > 0);
       peranKol = lain ? lain.k : -1;
     }
   }
 
-  return { kolomHari, mulai, namaKol, peranKol };
+  return { kolomHari, mulai, namaKol, peranKol, nikKol };
 }
 
 /** Terapkan peta kolom ke baris mentah. Dipanggil ulang tiap kali petanya diubah. */
@@ -429,6 +449,7 @@ function imporTerap(baris, peta, hariN, kodeUnit, normalkan){
     orang.push({
       nama: nama.slice(0, 80),
       peran: peta.peranKol >= 0 ? String(r[peta.peranKol] || '').trim().slice(0, 60) : '',
+      nik:   peta.nikKol   >= 0 ? String(r[peta.nikKol]   || '').trim().slice(0, 30) : '',
       hari
     });
   }
@@ -507,6 +528,7 @@ function imporGambar(){
     const kepalaHari = Array.from({length:hariN}, (_,i)=>`<th>${i+1}</th>`).join('');
     const badan = IMP.orang.slice(0, 40).map(o=>`<tr>
       <td class="jdw-nama">${esc(o.nama)}</td>
+      <td class="jdw-nik">${esc(o.nik || '—')}</td>
       <td class="jdw-peran">${esc(o.peran || '—')}</td>
       ${o.hari.map(h=>`<td${h && !kodeUnit.includes(h)
         ? ' style="color:var(--warn)"' : h ? ` style="color:${warnaShift(h, 'var(--text)')}"` : ''
@@ -515,6 +537,7 @@ function imporGambar(){
     pratinjau = `
       <div class="imp-atur">
         ${pilihKolom('impNama', T('Kolom nama','Name column'), IMP.peta.namaKol, false)}
+        ${pilihKolom('impNik', T('Kolom NIK','ID column'), IMP.peta.nikKol, true)}
         ${pilihKolom('impPeran', T('Kolom peran','Role column'), IMP.peta.peranKol, true)}
         <div class="isian" style="margin-bottom:0">
           <label for="impMulai">${T('Baris data mulai','Data starts at row')}</label>
@@ -526,8 +549,9 @@ function imporGambar(){
 
       <div class="jdw-gulir" style="margin-top:14px">
         <table class="jdw"><thead><tr><th class="jdw-nama">${T('Nama','Name')}</th>
+          <th class="jdw-nik">NIK</th>
           <th class="jdw-peran">${T('Peran','Role')}</th>${kepalaHari}</tr></thead>
-          <tbody>${badan || `<tr><td colspan="${hariN+2}" style="text-align:center;color:var(--muted);padding:20px">${
+          <tbody>${badan || `<tr><td colspan="${hariN+3}" style="text-align:center;color:var(--muted);padding:20px">${
             T('Tidak ada baris yang terbaca sebagai orang. Coba ubah kolom nama atau baris mulainya.',
               'No row reads as a person. Try changing the name column or the starting row.')}</td></tr>`}</tbody></table>
       </div>
@@ -629,6 +653,7 @@ function imporPasang(){
     });
   };
   ubahPeta('impNama', 'namaKol');
+  ubahPeta('impNik', 'nikKol');
   ubahPeta('impPeran', 'peranKol');
   const mulai = el('impMulai');
   if(mulai) mulai.addEventListener('change', ()=>{
@@ -653,7 +678,7 @@ el('btnPakaiImpor').addEventListener('click', ()=>{
   // Ke draf, bukan ke yang tersimpan: yang diimpor masih harus dilihat sekali
   // lagi di tabel jadwal yang sebenarnya, dan Batal di sana masih membatalkan
   // seluruhnya. Tombol Simpan jadwal yang menuliskannya.
-  JDW.draf = IMP.orang.map(o=>({ nama:o.nama, peran:o.peran, hari:[...o.hari] }));
+  JDW.draf = IMP.orang.map(o=>({ nama:o.nama, peran:o.peran, nik:o.nik || '', hari:[...o.hari] }));
   JDW.sunting = true;
   imporTutup();
   jdwGambar();

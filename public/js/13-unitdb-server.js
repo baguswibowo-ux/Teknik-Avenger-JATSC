@@ -11,6 +11,9 @@
    ======================================================================= */
 
 const LOGO = {};          // kode unit -> { berkas, jam }
+/* Penimpa baris peralatan di kepala unit. Bawaannya dari E-Logbook (u.alat);
+   yang di sini menang kalau ada — lihat gambarUnit di 28-database-unit.js. */
+const NAMA_ALAT = {};     // kode unit -> teks
 
 async function unitdbMuat(){
   if(!SRV.aktif) return;
@@ -31,6 +34,9 @@ async function unitdbMuat(){
 
     Object.keys(LOGO).forEach(k=>delete LOGO[k]);
     Object.assign(LOGO, j.logo || {});
+
+    Object.keys(NAMA_ALAT).forEach(k=>delete NAMA_ALAT[k]);
+    Object.assign(NAMA_ALAT, j.namaAlat || {});
   }catch(e){
     console.warn('Database unit tidak terbaca dari server:', e && e.message || e);
   }
@@ -235,6 +241,10 @@ function srvPasang(unitSaya, paket, unitSemua){
     role:    SRV.sesi.role,
     peran:   PERAN_SERVER[SRV.sesi.role]    || SRV.sesi.role || 'Pengguna',
     peranEn: PERAN_SERVER_EN[SRV.sesi.role] || SRV.sesi.role || 'User',
+    // Penanda super-admin — orthogonal terhadap peran. Dipakai kartu cetak untuk
+    // menawarkan tombol "Bubuhkan TTD Pejabat" pada pejabat yang belum punya
+    // TTD tersimpan di E-Logbook.
+    superadmin: !!SRV.sesi.superadmin,
     unit:  UNIT.every(u=>kodeBoleh.includes(u.kode)) ? 'semua' : kodeBoleh
   };
 

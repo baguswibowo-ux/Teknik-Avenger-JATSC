@@ -58,8 +58,12 @@ function bukaDashboard(){
          dibuka. Di jalur tabel indeksnya menuntut sesi, jadi tarikan pertama —
          yang terjadi jauh sebelum ada yang masuk — dijawab 401 dan galerinya
          tinggal kosong sampai halaman disegarkan. */
-      await Promise.all([bklMuat(), psnMuat(), muatGaleri()]);
+      await Promise.all([bklMuat(), psnMuat(), muatGaleri(),
+        (typeof muatAntrianCetak === 'function') ? muatAntrianCetak() : null].filter(Boolean));
       gambarUbin(); gambarPerhatian(); gambarLonceng(); gambarPersonel();
+      // Lencana kotak masuk ikut memperhitungkan antrian cetak — panggil
+      // gambar ulang supaya angkanya benar sejak layar dashboard pertama tampil.
+      gambarKotakMasuk?.();
       if(unitDibuka) gambarUnit();
     })
     .catch(e=>console.warn('Modul dashboard gagal dimuat:', e && e.message || e));

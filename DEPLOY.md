@@ -267,7 +267,7 @@ cadangan Bagian 0.2.
 | Yang diuji | Hasil |
 |---|---|
 | `/js/19-berkala.js` di produksi | 200, isinya kode baru |
-| Empat tab berkala | CEK QUERY NEPTUNO, RESTART CPU GATEVOX, CLEANING CWP, RESTART CWP |
+| Empat tab berkala | CEK INSPECTION NEPTUNO, CHANGE OVER CPU GATEVOX, CLEANING CWP, RESTART CWP |
 | Bagian "Pekerjaan Berkala" | muncul |
 | Judul halaman | tetap "E-Logbook — New JATSC", bukan Avenger |
 | Sidik jari Supabase sesudah migrasi | tidak bergerak |

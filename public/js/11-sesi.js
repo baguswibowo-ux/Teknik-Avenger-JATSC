@@ -27,6 +27,10 @@ function simpanSesi(){
 
 function lupakanSesi(){
   try{ sessionStorage.removeItem(SESI_KUNCI); }catch(e){ /* tidak apa-apa */ }
+  // data-pulih dipasang inline di <head> supaya layar masuk tidak berkedip
+  // sekilas sebelum dashboard muncul; kalau sesi gagal dipulihkan, atribut ini
+  // harus lepas supaya kartu masuk kelihatan lagi.
+  document.documentElement.removeAttribute('data-pulih');
 }
 
 function bacaSesi(){
@@ -44,7 +48,7 @@ function bacaSesi(){
  */
 async function pulihkanSesi(){
   const s = bacaSesi();
-  if(!s) return;
+  if(!s){ document.documentElement.removeAttribute('data-pulih'); return; }
   try{
     if(!SRV.ada || !SRV.sesi) return lupakanSesi();
     segarkanKartuMasuk();

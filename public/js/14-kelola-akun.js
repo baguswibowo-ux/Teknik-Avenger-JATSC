@@ -30,11 +30,49 @@ let USERS = [];          // daftar akun terakhir dari server
 let USERS_JAM = null;    // kapan daftar itu diambil
 let akunDibuka = null;   // salinan akun yang sedang terbuka di kartu; null = tambah baru
 
-/** Layar ini milik administrator, apa pun sumber datanya. */
-const bolehKelolaAkun = () => !!akun && akun.role === 'admin';
+/* Overlay hak lanjut per akun. Peta {username: {unitKhusus, bolehTtd,
+   bolehModul}} — kosong berarti akun itu mengikuti aturan perannya
+   apa adanya. Diambil dari /hak-akun (admin/super-admin saja). */
+let HAK_AKUN = {};
+
+const HAK_LANJUT_JENIS_TTD = [
+  ['sparepart', 'Daftar Sparepart', 'Spare Parts List'],
+  ['dinas',     'Jadwal Dinas Bulanan', 'Monthly Duty Roster'],
+  ['peralatan', 'Sejarah Peralatan', 'Equipment History']
+];
+
+/** Layar ini milik administrator, apa pun sumber datanya.
+    Super-admin (penanda orthogonal terhadap peran) juga boleh membukanya —
+    tanpa itu, akun bertanda super-admin yang bukan admin biasa tidak punya
+    jalan mengelola akun sama sekali. */
+const bolehKelolaAkun = () => !!akun && (akun.role === 'admin' || akun.superadmin === true);
+const akuSuperadmin  = () => !!akun && akun.superadmin === true;
+
+/** Boleh menyunting panel "Siapa Boleh Mengisi Apa" (peran + Ditunjuk).
+ *  Admin unit ikut — ia boleh menunjuk orang di unitnya sendiri. Tapi apa yang
+ *  bisa disentuhnya di layar tetap dibatasi (kolom peran dimatikan, baris TTD
+ *  dimatikan), dan server melakukan validasi ulang. */
+const bolehAturHak = () => !!akun && (akun.role === 'admin' || akun.role === 'adminunit' || akun.superadmin === true);
 
 const SEMUA_UNIT_PERAN = ['admin', 'pejabat'];
 const samaIsi = (a, b) => a.length === b.length && a.every(k => b.includes(k));
+
+/** Cakupan unit orang yang sedang membuka layar.
+ *  - `null` = tidak dibatasi (admin, superadmin, atau akun bertanda 'semua').
+ *  - Array kode unit = dibatasi ke unit itu saja — dipakai kalau nantinya
+ *    admin unit boleh mengatur "Ditunjuk khusus": daftar calon dan pil unit
+ *    di panel itu ikut dipotong ke unitnya sendiri, tidak membocorkan nama
+ *    dari unit lain.
+ *
+ *  Ditaruh di satu tempat supaya kalau aturannya berubah, cukup di sini.
+ *  Untuk admin biasa hasilnya `null`, jadi tidak ada perubahan perilaku sama
+ *  sekali sampai admin unit benar-benar diberi jalan masuk. */
+function unitLingkupSaya(){
+  if(!akun) return [];
+  if(akun.role === 'admin' || akun.superadmin === true) return null;
+  if(akun.unit === 'semua') return null;
+  return Array.isArray(akun.unit) ? akun.unit.slice() : [];
+}
 
 /** Panggil fungsi administrator di E-Logbook. Dulu ada dua sumber di sini —
     server, atau daftar akun tiruan di peramban untuk data contoh — dan tabel
@@ -57,20 +95,64 @@ const adminApi = (fn, ...args) => srvApi(fn, ...args);
 const bolehAktivitas = () => !!akun && (akun.role === 'admin' || akun.role === 'adminunit');
 
 function pasangTabAkun(){
-  const boleh = bolehKelolaAkun();
-  el('relAkun').hidden = !boleh;
+  // Tab "Kelola Akun" muncul untuk siapa saja yang boleh mengatur hak — admin
+  // biasa lihat semuanya, admin unit lihat panel Hak saja.
+  const bolehTab = bolehAturHak();
+  el('relAkun').hidden = !bolehTab;
 
   const bolehAkt = bolehAktivitas();
   el('relAktivitas').hidden = !bolehAkt;
   if(!bolehAkt && el('l-aktivitas').classList.contains('aktif')) pindahLayar('beranda');
   // Yang sedang membuka layar ini lalu kehilangan haknya — keluar, misalnya —
   // tidak boleh ditinggal menatap tabel yang tak berlaku lagi.
-  if(!boleh && el('l-akun').classList.contains('aktif')) pindahLayar('beranda');
+  if(!bolehTab && el('l-akun').classList.contains('aktif')) pindahLayar('beranda');
+
+  // Bagian pengelolaan akun (statistik + daftar akun) hanya untuk administrator.
+  // Admin unit tetap boleh membuka layar, tapi hanya panel Hak yang tampil.
+  const bagian = el('bagianAkun');
+  if(bagian) bagian.hidden = !bolehKelolaAkun();
 }
 
+/** Dijaga supaya dua panggilan yang tumpang tindih tidak jadi dua perjalanan
+    ke server. Yang kedua ikut menunggu yang pertama; hasilnya sama. */
+let muatUsersJalan = null;
+/** Pesan gagal terakhir — biar panel Ditunjuk bisa memberi alasan spesifik
+    daripada "belum ada akun aktif" yang menyesatkan. */
+let muatUsersGalat = '';
+
 async function muatUsers(){
-  USERS = (await adminApi('listUsers')) || [];
-  USERS_JAM = new Date();
+  if(muatUsersJalan) return muatUsersJalan;
+  muatUsersJalan = (async ()=>{
+    // listUsers dijaga di sisi E-Logbook: admin dapat semua, admin unit dapat
+    // baris yang jatuh di unitnya (pejabat/admin ikut supaya labelnya benar).
+    // Peran lain dijawab 403 — jangan menyanggah, kosongkan saja daftarnya.
+    try{
+      const hasil = await adminApi('listUsers');
+      USERS = Array.isArray(hasil) ? hasil : [];
+      muatUsersGalat = '';
+    }catch(e){
+      USERS = [];
+      muatUsersGalat = e && e.message || String(e);
+      console.warn('[akun] tidak bisa memuat daftar akun:', muatUsersGalat);
+    }
+    USERS_JAM = USERS.length ? new Date() : null;
+    await muatHakAkun();
+  })();
+  try{ await muatUsersJalan; } finally { muatUsersJalan = null; }
+}
+
+/** Ambil overlay hak lanjut. Non-admin dijawab 403 — jangan menyanggah,
+    peta dikosongkan saja. */
+async function muatHakAkun(){
+  try{
+    const jawab = await fetch('/hak-akun', { credentials:'include' });
+    if(!jawab.ok){ HAK_AKUN = {}; return; }
+    const j = await jawab.json();
+    HAK_AKUN = (j && j.hakAkun && typeof j.hakAkun === 'object') ? j.hakAkun : {};
+  }catch(e){
+    console.warn('[akun] gagal memuat hak lanjut:', e && e.message || e);
+    HAK_AKUN = {};
+  }
 }
 
 /* ---------- Saringan daftar akun ----------
@@ -140,7 +222,20 @@ function gambarSaringAkun(){
 }
 
 function gambarAkun(){
-  if(!bolehKelolaAkun()) return;
+  // Admin unit boleh membuka layar untuk panel Hak, tapi tidak melewati
+  // bagian pengelolaan akun. gambarHak() dipanggil terpisah supaya tetap
+  // hidup untuknya.
+  if(!bolehAturHak()) return;
+  if(!bolehKelolaAkun()){
+    gambarHak();
+    // Admin unit tidak menerima awal.users, jadi USERS-nya kosong sampai kita
+    // memintanya sendiri. Diambil satu kali di sini — kalau berhasil, tabel
+    // Hak digambar ulang supaya pilihan "atur" berisi.
+    if(!USERS.length){
+      muatUsers().then(()=>{ if(USERS.length) gambarHak(); }).catch(()=>{});
+    }
+    return;
+  }
 
   el('ketAkunSumber').textContent =
     T('Akun E-Logbook, diurus dari sini.','E-Logbook accounts, managed from here.');
@@ -238,8 +333,24 @@ function gambarAkun(){
 
 /** Modul yang daftar penunjukan per orangnya sedang terbuka; null = tertutup. */
 let hakModulDibuka = null;
+/** Saringan unit di panel penunjukan. '' = semua, '*' = semua-unit,
+    '-' = tanpa unit, selain itu = kode unit. Dilepas setiap ganti modul supaya
+    tidak nyisa dari modul sebelumnya. */
+let saringUnitPetugas = '';
 
 function gambarHak(){
+  // Admin unit boleh melihat & sedikit menyentuh. Hal-hal yang berkaitan
+  // dengan pejabat/administrator dimatikan seluruhnya:
+  //   - Kolom peran (admin/adminunit/teknisi) hanya dibaca — admin unit tidak
+  //     boleh memutuskan peran mana yang boleh apa; itu wewenang admin utama.
+  //   - Baris TTD (dinas-ttd/sparepart-ttd/sejarah-ttd) sepenuhnya diblokir
+  //     karena yang bisa dipilih adalah pejabat, dan admin unit tidak boleh
+  //     mencentang pejabat.
+  //   - Baris peralatan (bawaan admin-only) juga tidak untuk mereka.
+  // Kolom peran mati untuk semua orang juga di baris TTD (perilaku lama).
+  const adminUnit = !!akun && akun.role === 'adminunit' && !akun.superadmin;
+  const modulTerlarangUntukAdminUnit = (m) => m.endsWith('-ttd') || m === 'peralatan';
+
   el('ketPetugas').textContent = JDW.bisaTulis
     ? T('berlaku untuk seluruh dashboard ini','applies across this whole dashboard')
     : T('penyimpanan tidak permanen di lingkungan ini','storage is not permanent in this environment');
@@ -250,16 +361,37 @@ function gambarHak(){
     <th style="text-align:right">${T('Ditunjuk','Named')}</th></tr></thead><tbody>${
     HAK_MODUL.map(m=>{
       const h = HAK[m];
-      return `<tr>
-        <td><b>${esc(T(HAK_NAMA[m][0], HAK_NAMA[m][1]))}</b></td>
+      // Modul TTD (dinas-ttd, sparepart-ttd, sejarah-ttd) tidak dikendalikan
+      // lewat peran — peran view-only "pejabat" tidak lolos ke kolom peran,
+      // jadi seluruh centang peran-nya disabled. Daftar penandatangan diatur
+      // lewat kolom Ditunjuk.
+      const hanyaDitunjuk = m.endsWith('-ttd');
+      const barisMati = adminUnit && modulTerlarangUntukAdminUnit(m);
+      return `<tr${barisMati ? ' style="opacity:.5"' : ''}>
+        <td><b>${esc(T(HAK_NAMA[m][0], HAK_NAMA[m][1]))}</b>${
+          hanyaDitunjuk ? `<div style="font-size:10.5px;color:var(--muted);margin-top:2px">${
+            T('Diatur lewat kolom Ditunjuk (pilih pejabat)','Set via the Named column (pick officers)')
+          }</div>` : ''}${
+          barisMati && !hanyaDitunjuk ? `<div style="font-size:10.5px;color:var(--muted);margin-top:2px">${
+            T('Diatur oleh administrator','Set by the administrator')
+          }</div>` : ''}</td>
         ${HAK_PERAN.map(p=>{
           const admin = p === 'admin';
+          // Admin unit tidak boleh menyentuh kolom peran sama sekali — perannya
+          // ditentukan administrator, bukan dari sini.
+          const nonAktif = hanyaDitunjuk || admin || adminUnit;
           return `<td style="text-align:center">
             <input type="checkbox" data-hak-modul="${m}" data-hak-peran="${p}"
-              ${admin || h.peran.includes(p) ? ' checked' : ''}${admin ? ' disabled' : ''}
-              title="${admin ? T('Administrator selalu boleh','Administrators always may') : ''}"></td>`;
+              ${(!hanyaDitunjuk && (admin || h.peran.includes(p))) ? ' checked' : ''}${nonAktif ? ' disabled' : ''}
+              title="${admin ? T('Administrator selalu boleh','Administrators always may')
+                : hanyaDitunjuk ? T('Tidak berlaku untuk modul ini','Not applicable to this module')
+                : adminUnit ? T('Diatur oleh administrator','Set by the administrator') : ''}"></td>`;
         }).join('')}
-        <td style="text-align:right"><button class="btn garis kecil" data-hak-petugas="${m}">${
+        <td style="text-align:right"><button class="btn garis kecil" data-hak-petugas="${m}"${
+          barisMati ? ' disabled title="' + esc(T(
+            'Admin unit tidak dapat menunjuk pejabat / mengubah daftar peralatan.',
+            'Unit admins cannot name officers or edit the equipment list.'
+          )) + '"' : ''}>${
           h.petugas.length
             ? `${h.petugas.length} ${T('orang','people')}`
             : T('atur','set')}</button></td></tr>`;
@@ -276,6 +408,7 @@ function gambarHak(){
     b.addEventListener('click', ()=>{
       const m = b.dataset.hakPetugas;
       hakModulDibuka = hakModulDibuka === m ? null : m;
+      saringUnitPetugas = '';   // ganti modul = mulai lagi tanpa saringan
       gambarPetugasDinas();
     });
   });
@@ -288,14 +421,96 @@ function gambarPetugasDinas(){
   if(!hakModulDibuka){ bungkus.hidden = true; return; }
   bungkus.hidden = false;
 
-  const m = hakModulDibuka;
-  const calon = USERS.filter(u=>u.aktif && u.role !== 'admin');
-  el('ketPetugasPilih').textContent = T(
-    `Ditunjuk khusus untuk ${HAK_NAMA[m][0]} — di luar peran yang sudah dicentang di atas`,
-    `Named for ${HAK_NAMA[m][1]} — beyond the roles already ticked above`);
+  // USERS kosong bisa berarti tiga hal berbeda: belum ditarik, ditarik tapi
+  // masih berjalan, atau gagal (mis. 403 karena server belum di-restart).
+  // Tanpa membedakannya, pesan "belum ada akun aktif" menyesatkan admin unit
+  // yang tahu benar unitnya berisi. Kalau kosong, tarik sendiri sekali —
+  // gambarPetugasDinas dipanggil ulang begitu jawabannya datang.
+  if(!USERS.length && bolehAturHak() && !muatUsersJalan && !muatUsersGalat){
+    muatUsers().then(()=>{ if(hakModulDibuka) gambarPetugasDinas(); }).catch(()=>{});
+  }
 
-  el('daftarPetugas').innerHTML = calon.length
-    ? calon.map(u=>{
+  const m = hakModulDibuka;
+  // Modul TTD (dinas-ttd, sparepart-ttd, sejarah-ttd) hanya bisa diteken oleh
+  // pejabat (yang punya TTD tersimpan di E-Logbook). Modul lain tetap terbuka
+  // ke non-admin lain, di luar peran yang sudah dicentang. Perbedaannya kecil
+  // tapi bermakna: kalau seluruh non-admin ikut, admin bisa keliru menunjuk
+  // teknisi sebagai penanda-tangan padahal alurnya menuntut pejabat.
+  const modulTtd = m.endsWith('-ttd');
+  const lingkup = unitLingkupSaya();
+  // Admin unit tidak boleh menunjuk pejabat: menandai pejabat sebagai
+  // penanda-tangan atau pengisi adalah wewenang administrator, dan pejabat
+  // memang bukan ranah admin unit. Kalau nama pejabat sudah pernah masuk
+  // daftar (dari admin sebelumnya), server tetap menyimpannya — admin unit
+  // hanya tidak bisa mengubahnya dari sini.
+  const bukanAdminUtama = !!akun && akun.role === 'adminunit' && !akun.superadmin;
+  // Pejabat memegang seluruh unit, jadi tetap lolos untuk admin unit apa pun.
+  // Untuk lainnya, minimal satu unit orang itu harus jatuh di cakupan saya.
+  const dalamLingkup = (u) => {
+    if(lingkup === null) return true;
+    if(bukanAdminUtama && u.role === 'pejabat') return false;
+    if(punyaSemuaUnit(u)) return true;
+    const uu = u.unit || [];
+    return lingkup.some(k => uu.includes(k));
+  };
+  const calon = USERS.filter(u=>u.aktif && (modulTtd
+    ? u.role === 'pejabat'
+    : u.role !== 'admin') && dalamLingkup(u));
+  el('ketPetugasPilih').textContent = modulTtd
+    ? T(`Pejabat yang berhak menandatangani ${HAK_NAMA[m][0]}. Kosongkan semua = seluruh pejabat unit boleh (perilaku lama).`,
+        `Officers authorised to sign ${HAK_NAMA[m][1]}. Leave all empty = any unit officer may (legacy behaviour).`)
+    : T(`Ditunjuk khusus untuk ${HAK_NAMA[m][0]} — di luar peran yang sudah dicentang di atas`,
+        `Named for ${HAK_NAMA[m][1]} — beyond the roles already ticked above`);
+
+  /* Saringan unit — meniru pola di tabel Kelola Akun. Yang punya semua unit
+     (admin/pejabat) dipisah ke bucket sendiri; kalau tidak, akun pejabat akan
+     tampak di setiap unit dan angkanya menyesatkan. Pil yang jumlahnya 0
+     tidak ditampilkan supaya baris ini tidak sesak dengan unit tanpa orang. */
+  const ringkas = el('ringkasUnitPetugas');
+  if(calon.length){
+    ringkas.hidden = false;
+    // Kalau saya admin unit, unit di luar cakupan tidak boleh muncul sebagai
+    // pil — bukan sekadar nol, tapi memang tidak ada dari kacamata saya.
+    const unitTampil = lingkup === null ? UNIT : UNIT.filter(u => lingkup.includes(u.kode));
+    const petak = unitTampil
+      .map(u=>[u.kode, calon.filter(x=>!punyaSemuaUnit(x) && (x.unit || []).includes(u.kode)).length, u.nama, ''])
+      .filter(([,n])=>n > 0);
+    const nSemua = calon.filter(punyaSemuaUnit).length;
+    if(nSemua) petak.push([SARING_SEMUA_UNIT, nSemua, T('semua unit','all units'), '']);
+    const nBuntu = calon.filter(x=>!punyaSemuaUnit(x) && !(x.unit || []).length).length;
+    if(nBuntu) petak.push([SARING_TANPA_UNIT, nBuntu, T('tanpa unit','no unit'), 'awas']);
+
+    // Kalau saringan yang aktif tidak ada di daftar (misal unitnya kosong
+    // setelah calon berubah), lepas — jangan ditinggal menampilkan kosongan.
+    if(saringUnitPetugas && !petak.some(([k])=>k === saringUnitPetugas)) saringUnitPetugas = '';
+
+    ringkas.innerHTML = petak.map(([kode, n, nama, rupa])=>
+      `<button data-saring-unit-petugas="${esc(kode)}" class="${rupa}${
+        kode === saringUnitPetugas ? ' terpilih' : ''}"><b>${n}</b>${esc(nama)}</button>`).join('');
+  } else {
+    ringkas.hidden = true;
+    ringkas.innerHTML = '';
+  }
+
+  const cocokUnit = (u)=>{
+    if(!saringUnitPetugas) return true;
+    if(saringUnitPetugas === SARING_SEMUA_UNIT) return punyaSemuaUnit(u);
+    if(saringUnitPetugas === SARING_TANPA_UNIT) return !punyaSemuaUnit(u) && !(u.unit || []).length;
+    return !punyaSemuaUnit(u) && (u.unit || []).includes(saringUnitPetugas);
+  };
+  const tampil = calon.filter(cocokUnit);
+
+  const pesanKosong = () => {
+    if(tampil.length) return '';
+    if(calon.length) return T('Tidak ada akun di unit ini.','No accounts in this unit.');
+    if(muatUsersJalan) return T('Memuat daftar akun…','Loading accounts…');
+    if(!USERS.length && muatUsersGalat){
+      return T('Tidak bisa memuat daftar akun: ','Could not load accounts: ') + esc(muatUsersGalat);
+    }
+    return T('Belum ada akun aktif selain administrator.','No active accounts other than administrators yet.');
+  };
+  el('daftarPetugas').innerHTML = tampil.length
+    ? tampil.map(u=>{
         const nama = u.username.toLowerCase();
         // Yang sudah boleh lewat perannya tetap ditampilkan, tapi redup dan
         // mati: mencentangnya tidak menambah apa pun, dan melepasnya tidak
@@ -307,8 +522,7 @@ function gambarPetugasDinas(){
           ${esc(u.nama || u.username)} <span class="mono" style="color:var(--muted);font-size:11px">${
             esc(u.username)}${lewatPeran ? ' · ' + esc(T('lewat peran','via role')) : ''}</span></label>`;
       }).join('')
-    : `<span style="color:var(--muted);font-size:12px">${
-        T('Belum ada akun aktif selain administrator.','No active accounts other than administrators yet.')}</span>`;
+    : `<span style="color:var(--muted);font-size:12px">${pesanKosong()}</span>`;
 
   el('daftarPetugas').querySelectorAll('input[type=checkbox]').forEach(c=>{
     c.addEventListener('change', ()=>{
@@ -323,9 +537,23 @@ function gambarPetugasDinas(){
         ? `${h.petugas.length} ${T('orang','people')}` : T('atur','set');
     });
   });
+
+  // Klik pil unit untuk menyaring; klik lagi pil yang sedang aktif untuk
+  // melepasnya — tanpa itu, tidak ada jalan pulang ke "semua unit".
+  ringkas.querySelectorAll('button[data-saring-unit-petugas]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const k = b.dataset.saringUnitPetugas;
+      saringUnitPetugas = saringUnitPetugas === k ? '' : k;
+      gambarPetugasDinas();
+    });
+  });
 }
 
-el('btnTutupPetugas').addEventListener('click', ()=>{ hakModulDibuka = null; gambarPetugasDinas(); });
+el('btnTutupPetugas').addEventListener('click', ()=>{
+  hakModulDibuka = null;
+  saringUnitPetugas = '';
+  gambarPetugasDinas();
+});
 
 el('btnSimpanPetugas').addEventListener('click', async ()=>{
   const b = el('btnSimpanPetugas');
@@ -372,30 +600,58 @@ function isiKartuAkun(u){
   const diri = !baru && u.username.toLowerCase() === String(akun.user || '').toLowerCase();
   const role = baru ? 'teknisi' : u.role;
 
+  // Akun super-admin hanya boleh disunting sesama super-admin. Admin biasa
+  // yang membuka kartu ini melihat isian dalam keadaan terkunci — server
+  // menolak permintaannya lewat pastikanBolehUbahTarget, tapi mengunci di
+  // sini menghindari kejutan (klik Simpan → 403).
+  const targetSuperadmin = !baru && !!u.superadmin;
+  const kunciSuperadmin = targetSuperadmin && !akuSuperadmin();
+
   el('judulKartuAkun').textContent = baru ? T('Tambah akun','Add account') : T('Ubah akun','Edit account');
   el('ketKartuAkun').textContent   = baru
     ? T('akun baru di E-Logbook','new account in E-Logbook') : u.username;
   el('btnSimpanAkun').textContent  = baru ? T('Buat akun','Create account') : T('Simpan perubahan','Save changes');
+  el('btnSimpanAkun').disabled     = kunciSuperadmin;
 
-  const kotakHapus = (!baru && !diri) ? `
+  // Super-admin (penanda orthogonal terhadap peran) boleh hapus langsung —
+  // tanpa jalur "nonaktifkan dulu". Untuk peran admin biasa, dua langkah tetap
+  // berlaku sebagai jaring pengaman. Kalau target-nya masih aktif tapi yang
+  // membuka super-admin, tombol tetap tampil dengan peringatan tegas.
+  const bolehLangsung = akuSuperadmin();
+  // Guard `!!u` — kartu tambah-baru memanggil dengan u=null; nilai ini
+  // toh cuma dipakai oleh kotakHapus yang di-skip saat baru.
+  const perluDuaLangkah = !!u && u.aktif && !bolehLangsung;
+  const kotakHapus = (!baru && !diri && !kunciSuperadmin) ? `
     <div class="bahaya">
-      <div class="jdl">${T('Hapus akun','Delete account')}</div>
-      <p>${u.aktif
+      <div class="jdl">${T('Hapus akun','Delete account')}${
+        bolehLangsung && u.aktif ? ` <span class="pil" style="background:var(--fail);color:#fff">${
+          T('Super Admin','Super Admin')}</span>` : ''}</div>
+      <p>${perluDuaLangkah
         ? T('Hanya akun yang sudah nonaktif yang boleh dihapus. Nonaktifkan dulu lewat kolom Status di atas, simpan, lalu buka kartu ini lagi.',
             'Only a deactivated account may be deleted. Set Status above to deactivated, save, then open this card again.')
-        : T('Tidak bisa dibatalkan. Catatan logbook yang pernah diinput akun ini tetap tinggal di E-Logbook — yang hilang hanya akunnya. Ketik ulang usernamenya untuk membuka tombol.',
-            'This cannot be undone. The logbook entries this account once made stay in E-Logbook — only the account itself goes. Type the username again to unlock the button.')}</p>
-      ${u.aktif ? '' : `<input id="aHapusKetik" autocomplete="off" spellcheck="false" placeholder="${
+        : (bolehLangsung && u.aktif
+          ? T('Sebagai super-admin Anda boleh langsung menghapus akun yang masih aktif — sesinya diputus dan datanya hilang seketika. Tidak bisa dibatalkan. Catatan logbook yang pernah diinput akun ini tetap tinggal di E-Logbook. Ketik ulang usernamenya untuk membuka tombol.',
+              'As super-admin you may delete an active account outright — its session ends and its data goes at once. This cannot be undone. The logbook entries this account once made stay in E-Logbook. Type the username again to unlock the button.')
+          : T('Tidak bisa dibatalkan. Catatan logbook yang pernah diinput akun ini tetap tinggal di E-Logbook — yang hilang hanya akunnya. Ketik ulang usernamenya untuk membuka tombol.',
+              'This cannot be undone. The logbook entries this account once made stay in E-Logbook — only the account itself goes. Type the username again to unlock the button.'))}</p>
+      ${perluDuaLangkah ? '' : `<input id="aHapusKetik" autocomplete="off" spellcheck="false" placeholder="${
         T('ketik','type')}: ${esc(u.username)}">
       <button class="btn bahaya-tombol" id="btnHapusAkun" disabled>${
         T('Hapus akun ini','Delete this account')}</button>`}
     </div>` : '';
 
-  el('badanKartuAkun').innerHTML = `
+  const bannerKunci = kunciSuperadmin ? `
+    <div class="bahaya" style="margin-bottom:14px">
+      <div class="jdl">${T('Akun Super-Admin — terkunci','Super-admin account — locked')}</div>
+      <p>${T('Akun super-admin hanya boleh disunting oleh sesama super-admin. Isian di bawah dibiarkan hanya untuk dibaca; tombol Simpan dan seluruh tombol aksi tidak aktif.',
+             'Super-admin accounts may only be edited by another super-admin. The fields below are read-only; the Save button and all action buttons are disabled.')}</p>
+    </div>` : '';
+
+  el('badanKartuAkun').innerHTML = bannerKunci + `
     <div class="isian"><label for="aUser">Username</label>
       <input id="aUser" autocomplete="off" spellcheck="false"
         value="${baru ? '' : esc(u.username)}"
-        ${diri ? 'disabled' : ''}
+        ${diri || kunciSuperadmin ? 'disabled' : ''}
         placeholder="${T('mis. budi.santoso','e.g. budi.santoso')}">
       <div class="bantu">${diri
         ? T('Ini akun Anda sendiri. Username tidak bisa diganti dari akun sendiri — minta admin '
@@ -425,8 +681,6 @@ function isiKartuAkun(u){
       <select id="aRole"${diri ? ' disabled' : ''}>
         <option value="teknisi">${T('Teknisi — menyunting database unitnya, tidak menghapus',
           'Technician — edits their own unit database, cannot delete')}</option>
-        <option value="pic">${T('PIC Unit — menyunting database unitnya, tidak menghapus',
-          'Unit PIC — edits their own unit database, cannot delete')}</option>
         <option value="adminunit">${T('Admin Unit — menyunting DAN menghapus, serta membaca log aktivitas, di unitnya saja',
           'Unit Admin — edits AND deletes, and reads the activity log, in their own unit only')}</option>
         <option value="pejabat">${T('Pejabat — melihat seluruh unit, hanya membubuhkan tanda tangan',
@@ -467,12 +721,20 @@ function isiKartuAkun(u){
           'The old password cannot be read from anywhere, this screen included — E-Logbook stores '
           + 'only its hash.')}</div></div>
 
+    ${kotakLanjut(baru, u)}
     ${kotakHapus}`;
 
   el('aRole').value = role;
   if(!baru) el('aAktif').value = u.aktif ? '1' : '0';
   el('aRole').addEventListener('change', segarkanUnitKartu);
   segarkanUnitKartu();
+
+  /* Kunci super-admin: matikan semua isian, dropdown, dan tombol aksi di
+     kartu — pengecualian tombol Batal (di kepala kartu, di luar badan). */
+  if(kunciSuperadmin){
+    el('badanKartuAkun').querySelectorAll('input, select, textarea, button')
+      .forEach(x => { x.disabled = true; });
+  }
 
   // Tombol hapus baru hidup setelah usernamenya diketik ulang persis. Kotak
   // centang atau satu klik "yakin?" terlalu mudah ditekan tanpa dibaca.
@@ -483,6 +745,42 @@ function isiKartuAkun(u){
     });
     el('btnHapusAkun').addEventListener('click', ()=>hapusAkun(u.username));
   }
+}
+
+/* Kotak "Wewenang Detail" — overlay hak lanjut per akun. Hanya muncul
+   untuk akun yang sudah ada (bukan tambah baru): sebelum akunnya
+   tersimpan tidak ada tempat untuk menempelkan overlay-nya. */
+function kotakLanjut(baru, u){
+  if(baru) return '';
+  const hak = HAK_AKUN[u.username.toLowerCase()] || {};
+  const unitKhusus = Array.isArray(hak.unitKhusus) ? hak.unitKhusus : [];
+  const bolehTtd   = Array.isArray(hak.bolehTtd)   ? hak.bolehTtd   : [];
+  return `
+    <div class="isian" style="padding-top:10px;border-top:1px dashed var(--garis)">
+      <label>${T('Wewenang Detail (opsional)','Detailed Permissions (optional)')}</label>
+      <div class="bantu">${T(
+        'Menyempurnakan peran, bukan menggantikannya. Biarkan kosong = akun ini ikut aturan perannya seperti biasa. Berguna untuk mempersempit akses satu-dua akun tertentu tanpa membuat peran baru.',
+        `Refines the role, does not replace it. Leave empty = the account follows its role's normal rules. Useful for narrowing one or two specific accounts without inventing a new role.`)}</div>
+    </div>
+    <div class="isian">
+      <label>${T('Unit yang boleh dilihat (khusus akun ini)',
+                  'Units this account may see (override)')}</label>
+      <div class="kotak-unit" id="aUnitKhusus">${UNIT.map(x=>
+        `<label><input type="checkbox" value="${esc(x.kode)}"${
+          unitKhusus.includes(x.kode) ? ' checked' : ''}>${esc(x.nama)}</label>`).join('')}</div>
+      <div class="bantu">${T(
+        'Kosong = pakai unit dari peran (untuk pejabat/admin = semua unit; untuk teknisi = unit yang dipilih di atas). Beri centang di sini kalau akun ini hanya boleh melihat subset tertentu.',
+        'Empty = use the units from the role (officers/admin see all; technicians see the units chosen above). Tick here only if this account should be limited to a specific subset.')}</div>
+    </div>
+    <div class="isian">
+      <label>${T('Boleh menandatangani dokumen jenis','May sign document types')}</label>
+      <div class="kotak-unit" id="aBolehTtd">${HAK_LANJUT_JENIS_TTD.map(([kode, id, en])=>
+        `<label><input type="checkbox" value="${esc(kode)}"${
+          bolehTtd.includes(kode) ? ' checked' : ''}>${esc(T(id, en))}</label>`).join('')}</div>
+      <div class="bantu">${T(
+        'Hanya berlaku untuk peran pejabat. Kosong = boleh menandatangani seluruh jenis (bawaan). Beri centang untuk membatasi akun pejabat ini ke jenis tertentu — mis. hanya Sparepart untuk officer Sparepart, hanya Jadwal Dinas untuk Manajer Teknik, hanya Sejarah Peralatan untuk officer Peralatan.',
+        'Applies to the officer role. Empty = may sign every document type (default). Tick to restrict this officer account to specific types — e.g. only Spare Parts for a Spare-Parts officer, only Duty Roster for the Technical Manager, only Equipment History for an Equipment officer.')}</div>
+    </div>`;
 }
 
 function bukaKartuAkun(u){
@@ -562,7 +860,28 @@ async function simpanUbahan(asal){
   if(aktif !== !!asal.aktif)                         kerja.push(['setUserAktif', [kunci, aktif]]);
   if(pass)                                           kerja.push(['setUserPassword', [kunci, pass]]);
 
-  if(!kerja.length){ pesan(T('Tidak ada yang diubah.','Nothing was changed.')); return; }
+  /* Hak lanjut (unit khusus, boleh TTD jenis) — disimpan LANGSUNG ke
+     endpoint dashboard, tidak lewat adminApi (yang bicara ke E-Logbook).
+     Gagal di sini bukan gagal menyimpan perubahan utama, jadi diperlakukan
+     terpisah dari antrean kerja E-Logbook.
+
+     Bandingkan dengan overlay yang sedang tersimpan supaya pesan "Tidak ada
+     yang diubah" tidak menelan perubahan-hanya-checkbox (dulu terjadi:
+     pemeriksaan itu jalan sebelum kirimLanjut ditambahkan, jadi centang
+     bolehTtd yang berdiri sendiri tidak pernah terkirim). */
+  const unitKhusus = [...el('aUnitKhusus').querySelectorAll('input:checked')].map(c=>c.value);
+  const bolehTtd = [...el('aBolehTtd').querySelectorAll('input:checked')].map(c=>c.value);
+  const usernameLanjut = gantiUsername ? usernameBaru : asal.username;
+  const hakSebelum = HAK_AKUN[asal.username.toLowerCase()] || {};
+  const unitKhususSebelum = Array.isArray(hakSebelum.unitKhusus) ? hakSebelum.unitKhusus : [];
+  const bolehTtdSebelum   = Array.isArray(hakSebelum.bolehTtd)   ? hakSebelum.bolehTtd   : [];
+  const hakLanjutBerubah = gantiUsername
+    || !samaIsi(unitKhusus, unitKhususSebelum)
+    || !samaIsi(bolehTtd, bolehTtdSebelum);
+
+  if(!kerja.length && !hakLanjutBerubah){
+    pesan(T('Tidak ada yang diubah.','Nothing was changed.')); return;
+  }
 
   /* Antrean ini berhenti pada kegagalan pertama, dan memang harus begitu —
      langkah berikutnya berangkat dari keadaan yang gagal dibuat langkah
@@ -579,14 +898,29 @@ async function simpanUbahan(asal){
     setUserUnit:     T('unit','unit'),
     setUserNama:     T('nama','name'),
     setUserAktif:    T('status aktif','active status'),
-    setUserPassword: T('password','password')
+    setUserPassword: T('password','password'),
+    hakLanjut:       T('wewenang detail','detailed permissions')
   };
   const sebut = (daftar) => daftar.map(([fn]) => NAMA_LANGKAH[fn] || fn).join(', ');
+
+  const kirimLanjut = async ()=>{
+    const jawab = await fetch(`/hak-akun/${encodeURIComponent(usernameLanjut)}`, {
+      method:'PUT', credentials:'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ unitKhusus, bolehTtd, bolehModul:{} })
+    });
+    if(!jawab.ok){
+      const j = await jawab.json().catch(()=>({}));
+      throw new Error(j.error || `HTTP ${jawab.status}`);
+    }
+  };
+  if(hakLanjutBerubah) kerja.push(['hakLanjut', kirimLanjut]);
 
   for(let i = 0; i < kerja.length; i++){
     const [fn, args] = kerja[i];
     try{
-      await adminApi(fn, ...args);
+      if(fn === 'hakLanjut') await args();
+      else await adminApi(fn, ...args);
     }catch(e){
       const gagal = NAMA_LANGKAH[fn] || fn;
       const tersimpan = kerja.slice(0, i);

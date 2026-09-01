@@ -19,10 +19,27 @@ function pindahLayar(nama){
   // Log yang ditampilkan basi tidak menjawab pertanyaan "barusan siapa", jadi
   // diambil ulang tiap kali layarnya dibuka — bukan sekali saat masuk.
   if(nama === 'aktivitas') aktSegarkan();
+  // Admin unit yang membuka tab Kelola Akun — panel Hak-nya ikut coba ulang
+  // memuat daftar akun kalau tarikan pertamanya gagal (mis. E-Logbook baru
+  // di-restart). Tidak beban untuk admin utama: gambarAkun cukup ringan.
+  if(nama === 'akun' && typeof gambarAkun === 'function' && akun){
+    if(typeof muatUsersGalat !== 'undefined' && muatUsersGalat) muatUsersGalat = '';
+    gambarAkun();
+  }
   // Isinya bergantung pada tanggal hari ini. Halaman yang dibiarkan terbuka
   // semalaman akan menampilkan "hari ini" untuk kemarin kalau tidak digambar
   // ulang saat layarnya dibuka.
-  if(nama === 'kotak') gambarKotakMasuk();
+  if(nama === 'kotak'){
+    // Antrian cetak diambil ulang tiap kali kotak dibuka — statusnya
+    // bisa berubah karena pejabat baru saja menyetujui, atau pembuat
+    // baru saja mengirim. Menekan tab yang sama dua kali cukup untuk
+    // menyegarkan tanpa memuat ulang halaman.
+    if(typeof muatAntrianCetak === 'function'){
+      muatAntrianCetak().then(gambarKotakMasuk);
+    }else{
+      gambarKotakMasuk();
+    }
+  }
   // Yang unitnya cuma satu tidak perlu disuruh memilih dari daftar berisi satu
   // nama. Layar dibuka langsung pada unitnya. pindahLayar() tidak dipanggil
   // ulang dari sini — layarnya sudah yang ini.

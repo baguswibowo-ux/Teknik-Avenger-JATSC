@@ -181,11 +181,9 @@ td select.brk-kat{background:var(--panel-2);color:var(--text);border:1px solid v
 .pil.admin{background:rgba(229,72,77,.13);color:var(--fail);border-color:rgba(229,72,77,.4);}
 .pil.pejabat{background:rgba(255,179,0,.13);color:var(--warn);border-color:rgba(255,179,0,.4);}
 .pil.teknisi{background:rgba(41,182,246,.13);color:var(--accent);border-color:rgba(41,182,246,.4);}
-/* Dua peran satu unit. Warnanya diambil dari peran terdekat di atas dan di
-   bawahnya — admin unit condong ke merah administrator, PIC ke biru teknisi —
-   supaya urutan wewenangnya terbaca dari warnanya, bukan cuma dari tulisannya. */
+/* Peran satu unit — admin unit condong ke merah administrator supaya urutan
+   wewenangnya terbaca dari warnanya, bukan cuma dari tulisannya. */
 .pil.adminunit{background:rgba(229,72,77,.10);color:#e8836f;border-color:rgba(229,72,77,.28);}
-.pil.pic{background:rgba(41,182,246,.10);color:#7cc5e8;border-color:rgba(41,182,246,.28);}
 .pil.aktif-ya{background:rgba(46,204,113,.13);color:var(--ok);border-color:rgba(46,204,113,.4);}
 .pil.awas{background:rgba(229,72,77,.13);color:var(--fail);border-color:rgba(229,72,77,.4);}
 .pil.aktif-tidak{opacity:.75;}
@@ -307,16 +305,13 @@ tr.akun-mati td:not(:last-child){opacity:.55;}
 .btn.bahaya-tombol:hover{background:var(--fail);color:#fff;}
 .btn:disabled{opacity:.45;cursor:not-allowed;transform:none;filter:none;}
 
-.modul-baris{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;}
-.modul{border:1px solid var(--line);border-radius:12px;padding:13px 14px;background:var(--panel);}
-.modul.jalan{border-color:var(--accent);background:linear-gradient(160deg,rgba(41,182,246,.09),var(--panel));}
-.modul .st{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);}
-.modul.jalan .st{color:var(--accent);}
-.modul h4{font-size:13.5px;margin-top:5px;}
-.modul p{font-size:11.5px;color:var(--muted);margin:5px 0 0;line-height:1.5;}
-
 .btn{background:var(--accent);color:var(--accent-teks);border:0;border-radius:9px;padding:9px 15px;cursor:pointer;
   font-family:var(--font-display);font-size:12.5px;font-weight:600;text-decoration:none;display:inline-block;transition:.18s;}
+/* display:inline-block di atas mengalahkan bawaan display:none milik atribut
+   hidden. Tanpa baris ini, `<button class="btn" hidden>` tetap terpampang
+   sebagai kotak kosong di baris tombol — lihat #btnSetujuiKirim di modal
+   Cetak yang cuma dipakai di kartu review Manager Teknik. */
+.btn[hidden]{display:none;}
 .btn:hover{filter:brightness(1.12);transform:translateY(-1px);}
 .btn.garis{background:none;border:1px solid var(--line);color:var(--text);}
 .btn.garis:hover{border-color:var(--accent);color:var(--accent);}
@@ -508,6 +503,26 @@ html[data-tema="gelap"] .sert-sunting input[type=date]::-webkit-calendar-picker-
 .catatan{border-left:3px solid var(--accent);background:var(--kaca);border-radius:0 9px 9px 0;
   padding:11px 14px;font-size:12px;color:var(--muted);line-height:1.6;margin-top:16px;}
 .catatan b{color:var(--text);}
+
+.bahaya-garis{border-color:var(--fail);color:var(--fail);}
+.bahaya-garis:hover{background:var(--fail);color:#fff;}
+
+/* Tab sub-unit di dalam panel Identity. Basisnya .subtab yang sama dengan
+   Peralatan/Personel di atas — sengaja, supaya seragam — kecuali margin
+   atasnya dilepas karena tab ini tepat di bawah kepala panel, dan tinggi
+   tombolnya ditipiskan sedikit supaya panel Identity tidak sekaligus jadi
+   lebih tinggi dari panel Sejarah di sebelahnya. */
+.id-subtab{margin:0 0 14px;padding:0 2px 8px;}
+.id-subtab button{min-height:32px;padding:0 12px;font-size:12px;}
+
+/* Tab grup lokasi peralatan — di antara baris tombol Tambah/Cetak dan grid
+   kartu. Sama-sama pakai basis .subtab tapi marginnya diperas supaya tidak
+   memisah baris ket. terlalu jauh dari kartu di bawahnya. Tombol "⋯" untuk
+   ubah/hapus grup dibedakan dengan garis merah — jarang ditekan, dan kalau
+   iya konsekuensinya besar. */
+.grup-subtab{margin:8px 0 12px;padding:0 2px 8px;}
+.grup-subtab button{min-height:34px;padding:0 13px;font-size:12px;}
+.grup-subtab button.bahaya-garis{margin-left:auto;}
 
 #pesan{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);z-index:120;
   background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--warn);border-radius:10px;

@@ -80,37 +80,115 @@ function gambarKartuPasang(){
   ilus.addEventListener('click', ()=>{ nilai.value = ''; tandai(); });
 }
 
-function bukaKartuData(jenis, asal){
-  dataDibuka = { jenis, unit: unitDibuka, asal: asal ? { ...asal } : null };
+function bukaKartuData(jenis, asal, parentAlatId){
   const baru = !asal;
   const alatIni = jenis === 'peralatan';
+  const subIni  = jenis === 'subunit';
+  const seperti = alatIni || subIni;      // sub-unit memakai bentuk isian yang sama
+  // Bentuk kompak untuk alat induk: nama + gambar kartu + grup saja. Dipakai
+  // dua situasi:
+  //  1. Menambah alat baru — item teknisnya (merk/tipe/S-N/P-N/tahun/lokasi/
+  //     status) diisi belakangan lewat tab sub-unit di panel Identitas,
+  //     bersama sejarahnya yang memang berkunci per sub. Jadi form Tambah
+  //     tidak menuntut isian yang belum tentu ada saat alatnya baru masuk.
+  //  2. Menyunting alat yang sudah punya sub — field teknis pindah ke sub,
+  //     yang tersisa di induk cuma nama & gambar kartu.
+  const kompak = alatIni && (!asal
+    || (Array.isArray(asal.sub) && asal.sub.length > 0));
+  dataDibuka = { jenis, unit: unitDibuka, asal: asal ? { ...asal } : null,
+                 parentAlatId: parentAlatId || null, kompak };
+
+  // Konteks parent buat sub-unit: nama alat induk masuk ke keterangan judul
+  // supaya jelas ini sub milik alat mana — beda kalau di layar terlihat dua
+  // panel modal berturut-turut dan orang lupa yang barusan diklik.
+  const parentAlat = subIni
+    ? (PERALATAN[unitDibuka] || []).find(a=>a.id === parentAlatId)
+    : null;
 
   el('judulKartuData').textContent = alatIni
     ? (baru ? T('Tambah peralatan','Add equipment')   : T('Ubah peralatan','Edit equipment'))
-    : (baru ? T('Tambah sparepart','Add spare part')  : T('Ubah sparepart','Edit spare part'));
-  el('ketKartuData').textContent   = namaUnit(unitDibuka);
+    : subIni
+      ? (baru ? T('Tambah sub-unit','Add sub-unit')   : T('Ubah sub-unit','Edit sub-unit'))
+      : (baru ? T('Tambah sparepart','Add spare part') : T('Ubah sparepart','Edit spare part'));
+  el('ketKartuData').textContent   = subIni && parentAlat
+    ? `${namaUnit(unitDibuka)} · ${parentAlat.nama}`
+    : namaUnit(unitDibuka);
   el('btnSimpanData').textContent  = baru ? T('Tambahkan','Add') : T('Simpan perubahan','Save changes');
 
   /* Kotak hapus hanya untuk yang memang boleh menghapus. Menggambarnya untuk
      semua orang dan menunggu server menolak berarti menawarkan sesuatu yang
      pasti gagal — dan pada tombol berwarna bahaya, tawaran itu terbaca sebagai
-     izin. Keputusan yang mengikat tetap milik server. */
-  const bolehHapusIni = BOLEH_HAPUS[jenis];
+     izin. Keputusan yang mengikat tetap milik server. Sub-unit menumpang izin
+     peralatan — ia hidup di dalam baris peralatan, jadi izinnya satu paket. */
+  const bolehHapusIni = subIni ? BOLEH_HAPUS.peralatan : BOLEH_HAPUS[jenis];
   const kotakHapus = (baru || !bolehHapusIni) ? '' : `
     <div class="bahaya">
-      <div class="jdl">${T('Hapus dari daftar','Delete from the list')}</div>
-      <p>${T('Terhapus dari server untuk semua orang — tidak ada apa pun di E-Logbook yang ikut terhapus.',
-             'Deleted from the server for everyone — nothing in E-Logbook is deleted along with it.')}
+      <div class="jdl">${subIni
+        ? T('Hapus sub-unit ini','Delete this sub-unit')
+        : T('Hapus dari daftar','Delete from the list')}</div>
+      <p>${subIni
+        ? T('Sub-unit ini hilang dari alat induknya untuk semua orang. Data alat induk sendiri tetap.',
+            'This sub-unit disappears from its parent equipment for everyone. The parent record itself stays.')
+        : T('Terhapus dari server untuk semua orang — tidak ada apa pun di E-Logbook yang ikut terhapus.',
+            'Deleted from the server for everyone — nothing in E-Logbook is deleted along with it.')}
         ${alatIni ? T('Trouble yang menunjuk peralatan ini tetap ada, tapi kehilangan kaitannya.',
                       'Trouble records pointing at this equipment stay, but lose their link.') : ''}</p>
       <button class="btn bahaya-tombol" id="btnHapusData">${T('Hapus','Delete')}</button>
     </div>`;
 
-  el('badanKartuData').innerHTML = kotakPapanNama(alatIni)
+  // Kartu Tambah/Ubah alat induk — bentuk ringkas. Cuma nama, grup, gambar
+  // kartu, dan foto dokumentasi. Isian teknis (merk/tipe/S-N/P-N/tahun/lokasi/
+  // status) tidak diminta di sini: alat baru diisi belakangan lewat tab
+  // sub-unit di panel Identitas, dan sejarahnya memang berkunci per sub. Untuk
+  // alat yang sudah punya sub, tempatnya bergeser ke sub — jadi bentuknya
+  // sama.
+  if(kompak){
+    const nAda = !!asal;
+    const ket = nAda
+      ? T('Peralatan ini punya sub-unit — merk, tipe, S/N, P/N, tahun, lokasi, dan status '
+        + 'diatur di masing-masing tab sub-unit. Di sini cukup atur nama yang tampil di kartu '
+        + 'dan gambar kartunya.',
+          'This equipment has sub-units — make, type, S/N, P/N, year, location, and status live '
+        + 'in each sub-unit tab. Here you only set the card display name and image.')
+      : T('Cukup nama dan gambar kartu dulu. Setelah alat masuk daftar, buka panel Identitas '
+        + 'dan tambah sub-unit di sana — merk, tipe, S/N, P/N, tahun, lokasi, status, dan sejarahnya '
+        + 'diisi per sub, sesuai bentuk alat sesungguhnya.',
+          'Name and card image are enough for now. After the equipment is added, open the Identity '
+        + 'panel and add sub-units there — make, type, S/N, P/N, year, location, status, and history '
+        + 'are filled per sub, matching how the equipment is really shaped.');
+    el('badanKartuData').innerHTML = `
+      <div class="bantu" style="margin-bottom:10px">${ket}</div>
+      <div class="isian-grid">
+        ${dIsian('dNama', T('Nama peralatan','Equipment name'),
+          (asal && asal.nama) || '',
+          T('Nama yang muncul di kartu dan di daftar trouble.','The name shown on the card and in the trouble list.'),
+          null, true)}
+        ${dIsian('dGrup', T('Grup lokasi','Location group'),
+          (asal && asal.grup) || (!asal ? grupDipilih : ''),
+          T('Kelompok tab di layar Peralatan — mis. <span class="mono">JATSC</span>. Kosongkan kalau tidak dalam kelompok tertentu.',
+            'The tab group on the Equipment screen — e.g. <span class="mono">JATSC</span>. Leave empty if none.'))}
+        ${kotakGambarKartu(asal)}
+      </div>
+      ${kotakDokumentasi(asal)}
+      ${kotakHapus}`;
+    el('btnHapusData')?.addEventListener('click', hapusData);
+    gambarKartuPasang();
+    dokumentasiPasang(asal);
+    el('lapisData').classList.add('buka');
+    el('dNama').focus();
+    return;
+  }
+
+  el('badanKartuData').innerHTML = kotakPapanNama(seperti)
     + '<div class="isian-grid">'
-    + (alatIni
-    ? dIsian('dNama', T('Nama peralatan','Equipment name'), asal && asal.nama,
-        T('Nama yang muncul di kartu dan di daftar trouble.','The name shown on the card and in the trouble list.'),
+    + (seperti
+    ? dIsian('dNama',
+        subIni ? T('Nama sub-unit','Sub-unit name') : T('Nama peralatan','Equipment name'),
+        asal && asal.nama,
+        subIni
+          ? T('Nama yang jadi label tab di panel Identity — mis. baris pertama, kanal, atau nomor unitnya.',
+              'The label shown on the Identity tab — e.g. line one, channel, or the unit number.')
+          : T('Nama yang muncul di kartu dan di daftar trouble.','The name shown on the card and in the trouble list.'),
         null, true)
       + dIsian('dMerk', T('Merk','Make'), asal && asal.merk,
         T('Pabrikannya, mis. <span class="mono">Park Air Systems</span>.',
@@ -126,12 +204,28 @@ function bukaKartuData(jenis, asal){
       + dIsian('dLokasi', T('Lokasi','Location'), asal && asal.lokasi,
         T('Ruang atau shelter tempat alatnya berada.','The room or shelter the equipment sits in.'))
       + dPilih('dStatus', 'Status', ALAT_STATUS, asal ? asal.status : 'Normal',
-          T('Menentukan warna lampu di kartu dan hitungan di beranda.',
-            'Decides the lamp colour on the card and the counts on the home screen.'))
-      + kotakGambarKartu(asal)
+          subIni
+            ? T('Status sub-unit ini sendiri — tidak menggantikan status alat induk.',
+                'Status of this sub-unit — does not replace the parent equipment status.')
+            : T('Menentukan warna lampu di kartu dan hitungan di beranda.',
+                'Decides the lamp colour on the card and the counts on the home screen.'))
+      // Grup lokasi — hanya untuk alat, sub-unit ikut grup alat induknya.
+      // Waktu tambah alat dari tab grup yang sedang aktif, isian ini terisi
+      // otomatis dengan nama tab itu supaya alat baru langsung masuk grupnya.
+      + (alatIni ? dIsian('dGrup', T('Grup lokasi','Location group'),
+          (asal && asal.grup) || (!asal ? grupDipilih : ''),
+          T('Kelompok tab di layar Peralatan — mis. <span class="mono">JATSC</span>, '
+          + '<span class="mono">NEW JATSC</span>, <span class="mono">Radio ACC Primary</span>. '
+          + 'Kosongkan kalau alatnya tidak dalam kelompok tertentu.',
+            'The tab group on the Equipment screen — e.g. <span class="mono">JATSC</span>, '
+          + '<span class="mono">NEW JATSC</span>, <span class="mono">Radio ACC Primary</span>. '
+          + 'Leave empty if the equipment does not belong to a specific group.')) : '')
+      // Sub-unit tidak punya kartu 3D sendiri — ia hidup di dalam kartu alat
+      // induknya. Kotak "gambar kartu" (adegan + foto pengganti) sengaja
+      // dilewati supaya isian tidak menyesatkan.
+      + (alatIni ? kotakGambarKartu(asal) : '')
       + '</div>'
       + kotakDokumentasi(asal)
-      + kotakDicatat(asal)
       + kotakHapus
     : dIsian('dNama', T('Nama sparepart','Spare part name'), asal && asal.nama, null, null, true)
       + dIsian('dMerk', T('Merk','Make'), asal && asal.merk)
@@ -151,7 +245,6 @@ function bukaKartuData(jenis, asal){
       + dIsian('dPakai', T('Dipakai terakhir','Last used'), asal ? asal.pakai : isoHariIni(), null, 'date')
       + '</div>'
       + kotakDokumentasi(asal)
-      + kotakDicatat(asal)
       + kotakHapus);
 
   el('btnHapusData')?.addEventListener('click', hapusData);
@@ -168,21 +261,36 @@ function tutupKartuData(){
 }
 
 async function simpanData(){
-  const { jenis, unit, asal } = dataDibuka;
+  const { jenis, unit, asal, parentAlatId, kompak } = dataDibuka;
   const nilai = (id) => el(id).value.trim();
 
   try{
     if(jenis === 'peralatan'){
       const nama = nilai('dNama');
       if(!nama) throw new Error(T('Nama peralatan belum diisi.','The equipment name is empty.'));
-      const isi = {
-        nama, tipe: nilai('dTipe') || '—', lokasi: nilai('dLokasi') || '—',
-        status: el('dStatus').value, adegan: el('dAdegan').value,
-        // Kosong berarti kartunya kembali memakai ilustrasi.
-        gambar: el('dGambar').value,
-        merk: nilai('dMerk'), sn: nilai('dSn'), pn: nilai('dPnAlat'),
-        tahun: nilai('dTahun'), foto: dokTerpasang()
-      };
+      // Bentuk kompak (alat induk yang sudah punya sub-unit): hanya nama,
+      // grup, adegan, gambar kartu, dan foto dokumentasi yang disunting di
+      // sini. Field teknis (merk/tipe/sn/pn/tahun/lokasi/status) TIDAK
+      // ditulis ulang — dibiarkan apa adanya pada baris supaya nilai lama
+      // (kalau ada) tidak tak sengaja dihapus. Object.assign hanya menimpa
+      // key yang ada di `isi`.
+      const isi = kompak
+        ? {
+            nama,
+            adegan: el('dAdegan').value,
+            gambar: el('dGambar').value,
+            grup: nilai('dGrup'),
+            foto: dokTerpasang()
+          }
+        : {
+            nama, tipe: nilai('dTipe') || '—', lokasi: nilai('dLokasi') || '—',
+            status: el('dStatus').value, adegan: el('dAdegan').value,
+            // Kosong berarti kartunya kembali memakai ilustrasi.
+            gambar: el('dGambar').value,
+            grup: nilai('dGrup'),
+            merk: nilai('dMerk'), sn: nilai('dSn'), pn: nilai('dPnAlat'),
+            tahun: nilai('dTahun'), foto: dokTerpasang()
+          };
       const daftar = alatDaftar(unit);
       if(asal){
         const a = daftar.find(x=>x.id === asal.id);
@@ -192,8 +300,43 @@ async function simpanData(){
         const id = alatIdBaru(unit, nama);
         // dibuat: kapan baris ini masuk ke daftar — berbeda dari tahun pembuatan
         // alatnya di papan nama, dan keduanya memang perlu tercatat.
-        daftar.push({ id, ...isi, dibuat: new Date().toISOString() });
+        // Untuk form ringkas, field teknis yang tidak diminta tetap dipasang
+        // di sini dengan default: tanpa itu, kartu peralatan akan menampilkan
+        // "undefined" pada status/tipe/lokasi sebelum jawaban server datang
+        // (server mengisi default di rapikanAlat, tapi klien tidak baca ulang
+        // setelah simpan). Server akan menimpa kalau isinya tak sah, jadi
+        // memasang default lokal aman.
+        const bakuKompak = kompak ? {
+          merk: '', tipe: '', sn: '', pn: '', tahun: '', lokasi: '',
+          status: 'Normal', sub: []
+        } : {};
+        daftar.push({ id, ...bakuKompak, ...isi, dibuat: new Date().toISOString() });
         alatDipilih = id;
+      }
+    }else if(jenis === 'subunit'){
+      const nama = nilai('dNama');
+      if(!nama) throw new Error(T('Nama sub-unit belum diisi.','The sub-unit name is empty.'));
+      const parent = alatDaftar(unit).find(a=>a.id === parentAlatId);
+      if(!parent) throw new Error(T('Alat induknya sudah tidak ada di daftar.',
+                                    'The parent equipment is no longer in the list.'));
+      const isi = {
+        nama, tipe: nilai('dTipe'), lokasi: nilai('dLokasi'),
+        status: el('dStatus').value,
+        merk: nilai('dMerk'), sn: nilai('dSn'), pn: nilai('dPnAlat'),
+        tahun: nilai('dTahun'), foto: dokTerpasang()
+      };
+      parent.sub = Array.isArray(parent.sub) ? parent.sub : [];
+      if(asal){
+        const s = parent.sub.find(x=>x.id === asal.id);
+        if(!s) throw new Error(T('Sub-unit itu sudah tidak ada di daftar.',
+                                 'That sub-unit is no longer in the list.'));
+        Object.assign(s, isi);
+      }else{
+        const id = 's' + Math.random().toString(36).slice(2,8);
+        parent.sub.push({ id, ...isi, dibuat: new Date().toISOString() });
+        // Sub baru langsung jadi tab aktif — hampir pasti orang mau langsung
+        // melihat isinya di panel Identity, bukan tab lama.
+        subDipilih = id;
       }
     }else{
       const nama = nilai('dNama');
@@ -231,7 +374,9 @@ async function simpanData(){
     return;
   }
 
-  if(!(await dbSimpanUnit(jenis, unit))){
+  // Sub-unit hidup di dalam baris peralatan — endpoint penyimpanannya sama.
+  const modulSimpan = jenis === 'subunit' ? 'peralatan' : jenis;
+  if(!(await dbSimpanUnit(modulSimpan, unit))){
     // Pesannya sudah disampaikan dbSimpanUnit, dan isinya sudah dibaca ulang
     // dari server. Kartunya ditutup supaya yang tampil bukan isian lama yang
     // ternyata tidak jadi tersimpan.
@@ -247,17 +392,26 @@ async function simpanData(){
 }
 
 async function hapusData(){
-  const { jenis, unit, asal } = dataDibuka;
+  const { jenis, unit, asal, parentAlatId } = dataDibuka;
   if(jenis === 'peralatan'){
     const daftar = alatDaftar(unit);
     const i = daftar.findIndex(x=>x.id === asal.id);
     if(i >= 0) daftar.splice(i, 1);
     if(alatDipilih === asal.id) alatDipilih = (daftar[0] || {}).id || null;
+  }else if(jenis === 'subunit'){
+    const parent = alatDaftar(unit).find(a=>a.id === parentAlatId);
+    if(parent && Array.isArray(parent.sub)){
+      parent.sub = parent.sub.filter(x=>x.id !== asal.id);
+    }
+    // Kalau tab aktif adalah yang barusan dihapus, lepas — panel Identity
+    // akan jatuh balik ke sub pertama yang tersisa (atau ke Induk).
+    if(subDipilih === asal.id) subDipilih = null;
   }else{
     const i = PART.findIndex(x=>x.pn === asal.pn);
     if(i >= 0) PART.splice(i, 1);
   }
-  if(!(await dbSimpanUnit(jenis, unit))){
+  const modulSimpan = jenis === 'subunit' ? 'peralatan' : jenis;
+  if(!(await dbSimpanUnit(modulSimpan, unit))){
     tutupKartuData();
     gambarUnit(); gambarUbin(); gambarCincin();
     return;

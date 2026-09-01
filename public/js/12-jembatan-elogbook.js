@@ -53,13 +53,13 @@ const SRV = {
 };
 
 const PERAN_SERVER    = { admin:'Administrator', pejabat:'Pejabat / Manager',
-                          adminunit:'Admin Unit', pic:'PIC Unit', teknisi:'Teknisi' };
+                          adminunit:'Admin Unit', teknisi:'Teknisi' };
 const PERAN_SERVER_EN = { admin:'Administrator', pejabat:'Officer / Manager',
-                          adminunit:'Unit Admin', pic:'Unit PIC', teknisi:'Technician' };
+                          adminunit:'Unit Admin', teknisi:'Technician' };
 /** Urutan peran dari yang paling sempit ke yang paling luas. Dipakai untuk
     mengisi pemilih peran, supaya daftarnya tidak perlu ditulis ulang di tiap
     tempat — dan tidak ada peran yang tertinggal di salah satunya. */
-const PERAN_URUT = ['teknisi', 'pic', 'adminunit', 'pejabat', 'admin'];
+const PERAN_URUT = ['teknisi', 'adminunit', 'pejabat', 'admin'];
 /** Sebutan peran menurut bahasa yang sedang dipilih. */
 const peranTampil = (role) => (BHS === 'en' ? PERAN_SERVER_EN : PERAN_SERVER)[role] || role;
 /** Sebutan peran akun yang sedang masuk. */
@@ -87,6 +87,117 @@ async function srvApi(fn, ...args){
   const data = await r.json().catch(()=>null);
   if(!r.ok) throw new Error((data && data.error) || ('server menjawab '+r.status));
   return data ? data.result : null;
+}
+
+/* ---------- TTD akun: satu sumber, tinggal ambil ----------
+   Dashboard punya SALINAN sendiri berkas TTD tersimpan milik akun dari
+   E-Logbook — server dashboard menaruhnya di data/ttd-akun/ dan
+   menyajikannya di /ttd-akun/:user (metadata JSON) dan
+   /ttd-akun/:user/gambar (berkas PNG). Sumber utamanya tetap tabel users
+   di E-Logbook (kolom ttd_tersimpan, lihat simpanTtdTersimpan di
+   elogbook/db.js); yang di sini cuma cermin — dan bertahan saat E-Logbook
+   lambat/mati sesaat.
+
+   Yang boleh MEMBUAT TTD hanya pemilik akun (simpanTtdSaya) atau
+   admin/superadmin untuk pejabat (simpanTtdMilik); keduanya tetap
+   berjalan lewat proxy /api/*, jadi dashboard tidak jadi tempat kedua
+   untuk menulis TTD. Setelah tulisan berhasil, klien memanggil
+   ttdAkunInvalidate — yang membuang salinan lokal di dashboard supaya
+   pengambilan berikutnya menyalin ulang dari E-Logbook. */
+const TTD_AKUN = new Map();   // username -> { ada, nama, role, url, dibuatPada, jam }
+
+/** Ambil TTD milik satu akun. Dua jalur, urut dari yang terbaik:
+      1. /ttd-akun/:user (endpoint dashboard, punya salinan lokal —
+         bertahan meski E-Logbook lambat sesaat)
+      2. /api/getTtdMilik lewat proxy (langsung ke E-Logbook — cadangan
+         kalau endpoint dashboard belum ada, mis. server belum di-restart)
+    URL gambarnya:
+      - jalur (1) → /ttd-akun/:user/gambar (dari salinan lokal)
+      - jalur (2) → /uploads/{nama} (proxied langsung, kalau /ttd-akun
+        belum aktif, /uploads tetap diteruskan lewat JALUR_TERUS)
+    Menyingahi 5 menit di peramban. Setelah simpanTtdSaya/simpanTtdMilik,
+    panggil ttdAkunInvalidate(username) supaya pengambilan berikut
+    menembus singgahan sekaligus salinan lokal server. */
+async function ttdAkunAmbil(username, opts){
+  const paksa = !!(opts && opts.paksa);
+  const u = String(username || '').trim();
+  if(!u) return { ada:false, nama:'', role:'', url:'', dibuatPada:'' };
+  const cache = TTD_AKUN.get(u);
+  const segar = cache && (Date.now() - cache.jam) < 5 * 60 * 1000;
+  if(cache && segar && !paksa) return cache;
+
+  /* Jalur 1 — endpoint dashboard dengan salinan lokal. */
+  try{
+    const r = await srvFetch('/ttd-akun/' + encodeURIComponent(u), {}, 15000);
+    if(r.ok){
+      const j = await r.json();
+      const isi = {
+        ada:        !!j.ada,
+        nama:       j.nama || '',
+        role:       j.role || '',
+        url:        j.url || '',
+        dibuatPada: j.dibuatPada || '',
+        dariCache:  !!j.dariCache,
+        sumber:     'ttd-akun',
+        jam:        Date.now()
+      };
+      TTD_AKUN.set(u, isi);
+      return isi;
+    }
+    /* 404 → endpoint belum terpasang di server dashboard (belum restart).
+       Bukan galat mati — jatuh ke jalur 2. */
+    console.warn('[ttd-akun] /ttd-akun/' + u + ' menjawab ' + r.status + ' — coba jalur langsung');
+  }catch(e){
+    console.warn('[ttd-akun] /ttd-akun/' + u + ' gagal:', e && e.message || e);
+  }
+
+  /* Jalur 2 — cadangan langsung ke E-Logbook lewat proxy /api/*. */
+  try{
+    const meta = await srvApi('getTtdMilik', u);
+    if(meta){
+      const isi = {
+        ada:        !!meta.ada,
+        nama:       meta.nama || '',
+        role:       meta.role || '',
+        url:        meta.ada && meta.path ? meta.path : '',  // "/uploads/xxxx.png" → langsung diproxy
+        dibuatPada: meta.dibuatPada || '',
+        dariCache:  false,
+        sumber:     'api-langsung',
+        jam:        Date.now()
+      };
+      TTD_AKUN.set(u, isi);
+      return isi;
+    }
+  }catch(e){
+    console.warn('[ttd-akun] fallback /api/getTtdMilik untuk ' + u + ' gagal:', e && e.message || e);
+  }
+
+  /* Dua jalur habis. Kembalikan singgahan lama kalau ada, atau
+     "tidak ada" — biar pemanggil menawarkan kanvas gambar. */
+  if(cache) return cache;
+  return { ada:false, nama:u, role:'', url:'', dibuatPada:'', jam:Date.now() };
+}
+
+/** Buang singgahan peramban DAN salinan lokal di server — dipanggil
+    setelah simpanTtdSaya/simpanTtdMilik supaya panggilan berikut menyalin
+    ulang dari E-Logbook. Kegagalan hapus di server tidak fatal: singgahan
+    server disegarkan sendiri kalau metadata dibuatPada berbeda. */
+async function ttdAkunInvalidate(username){
+  const u = String(username || '').trim();
+  if(!u) return;
+  TTD_AKUN.delete(u);
+  try{
+    await srvFetch('/ttd-akun/' + encodeURIComponent(u), { method:'DELETE' }, 8000);
+  }catch(e){ /* biarkan — sisi klien sudah dilepas, server akan menyegarkan sendiri */ }
+}
+
+/** Panaskan singgahan untuk akun yang sedang masuk — dipanggil sekali
+    di akhir srvMuat. Kegagalan diabaikan: kartu cetak tetap bisa muat
+    TTD-nya sendiri saat dibuka. */
+async function ttdSayaMuat(){
+  if(!akun || !akun.user) return;
+  try{ await ttdAkunAmbil(akun.user, { paksa:true }); }
+  catch(e){ /* biarkan — pemanggilan berikut yang akan mencoba lagi */ }
 }
 
 /** Sekali di awal: apakah ada server E-Logbook di alamat ini, dan apakah
@@ -220,6 +331,12 @@ async function srvMuat(){
   // memang kosong, dan layar Kelola Akun pun tidak muncul.
   USERS = Array.isArray(awal.users) ? awal.users : [];
   USERS_JAM = USERS.length ? new Date() : null;
+  // Overlay hak lanjut per akun (bolehTtd, unitKhusus) — endpoint terpisah
+  // di dashboard, tidak ikut awal. Tanpa panggilan ini, membuka kartu pejabat
+  // sebelum pernah menekan "Muat ulang" menampilkan seluruh centang bolehTtd
+  // dalam keadaan kosong walau data di server sudah ada. muatHakAkun sudah
+  // menelan galat 403/error sendiri — non-admin tetap aman.
+  if(USERS.length && typeof muatHakAkun === 'function') await muatHakAkun();
   const paket = { [awal.unit]: awal };
   for(const u of (awal.unitSaya || [])){
     if(paket[u.kode]) continue;
@@ -233,5 +350,9 @@ async function srvMuat(){
   await unitdbMuat();
   await sjrMuat();
   await dokMuat();
+  /* TTD tersimpan milik akun ini dipanaskan di singgahan sisi peramban,
+     supaya modal cetak yang dibuka pertama kali tidak perlu menunggu
+     bolak-balik ke E-Logbook untuk gambarnya sendiri. */
+  await ttdSayaMuat();
 }
 

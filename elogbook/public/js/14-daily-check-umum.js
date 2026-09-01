@@ -38,7 +38,10 @@ const dcRadkomAktif = () => unitAktif === 'radkom';
 function resetDcForm(){
   initDcState(); renderDcTable();
   initDcRkState(); renderDcRkTable();
+  // Form baru: sesi DS default ke sesi berikut yang belum tersimpan (siklus 1..9).
+  dcJDsSesi = dsSesiBerikut();
   initDcJState(); renderDcJatscTable();
+  initDcNState(); renderDcNavTable();
   document.getElementById('dcSuhu').value=''; document.getElementById('dcRemark').value='';
   document.getElementById('dcManagerNama').value='';
   document.getElementById('dcManagerAkun').value='';
@@ -61,6 +64,51 @@ function perbaruiLokasiDc(){
     document.getElementById('dcJatscWrap').style.display = jatsc ? '' : 'none';
     if(jatsc && Object.keys(dcJState || {}).length === 0){ initDcJState(); renderDcJatscTable(); }
   }
+  sinkronSubtabDc();
+}
+
+/** Sub-tab lokasi (di index.html #dcSubtabs) menggantikan dropdown Nama
+    Peralatan + Lokasi yang dulu. Keduanya sekarang paten mengikuti sub-tab —
+    dcLokasi menentukan bentuk form, dcTempat sekadar label kertas yang selalu
+    ikut. Kedua elemen disembunyikan tapi tetap ditulis di sini karena masih
+    dibaca sebagai sumber kebenaran oleh saveDailyCheck, openDcDetail, dan
+    07-unit.js. */
+function setDcLokasi(nilai){
+  const el = document.getElementById('dcLokasi');
+  const tempat = document.getElementById('dcTempat');
+  if(tempat) tempat.value = nilai;
+  if(!el) return;
+  if(el.value === nilai){ sinkronSubtabDc(); return; }
+  el.value = nilai;
+  perbaruiLokasiDc();
+}
+
+/** Sorot sub-tab yang cocok dengan nilai dcLokasi. Dipanggil setiap kali
+    lokasi berubah, dan juga oleh terapkanUnit() supaya pemuatan detail
+    catatan (yang menulis dcLokasi.value langsung) ikut menyorot sub-tab. */
+function sinkronSubtabDc(){
+  const nilai = document.getElementById('dcLokasi')?.value || 'new-jatsc';
+  // Kalau detail catatan lama yang dimuat, dcTempat sering diset terpisah
+  // oleh openDcDetail — di sini ia disamakan lagi supaya tidak beda-beda.
+  const tempat = document.getElementById('dcTempat');
+  if(tempat) tempat.value = nilai;
+  const cocok = nilai === 'jatsc' ? 'dc-jatsc' : 'dc-newjatsc';
+  document.querySelectorAll('#dcSubtabs .subtab-btn').forEach(b=>{
+    b.classList.toggle('active', b.dataset.subtab === cocok);
+  });
+  // Info peralatan + lokasi di bawah sub-tab. Sub-tab hanya menampilkan
+  // "New JATSC / JATSC"; nama peralatan spesifiknya (Garex vs Frequentis)
+  // dipisah ke sini supaya tetap terlihat di layar dan tercetak dari kepala
+  // form. Info bar hanya muncul kalau sub-tab lokasi memang dipakai unit ini
+  // (Radtel) — 07-unit.js yang menentukan visibilitas #dcSubtabs.
+  const bar = document.getElementById('dcInfoLokasi');
+  const pAlat = document.getElementById('dcInfoPeralatan');
+  const pTempat = document.getElementById('dcInfoTempat');
+  const subtabs = document.getElementById('dcSubtabs');
+  const punyaSubtab = subtabs && subtabs.style.display !== 'none';
+  if(bar) bar.style.display = punyaSubtab ? '' : 'none';
+  if(pAlat)   pAlat.textContent   = (nilai === 'jatsc') ? 'VCS Frequentis 3020X' : 'VCS Garex 300';
+  if(pTempat) pTempat.textContent = (nilai === 'jatsc') ? 'JATSC' : 'New JATSC';
 }
 /* ---------- Hari / Tanggal daily check ----------
    Isian ini bisa dipilih sendiri: checklist dinas malam sering baru sempat
@@ -101,11 +149,16 @@ function setDcTanggal(){
 async function saveDailyCheck(){
   const radkom = dcRadkomAktif();
   const jatsc  = dcRadtelJatscAktif();
+  const nav    = (typeof dcNavAktif === 'function') && dcNavAktif();
   const fails = [], warns = [];
 
   if(radkom){
     // Radkom hanya mengenal OK dan NOT OK — tidak ada tingkat "alarm".
     fails.push(...rkTemuan(dcRkState));
+  }else if(nav){
+    const t = navTemuan();
+    fails.push(...t.fails);
+    warns.push(...t.warns);
   }else if(jatsc){
     const t = jatscTemuan();
     fails.push(...t.fails);
@@ -125,13 +178,20 @@ async function saveDailyCheck(){
   // check tidak berubah bentuknya, dan mesin baca tahu form mana yang dipakai
   // dari kunci __lokasi/__tempat di dalam JSON-nya.
   const tempatDipilih = document.getElementById('dcTempat')?.value || 'new-jatsc';
-  const meta = { __lokasi: jatsc ? 'jatsc' : 'new-jatsc', __tempat: tempatDipilih };
-  const stateDipakai = radkom ? dcRkState : (jatsc ? { ...dcJState, ...meta } : { ...dcState, ...meta });
+  const meta = nav
+    ? { __lokasi:'navigasi', __tempat:'navigasi' }
+    : jatsc
+      ? { __lokasi:'jatsc', __tempat: tempatDipilih, __sesiDs: dcJDsSesi }
+      : { __lokasi:'new-jatsc', __tempat: tempatDipilih };
+  const stateDipakai = radkom ? dcRkState
+                     : nav    ? { ...dcNState, ...meta }
+                     : jatsc  ? { ...dcJState, ...meta }
+                              : { ...dcState,  ...meta };
   const payload = {
     tanggal: tanggalDcTersimpan(),
     tanggalIso: document.getElementById('dcTanggal').value,
     dinas: document.getElementById('dcDinas').value,
-    suhu: (radkom || jatsc) ? '' : document.getElementById('dcSuhu').value.trim(),
+    suhu: (radkom || jatsc || nav) ? '' : document.getElementById('dcSuhu').value.trim(),
     remark: document.getElementById('dcRemark').value.trim(),
     teknisiNamaList: namaList,
     teknisiNama: namaList.join(', '),
@@ -155,6 +215,9 @@ async function saveDailyCheck(){
       const saved = await gsRun('addDailyCheck', payload);
       dcHistory.unshift(mapDc(saved));
       renderDcHistory();
+      // Sesi DS yang barusan tersimpan diingat supaya form baru berikutnya
+      // langsung menawarkan sesi selanjutnya (siklus 1..9).
+      if(jatsc) dsCatatSesiTersimpan(dcJDsSesi);
       toast('Daily check tersimpan.');
     }
   }catch(e){ toast('Gagal menyimpan — ' + (e.message||'coba lagi.')); }
@@ -356,18 +419,21 @@ async function openDcDetail(id){
   // kebetulan sedang dipilih di form. Riwayat lama masih dari sebelum kolom
   // ini ada; state tanpa __lokasi diperlakukan sebagai New JATSC.
   const jatscTersimpan = state && state.__lokasi === 'jatsc';
+  const navTersimpan   = state && state.__lokasi === 'navigasi';
   body.innerHTML = `
     <div style="font-size:13px;margin-bottom:10px;line-height:1.7;">
       <b>${escapeHtml(r.tanggal)}</b><br>
-      Dinas: ${escapeHtml(r.dinas)||'-'}${jatscTersimpan ? '' : ' &middot; Suhu MER: ' + (escapeHtml(r.suhu)||'-')}
+      Dinas: ${escapeHtml(r.dinas)||'-'}${(jatscTersimpan || navTersimpan) ? '' : ' &middot; Suhu MER: ' + (escapeHtml(r.suhu)||'-')}
     </div>
     ${dcRadkomAktif()
       ? dcRkDetailHtml(state)
-      : (jatscTersimpan
-          ? dcJatscDetailHtml(state)
-          : dcDetailTable(dcLeftItems.slice(0,dcLeftItems.indexOf('TMCS 1')), dcRightItems.slice(0,dcRightItems.indexOf('SW 3')), state) +
-            '<div style="height:8px;"></div>' +
-            dcDetailTable(dcLeftItems.slice(dcLeftItems.indexOf('TMCS 1')), dcRightItems.slice(dcRightItems.indexOf('SW 3')), state))}
+      : (navTersimpan
+          ? dcNavDetailHtml(state)
+          : (jatscTersimpan
+              ? dcJatscDetailHtml(state)
+              : dcDetailTable(dcLeftItems.slice(0,dcLeftItems.indexOf('TMCS 1')), dcRightItems.slice(0,dcRightItems.indexOf('SW 3')), state) +
+                '<div style="height:8px;"></div>' +
+                dcDetailTable(dcLeftItems.slice(dcLeftItems.indexOf('TMCS 1')), dcRightItems.slice(dcRightItems.indexOf('SW 3')), state)))}
     ${r.remark ? `<div style="margin-top:12px;font-size:13px;"><b>Remark:</b><br>${escapeHtml(r.remark).replace(/\n/g,'<br>')}</div>` : ''}
     <div class="detail-ttd">
       <div class="sig-block"><b>${T('teknisiPelaksana')}</b>${tekHtml}</div>
@@ -406,18 +472,35 @@ async function openDcEditModal(id){
 
   const state = detail.state || {};
   const isJatsc = state && state.__lokasi === 'jatsc';
+  const isNav   = state && state.__lokasi === 'navigasi';
   const tempat  = (state && state.__tempat) || 'new-jatsc';
 
-  // Selector nama alat & lokasi
+  // Selector nama alat & lokasi. Untuk Navigasi tidak ada pilihan
+  // Garex/Frequentis — form-nya tunggal — jadi kedua selector dibiarkan
+  // apa adanya (terapkanUnit tetap yang menentukan wadah yang kelihatan).
   const dcLokasi = document.getElementById('dcLokasi');
   const dcTempat = document.getElementById('dcTempat');
-  if(dcLokasi) dcLokasi.value = isJatsc ? 'jatsc' : 'new-jatsc';
-  if(dcTempat) dcTempat.value = tempat;
+  if(!isNav){
+    if(dcLokasi) dcLokasi.value = isJatsc ? 'jatsc' : 'new-jatsc';
+    if(dcTempat) dcTempat.value = tempat;
+  }
   // Terapkan ulang layar unit supaya wrap yg cocok kelihatan.
   if(typeof terapkanUnit === 'function') terapkanUnit();
 
   // Isi state checklist ke variabel form.
-  if(isJatsc){
+  if(isNav){
+    initDcNState();
+    Object.entries(state).forEach(([k, v])=>{
+      if(k.startsWith('__')) return;
+      dcNState[k] = v;
+    });
+    renderDcNavTable();
+  }else if(isJatsc){
+    // Sesi DS harus disetel SEBELUM initDcJState — init memakai dcJDsSesi
+    // untuk menentukan default channel section C. Kalau catatan lama (belum
+    // punya __sesiDs), tetap ke 1 supaya edit-nya konsisten.
+    const sesi = +state.__sesiDs;
+    dcJDsSesi = (sesi >= 1 && sesi <= 9) ? sesi : 1;
     initDcJState();
     Object.entries(state).forEach(([k, v])=>{
       if(k.startsWith('__')) return;

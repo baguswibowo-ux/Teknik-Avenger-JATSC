@@ -42,6 +42,11 @@ function gambarPilihUnit(){
 function bukaUnit(kode){
   unitDibuka = kode; subtabAktif = 'peralatan';
   alatDipilih = (PERALATAN[kode] || [])[0] ? PERALATAN[kode][0].id : null;
+  subDipilih = null;
+  // Grup lokasi milik unit — waktu pindah unit tab aktifnya balik ke Semua,
+  // supaya nama grup dari unit lain (mis. "JATSC" milik Radtel) tidak nyasar
+  // jadi filter di unit yang tidak punya grup itu.
+  grupDipilih = '';
   gambarPilihUnit(); gambarUnit(); pindahLayar('unit');
 }
 
@@ -90,6 +95,47 @@ function pasangIkonUnit(){
   if(kotak) kotak.addEventListener('click', ()=>ikonUnitPilih(unitDibuka, kotak));
   const buang = el('isiUnit').querySelector('#ikonUnitBuang');
   if(buang) buang.addEventListener('click', ()=>ikonUnitBuang(unitDibuka));
+  const ubahTeks = el('isiUnit').querySelector('#alatUnitUbah');
+  if(ubahTeks) ubahTeks.addEventListener('click', ()=>alatUnitUbah(unitDibuka));
+}
+
+/**
+ * Ganti baris peralatan yang tampil di kepala unit.
+ *
+ * Nilai bawaannya dari E-Logbook (u.alat) dan tidak bisa disunting dari sana;
+ * yang disimpan server ini penimpanya. Dikosongkan berarti balik ke sebutan
+ * E-Logbook — barisnya dibuang, bukan disimpan kosong, supaya keadaan
+ * "belum pernah diganti" tidak bisa dibedakan dari "diganti jadi kosong".
+ */
+async function alatUnitUbah(unit){
+  const u = infoUnit(unit);
+  const kini = NAMA_ALAT[unit] || u.alat || '';
+  const jawab = await dialogInput({
+    judul: T('Ubah baris peralatan','Edit equipment line'),
+    keterangan: T('Baris di bawah nama unit — kosongkan lalu OK untuk kembali ke sebutan bawaan.',
+                  'Line under the unit name — leave empty and press OK to return to the default.'),
+    nilaiAwal: kini,
+    contoh: u.alat || T('mis. VCS Garex, Recording Neptuno','e.g. VCS Garex, Recording Neptuno'),
+    okTeks: T('Simpan','Save'),
+    ijinKosong: true
+  });
+  if(jawab === null) return;
+  const teks = String(jawab).slice(0, 200);
+  if(teks === (NAMA_ALAT[unit] || '')) return;  // tidak ada yang berubah
+  try{
+    const r = await srvFetch('/nama-alat/' + encodeURIComponent(unit), {
+      method:'PUT', headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({ alat: teks })
+    }, 10000);
+    const j = await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(j.error || 'server menjawab ' + r.status);
+    if(teks) NAMA_ALAT[unit] = teks; else delete NAMA_ALAT[unit];
+    gambarUnit();
+    pesan(teks ? T('Baris peralatan diganti.','Equipment line changed.')
+               : T('Baris peralatan dikembalikan ke bawaan.','Equipment line reset to default.'));
+  }catch(e){
+    pesan(T('Gagal menyimpan: ','Could not save: ') + (e && e.message || e));
+  }
 }
 
 /** Pilih berkas, kirim, lalu gambar ulang layarnya dari jawaban server. */
@@ -171,12 +217,16 @@ function gambarUnit(){
       ${ikonUnitHtml(u)}
       <div style="flex:1;min-width:200px">
         <h2>${esc(u.nama)}</h2>
-        <div class="sub">${esc(u.alat)}</div>
+        <div class="sub">${esc(NAMA_ALAT[unitDibuka] || u.alat)}</div>
         <div class="mono" style="font-size:10.5px;color:var(--muted);margin-top:5px">
           ${T('kode dinas','shift codes')} ${u.dinas.join(' · ')} · ${alat.length}
           ${T('peralatan terdaftar','equipment registered')}</div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        ${bolehGantiIkon() ? `<button class="btn garis kecil" id="alatUnitUbah" title="${
+          T('Ganti baris peralatan (misal: VCS Garex, Recording Neptuno)',
+            'Change the equipment line (e.g. VCS Garex, Recording Neptuno)')}">${
+          T('Ubah teks','Edit text')}</button>` : ''}
         ${(bolehGantiIkon() && LOGO[unitDibuka]) ? `<button class="btn garis kecil" id="ikonUnitBuang">${
           T('Pakai ilustrasi','Use illustration')}</button>` : ''}
         <!-- Bukan "unit ini": E-Logbook tidak membaca satu pun parameter URL,
@@ -202,14 +252,54 @@ function gambarUnit(){
     <!-- PERALATAN -->
     <div class="subisi ${subtabAktif==='peralatan'?'aktif':''}" id="s-peralatan">
       <div class="atur-data">
-        <span class="ket">${alat.length} ${T('peralatan · klik kartu untuk membuka sejarah dan identitasnya',
-          'equipment · click a card to open its history and identity')}</span>
+        <span class="ket">${(() => {
+          const totalSemua = alat.length;
+          const disaring = grupDipilih ? alat.filter(a=>(a.grup || '') === grupDipilih).length : totalSemua;
+          if(!grupDipilih) return `${totalSemua} ${T('peralatan · klik kartu untuk membuka sejarah dan identitasnya',
+            'equipment · click a card to open its history and identity')}`;
+          return `${disaring} / ${totalSemua} ${T('peralatan di grup','equipment in group')}
+            <b style="color:var(--text)">${esc(grupDipilih)}</b> · ${T('klik kartu untuk membuka sejarah dan identitasnya',
+              'click a card to open its history and identity')}`;
+        })()}</span>
         <span class="tombol">
+          ${alat.length ? `<button class="btn garis kecil" data-cetak="peralatan">${
+            T('Cetak','Print')}</button>` : ''}
           ${bolehSuntingDb('peralatan') ? `<button class="btn kecil" data-db-tambah="peralatan">${
             T('Tambah peralatan','Add equipment')}</button>` : ''}
         </span>
       </div>
-      <div class="alat-grid">${alat.map(a=>{
+      ${(()=>{
+        // Tab bar grup lokasi — di antara baris tombol dan grid kartu. Nilai
+        // grup diambil dari kolom `grup` seluruh baris peralatan unit ini
+        // (tidak ada tabel terpisah). Grup yang baru dibuat lewat tombol "+"
+        // tapi belum punya alat tetap muncul selama masih jadi tab aktif —
+        // dari sana pemakai menekan Tambah peralatan dan alatnya masuk ke grup
+        // itu. Tab bar disembunyikan kalau belum ada grup sama sekali dan
+        // pemakai tidak boleh menyunting (tidak ada gunanya menampilkan tombol
+        // yang tidak bisa ditekan).
+        const grupSet = new Set(alat.map(a=>String(a.grup || '').trim()).filter(Boolean));
+        if(grupDipilih) grupSet.add(grupDipilih);   // tab yang baru dibuat, alat-nya belum ada
+        const daftarGrup = [...grupSet].sort((a,b)=>a.localeCompare(b, LOKAL()));
+        const boleh = bolehSuntingDb('peralatan');
+        if(!daftarGrup.length && !boleh) return '';
+        return `<div class="subtab grup-subtab">
+          <button data-grup-tab="" class="${grupDipilih === '' ? 'aktif' : ''}">${
+            T('Semua','All')} <span class="mono" style="opacity:.75">(${alat.length})</span></button>
+          ${daftarGrup.map(g=>{
+            const n = alat.filter(a=>(a.grup || '') === g).length;
+            return `<button data-grup-tab="${esc(g)}" class="${g === grupDipilih ? 'aktif' : ''}">${
+              esc(g)}${n ? ` <span class="mono" style="opacity:.75">(${n})</span>` : ''}</button>`;
+          }).join('')}
+          ${boleh ? `<button data-grup-tambah="1" title="${T('Tambah grup lokasi','Add location group')}"
+            style="min-width:38px;justify-content:center;font-weight:600">+</button>` : ''}
+          ${boleh && grupDipilih ? `<button data-grup-ubah="${esc(grupDipilih)}" class="bahaya-garis" title="${
+            T('Ubah/hapus grup ini','Rename/delete this group')}"
+            style="min-width:38px;justify-content:center">⋯</button>` : ''}
+        </div>`;
+      })()}
+      <div class="alat-grid">${(grupDipilih
+        ? alat.filter(a=>(a.grup || '') === grupDipilih)
+        : alat).map(a=>{
         const t = trouble.filter(x=>x.alat === a.id).length;
         const w = a.status==='Down'?'merah':a.status==='Warning'?'kuning':'hijau';
         // Foto aslinya kalau ada, ilustrasi kalau tidak. Tanda ILUSTRASI ikut
@@ -220,22 +310,49 @@ function gambarUnit(){
           ? `<img class="bingkai-foto" src="foto/${esc(unitDibuka)}/${esc(a.gambar)}" alt=""
                loading="lazy" onerror="this.remove()">`
           : `${adegan(a.adegan)}<span class="tanda-ilus">${T('ILUSTRASI','ILLUSTRATION')}</span>`;
+        // Fallback '' + '—' supaya alat yang baru masuk lewat form ringkas
+        // (belum ada tipe/status/lokasi) tidak menampilkan "undefined" sebelum
+        // jawaban server datang.
         return `<article class="alat-kartu ${a.id===alatDipilih?'terpilih':''}" data-alat="${a.id}">
           <div class="bingkai"><span class="lampu ${w}"></span>${gbr}</div>
           <div class="isi">
-            <div class="nm">${esc(a.nama)}</div>
-            <div class="tp">${esc(a.tipe)}</div>
+            <div class="nm">${esc(a.nama || '')}</div>
+            <div class="tp">${esc(a.tipe || '—')}</div>
             <div class="kaki">
-              <span class="cip ${w==='merah'?'bahaya':w==='kuning'?'awas':'aman'}">${esc(a.status)}</span>
-              <span class="mono" style="font-size:10px;color:var(--muted)">${esc(a.lokasi)}</span>
+              <span class="cip ${w==='merah'?'bahaya':w==='kuning'?'awas':'aman'}">${esc(a.status || 'Normal')}</span>
+              <span class="mono" style="font-size:10px;color:var(--muted)">${esc(a.lokasi || '—')}</span>
             </div>
           </div></article>`;
       }).join('')}</div>
-      ${alat.length ? '' : `<div class="panel"><div class="badan" style="color:var(--muted);font-size:12.5px;line-height:1.7">
-        ${T('Belum ada peralatan terdaftar di unit ini. Tekan','No equipment registered in this unit yet. Press')}
-        <b style="color:var(--text)">${T('Tambah peralatan','Add equipment')}</b>
-        ${T('di atas untuk mengisinya.','above to fill it in.')}</div></div>`}
+      ${(() => {
+        // Tiga kondisi kosong yang berbeda — dan pesan yang berbeda pula:
+        //  1) Unit belum punya peralatan sama sekali (tab bar grup pun tidak ada).
+        //  2) Grup yang sedang jadi tab aktif belum punya alat (baru dibuat, atau
+        //     alatnya baru dipindah keluar). Kalimatnya menyebut grupnya dan
+        //     mengarahkan ke Tambah peralatan supaya grupnya tidak sekadar kartu
+        //     nama kosong.
+        //  3) Tab Semua tapi hasil filter kebetulan 0 — tidak terjadi (Semua
+        //     tidak menyaring), tapi cabang ini tetap aman.
+        if(!alat.length) return `<div class="panel"><div class="badan" style="color:var(--muted);font-size:12.5px;line-height:1.7">
+          ${T('Belum ada peralatan terdaftar di unit ini. Tekan','No equipment registered in this unit yet. Press')}
+          <b style="color:var(--text)">${T('Tambah peralatan','Add equipment')}</b>
+          ${T('di atas untuk mengisinya.','above to fill it in.')}</div></div>`;
+        const disaring = grupDipilih ? alat.filter(a=>(a.grup || '') === grupDipilih).length : alat.length;
+        if(disaring === 0 && grupDipilih) return `<div class="panel"><div class="badan" style="color:var(--muted);font-size:12.5px;line-height:1.7">
+          ${T('Belum ada peralatan di grup','No equipment in the group')}
+          <b style="color:var(--text)">${esc(grupDipilih)}</b>.
+          ${T('Tekan','Press')} <b style="color:var(--text)">${T('Tambah peralatan','Add equipment')}</b>
+          ${T('di atas — grupnya akan terisi otomatis sesuai tab yang sedang menyala.',
+              'above — the group is filled in automatically to match the active tab.')}</div></div>`;
+        return '';
+      })()}
       <div id="rinciAlat" style="margin-top:18px"></div>
+      <!-- Arsip lembar cetak Sejarah Peralatan yang sudah diteken officer.
+           Diisi async oleh muatArsipCetak(); sampai jawaban server datang,
+           panelnya kosong. Yang tidak boleh melihat unit ini (mestinya
+           tidak sampai sini) mendapat 403 dari server dan panel tetap
+           kosong — tidak apa-apa. -->
+      <div id="arsipCetak" style="margin-top:18px"></div>
     </div>
 
     <!-- TROUBLE -->
@@ -254,6 +371,8 @@ function gambarUnit(){
         <span class="ket">${part.length} ${T('sparepart terdaftar di unit ini',
           'spare parts registered in this unit')}</span>
         <span class="tombol">
+          ${part.length ? `<button class="btn garis kecil" data-cetak="sparepart">${
+            T('Cetak','Print')}</button>` : ''}
           ${bolehSuntingDb('sparepart') ? `<button class="btn garis kecil" data-spr-impor>${
             T('Impor dari berkas','Import from a file')}</button>
             <button class="btn kecil" data-db-tambah="sparepart">${
@@ -451,6 +570,10 @@ function gambarUnit(){
       </div>
     </div>`;
 
+  el('isiUnit').querySelectorAll('button[data-cetak]').forEach(b=>{
+    b.addEventListener('click', ()=>cetakBuka(b.dataset.cetak, unitDibuka));
+  });
+
   el('subtab').addEventListener('click', e=>{
     const b = e.target.closest('button'); if(!b) return;
     subtabAktif = b.dataset.sub;
@@ -473,6 +596,7 @@ function gambarUnit(){
   el('isiUnit').querySelectorAll('.alat-kartu').forEach(k=>{
     k.addEventListener('click', ()=>{
       alatDipilih = k.dataset.alat;
+      subDipilih = null;
       el('isiUnit').querySelectorAll('.alat-kartu').forEach(x=>
         x.classList.toggle('terpilih', x === k));
       // Peralatan yang dipilih di sini ikut jadi kaitan berkas berikutnya,
@@ -481,7 +605,76 @@ function gambarUnit(){
       gambarRinciAlat();
     });
   });
+
+  // Tab grup lokasi — pilih tab menyaring kartu alat; "+" tambah grup baru;
+  // "⋯" pada tab aktif membuka menu ubah/hapus grup.
+  el('isiUnit').querySelectorAll('[data-grup-tab]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      grupDipilih = b.dataset.grupTab;
+      gambarUnit();
+    });
+  });
+  el('isiUnit').querySelectorAll('[data-grup-tambah]').forEach(b=>{
+    b.addEventListener('click', async ()=>{
+      const nama = await dialogInput({
+        judul: T('Tambah grup lokasi','Add location group'),
+        keterangan: T('Nama grup lokasi baru','New location group name'),
+        contoh: T('mis. JATSC, NEW JATSC, Radio ACC Primary',
+                  'e.g. JATSC, NEW JATSC, Radio ACC Primary'),
+        okTeks: T('Tambah','Add')
+      });
+      if(!nama) return;
+      grupDipilih = nama.slice(0, 80);
+      // Tabnya belum berisi apa-apa — pemakai tinggal tekan Tambah peralatan,
+      // grup di modal akan terisi otomatis sesuai tab aktif ini.
+      gambarUnit();
+    });
+  });
+  el('isiUnit').querySelectorAll('[data-grup-ubah]').forEach(b=>{
+    b.addEventListener('click', async ()=>{
+      const lama = b.dataset.grupUbah;
+      const daftar = PERALATAN[unitDibuka] || [];
+      const berisi = daftar.filter(a=>(a.grup || '') === lama);
+      const aksi = await dialogInput({
+        judul: T(`Ubah grup "${lama}"`, `Rename group "${lama}"`),
+        keterangan: T(
+          `Grup ini berisi ${berisi.length} peralatan. Ketik nama baru untuk `
+          + 'mengganti nama, atau kosongkan lalu OK untuk MENGHAPUS grup (isinya pindah ke Semua).',
+          `This group contains ${berisi.length} equipment. Type a new name to rename it, `
+          + 'or leave empty and press OK to DELETE the group (contents move to All).'),
+        nilaiAwal: lama,
+        okTeks: T('Simpan','Save'),
+        ijinKosong: true
+      });
+      if(aksi === null) return;
+      const baru = aksi.slice(0, 80);
+      if(baru === lama) return;   // tidak ada perubahan
+      if(baru && !confirm(T(
+        `Ganti nama grup "${lama}" menjadi "${baru}" untuk ${berisi.length} peralatan?`,
+        `Rename group "${lama}" to "${baru}" for ${berisi.length} equipment?`))) return;
+      if(!baru && !confirm(T(
+        `Hapus grup "${lama}"? ${berisi.length} peralatan akan dipindah ke Semua (tanpa grup).`,
+        `Delete group "${lama}"? ${berisi.length} equipment will move to All (no group).`))) return;
+      berisi.forEach(a=>{ a.grup = baru; });
+      grupDipilih = baru;
+      if(!(await dbSimpanUnit('peralatan', unitDibuka))){
+        gambarUnit();
+        return;
+      }
+      pesan(baru
+        ? T(`Grup diubah jadi "${baru}".`, `Group renamed to "${baru}".`)
+        : T(`Grup "${lama}" dihapus.`, `Group "${lama}" deleted.`));
+      gambarUnit();
+    });
+  });
+
   gambarRinciAlat();
+  // Arsip lembar cetak Sejarah Peralatan — dimuat async supaya tidak menahan
+  // render layar. Panel kosong dulu sampai jawaban server datang; kalau akun
+  // tidak boleh (403), panel tetap kosong tanpa keramaian.
+  if(typeof muatArsipCetak === 'function' && bolehBuka(unitDibuka)){
+    muatArsipCetak(unitDibuka);
+  }
   gambarGaleri(foto);
   brkPasang();
   // Subtab Jadwal Dinas mengisi dirinya sendiri: ia digambar ulang tiap kali
@@ -779,32 +972,195 @@ function gambarRinciAlat(){
   const kotak = el('rinciAlat'); if(!kotak) return;
   const alat = (PERALATAN[unitDibuka] || []).find(a=>a.id === alatDipilih);
   if(!alat){ kotak.innerHTML = ''; return; }
-  kotak.innerHTML = `<div class="grid2">
-    ${sjrPanel(unitDibuka, alat)}
-    <div class="panel"><div class="kepala"><h3>${T('Identitas','Identity')}</h3>
-      <span style="display:flex;gap:7px;align-items:center">
-        ${bolehSuntingDb('peralatan') ? `<button class="btn garis kecil"
-          data-db-ubah="peralatan" data-alat="${esc(alat.id)}">${T('Ubah','Edit')}</button>` : ''}
-      </span></div>
-      <div class="badan"><div class="spek">
-        ${[
-            // Yang kosong tidak ikut: baris "S/N: —" tidak memberi tahu apa pun.
-            [T('Merk','Make'), alat.merk],
-            [T('Tipe','Type'), alat.tipe],
-            ['S/N', alat.sn],
-            ['P/N', alat.pn],
-            [T('Tahun pembuatan','Year of manufacture'), alat.tahun],
-            [T('Lokasi','Location'), alat.lokasi],
-            ['Status', alat.status],
-            [T('Dicatat','Recorded'), alat.dibuat ? new Date(alat.dibuat).toLocaleDateString(LOKAL()) : '']
-          ].filter(([,v])=>v && v !== '—')
-          .map(([k,v])=>`<div><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div></div>`).join('')}
-      </div>
-      ${(alat.foto || []).length ? `<div class="foto-lampir" style="margin-top:12px">${
+  const boleh = bolehSuntingDb('peralatan');
+  const subs = Array.isArray(alat.sub) ? alat.sub : [];
+
+  // Sumber identitas yang sedang ditampilkan. Bawaannya tab Induk (alat itu
+  // sendiri) — orang yang membuka alat pertama kali seharusnya melihat
+  // identitas alatnya dulu, bukan sub yang boleh jadi sekadar salah satu dari
+  // banyak. subDipilih=null berarti Induk; kalau id yang tersimpan sudah tidak
+  // ada di daftar sub (mis. baru dihapus atau alat berpindah), jatuh balik ke
+  // Induk juga — tidak melompat ke sub pertama.
+  const sub = subs.find(s=>s.id === subDipilih) || null;
+  const sumber = sub || alat;
+  const idAktif = sub ? sub.id : null;   // null = tab Induk
+
+  // Tab bar Identity. Tab "Induk" jadi jangkar begitu sub-unit muncul —
+  // sub turunan darinya, dan pemakai perlu jalan pulang. Waktu belum ada sub
+  // sama sekali, tab Induk tidak ditampilkan (tidak ada sesuatu yang perlu
+  // dijadikan lawan tab-nya) — cukup tombol "+ Sub-unit" sebagai ajakan.
+  // Untuk viewer yang tidak bisa menyunting dan belum ada sub sama sekali,
+  // barisnya sekalian dihilangkan supaya panel tidak menyisakan celah kosong.
+  const tabBar = (subs.length || boleh) ? `<div class="subtab id-subtab">
+    ${subs.length ? `<button data-sub-tab="" class="${idAktif === null ? 'aktif' : ''}">${
+      T('Induk','Parent')}</button>` : ''}
+    ${subs.map(s=>`<button data-sub-tab="${esc(s.id)}" class="${
+      idAktif === s.id ? 'aktif' : ''}">${esc(s.nama)}</button>`).join('')}
+    ${boleh ? `<button data-sub-tambah="1" title="${T('Tambah sub-unit','Add sub-unit')}"
+      style="${subs.length ? 'min-width:38px;justify-content:center;font-weight:600' : ''}">${
+      subs.length ? '+' : T('+ Sub-unit','+ Sub-unit')}</button>` : ''}
+  </div>` : '';
+
+  // Tombol di kepala panel — Ubah untuk yang sedang aktif (parent atau sub),
+  // dan (kalau yang aktif itu sub) Hapus juga.
+  const tombolKepala = boleh ? `<span style="display:flex;gap:7px;align-items:center">
+    ${sub
+      ? `<button class="btn garis kecil" data-sub-ubah="${esc(sub.id)}">${T('Ubah','Edit')}</button>
+         <button class="btn garis kecil bahaya-garis" data-sub-hapus="${esc(sub.id)}" title="${
+           T('Hapus sub-unit ini','Delete this sub-unit')}">×</button>`
+      : `<button class="btn garis kecil" data-db-ubah="peralatan" data-alat="${
+          esc(alat.id)}">${T('Ubah','Edit')}</button>`}
+  </span>` : '';
+
+  // Tab Induk yang punya sub-unit — identitas teknisnya hidup di masing-masing
+  // sub, bukan pada induk. Yang tampil di sini cukup nama & grup, ditambah
+  // ajakan pindah ke tab sub kalau mau melihat rinciannya. Kalau induk tidak
+  // punya sub sama sekali (atau tab yang sedang menyala memang sub), spek
+  // lengkap tetap digambar apa adanya.
+  const indukRingkas = !sub && subs.length > 0;
+  const spek = indukRingkas
+    ? [
+        // Dicatat sengaja dilepas — tanggal pencatatan yang relevan bergeser
+        // ke masing-masing sub (yang memang punya papan nama & sejarah). Yang
+        // tersisa pada induk cuma nama, grup, dan pointer ke sub-nya.
+        [T('Nama','Name'),         alat.nama],
+        [T('Grup lokasi','Location group'), alat.grup],
+        [T('Sub-unit','Sub-units'), `${subs.length} — ${subs.slice(0, 4).map(s=>s.nama).join(', ')}${
+          subs.length > 4 ? ', …' : ''}`]
+      ].filter(([,v])=>v && v !== '—')
+       .map(([k,v])=>`<div><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div></div>`).join('')
+    : [
+        // Yang kosong tidak ikut: baris "S/N: —" tidak memberi tahu apa pun.
+        // "Dicatat" dilepas — informasi tanggal pencatatan tidak dipakai di
+        // layar ini; kalau perlu, cap waktunya masih tersimpan di baris data.
+        [T('Merk','Make'), sumber.merk],
+        [T('Tipe','Type'), sumber.tipe],
+        ['S/N', sumber.sn],
+        ['P/N', sumber.pn],
+        [T('Tahun pembuatan','Year of manufacture'), sumber.tahun],
+        [T('Lokasi','Location'), sumber.lokasi],
+        ['Status', sumber.status]
+      ].filter(([,v])=>v && v !== '—')
+       .map(([k,v])=>`<div><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div></div>`).join('');
+
+  const hintIndukRingkas = indukRingkas
+    ? `<div style="color:var(--muted);font-size:12px;line-height:1.6;margin-top:10px">${T(
+        'Rincian teknis (merk, tipe, S/N, P/N, tahun, lokasi, status) ada di tiap tab sub-unit di atas — pilih salah satu untuk melihatnya. Di tab Induk cukup nama & gambar kartu.',
+        'Technical details (make, type, S/N, P/N, year, location, status) live in each sub-unit tab above — pick one to see them. The Parent tab only holds the display name & card image.')}</div>`
+    : '';
+
+  // Foto galeri parent tetap dilampirkan di tab Induk. Sub tidak punya galeri
+  // sendiri di skema ini — kalau nanti perlu, ditambahkan tersendiri.
+  const fotoLampir = (!sub && Array.isArray(alat.foto) && alat.foto.length)
+    ? `<div class="foto-lampir" style="margin-top:12px">${
         alat.foto.map(f=>`<span class="foto-cip"><img src="foto/${esc(unitDibuka)}/${esc(f)}" alt="">${
-          esc(f)}</span>`).join('')}</div>` : ''}
-      </div></div>
+          esc(f)}</span>`).join('')}</div>`
+    : '';
+
+  // Panel Sejarah mengikuti sumber yang sedang aktif — kalau tab Induk yang
+  // menyala, tampil sejarah alat induknya; kalau tab sub, tampil sejarah sub
+  // itu sendiri. Sejarah disimpan di server dengan kunci id (alat.id atau
+  // sub.id), tidak nested — server tidak perlu tahu apakah id itu punya alat
+  // atau sub-nya, jadi bentuk endpoint /sejarah/:unit/:id tetap dipakai
+  // apa adanya.
+  kotak.innerHTML = `<div class="grid2">
+    ${sjrPanel(unitDibuka, sumber)}
+    <div class="panel"><div class="kepala"><h3>${T('Identitas','Identity')}</h3>
+      ${tombolKepala}
+    </div>
+      <div class="badan">
+        ${tabBar}
+        <div class="spek">${spek || `<div style="color:var(--muted);font-size:12.5px;line-height:1.7">${
+          subs.length === 0 && !sub
+            // Alat baru masuk (form Tambah cuma menanyakan nama + gambar) dan
+            // belum ada sub-nya. Ajakan bergeser ke tempat sesungguhnya —
+            // tambah sub-unit — bukan Ubah yang formnya sengaja ringkas.
+            ? T('Belum ada identitas — merk, tipe, S/N, dan lainnya diisi per sub-unit. Tekan tombol + di atas untuk menambah sub-unit pertama.',
+                'No identity yet — make, type, S/N, and the rest are filled per sub-unit. Press the + button above to add the first sub-unit.')
+            : T('Belum ada identitas untuk yang ini. Tekan Ubah untuk mengisi.',
+                'No identity yet. Press Edit to fill it in.')}</div>`}</div>
+        ${hintIndukRingkas}
+        ${fotoLampir}
+      </div>
+    </div>
   </div>`;
-  sjrPasang(unitDibuka, alat);
+  sjrPasang(unitDibuka, sumber);
+  rinciAlatPasang(alat);
 }
+
+/* Pendengar untuk tab Identity + tombol tambah/ubah/hapus sub-unit. Dipisah
+   dari gambarRinciAlat supaya jelas mana yang menghasilkan HTML dan mana
+   yang menghidupkan tombolnya. */
+function rinciAlatPasang(alat){
+  const boleh = bolehSuntingDb('peralatan');
+
+  // Pindah tab — buat semua orang, bukan hanya yang boleh menyunting: viewer
+  // pun perlu bisa melihat Identity tiap sub.
+  document.querySelectorAll('[data-sub-tab]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      subDipilih = b.dataset.subTab || null;
+      gambarRinciAlat();
+    });
+  });
+
+  if(!boleh) return;
+
+  // Tambah/Ubah/Hapus sub-unit lewat kartu modal yang sama dengan Ubah
+  // peralatan (bukaKartuData jenis 'subunit'). Alasannya isian sub sama
+  // bentuknya dengan alat (merk/tipe/sn/pn/tahun/lokasi/status/foto), jadi
+  // membangun dialog kedua yang mirip-mirip cuma menambah jalan yang berbeda
+  // untuk pekerjaan yang sama. Simpan dan hapus ikut simpanData/hapusData
+  // yang sudah ada — cabang 'subunit'-nya menaruh isian ke alat.sub.
+  document.querySelectorAll('[data-sub-tambah]').forEach(b=>{
+    b.addEventListener('click', ()=>bukaKartuData('subunit', null, alat.id));
+  });
+  document.querySelectorAll('[data-sub-ubah]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const s = (alat.sub || []).find(x=>x.id === b.dataset.subUbah);
+      if(s) bukaKartuData('subunit', s, alat.id);
+    });
+  });
+  // Tombol "×" pada kepala panel Identity — jalan pintas menghapus sub aktif
+  // tanpa harus buka modal dulu. Konfirmasi dulu; server disimpan lewat
+  // endpoint peralatan seperti biasa (subSimpan lokal supaya tidak menunggu
+  // dbSimpanUnit yang memicu render besar-besaran).
+  document.querySelectorAll('[data-sub-hapus]').forEach(b=>{
+    b.addEventListener('click', async ()=>{
+      const id = b.dataset.subHapus;
+      const s = (alat.sub || []).find(x=>x.id === id);
+      if(!s) return;
+      if(!confirm(T(`Hapus sub-unit “${s.nama}”?`,`Delete sub-unit "${s.nama}"?`))) return;
+      alat.sub = alat.sub.filter(x=>x.id !== id);
+      if(subDipilih === id) subDipilih = null;
+      await subSimpan(alat);
+    });
+  });
+}
+
+/* Simpan seluruh daftar peralatan unit — endpoint sama dengan yang dipakai
+   Ubah peralatan biasa; server menerima seluruh daftar dan kolom `sub`-nya
+   sudah dirapikan di sana. Dipakai jalan pintas hapus di tab bar; alur
+   tambah/ubah pakai simpanData yang punya penanganan galat lebih lengkap. */
+async function subSimpan(alat){
+  const unit = unitDibuka;
+  const daftar = alatDaftar(unit).map(a=>a.id === alat.id ? alat : a);
+  try{
+    const jawab = await fetch(`/unitdb/peralatan/${encodeURIComponent(unit)}`, {
+      method:'PUT', credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ peralatan: daftar })
+    });
+    if(!jawab.ok){
+      const j = await jawab.json().catch(()=>({}));
+      throw new Error(j.error || `HTTP ${jawab.status}`);
+    }
+    PERALATAN[unit] = daftar;
+    gambarRinciAlat();
+    return true;
+  }catch(e){
+    pesan(T('Gagal menyimpan sub-unit: ','Failed to save sub-unit: ') + (e && e.message || e));
+    return false;
+  }
+}
+
 

@@ -67,6 +67,17 @@
 <link href="/css/06-pita-berjalan.css" rel="stylesheet">
 <link href="/css/07-dashboard-unit.css" rel="stylesheet">
 <link href="/css/08-tablet-hp.css" rel="stylesheet">
+<link href="/css/09-cetak.css" rel="stylesheet">
+
+<!-- Sembunyikan layar masuk lebih awal saat halaman dipulihkan.
+     Sebelumnya #layarMasuk tampil apa adanya sampai srvPeriksa()+srvMuat()
+     selesai (dua await), jadi F5 atau kembali ke dashboard sempat menampilkan
+     login sekilas sebelum dashboard muncul. Sinkron di <head>: kalau
+     sessionStorage sudah menyimpan sesi, pasang data-pulih pada <html>; CSS di
+     bawah menyembunyikan layar masuk tanpa transisi. pulihkanSesi() yang
+     membuang atribut ini kalau ternyata sesi tidak bisa dipulihkan. -->
+<script>try{if(sessionStorage.getItem('avenger.sesi'))document.documentElement.dataset.pulih='1';}catch(e){}</script>
+<style>html[data-pulih] #layarMasuk{opacity:0;visibility:hidden;transition:none;}</style>
 </head>
 <body>
 
@@ -240,7 +251,6 @@
        Database Unit, satu daftar per unit. Peringatan masa berlakunya tetap
        lintas unit, di beranda dan di lonceng. -->
   <button data-layar="aktivitas" id="relAktivitas" hidden data-en="Activity">Aktivitas</button>
-  <button data-layar="modul" data-en="Module Map">Peta Modul</button>
   <!-- Hanya muncul untuk administrator. Penjagaan yang sebenarnya ada di server
        E-Logbook; ini cuma kenyamanan. -->
   <button data-layar="akun" id="relAkun" hidden data-en="Manage Accounts">Kelola Akun</button>
@@ -413,39 +423,20 @@
   <div class="catatan" id="catatanAktivitas"></div>
 </section>
 
-<!-- ============ MODUL ============ -->
-<section class="layar" id="l-modul">
-  <div class="judul-seksi"><h2 data-en="Module Map">Peta Modul</h2>
-    <span class="ket" data-en="Where today's E-Logbook sits inside the dashboard plan."
-      >Posisi E-Logbook yang sekarang di dalam rencana dashboard.</span></div>
-  <div class="pemisah"></div>
-  <div class="modul-baris" id="modulBaris"></div>
-  <div class="catatan" data-en="<b>Equipment History is written by hand for now.</b> Each event is typed on the
-    equipment card — date, level, what happened — and stored on this server. Assembling it automatically
-    from the logbook, issues, and LTK is still ahead, and it only becomes possible once those carry a
-    field naming the equipment. What is written by hand today does not go to waste: it has the same
-    shape as what that assembly would produce.">
-    <b>Sejarah Peralatan untuk sekarang ditulis tangan.</b> Tiap kejadian diketik di kartu peralatannya —
-    tanggal, tingkat, apa yang terjadi — dan tersimpan di server ini. Merangkainya sendiri dari logbook,
-    isu, dan LTK masih di depan, dan baru mungkin kalau ketiganya sudah punya kolom penanda peralatan.
-    Yang ditulis tangan sekarang tidak terbuang: bentuknya sama dengan yang akan dihasilkan perangkaian itu.
-  </div>
-  <div style="margin-top:20px;display:flex;gap:10px;flex-wrap:wrap">
-    <a class="btn" href="#" data-elogbook data-en="Open E-Logbook as it is today">Buka E-Logbook yang sekarang</a>
-    <button class="btn garis" onclick="pindahLayar('beranda')" data-en="Back to home">Kembali ke beranda</button>
-  </div>
-</section>
-
 <!-- ============ KELOLA AKUN ============ -->
 <section class="layar" id="l-akun">
   <div class="judul-seksi"><h2 data-en="Manage Accounts">Kelola Akun</h2>
     <span class="ket" id="ketAkunSumber"></span></div>
   <div class="pemisah"></div>
 
-  <div class="ubin-baris" id="ubinAkun" style="margin-top:0"></div>
-  <!-- Peringatan yang tetap terpampang, bukan toast: yang begini perlu tetap
-       terlihat sampai benar-benar dibereskan. -->
-  <div id="awasAkun"></div>
+  <!-- Bagian pengelolaan akun — statistik, peringatan, dan tabel akun — hanya
+       untuk administrator. Admin unit tetap boleh melihat panel Hak di bawahnya,
+       tapi tidak mengurus akun; wadah ini disembunyikan untuk mereka. -->
+  <div id="bagianAkun">
+    <div class="ubin-baris" id="ubinAkun" style="margin-top:0"></div>
+    <!-- Peringatan yang tetap terpampang, bukan toast: yang begini perlu tetap
+         terlihat sampai benar-benar dibereskan. -->
+    <div id="awasAkun"></div>
 
   <div class="panel" style="margin-top:18px">
     <div class="kepala"><h3 data-en="Account List">Daftar Akun</h3>
@@ -472,10 +463,13 @@
     </div>
     <div class="gulir" style="max-height:none"><table id="tblAkun"></table></div>
   </div>
+  </div><!-- /bagianAkun -->
 
   <!-- Hak tiga modul milik dashboard ini. Di sini, bukan di layar masing-masing:
        yang menentukan siapa boleh apa adalah pekerjaan mengelola akun, dan
-       tempatnya satu dengan daftar akunnya. -->
+       tempatnya satu dengan daftar akunnya. Untuk admin unit, panel ini tetap
+       hadir walau panel akun di atas disembunyikan — mereka boleh menunjuk
+       orang, tidak mengurus akun. -->
   <div class="panel" style="margin-top:18px">
     <div class="kepala"><h3 data-en="Who May Fill What">Siapa Boleh Mengisi Apa</h3>
       <span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -495,6 +489,10 @@
           <span class="tombol"><button class="btn garis kecil" id="btnTutupPetugas"
             data-en="Close list">Tutup daftar</button></span>
         </div>
+        <!-- Saringan unit — meniru pola di tabel Kelola Akun. Kalau daftarnya
+             panjang, mencari orang lewat unitnya jauh lebih cepat daripada
+             menyisir A–Z. -->
+        <div class="ringkas-unit" id="ringkasUnitPetugas" hidden></div>
         <div class="kotak-unit" id="daftarPetugas"></div>
       </div>
       <div class="catatan" style="margin-top:12px" data-en="<b>Roles first, names as the exception.</b>
@@ -632,6 +630,34 @@
   </div>
 </div>
 
+<!-- Kartu Cetak — tempat memilih pejabat penandatangan dan (kalau perlu)
+     menggambar TTD atas namanya. Bentuknya sama dengan kartu ubah data
+     di atas supaya rasanya seragam. Isinya dibangun 36-cetak.js. -->
+<div class="lapis-ubah" id="lapisCetak" role="dialog" aria-modal="true" aria-labelledby="judulKartuCetak">
+  <div class="kartu-ubah data">
+    <div class="kepala">
+      <h3 id="judulKartuCetak">Cetak</h3>
+    </div>
+    <div class="badan" id="badanKartuCetak"></div>
+    <div class="kaki">
+      <button class="btn garis" id="btnBatalCetak" data-en="Cancel"
+        onclick="cetakBatal()">Batal</button>
+      <!-- Tombol "Setujui & Kirim" muncul HANYA di kartu review Manager
+           Teknik untuk permintaan Jadwal Dinas — menandatangani lalu
+           meneruskan ke Deputy MT untuk tanda tangan "Mengetahui". Tersembunyi
+           di kartu cetak lainnya. -->
+      <button class="btn garis" id="btnSetujuiKirim" hidden></button>
+      <button class="btn" id="btnLakukanCetak" data-en="Print"
+        onclick="cetakLakukan()">Cetak</button>
+    </div>
+  </div>
+</div>
+
+<!-- Area lembar cetak. Tersembunyi di layar; muncul hanya lewat @media print
+     (lihat 09-cetak.css). Isi HTML lembarnya ditempel sesaat sebelum
+     window.print(), dan dibersihkan lagi sesudahnya. -->
+<div id="printArea"></div>
+
 <script src="/js/01-unit-dan-dinas.js"></script>
 <script src="/js/02-kode-dinas.js"></script>
 <script src="/js/04-galeri.js"></script>
@@ -664,6 +690,7 @@
 <script src="/js/32-dokumen-unit.js"></script>
 <script src="/js/34-sejarah-alat.js"></script>
 <script src="/js/35-impor-sparepart.js"></script>
+<script src="/js/36-cetak.js"></script>
 <script src="/js/33-mulai.js"></script>
 </body>
 </html>

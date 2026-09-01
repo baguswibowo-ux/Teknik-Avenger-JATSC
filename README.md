@@ -488,7 +488,7 @@ mengatakannya alih-alih diam.
 
 Panel di tab **Kelola Akun**, satu baris per modul: Jadwal Dinas, Kegiatan
 Berkala, Data Personel, Daftar Peralatan, Sparepart, Dokumen, Galeri Foto.
-Kolomnya peran — Administrator, Pejabat, Admin Unit, PIC, Teknisi — ditambah
+Kolomnya peran — Administrator, Pejabat, Admin Unit, Teknisi — ditambah
 kolom **Ditunjuk** untuk memberi hak kepada satu orang di luar perannya.
 
 Administrator selalu boleh, di semua modul, dan itu tidak bisa dimatikan dari
