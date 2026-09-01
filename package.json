@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "express": "^5.1.0",
+    "light-my-request": "^6.6.0",
     "pg": "^8.13.1"
   }
 }

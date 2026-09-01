@@ -875,28 +875,34 @@ Sampai Bagian 8, ada **dua proyek Vercel** dari satu repo ini: `teknik-avenger-j
 domain — dan seluruh urusan cookie lintas-subdomain di 8.9 lahir dari situ.
 
 Bagian ini menyatukan keduanya jadi **satu deploy**. E-Logbook tidak lagi jadi
-proyek Vercel sendiri; ia dinyalakan sebagai **server loopback internal** di
-dalam fungsi Avenger — persis model yang sudah jalan di kantor lewat
-`jalankan-semua.js` (dua proses, satu menunjuk yang lain lewat `ELOGBOOK_ASAL`),
-hanya saja di sini keduanya dalam satu proses.
+proyek Vercel sendiri; ia tetap app Express-nya sendiri (halaman di `/`, API di
+`/api`, tidak dipindah alamatnya), tapi dipanggil **langsung di dalam proses**
+Avenger — tanpa jaringan sama sekali.
 
 ### 9.1 Apa yang berubah di kode
 
-- **`api/index.js`** — sekarang menyalakan `elogbook/server.js` sebagai
-  `http.createServer` di `127.0.0.1` port bebas saat cold-start, lalu memasang
-  `ELOGBOOK_ASAL` ke alamat loopback itu **sebelum** `server.js` diimpor
-  (server.js membaca `ELOGBOOK_ASAL` sekali saat modul dimuat). Kode penerusan
-  di `server.js` tidak disentuh — hanya tujuannya yang pindah dari
-  `e-log-book-server.vercel.app` ke loopback.
+- **`api/index.js`** — mengimpor `elogbook/server.js` sebagai app Express, lalu
+  **mencegat `fetch()`** hanya untuk satu alamat internal (`http://elog.internal`)
+  dan menjalankannya lewat `light-my-request` (`inject`) langsung ke app
+  E-Logbook, mengembalikan `Response` standar. `ELOGBOOK_ASAL` diarahkan ke
+  alamat internal itu **sebelum** `server.js` diimpor (server.js membacanya
+  sekali saat modul dimuat). Kode penerusan di `server.js` tidak disentuh sama
+  sekali — hanya transport-nya yang berganti dari HTTP jadi panggilan fungsi.
+- **`package.json`** — tambah `light-my-request` (alat baku untuk menyuntik
+  permintaan ke handler Node tanpa socket; dipakai Fastify).
 - **`vercel.json`** — `functions["api/index.js"].includeFiles` = `"elogbook/public/**"`.
   Vercel menelusuri `import`, bukan berkas yang disajikan `express.static`. Tanpa
-  baris ini, halaman E-Logbook naik tanpa CSS/JS-nya. **Inilah bagian yang paling
-  mungkin patah — wajib dicek di Preview.**
+  baris ini, halaman E-Logbook naik tanpa CSS/JS-nya.
 
-Kenapa server loopback, bukan menumpuk dua app Express jadi satu: alasannya sama
-dengan komentar di `jalankan-semua.js` — E-Logbook menyajikan halamannya di `/`
-dan API-nya di `/api`, persis seperti dashboard. Menumpuknya memaksa salah satu
-pindah alamat. Loopback membiarkan E-Logbook tetap di alamatnya sendiri.
+**Kenapa BUKAN server loopback (`http.createServer` + `listen` di 127.0.0.1):**
+itu dicoba lebih dulu dan **gagal di Vercel**. Fungsinya boot normal — servernya
+ter-bind dan dapat port, rute Avenger sendiri menjawab cepat — tapi
+`fetch('http://127.0.0.1:port')` dari dalam fungsi yang sama **tidak pernah
+tersambung**: tiap permintaan yang diteruskan menggantung sampai batas 30 detik
+lalu `500 INTERNAL_FUNCTION_INVOCATION_FAILED`. Runtime Vercel tampaknya tidak
+mengizinkan fungsi menyambung ke server loopback yang dinyalakannya sendiri.
+Dispatch in-process tidak menyentuh jaringan, jadi kebal soal itu: kalau lolos
+di komputer, ia lolos di Vercel — hanya panggilan fungsi Express biasa.
 
 ### 9.2 Yang harus dikerjakan di Vercel (proyek `teknik-avenger-jatsc`)
 
