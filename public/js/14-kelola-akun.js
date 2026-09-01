@@ -509,20 +509,54 @@ function gambarPetugasDinas(){
     }
     return T('Belum ada akun aktif selain administrator.','No active accounts other than administrators yet.');
   };
-  el('daftarPetugas').innerHTML = tampil.length
-    ? tampil.map(u=>{
-        const nama = u.username.toLowerCase();
-        // Yang sudah boleh lewat perannya tetap ditampilkan, tapi redup dan
-        // mati: mencentangnya tidak menambah apa pun, dan melepasnya tidak
-        // mencabut apa pun — dua-duanya hanya menyesatkan.
-        const lewatPeran = HAK[m].peran.includes(u.role);
-        const dicentang = lewatPeran || HAK[m].petugas.includes(nama);
-        return `<label${lewatPeran ? ' style="opacity:.55"' : ''}>
-          <input type="checkbox" value="${esc(nama)}"${dicentang?' checked':''}${lewatPeran?' disabled':''}>
-          ${esc(u.nama || u.username)} <span class="mono" style="color:var(--muted);font-size:11px">${
-            esc(u.username)}${lewatPeran ? ' · ' + esc(T('lewat peran','via role')) : ''}</span></label>`;
-      }).join('')
-    : `<span style="color:var(--muted);font-size:12px">${pesanKosong()}</span>`;
+  /* Petugas hantu — nama yang masih tercantol di HAK[m].petugas tapi tidak
+     muncul di daftar aktif: akunnya sudah dinonaktifkan, perannya berubah
+     (mis. jadi admin), atau akunnya dihapus. Tanpa ditampilkan, tombolnya
+     tetap menghitung "N orang" padahal admin tidak bisa melihat siapa mereka
+     untuk melepas. Hanya digambar saat saringan unit kosong dan daftar akun
+     sudah termuat — kalau USERS belum datang, hampir semua nama akan tampak
+     "hantu" secara semu. */
+  const cariUser = (nm) => USERS.find(u => u.username.toLowerCase() === nm);
+  const usersSiap = USERS.length > 0 && !muatUsersJalan;
+  const namaTampilSet = new Set(tampil.map(u => u.username.toLowerCase()));
+  let hantu = [];
+  if(!saringUnitPetugas && usersSiap){
+    hantu = (HAK[m].petugas || []).filter(nm => !namaTampilSet.has(nm));
+    // Admin unit tidak boleh menyunting petugas di luar lingkupnya. Kalau nama
+    // hantu tidak dikenal (akun dihapus) atau di luar lingkup, sembunyikan —
+    // yang berhak membersihkannya administrator utama.
+    if(bukanAdminUtama){
+      hantu = hantu.filter(nm => { const u = cariUser(nm); return u && dalamLingkup(u); });
+    }
+  }
+  const bagianTampil = tampil.map(u=>{
+    const nama = u.username.toLowerCase();
+    // Yang sudah boleh lewat perannya tetap ditampilkan, tapi redup dan
+    // mati: mencentangnya tidak menambah apa pun, dan melepasnya tidak
+    // mencabut apa pun — dua-duanya hanya menyesatkan.
+    const lewatPeran = HAK[m].peran.includes(u.role);
+    const dicentang = lewatPeran || HAK[m].petugas.includes(nama);
+    return `<label${lewatPeran ? ' style="opacity:.55"' : ''}>
+      <input type="checkbox" value="${esc(nama)}"${dicentang?' checked':''}${lewatPeran?' disabled':''}>
+      ${esc(u.nama || u.username)} <span class="mono" style="color:var(--muted);font-size:11px">${
+        esc(u.username)}${lewatPeran ? ' · ' + esc(T('lewat peran','via role')) : ''}</span></label>`;
+  }).join('');
+  const bagianHantu = hantu.map(nm=>{
+    const u = cariUser(nm);
+    const nama = u ? (u.nama || u.username) : nm;
+    const status = u
+      ? (u.aktif ? T('peran/unit tidak cocok lagi','role/unit no longer matches')
+                 : T('akun nonaktif','account inactive'))
+      : T('akun tidak dikenal','account not found');
+    return `<label style="opacity:.7" title="${esc(T(
+      'Masih tercantol di daftar tapi tak muncul di saringan aktif — lepas centang untuk membersihkan.',
+      'Still on the list but does not fit the active filter — untick to clean up.'))}">
+      <input type="checkbox" value="${esc(nm)}" checked>
+      ${esc(nama)} <span class="mono" style="color:var(--muted);font-size:11px">${
+        esc(nm)} · ${esc(status)}</span></label>`;
+  }).join('');
+  el('daftarPetugas').innerHTML = (bagianTampil + bagianHantu)
+    || `<span style="color:var(--muted);font-size:12px">${pesanKosong()}</span>`;
 
   el('daftarPetugas').querySelectorAll('input[type=checkbox]').forEach(c=>{
     c.addEventListener('change', ()=>{
