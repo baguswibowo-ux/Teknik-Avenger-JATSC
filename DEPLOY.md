@@ -867,6 +867,72 @@ harus tetap disunting berpasangan.
 
 ---
 
+## Bagian 9 — Satu deploy, bukan dua
+
+Sampai Bagian 8, ada **dua proyek Vercel** dari satu repo ini: `teknik-avenger-jatsc`
+(akar) dan `e-log-book-server` (Root Directory `elogbook`). Dashboard meneruskan
+`/api/*`, `/uploads`, dan `/logbook/*` ke proyek E-Logbook lewat HTTP menyeberang
+domain — dan seluruh urusan cookie lintas-subdomain di 8.9 lahir dari situ.
+
+Bagian ini menyatukan keduanya jadi **satu deploy**. E-Logbook tidak lagi jadi
+proyek Vercel sendiri; ia dinyalakan sebagai **server loopback internal** di
+dalam fungsi Avenger — persis model yang sudah jalan di kantor lewat
+`jalankan-semua.js` (dua proses, satu menunjuk yang lain lewat `ELOGBOOK_ASAL`),
+hanya saja di sini keduanya dalam satu proses.
+
+### 9.1 Apa yang berubah di kode
+
+- **`api/index.js`** — sekarang menyalakan `elogbook/server.js` sebagai
+  `http.createServer` di `127.0.0.1` port bebas saat cold-start, lalu memasang
+  `ELOGBOOK_ASAL` ke alamat loopback itu **sebelum** `server.js` diimpor
+  (server.js membaca `ELOGBOOK_ASAL` sekali saat modul dimuat). Kode penerusan
+  di `server.js` tidak disentuh — hanya tujuannya yang pindah dari
+  `e-log-book-server.vercel.app` ke loopback.
+- **`vercel.json`** — `functions["api/index.js"].includeFiles` = `"elogbook/public/**"`.
+  Vercel menelusuri `import`, bukan berkas yang disajikan `express.static`. Tanpa
+  baris ini, halaman E-Logbook naik tanpa CSS/JS-nya. **Inilah bagian yang paling
+  mungkin patah — wajib dicek di Preview.**
+
+Kenapa server loopback, bukan menumpuk dua app Express jadi satu: alasannya sama
+dengan komentar di `jalankan-semua.js` — E-Logbook menyajikan halamannya di `/`
+dan API-nya di `/api`, persis seperti dashboard. Menumpuknya memaksa salah satu
+pindah alamat. Loopback membiarkan E-Logbook tetap di alamatnya sendiri.
+
+### 9.2 Yang harus dikerjakan di Vercel (proyek `teknik-avenger-jatsc`)
+
+1. **Salin environment variable** milik `e-log-book-server` ke proyek Avenger —
+   tanpa ini E-Logbook internal tidak punya database:
+   - `ELOGBOOK_DB=postgres`
+   - `DATABASE_URL=…` (pooler Supabase)
+   - `SUPABASE_URL=…`
+   - `SUPABASE_SERVICE_KEY=…`
+   - `ELOGBOOK_BUCKET=elogbook`
+   - setelan cookie yang dipakai E-Logbook (mis. `ELOGBOOK_SECURE_COOKIE=1`).
+2. **Hapus** `ELOGBOOK_ASAL` dan `ELOGBOOK_TAUTAN` dari env Avenger kalau masih
+   menunjuk `e-log-book-server.vercel.app`. `api/index.js` mengisi `ELOGBOOK_ASAL`
+   sendiri ke loopback; `ELOGBOOK_TAUTAN` yang kosong jatuh ke `/logbook/` — yang
+   memang benar sekarang karena satu domain.
+3. **Deploy Preview dulu**, jangan langsung produksi. Yang diperiksa:
+   - `…/logbook/` terbuka dengan CSS/JS-nya sendiri (bukan kulit dashboard) →
+     bukti `includeFiles` bekerja.
+   - Login di `/logbook/`, lalu buka layar dashboard yang mengambil data
+     (personel, dinas, TTD kartu cetak) → bukti loopback + sesi mengalir.
+   - Log fungsi memuat `[gabung] E-Logbook internal siap di http://127.0.0.1:…`.
+4. Setelah Preview terbukti, **promote ke produksi**.
+5. Baru kemudian **nonaktifkan proyek `e-log-book-server`**: putuskan Git/Branch
+   Tracking-nya lebih dulu supaya push berikutnya tidak menghidupkannya lagi,
+   lalu Pause (atau hapus). Jangan dihapus sebelum versi gabungan terbukti di
+   produksi — selama itu ia jaring pengaman.
+
+### 9.3 Kalau harus mundur
+
+`git revert` commit gabungan ini mengembalikan `api/index.js` dan `vercel.json`
+ke bentuk dua-deploy. Selama proyek `e-log-book-server` belum dihapus (hanya
+di-pause) dan env `ELOGBOOK_ASAL` lama masih tercatat, produksi bisa kembali ke
+topologi lama tanpa kehilangan apa pun.
+
+---
+
 ## Yang belum siap
 
 - Branch Tracking Vercel belum diarahkan ke `utama`. Lihat 3.1. Sampai itu,
