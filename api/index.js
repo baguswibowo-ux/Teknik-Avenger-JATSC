@@ -80,6 +80,10 @@ function dispatchElog(url, init = {}) {
        menyentuhnya. */
     const soket = new Socket();
 
+    const jadikanBuffer = (data, enc) =>
+      data == null ? null : (Buffer.isBuffer(data) ? data : Buffer.from(data, enc || 'utf8'));
+    const badan = jadikanBuffer(init.body);
+
     const req = new IncomingMessage(soket);
     req.method = (init.method || 'GET').toUpperCase();
     req.url = u.pathname + u.search;
@@ -87,6 +91,17 @@ function dispatchElog(url, init = {}) {
     req.httpVersion = '1.1';
     req.httpVersionMajor = 1;
     req.httpVersionMinor = 1;
+
+    /* Content-Length WAJIB dipasang di sini. teruskan() di server.js membuang
+       header itu (KEPALA_DIBUANG), dan dulu fetch() memasangnya sendiri dari
+       ukuran badan. Di sini tidak ada fetch: tanpa Content-Length (atau
+       Transfer-Encoding), body-parser E-Logbook menganggap permintaannya TIDAK
+       berbadan (hasbody() → false), melewati badannya, dan req.body jadi kosong.
+       Akibatnya /api/login menerima username/password kosong → 401, tidak ada
+       sesi, tidak ada cookie. Inilah kenapa login gagal di gabungan tapi jalan
+       di versi dua-proyek yang lama. */
+    if (badan && badan.length) req.headers['content-length'] = String(badan.length);
+    else { delete req.headers['content-length']; delete req.headers['transfer-encoding']; }
 
     const res = new ServerResponse(req);
     res.assignSocket(soket);
@@ -108,9 +123,6 @@ function dispatchElog(url, init = {}) {
       }
       resolve(new Response(Buffer.concat(potongan), { status: res.statusCode || 200, headers: kepala }));
     };
-
-    const jadikanBuffer = (data, enc) =>
-      data == null ? null : (Buffer.isBuffer(data) ? data : Buffer.from(data, enc || 'utf8'));
 
     /* Tangkap badan langsung dari argumen write/end, JANGAN lewat serialisasi
        ServerResponse ke soket. Tulisan SETELAH selesai jadi no-op — inilah yang
@@ -142,7 +154,6 @@ function dispatchElog(url, init = {}) {
     };
 
     // Badan permintaan (POST dsb.) disuapkan lalu ditutup supaya body-parser jalan.
-    const badan = jadikanBuffer(init.body);
     if (badan && badan.length) req.push(badan);
     req.push(null);
 
