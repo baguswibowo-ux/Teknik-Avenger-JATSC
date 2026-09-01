@@ -12,6 +12,7 @@
     { "source": "/foto/(.*)", "destination": "/api/index" },
     { "source": "/aktivitas", "destination": "/api/index" },
     { "source": "/hak", "destination": "/api/index" },
+    { "source": "/hak/rename", "destination": "/api/index" },
     { "source": "/personel", "destination": "/api/index" },
     { "source": "/personel/(.*)", "destination": "/api/index" },
     { "source": "/dinas/(.*)", "destination": "/api/index" },

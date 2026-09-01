@@ -973,8 +973,32 @@ async function simpanUbahan(asal){
       throw new Error(potong);
     }
   }
+  // Setelah rename E-Logbook berhasil, pindahkan hak dashboard (daftar Ditunjuk
+  // + overlay) dari username lama ke baru. Sengaja DI LUAR antrean yang fatal:
+  // rename-nya sudah tersimpan, dan kalaupun pemindahan ini gagal, yang nyangkut
+  // tetap bisa dibersihkan tangan di layar Hak Akses (tampil sebagai "hantu").
+  // Jadi kegagalannya tidak boleh membuat rename yang sukses tampak gagal.
+  if(gantiUsername){
+    try{ await hakRenameKirim(asal.username, usernameBaru); }
+    catch(e){ console.warn('Pindah hak setelah rename gagal (bisa dibersihkan manual di Hak Akses):', e); }
+  }
+
   pesan(T(kerja.length + ' perubahan tersimpan untuk ' + asal.username + '.',
           kerja.length + ' change(s) saved for ' + asal.username + '.'));
+}
+
+/** Pindahkan hak dashboard dari username lama ke baru (server yang mengerjakan).
+    Lihat POST /hak/rename di server.js. */
+async function hakRenameKirim(lama, baru){
+  const jawab = await fetch('/hak/rename', {
+    method:'POST', credentials:'include',
+    headers:{ 'Content-Type':'application/json' },
+    body: JSON.stringify({ lama, baru })
+  });
+  if(!jawab.ok){
+    const j = await jawab.json().catch(()=>({}));
+    throw new Error(j.error || `HTTP ${jawab.status}`);
+  }
 }
 
 async function simpanAkun(){

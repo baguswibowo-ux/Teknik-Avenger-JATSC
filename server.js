@@ -1360,6 +1360,82 @@ app.put('/hak', badanDinas, async (req, res) => {
   }
 });
 
+/**
+ * Pindahkan seluruh hak sebuah akun dari username lama ke username baru.
+ *
+ * Hak di dashboard ini disimpan memakai username sebagai kunci — daftar
+ * "Ditunjuk" per modul (hak.json) dan overlay per akun (hak-akun.json). Rename
+ * username terjadi di E-Logbook (kolom users, dibuat_oleh, ttd_oleh), dan tidak
+ * menyentuh dua berkas itu. Tanpa langkah ini, username lama nyangkut sebagai
+ * "N orang" yang tak bisa dicentang siapa-siapa, dan username baru kehilangan
+ * hak yang sudah pernah diberikan.
+ *
+ * Dipanggil klien SETELAH setUserUsername E-Logbook berhasil. Dibuat idempoten:
+ * dipanggil dua kali dengan pasangan yang sama, panggilan kedua mengubah nol.
+ * Rename yang tidak menyentuh hak apa pun juga sah — ubah=0, bukan galat.
+ */
+app.post('/hak/rename', badanDinas, async (req, res) => {
+  const user = await siapa(req);
+  const boleh = user && (String(user.role || '').toLowerCase() === 'admin' || user.superadmin);
+  if (!boleh) {
+    return res.status(403).json({ error: 'Hanya administrator yang boleh memindahkan hak saat rename.' });
+  }
+  if (!DINAS_TULIS) {
+    return res.status(503).json({ error: 'Daftar hak tidak bisa disimpan di lingkungan ini.' });
+  }
+  const lama = usernameKunci(req.body && req.body.lama);
+  const baru = usernameKunci(req.body && req.body.baru);
+  if (!namaSah(lama) || !namaSah(baru)) {
+    return res.status(400).json({ error: 'Username lama/baru tidak sah.' });
+  }
+  if (lama === baru) return res.json({ ok: true, ubah: 0, overlay: false });
+
+  // 1) Daftar "Ditunjuk" global — termasuk baris TTD dan cetak, semua memakai
+  //    kolom petugas yang sama. Kalau baru sudah ada di daftar (mustahil untuk
+  //    rename, tapi murah dijaga), lama cukup dibuang tanpa menggandakan.
+  const hak = await bacaHak();
+  let ubah = 0;
+  for (const m of MODUL_HAK) {
+    const pet = hak[m].petugas;
+    const i = pet.indexOf(lama);
+    if (i === -1) continue;
+    pet.splice(i, 1);
+    if (!pet.includes(baru)) pet.push(baru);
+    ubah++;
+  }
+
+  // 2) Overlay per akun (unit khusus, boleh TTD jenis). Dipindah utuh; kalau
+  //    target sudah punya overlay sendiri (tidak seharusnya, E-Logbook menolak
+  //    username kembar), yang lama dibuang tanpa menimpa yang baru.
+  const map = await bacaHakAkun();
+  let overlay = false;
+  if (Object.prototype.hasOwnProperty.call(map, lama)) {
+    if (!Object.prototype.hasOwnProperty.call(map, baru)) map[baru] = map[lama];
+    delete map[lama];
+    overlay = true;
+  }
+
+  try {
+    if (ubah) {
+      await tulisJson(HAK_JSON, hak);
+      // Sama alasannya dengan PUT /hak: berkas petugas lama sudah dilebur ke
+      // hak.json oleh bacaHak(); dibiarkan hidup, nama lama muncul lagi nanti.
+      await hapusJson(PETUGAS_JSON);
+    }
+    if (overlay) await tulisHakAkun(map);
+    if (ubah || overlay) {
+      await catat(user, {
+        modul: 'hak', aksi: 'rename',
+        rincian: `${lama} → ${baru} (${ubah} modul${overlay ? ' + overlay' : ''})`
+      }).catch(() => {});
+    }
+    res.json({ ok: true, ubah, overlay });
+  } catch (e) {
+    console.error('[hak] gagal memindahkan hak saat rename:', e);
+    res.status(500).json({ error: 'Gagal memindahkan hak: ' + (e?.message || e) });
+  }
+});
+
 /** Peta hak lanjut seluruh akun — admin/super-admin saja. */
 app.get('/hak-akun', async (req, res) => {
   const user = await siapa(req);
