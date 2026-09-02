@@ -294,7 +294,10 @@ const TTD_TERAP = {
   dstest: (r)=>{
     const d = dsList.find(x=>x.id===r.id);
     if(d){ d.managerNama = r.nama; d.managerTtd = r.ttd; d.ttdOleh = r.ttdOleh; d.ttdPada = r.ttdPada; }
+    // Catatan radio berbagi kind 'dstest'; segarkan kedua daftar biar yang
+    // mana pun jenisnya langsung memantulkan TTD baru.
     renderDsList();
+    if(typeof renderRadioList === 'function') renderRadioList();
   },
   berkala: (r)=>{
     const b = berkalaList.find(x=>x.id===r.id);
@@ -373,7 +376,7 @@ function tutupSemuaDetail(){
    sama seperti sebelum fitur ini ada: sekadar tidak ada yang diberi tahu. */
 
 /** Tiap <select> pilihan akun TTD susulan, satu per formulir yang punya isian nama pejabat. */
-const AKUN_TTD_SELECT_ID = ['fePjAkun','dcManagerAkun','monOpsAkun','dsManagerAkun','bkManagerAkun','ltkManagerAkun'];
+const AKUN_TTD_SELECT_ID = ['fePjAkun','dcManagerAkun','monOpsAkun','dsManagerAkun','radioManagerAkun','bkManagerAkun','ltkManagerAkun'];
 
 /** Isi <datalist> saran nama akun dan tiap <select> pilihan akun eksplisit —
     dipanggil sekali saat data dimuat. */

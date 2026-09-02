@@ -431,10 +431,13 @@ function dsTemuan(state, kategori){
 function renderDsList(){
   const wrap = document.getElementById('dsList');
   if(!wrap) return;
+  // Catatan radio menumpang tabel dstest yang sama — disaring keluar di sini
+  // supaya hanya muncul di sub-tab Maintenance Radio (lihat 17c-radio.js).
+  const semua = dsList.filter(d => !(d.state && d.state.__format === 'radio'));
   const tgl = (document.getElementById('cariDsTanggal') || {}).value || '';
-  const daftar = tgl ? dsList.filter(d=>String(d.tanggal||'').slice(0,10) === tgl) : dsList;
+  const daftar = tgl ? semua.filter(d=>String(d.tanggal||'').slice(0,10) === tgl) : semua;
 
-  if(dsList.length === 0){ wrap.innerHTML = '<div class="empty">' + T('belumAdaDs') + '</div>'; return; }
+  if(semua.length === 0){ wrap.innerHTML = '<div class="empty">' + T('belumAdaDs') + '</div>'; return; }
   if(daftar.length === 0){ wrap.innerHTML = '<div class="empty">' + T('takAdaHasil') + '</div>'; return; }
 
   wrap.innerHTML = daftar.map(d=>{
@@ -566,6 +569,9 @@ function dsTabelBaca(state, cetak, kategori){
 function openDsDetail(id){
   const d = dsList.find(x=>x.id===id);
   if(!d) return;
+  // Catatan radio menumpang tabel/kind 'dstest' (mis. dibuka dari kotak masuk
+  // TTD) — bentuk lembarnya beda, delegasikan ke renderer radio.
+  if(d.state && d.state.__format === 'radio' && typeof openRadioDetail === 'function') return openRadioDetail(id);
   const baru = dsFormatBaru(d.state);
   const jenis = baru
     ? `Sampling · Sesi ${+d.state.__sesiDs || '?'}/9`
@@ -595,6 +601,7 @@ const DS_JUDUL_CETAK = {
 function printDs(id){
   const d = dsList.find(x=>x.id===id);
   if(!d) return;
+  if(d.state && d.state.__format === 'radio' && typeof printRadio === 'function') return printRadio(id);
   if(!tolakCetakBilaBelumTtd(d, 'dstest')) return;
   const nama = (d.teknisiNamaList && d.teknisiNamaList.length) ? d.teknisiNamaList : [d.teknisiNama || ''];
   const baru = dsFormatBaru(d.state);

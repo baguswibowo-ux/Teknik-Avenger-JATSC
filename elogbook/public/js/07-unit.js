@@ -88,6 +88,9 @@ function terapkanUnit(){
   }
   const subDs = document.querySelector('.subtab-btn[data-subtab="dstest"]');
   if(subDs) subDs.style.display = u.adaDsTest ? '' : 'none';
+  // Maintenance Radio hidup untuk unit yang sama dengan DS Test (Radtel/JATSC).
+  const subRadio = document.querySelector('.subtab-btn[data-subtab="radio"]');
+  if(subRadio) subRadio.style.display = u.adaDsTest ? '' : 'none';
   ['bk-neptuno','bk-gatevox','bk-cleaning','bk-restart'].forEach(nama=>{
     const s = document.querySelector(`.subtab-btn[data-subtab="${nama}"]`);
     if(s) s.style.display = u.adaBerkala ? '' : 'none';

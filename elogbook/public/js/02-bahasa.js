@@ -108,6 +108,10 @@ const KAMUS = {
     belumAdaDs:'Belum ada hasil DS Test.', dsTersimpan:'DS Test tersimpan.',
     siteBermasalah:'site bermasalah', semuaLolos:'semua lolos',
     noteCariDs:'Isi tanggal untuk menampilkan hasil DS Test pada hari itu saja.',
+    tabRadio:'📻 MAINTENANCE RADIO', radioJudul:'Maintenance Radio',
+    radioSub:'Sampling 7 sesi selang-seling — 67 radio/frequency habis satu siklus tanpa duplikat.',
+    radioModal:'Maintenance Radio', tambahRadio:'+ Form Baru', simpanRadio:'💾 Simpan Maintenance Radio',
+    noteCariRadio:'Isi tanggal untuk menampilkan checklist Maintenance Radio pada hari itu saja.',
 
     /* ---------- Pekerjaan berkala ----------
        Satu kunci per jenis di berkala-item.js — menambah jenis di sana berarti
@@ -411,6 +415,10 @@ const KAMUS = {
     belumAdaDs:'No DS Test result yet.', dsTersimpan:'DS Test saved.',
     siteBermasalah:'sites with problems', semuaLolos:'all passed',
     noteCariDs:'Set a date to show only the DS Test results from that day.',
+    tabRadio:'📻 RADIO MAINTENANCE', radioJudul:'Radio Maintenance',
+    radioSub:'Alternating 7-session sampling — 67 radios/frequencies covered once per cycle, no duplicates.',
+    radioModal:'Radio Maintenance', tambahRadio:'+ New Form', simpanRadio:'💾 Save Radio Maintenance',
+    noteCariRadio:'Set a date to show only the Radio Maintenance checklists from that day.',
 
     /* ---------- Periodic work ---------- */
     bkJenis_neptuno:'Neptuno Recording Inspection',
@@ -714,6 +722,10 @@ const KAMUS = {
     belumAdaDs:'Todavía no hay resultados de Prueba DS.', dsTersimpan:'Prueba DS guardada.',
     siteBermasalah:'sitios con problemas', semuaLolos:'todos correctos',
     noteCariDs:'Elija una fecha para ver solo las Pruebas DS de ese día.',
+    tabRadio:'📻 MANTENIMIENTO RADIO', radioJudul:'Mantenimiento Radio',
+    radioSub:'Muestreo alterno de 7 sesiones — 67 radios/frecuencias cubiertos una vez por ciclo, sin duplicados.',
+    radioModal:'Mantenimiento Radio', tambahRadio:'+ Formulario Nuevo', simpanRadio:'💾 Guardar Mantenimiento Radio',
+    noteCariRadio:'Elija una fecha para ver solo las listas de Mantenimiento Radio de ese día.',
     /* trabajos periódicos */
     bkJenis_neptuno:'Inspección de Grabación Neptuno',
     bkJenis_gatevox:'Cambio de CPU Gatevox',

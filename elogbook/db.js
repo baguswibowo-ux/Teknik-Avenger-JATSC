@@ -1990,10 +1990,14 @@ export function listDsTest(unit = 'radtel', limit = 200) {
 
 export function insertDsTest(rec = {}, olehUsername = '', olehNama = '') {
   const namaList = Array.isArray(rec.teknisiNamaList) ? rec.teknisiNamaList : [];
-  const kategori = kategoriDsSah(rec.kategori) ? rec.kategori : 'domestik';
+  // Catatan Maintenance Radio menumpang tabel ini (state.__format === 'radio').
+  // Daftar radionya ada di peramban (17c-radio.js), bukan di ds-site.js, jadi
+  // kategori 'radio' tidak punya entri DS_SITE — lewati pemeriksaan site.
+  const isRadio = !!(rec.state && rec.state.__format === 'radio');
+  const kategori = isRadio ? 'radio' : (kategoriDsSah(rec.kategori) ? rec.kategori : 'domestik');
   // Daftar site yang masih kosong berarti formnya belum bisa dipakai —
   // menyimpan lembar tanpa satu pun site hanya menghasilkan berkas kosong.
-  if (dsSiteUntuk(kategori).length === 0) {
+  if (!isRadio && dsSiteUntuk(kategori).length === 0) {
     throw new Error('Daftar site untuk kategori ' + kategori + ' belum diisi.');
   }
   const row = {

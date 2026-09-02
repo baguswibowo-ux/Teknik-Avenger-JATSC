@@ -339,6 +339,7 @@
   <section class="view" id="view-preventive">
     <nav class="subtabs">
       <button class="subtab-btn active" data-subtab="dstest" data-t="tabDsTest">☎ DS TEST</button>
+      <button class="subtab-btn" data-subtab="radio" data-t="tabRadio">📻 MAINTENANCE RADIO</button>
       <button class="subtab-btn" data-subtab="bk-neptuno" data-t="tabBkNeptuno">🎙 CEK INSPECTION NEPTUNO</button>
       <button class="subtab-btn" data-subtab="bk-gatevox" data-t="tabBkGatevox">♻ CHANGE OVER CPU GATEVOX</button>
       <button class="subtab-btn" data-subtab="bk-cleaning" data-t="tabBkCleaning">🧹 CLEANING CWP</button>
@@ -359,6 +360,22 @@
       <div class="subtle-note" data-t="noteCariDs">Isi tanggal untuk menampilkan hasil DS Test pada hari itu saja.</div>
     </div>
     <div id="dsList"></div>
+    </section>
+
+    <!-- ===== SUB-TAB: MAINTENANCE RADIO ===== -->
+    <section class="subview" id="view-radio">
+    <div class="section-head">
+      <div><h2 data-t="radioJudul">Maintenance Radio</h2><p data-t="radioSub">Sampling 7 sesi selang-seling — 67 radio/frequency habis satu siklus tanpa duplikat.</p></div>
+      <button class="btn btn-tambah" onclick="openRadioModal()" data-t="tambahRadio">+ Form Baru</button>
+    </div>
+    <div class="card">
+      <div class="print-bar">
+        <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariRadioTanggal" onchange="renderRadioList()"></div>
+        <button class="btn ghost" onclick="resetCariRadio()" data-t="resetCari">↺ Tampilkan Semua</button>
+      </div>
+      <div class="subtle-note" data-t="noteCariRadio">Isi tanggal untuk menampilkan checklist Maintenance Radio pada hari itu saja.</div>
+    </div>
+    <div id="radioList"></div>
     </section>
 
     <!-- ===== SUB-TAB: PEKERJAAN BERKALA (empat jenis) ===== -->
@@ -684,6 +701,60 @@
     <div class="modal-footer">
       <button class="btn ghost" onclick="closeDsModal()" data-t="batal">Batal</button>
       <button class="btn" id="dsSaveBtn" onclick="saveDs()" data-t="simpanDs">💾 Simpan DS Test</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL MAINTENANCE RADIO -->
+<div class="modal-bg" id="radioModalBg">
+  <div class="modal" style="max-width:1120px;">
+    <h3 data-t="radioModal">Maintenance Radio</h3>
+    <div class="grid2">
+      <div class="field"><label data-t="tanggal">Tanggal</label><input type="date" id="radioTanggal"></div>
+      <div class="field">
+        <label>Sesi Pengecekan</label>
+        <!-- Isinya dibangun renderRadioTable() → radioSesiPilihanHtml(): tujuh
+             sesi sampling (ganjil 10, genap 9 radio). Pilih sesi → baris kosong
+             sebanyak kuota sesi; radio dipilih dari dropdown anti-duplikat.
+             Sesi yang barusan tersimpan diingat lokal supaya form berikutnya
+             lanjut ke sesi selanjutnya. -->
+        <select id="radioSesi" onchange="gantiRadioSesi(this.value)"></select>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:4px 0 6px;">
+      <div style="font-size:12px;color:var(--muted);" id="radioSesiInfo">Sesi 1/7 — kuota 10 radio.</div>
+      <button class="btn ghost" style="padding:4px 10px;font-size:11.5px;" onclick="radioResetCycle()" title="Kosongkan daftar radio yang sudah dicek di siklus ini — mulai sesi 1 dari nol.">Reset siklus</button>
+    </div>
+    <div class="legend">
+      <span><i class="dot" style="background:var(--ok)"></i> OK</span>
+      <span><i class="dot" style="background:var(--fail)"></i> NOT OK</span>
+      <span><i class="dot" style="background:var(--muted)"></i> NO ANSWER</span>
+      <span style="color:var(--muted);">Indikasi PTT: Standby 5–60 VDC · Aktif 0–40 VDC. Power RX/TX dicatat manual (dB).</span>
+    </div>
+    <div class="dc-table-wrap" id="radioTableWrap">
+      <table class="dc ds" id="radioTable">
+        <!-- Kepala & body diisi renderRadioTable() dari radioRows (kolom: No,
+             Radio/Frequency Sampling, PTT Standby, PTT Aktif, Indikasi PTT,
+             Power RX, Power TX, Hasil, Remark). -->
+        <thead id="radioThead"></thead>
+        <tbody id="radioBody"></tbody>
+      </table>
+    </div>
+    <div class="grid2" style="margin-top:14px;">
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <label style="font-family:var(--font-mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);" data-t="namaTeknisiPelaksana">Nama Teknisi Pelaksana</label>
+          <button class="btn ghost" style="padding:5px 10px;" onclick="addRadioTeknisi()" data-t="tambahNama">+ Nama</button>
+        </div>
+        <div id="radioTeknisiList" style="margin-top:8px;"></div>
+      </div>
+      <div class="field"><label data-t="ttdTeknisi">TTD Teknisi</label><div class="sig-wrap"><canvas id="sigRadio"></canvas><div class="sig-toolbar"><span class="sig-hint" data-t="ttdHintTeknisi">tanda tangan teknisi</span><button class="sig-clear" onclick="clearSig('sigRadio')" data-t="bersihkan">bersihkan</button></div></div></div>
+    </div>
+    <div class="field" style="margin-top:8px;"><label data-t="mengetahuiManager">Mengetahui — Manager Teknik</label><input type="text" id="radioManagerNama" list="pejabatDatalist" data-t-ph="phNamaManager" placeholder="Nama manager teknik"></div>
+    <div class="field" style="margin-top:6px;"><label data-t="kirimTtdKe">Kirim TTD ke akun</label><select id="radioManagerAkun"><option value="" data-t="kirimTtdOtomatis">Otomatis (dari nama di atas)</option></select></div>
+    <div class="modal-footer">
+      <button class="btn ghost" onclick="closeRadioModal()" data-t="batal">Batal</button>
+      <button class="btn" id="radioSaveBtn" onclick="saveRadio()" data-t="simpanRadio">💾 Simpan Maintenance Radio</button>
     </div>
   </div>
 </div>
@@ -1097,6 +1168,7 @@
 <script src="js/15-isu.js"></script>
 <script src="js/16-monitoring.js"></script>
 <script src="js/17-ds-test.js"></script>
+<script src="js/17c-radio.js"></script>
 <script src="js/18-ltk.js"></script>
 <script src="js/18b-bapb.js"></script>
 <script src="js/19-berkala.js"></script>
