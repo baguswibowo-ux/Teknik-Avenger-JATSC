@@ -194,7 +194,61 @@ function buildDcNavPrintHtml(r, state){
     </table>`;
 }
 
+/** Halaman cetak daily check Pengamatan (unit pengamatan) — dua lembar
+    (Radar CKG 3 / Fasilitas Pengamatan) yang dipilih dari __pgmForm. Sama pola
+    dengan JATSC/Navigasi: kepala judul, tiga kolom meta, tabel baca-saja,
+    legenda NB, keterangan opsional, lalu blok TTD teknisi & manager. */
+function buildDcPgmPrintHtml(r, state){
+  const form = (state && state.__pgmForm === 'mer') ? 'mer' : 'ckg3';
+  const label = (typeof DC_PGM_LABEL !== 'undefined' && DC_PGM_LABEL[form]) || 'Radar CKG 3';
+  return `
+    <style>
+      /* Rapatkan sel khusus lembar pengamatan supaya muat satu halaman. */
+      #printArea .pgm-print td{padding:0 3px;line-height:1.1;}
+      #printArea .pgm-print .p-kepala td{font-size:6pt;}
+    </style>
+    <div style="text-align:center;font-weight:bold;font-size:12pt;margin-bottom:2px;">
+      DAILY CHECK FASILITAS PENGAMATAN
+    </div>
+    <div style="text-align:center;font-weight:bold;font-size:10pt;margin-bottom:8px;">
+      ${escapeHtml(label.toUpperCase())} — JATSC
+    </div>
+    <table class="no-border" style="font-size:9pt;margin-bottom:8px;">
+      <tr>
+        <td style="width:33%;">LOKASI : JATSC</td>
+        <td style="width:33%;">DINAS : ${escapeHtml(r.dinas)||'________'}</td>
+        <td>HARI/TANGGAL : ${escapeHtml(r.tanggal)||'________'}</td>
+      </tr>
+    </table>
+
+    ${dcPgmTabelBaca(form, state, true)}
+
+    <div style="font-size:8.5pt;margin-top:6px;">
+      <b>NB :</b> ✓ : Normal &nbsp;&nbsp; ! : Alarm &nbsp;&nbsp; ✕ : Gangguan
+    </div>
+    ${r.remark ? `<div style="font-size:8.5pt;margin-top:4px;"><b>KETERANGAN :</b> ${escapeHtml(r.remark).replace(/\n/g,'<br>')}</div>` : ''}
+
+    <table class="no-border" style="font-size:9pt;margin-top:14px;">
+      <tr>
+        <td style="width:55%;text-align:left;vertical-align:top;">
+          <div style="margin-bottom:6px;">PETUGAS :</div>
+          ${teknisiPrintBlock(r)}
+        </td>
+        <td style="text-align:center;vertical-align:top;">
+          <div>Mengetahui,</div>
+          <div style="margin-bottom:4px;">Manager Teknik</div>
+          <div style="height:46px;">${ttdImg(r.managerTtd, 40)}</div>
+          <div style="border-top:1px solid #000;display:inline-block;padding:0 24px;">
+            ${r.managerTtd ? (escapeHtml(r.managerNama) || '&nbsp;') : '&nbsp;'}
+          </div>
+        </td>
+      </tr>
+    </table>`;
+}
+
 function buildDcPrintHtml(r, state){
+  if(state && state.__format === 'amhs') return buildDcAmhsPrintHtml(r, state);
+  if(state && state.__format === 'pengamatan') return buildDcPgmPrintHtml(r, state);
   if(dcRadkomAktif()) return buildDcRkPrintHtml(r, state);
   if(state && state.__lokasi === 'navigasi') return buildDcNavPrintHtml(r, state);
   if(state && state.__lokasi === 'jatsc') return buildDcJatscPrintHtml(r, state);
@@ -263,19 +317,22 @@ function teknisiPrintBlock(r){
 function printCurrentDailyCheck(){
   const jatsc = dcRadtelJatscAktif();
   const nav   = (typeof dcNavAktif === 'function') && dcNavAktif();
+  const pgm   = (typeof dcPengamatanAktif === 'function') && dcPengamatanAktif();
   const r = {
     tanggal: tanggalDcTersimpan(),
     dinas: document.getElementById('dcDinas').value,
-    suhu: (jatsc || nav) ? '' : document.getElementById('dcSuhu').value.trim(),
+    suhu: (jatsc || nav || pgm) ? '' : document.getElementById('dcSuhu').value.trim(),
     remark: document.getElementById('dcRemark').value.trim(),
     teknisiNamaList: collectTeknisiNama(),
     teknisiTtd: getSigDataUrl('sigDcTeknisi'),
     managerNama: document.getElementById('dcManagerNama').value.trim()
   };
-  const state = nav   ? { ...dcNState, __lokasi:'navigasi' }
+  const state = pgm   ? { ...dcPgmState[dcPgmForm], __format:'pengamatan', __pgmForm:dcPgmForm }
+              : nav   ? { ...dcNState, __lokasi:'navigasi' }
               : jatsc ? { ...dcJState, __lokasi:'jatsc' }
                       : dcState;
-  doPrint(buildDcPrintHtml(r, state), 'landscape');
+  // Pengamatan mengikuti lembar Excel-nya yang portrait; unit lain landscape.
+  doPrint(buildDcPrintHtml(r, state), pgm ? 'portrait' : 'landscape');
 }
 
 /** Cetak daily check yang sudah tersimpan di database. Detailnya dulu diambil
@@ -291,7 +348,14 @@ async function printSavedDailyCheck(id){
       teknisiTtd: detail.teknisiTtd || r.teknisiTtd,
       managerTtd: detail.managerTtd || r.managerTtd
     });
-    if(!tolakCetakBilaBelumTtd(rPrint, 'dc')) return;
-    doPrint(buildDcPrintHtml(rPrint, detail.state || {}), 'landscape');
+    // AMHS (Fasilitas Otomasi) tak memakai TTD Manager digital — TTD manager
+    // manual di kertas — jadi gerbang "harus sudah TTD" tidak berlaku, dan
+    // lembarnya portrait (1 halaman/sistem).
+    const fmt = (detail.state || {}).__format;
+    const isAmhs = fmt === 'amhs';
+    const isPgm  = fmt === 'pengamatan';
+    if(!isAmhs && !tolakCetakBilaBelumTtd(rPrint, 'dc')) return;
+    // AMHS & Pengamatan mengikuti lembar aslinya yang portrait; sisanya landscape.
+    doPrint(buildDcPrintHtml(rPrint, detail.state || {}), (isAmhs || isPgm) ? 'portrait' : 'landscape');
   }catch(e){ toast('Gagal mengambil detail daily check.'); }
 }

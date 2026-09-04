@@ -81,7 +81,9 @@ function terapkanUnit(){
   // sub-tab pekerjaan berkala diperlakukan satu paket seperti sebelumnya
   // — tidak ada unit yang punya sebagiannya saja.
   const tabPm = document.querySelector('.tab-btn[data-tab="preventive"]');
-  const adaPm = !!(u.adaDsTest || u.adaBerkala);
+  // Unit Pengamatan memakai wadah Preventive untuk tiga lembar Weekly Check
+  // (js/17d-weekly-pengamatan.js) meski tak punya DS Test / berkala.
+  const adaPm = !!(u.adaDsTest || u.adaBerkala || u.kode === 'pengamatan');
   if(tabPm){
     tabPm.style.display = adaPm ? '' : 'none';
     if(!adaPm && tabPm.classList.contains('active')) pilihTab('logbook');
@@ -95,6 +97,13 @@ function terapkanUnit(){
     const s = document.querySelector(`.subtab-btn[data-subtab="${nama}"]`);
     if(s) s.style.display = u.adaBerkala ? '' : 'none';
   });
+  // Tiga lembar Weekly Check hanya untuk unit Pengamatan.
+  const adaWk = u.kode === 'pengamatan';
+  ['wk-ckg3','wk-smrt1','wk-smrt3'].forEach(nama=>{
+    const s = document.querySelector(`.subtab-btn[data-subtab="${nama}"]`);
+    if(s) s.style.display = adaWk ? '' : 'none';
+  });
+  if(adaWk && typeof renderSemuaWkList === 'function') renderSemuaWkList();
   // Kalau sub-tab yang lagi aktif ternyata tidak dipakai unit ini, pindah
   // ke sub-tab pertama yang masih terlihat — kalau tidak, wadahnya terbuka
   // di ruang kosong dan seolah tidak ada isinya.
@@ -136,12 +145,39 @@ function terapkanUnit(){
   // menentukan mana yang tampak.
   const radkom = u.kode === 'radkom';
   const nav = u.kode === 'ppabn';            // Fasilitas Navigasi (ILS + DVOR/DME)
+  const amhs = u.kode === 'amhsadps';        // Fasilitas Otomasi (AMHS · AADPS · D-ATIS)
+  const pengamatan = u.kode === 'pengamatan';// Radar CKG 3 + Fasilitas Pengamatan
   const punyaLokasi = u.kode === 'radtel';   // JATSC vs New JATSC
+
+  // Unit AMHS memakai form-nya sendiri (#dcAmhsWrap, js/12d-daily-check-amhs.js).
+  // Wadah form baku (#dcFormCard) disembunyikan, TAPI seksi Riwayat
+  // (#dcRiwayatWrap, berisi #dcHistory) TETAP TAMPIL — riwayat AMHS pakai daftar
+  // yang sama (renderDcAmhsHistory). Filter tanggalnya juga berlaku.
+  // Officer (pejabat) hanya melihat & menandatangani: form input AMHS
+  // disembunyikan untuknya — cukup Riwayat (read-only) + detail untuk TTD.
+  const amhsOfficer = amhs && typeof pejabatAktif === 'function' && pejabatAktif();
+  const dcFormCard = document.getElementById('dcFormCard');
+  const dcAmhsWrap = document.getElementById('dcAmhsWrap');
+  const dcRiwayatWrap = document.getElementById('dcRiwayatWrap');
+  if(dcFormCard)   dcFormCard.style.display   = amhs ? 'none' : '';
+  if(dcRiwayatWrap)dcRiwayatWrap.style.display = '';
+  // Form AMHS (#dcAmhsWrap) kini ikut pola "riwayat-dulu": disembunyikan sampai
+  // "+ Form Baru" ditekan (bukaFormAmhs). Tetap DIBANGUN meski tersembunyi
+  // supaya Riwayat→Edit bisa langsung memunculkannya.
+  if(dcAmhsWrap)   dcAmhsWrap.style.display   = 'none';
+  if(amhs && !amhsOfficer && typeof pastikanDcAmhs === 'function') pastikanDcAmhs();
+  // Tombol "+ Form Baru": untuk unit biasa membuka modal Garex; untuk AMHS
+  // (non-officer) menampakkan form inline-nya. Officer AMHS hanya lihat + TTD,
+  // jadi tombolnya disembunyikan. Sekalian tutup modal Garex saat unit AMHS.
+  const dcFormBaruBtn = document.getElementById('dcFormBaruBtn');
+  if(dcFormBaruBtn) dcFormBaruBtn.style.display = (amhs && amhsOfficer) ? 'none' : '';
+  if(amhs){ const bgF = document.getElementById('dcFormModalBg'); if(bgF) bgF.classList.remove('show'); }
+
   document.getElementById('dcRadkomWrap').style.display  = radkom ? '' : 'none';
   document.getElementById('dcLegendRadkom').style.display= radkom ? '' : 'none';
-  // Suhu MER hanya untuk Radtel Garex/Frequentis di gedung MER — Radkom dan
-  // Navigasi tidak mengukurnya (Navigasi tersebar di site ILS/DVOR luar MER).
-  document.getElementById('dcSuhuWrap').style.display    = (radkom || nav) ? 'none' : '';
+  // Suhu MER hanya untuk Radtel Garex/Frequentis di gedung MER — Radkom,
+  // Navigasi, dan Pengamatan tidak mengukurnya di form daily check-nya.
+  document.getElementById('dcSuhuWrap').style.display    = (radkom || nav || pengamatan) ? 'none' : '';
   // dcAlatWrap sekarang cuma menampung dua <select> tersembunyi (dcLokasi &
   // dcTempat) — sumber kebenaran yang ditulis lewat setDcLokasi(). Selalu
   // sembunyi, apa pun unitnya.
@@ -150,16 +186,21 @@ function terapkanUnit(){
   // Sub-tab pemilih lokasi (Frequentis vs Garex) — hanya Radtel yang butuh.
   const dcSubtabs = document.getElementById('dcSubtabs');
   if(dcSubtabs) dcSubtabs.style.display = punyaLokasi ? '' : 'none';
+  // Sub-tab pemilih FORM Pengamatan (Radar CKG 3 vs Fasilitas Pengamatan).
+  const dcPgmSubtabs = document.getElementById('dcPgmSubtabs');
+  if(dcPgmSubtabs) dcPgmSubtabs.style.display = pengamatan ? '' : 'none';
   const dcLegendGarex = document.getElementById('dcLegendGarex');
   const dcJatscWrap = document.getElementById('dcJatscWrap');
   const dcGarexWrap = document.getElementById('dcGarexWrap');
   const dcNavWrap = document.getElementById('dcNavWrap');
+  const dcPgmWrap = document.getElementById('dcPgmWrap');
   const jatsc = punyaLokasi && document.getElementById('dcLokasi')?.value === 'jatsc';
-  dcGarexWrap.style.display = (radkom || jatsc || nav) ? 'none' : '';
+  dcGarexWrap.style.display = (radkom || jatsc || nav || pengamatan) ? 'none' : '';
   if(dcJatscWrap) dcJatscWrap.style.display = (!radkom && !nav && jatsc) ? '' : 'none';
   if(dcNavWrap) dcNavWrap.style.display = nav ? '' : 'none';
-  // Legenda Normal/Alarm/Gangguan dipakai Garex, JATSC, dan Navigasi — hanya
-  // Radkom yang legendanya sendiri (OK / NOT OK). Sembunyikan saat radkom.
+  if(dcPgmWrap) dcPgmWrap.style.display = pengamatan ? '' : 'none';
+  // Legenda Normal/Alarm/Gangguan dipakai Garex, JATSC, Navigasi, dan
+  // Pengamatan — hanya Radkom yang legendanya sendiri (OK / NOT OK).
   if(dcLegendGarex) dcLegendGarex.style.display = radkom ? 'none' : '';
   // Judul tab tetap "Daily Check" apa pun peralatannya — nama alat sudah
   // disebut di selector di dalam form, tidak perlu diulang di kepala.
@@ -170,6 +211,11 @@ function terapkanUnit(){
   if(radkom && Object.keys(dcRkState).length === 0){ initDcRkState(); renderDcRkTable(); }
   if(!radkom && !nav && jatsc && Object.keys(dcJState || {}).length === 0){ initDcJState(); renderDcJatscTable(); }
   if(nav && Object.keys(dcNState || {}).length === 0){ initDcNState(); renderDcNavTable(); }
+  if(pengamatan && typeof initDcPgmState === 'function'){
+    if(!dcPgmState || !dcPgmState.ckg3 || Object.keys(dcPgmState.ckg3).length === 0){ initDcPgmState(); }
+    renderDcPgmTable();
+    if(typeof sinkronSubtabPgm === 'function') sinkronSubtabPgm();
+  }
   if(punyaLokasi && typeof sinkronSubtabDc === 'function') sinkronSubtabDc();
 
   // Judul seksi logbook mengikuti nama form unit itu

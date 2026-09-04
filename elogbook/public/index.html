@@ -8,7 +8,7 @@
 <meta id="metaTema" name="theme-color" content="#0a0e13">
 <meta name="color-scheme" content="dark light">
 <base target="_top">
-<title>E-Logbook — New JATSC</title>
+<title>E-Logbook — Airnav Teknik JATSC</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Gaya tampilan dipecah per bagian di folder css/. Urutan link di bawah ini
@@ -167,6 +167,11 @@
   <section class="view" id="view-dailycheck">
     <div class="section-head">
       <div><h2 data-t="dcJudul">Daily Check</h2><p data-t="dcSub">Klik status untuk mengubah kondisi: Normal → Alarm → Gangguan.</p></div>
+      <!-- Form daily check kini muncul lewat "+ Form Baru" (modal), riwayat
+           tampil lebih dulu — pola sama dengan DS Test/Berkala. Tombol ini
+           disembunyikan 07-unit.js untuk unit AMHS (form-nya inline sendiri)
+           dan untuk officer (hanya lihat + TTD). -->
+      <button class="btn btn-tambah" id="dcFormBaruBtn" onclick="openDcFormModal()" data-t="tambahDc">+ Form Baru</button>
     </div>
     <!-- Sub-tab pemilih lokasi Radtel (JATSC vs New JATSC). Kelas .subtabs
          dan .subtab-btn ikut pola Preventive Maintenance — handler generik
@@ -174,13 +179,34 @@
          di 14-daily-check-umum.js menyinkronkan pilihan ke dropdown dcLokasi
          dan memicu perbaruiLokasiDc(), jadi bentuk form ikut berganti.
          Wadahnya disembunyikan untuk unit non-Radtel oleh 07-unit.js. -->
+    <!-- ===== MODAL FORM DAILY CHECK =====
+         Sub-tab lokasi + kartu form dibungkus modal. Semua id di dalam tetap
+         sama persis, jadi 07-unit.js & 14-daily-check-umum.js membacanya seperti
+         semula (getElementById tak peduli elemen di dalam modal). Dibuka lewat
+         openDcFormModal(); ditutup closeDcFormModal(). -->
+    <div class="modal-bg" id="dcFormModalBg">
+      <div class="modal" style="max-width:1180px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <h3 id="dcFormModalJudul" style="margin:0;" data-t="dcJudul">Daily Check</h3>
+          <button class="icon-btn" onclick="closeDcFormModal()" title="Tutup">✕</button>
+        </div>
     <nav class="subtabs" id="dcSubtabs" style="display:none;">
       <button class="subtab-btn active" data-subtab="dc-newjatsc"
               onclick="setDcLokasi('new-jatsc')">📍 New JATSC</button>
       <button class="subtab-btn" data-subtab="dc-jatsc"
               onclick="setDcLokasi('jatsc')">📍 JATSC</button>
     </nav>
-    <div class="card">
+    <!-- Sub-tab pemilih FORM untuk unit Pengamatan (bukan lokasi): Radar CKG 3
+         vs Fasilitas Pengamatan. setDcPgmForm() di js/12e-daily-check-pengamatan.js
+         menukar isi #dcPgmWrap. 07-unit.js menampilkan nav ini hanya untuk unit
+         pengamatan. -->
+    <nav class="subtabs" id="dcPgmSubtabs" style="display:none;">
+      <button class="subtab-btn active" data-pgmform="ckg3"
+              onclick="setDcPgmForm('ckg3')">🛰 Radar CKG 3</button>
+      <button class="subtab-btn" data-pgmform="mer"
+              onclick="setDcPgmForm('mer')">📡 Fasilitas Pengamatan</button>
+    </nav>
+    <div class="card" id="dcFormCard">
       <div class="grid3">
         <div class="field" id="dcSuhuWrap"><label data-t="suhuMer">Suhu MER (°C)</label><input type="text" id="dcSuhu" data-t-ph="phSuhu" placeholder="cth. 22°C"></div>
         <div class="field"><label data-t="dinasShift">Dinas / Shift</label><select id="dcDinas"><option>Pagi</option><option>Siang</option><option>Malam</option><option>PS</option></select></div>
@@ -241,6 +267,12 @@
       </div>
       <div id="dcJatscWrap" style="display:none;"></div>
       <div id="dcNavWrap" style="display:none;"></div>
+      <!-- Info form pengamatan yang sedang dipilih (Radar CKG 3 / Fasilitas
+           Pengamatan). Diisi sinkronSubtabPgm() di 12e-daily-check-pengamatan.js. -->
+      <div id="dcPgmInfo" style="display:none;margin-bottom:10px;font-size:12.5px;color:var(--muted);padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:var(--panel-2);">
+        <b style="color:var(--text);">Form:</b> <span id="dcPgmInfoNama" style="color:var(--accent);font-weight:600;">Radar CKG 3</span>
+      </div>
+      <div id="dcPgmWrap" style="display:none;"></div>
       <div id="dcRadkomWrap" style="display:none;"></div>
       <div class="field" style="margin-top:14px;"><label data-t="remark">Remark / Catatan Tambahan</label><textarea id="dcRemark" data-t-ph="phRemark" placeholder="cth. VR3 partial failure of element, masih dalam remote expert Madrid..."></textarea></div>
       <div class="grid2" style="margin-top:8px;">
@@ -258,13 +290,26 @@
         </div>
       </div>
       <div class="modal-footer" style="margin-top:6px;">
+        <button class="btn ghost" onclick="closeDcFormModal()" data-t="batal">Batal</button>
         <button class="btn ghost" onclick="resetDcForm()" data-t="resetForm">Reset Form</button>
         <button class="btn ghost" onclick="printCurrentDailyCheck()" data-t="cetakFormIni">🖨 Cetak Form Ini</button>
         <button class="btn btn-tambah" id="dcSaveBtn" onclick="saveDailyCheck()" data-t="simpanDc">💾 Simpan Daily Check</button>
       </div>
     </div>
-    <div class="section-head" style="margin-top:22px;"><h2 style="font-size:15px;" data-t="riwayatDc">Riwayat Daily Check</h2></div>
-    <div class="card">
+      </div>
+    </div>
+
+    <!-- Daily Check unit AMHS-ADPS (Fasilitas Otomasi): AMHS · AADPS · D-ATIS.
+         Diisi oleh js/12d-daily-check-amhs.js; ditampilkan oleh 07-unit.js hanya
+         untuk unit amhsadps. Wadah form baku (#dcFormCard) disembunyikan saat unit
+         ini aktif, tapi seksi Riwayat (#dcRiwayatWrap) TETAP tampil — riwayat AMHS
+         memakai daftar #dcHistory yang sama (renderDcAmhsHistory). -->
+    <div id="dcAmhsWrap" style="display:none;"></div>
+
+    <div id="dcRiwayatWrap">
+    <!-- Pola LTK: langsung bilah filter di bawah judul, lalu daftar riwayat —
+         tanpa sub-judul terpisah supaya ringkas. -->
+    <div class="card" style="margin-top:16px;">
       <div class="print-bar">
         <div class="field"><label data-t="dariTanggalSingkat">Dari tanggal</label><input type="date" id="cariDcDari" onchange="renderDcHistory()"></div>
         <div class="field"><label data-t="sampaiTanggal">Sampai tanggal</label><input type="date" id="cariDcSampai" onchange="renderDcHistory()"></div>
@@ -273,6 +318,7 @@
       <div class="subtle-note" data-t="noteCariDc">Isi rentang tanggal untuk memilah riwayat yang mau dihapus.</div>
     </div>
     <div id="dcHistory"></div>
+    </div>
   </section>
 
   <!-- ===== TAB 3: ISSUES ===== -->
@@ -344,6 +390,12 @@
       <button class="subtab-btn" data-subtab="bk-gatevox" data-t="tabBkGatevox">♻ CHANGE OVER CPU GATEVOX</button>
       <button class="subtab-btn" data-subtab="bk-cleaning" data-t="tabBkCleaning">🧹 CLEANING CWP</button>
       <button class="subtab-btn" data-subtab="bk-restart" data-t="tabBkRestart">⟳ RESTART CWP</button>
+      <!-- Weekly Check unit Pengamatan (tiga lembar). Ketampakannya di
+           07-unit.js hanya untuk unit pengamatan; sub-tab lain justru
+           disembunyikan untuk unit itu (adaDsTest/adaBerkala=false). -->
+      <button class="subtab-btn" data-subtab="wk-ckg3" data-t="tabWkCkg3">🛰 WEEKLY CKG 3</button>
+      <button class="subtab-btn" data-subtab="wk-smrt1" data-t="tabWkSmrt1">📡 WEEKLY SMR T1</button>
+      <button class="subtab-btn" data-subtab="wk-smrt3" data-t="tabWkSmrt3">📡 WEEKLY SMR T3</button>
     </nav>
 
     <!-- ===== SUB-TAB: DS TEST ===== -->
@@ -438,6 +490,55 @@
     </div>
     <div id="bkList-restart"></div>
     </section>
+
+    <!-- ===== SUB-TAB: WEEKLY CHECK PENGAMATAN (tiga lembar) =====
+         Isi form (panel status) dibangun di modal bersama #wkModalBg oleh
+         openWkModal(form); tiap sub-tab hanya menampilkan riwayat + tombol
+         "+ Form Baru". Lihat js/17d-weekly-pengamatan.js. -->
+    <section class="subview" id="view-wk-ckg3">
+      <div class="section-head">
+        <div><h2 data-t="wkCkg3Judul">Weekly Check Radar CKG 3</h2><p data-t="wkSub">Pemeriksaan mingguan — klik status untuk mengubah: Normal → Alarm → Gangguan.</p></div>
+        <button class="btn btn-tambah" onclick="openWkModal('ckg3')" data-t="tambahWk">+ Form Baru</button>
+      </div>
+      <div class="card">
+        <div class="print-bar">
+          <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariWkTanggal-ckg3" onchange="renderWkList('ckg3')"></div>
+          <button class="btn ghost" onclick="resetCariWk('ckg3')" data-t="resetCari">↺ Tampilkan Semua</button>
+        </div>
+        <div class="subtle-note" data-t="noteCariWk">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+      </div>
+      <div id="wkList-ckg3"></div>
+    </section>
+
+    <section class="subview" id="view-wk-smrt1">
+      <div class="section-head">
+        <div><h2 data-t="wkSmrt1Judul">Weekly Check SMR T1</h2><p data-t="wkSub">Pemeriksaan mingguan — klik status untuk mengubah: Normal → Alarm → Gangguan.</p></div>
+        <button class="btn btn-tambah" onclick="openWkModal('smrt1')" data-t="tambahWk">+ Form Baru</button>
+      </div>
+      <div class="card">
+        <div class="print-bar">
+          <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariWkTanggal-smrt1" onchange="renderWkList('smrt1')"></div>
+          <button class="btn ghost" onclick="resetCariWk('smrt1')" data-t="resetCari">↺ Tampilkan Semua</button>
+        </div>
+        <div class="subtle-note" data-t="noteCariWk">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+      </div>
+      <div id="wkList-smrt1"></div>
+    </section>
+
+    <section class="subview" id="view-wk-smrt3">
+      <div class="section-head">
+        <div><h2 data-t="wkSmrt3Judul">Weekly Check SMR T3</h2><p data-t="wkSub">Pemeriksaan mingguan — klik status untuk mengubah: Normal → Alarm → Gangguan.</p></div>
+        <button class="btn btn-tambah" onclick="openWkModal('smrt3')" data-t="tambahWk">+ Form Baru</button>
+      </div>
+      <div class="card">
+        <div class="print-bar">
+          <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariWkTanggal-smrt3" onchange="renderWkList('smrt3')"></div>
+          <button class="btn ghost" onclick="resetCariWk('smrt3')" data-t="resetCari">↺ Tampilkan Semua</button>
+        </div>
+        <div class="subtle-note" data-t="noteCariWk">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+      </div>
+      <div id="wkList-smrt3"></div>
+    </section>
   </section>
 
   <!-- ===== TAB: FORM (wadah LTK + BAPB) =====
@@ -484,6 +585,13 @@
         <p data-t="bapbSub">Catatan resmi pemasangan alat: nomor berita acara, daftar barang yang terpasang, dan panel tanda tangan pemakai, teknik, serta petugas pemasangan.</p>
       </div>
       <button class="btn btn-tambah" onclick="openBapbModal()" data-t="tambahBapb">+ Buat BAPB</button>
+    </div>
+    <div class="card">
+      <div class="print-bar">
+        <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariBapbTanggal" onchange="renderBapbList()"></div>
+        <button class="btn ghost" onclick="resetCariBapb()" data-t="resetCari">↺ Tampilkan Semua</button>
+      </div>
+      <div class="subtle-note" data-t="noteRiwayat7">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
     </div>
     <div id="bapbList"></div>
     </section>
@@ -755,6 +863,43 @@
     <div class="modal-footer">
       <button class="btn ghost" onclick="closeRadioModal()" data-t="batal">Batal</button>
       <button class="btn" id="radioSaveBtn" onclick="saveRadio()" data-t="simpanRadio">💾 Simpan Maintenance Radio</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL WEEKLY CHECK PENGAMATAN
+     Satu jendela untuk ketiga lembar (CKG 3 / SMR T1 / SMR T3). Judul dan
+     panel statusnya diatur openWkModal(form) di js/17d-weekly-pengamatan.js;
+     tidak ada pemilih lembar di sini karena sudah ditentukan sub-tab tempat
+     tombolnya ditekan. -->
+<div class="modal-bg" id="wkModalBg">
+  <div class="modal" style="max-width:1120px;">
+    <h3 id="wkModalJudul">Weekly Check</h3>
+    <div class="grid2">
+      <div class="field"><label data-t="hariTanggal">Hari / Tanggal</label><input type="date" id="wkTanggal"></div>
+    </div>
+    <div class="legend" style="margin-top:6px;">
+      <span><i class="dot" style="background:var(--ok)"></i> <span data-t="lgNormal">Normal</span></span>
+      <span><i class="dot" style="background:var(--warn)"></i> <span data-t="lgAlarm">Alarm / Perlu Pantau</span></span>
+      <span><i class="dot" style="background:var(--fail)"></i> <span data-t="lgGangguan">Gangguan</span></span>
+      <span style="color:var(--muted);" data-t="lgKlikUbah">Klik kotak status untuk mengubahnya.</span>
+    </div>
+    <div id="wkWrap" style="margin-top:8px;"></div>
+    <div class="grid2" style="margin-top:14px;">
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <label style="font-family:var(--font-mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);" data-t="namaTeknisiPelaksana">Nama Teknisi Pelaksana</label>
+          <button class="btn ghost" style="padding:5px 10px;" onclick="addWkTeknisi()" data-t="tambahNama">+ Nama</button>
+        </div>
+        <div id="wkTeknisiList" style="margin-top:8px;"></div>
+      </div>
+      <div class="field"><label data-t="ttdTeknisi">TTD Teknisi</label><div class="sig-wrap"><canvas id="sigWk"></canvas><div class="sig-toolbar"><span class="sig-hint" data-t="ttdHintTeknisi">tanda tangan teknisi</span><button class="sig-clear" onclick="clearSig('sigWk')" data-t="bersihkan">bersihkan</button></div></div></div>
+    </div>
+    <div class="field" style="margin-top:8px;"><label data-t="mengetahuiManager">Mengetahui — Manager Teknik</label><input type="text" id="wkManagerNama" list="pejabatDatalist" data-t-ph="phNamaManager" placeholder="Nama manager teknik"></div>
+    <div class="field" style="margin-top:6px;"><label data-t="kirimTtdKe">Kirim TTD ke akun</label><select id="wkManagerAkun"><option value="" data-t="kirimTtdOtomatis">Otomatis (dari nama di atas)</option></select></div>
+    <div class="modal-footer">
+      <button class="btn ghost" onclick="closeWkModal()" data-t="batal">Batal</button>
+      <button class="btn" id="wkSaveBtn" onclick="saveWk()" data-t="simpanWk">💾 Simpan Weekly Check</button>
     </div>
   </div>
 </div>
@@ -1163,12 +1308,15 @@
 <script src="js/12-daily-check-radtel.js"></script>
 <script src="js/12b-daily-check-radtel-jatsc.js"></script>
 <script src="js/12c-daily-check-navigasi.js"></script>
+<script src="js/12d-daily-check-amhs.js"></script>
+<script src="js/12e-daily-check-pengamatan.js"></script>
 <script src="js/13-daily-check-radkom.js"></script>
 <script src="js/14-daily-check-umum.js"></script>
 <script src="js/15-isu.js"></script>
 <script src="js/16-monitoring.js"></script>
 <script src="js/17-ds-test.js"></script>
 <script src="js/17c-radio.js"></script>
+<script src="js/17d-weekly-pengamatan.js"></script>
 <script src="js/18-ltk.js"></script>
 <script src="js/18b-bapb.js"></script>
 <script src="js/19-berkala.js"></script>

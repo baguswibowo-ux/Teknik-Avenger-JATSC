@@ -376,7 +376,7 @@ function tutupSemuaDetail(){
    sama seperti sebelum fitur ini ada: sekadar tidak ada yang diberi tahu. */
 
 /** Tiap <select> pilihan akun TTD susulan, satu per formulir yang punya isian nama pejabat. */
-const AKUN_TTD_SELECT_ID = ['fePjAkun','dcManagerAkun','monOpsAkun','dsManagerAkun','radioManagerAkun','bkManagerAkun','ltkManagerAkun'];
+const AKUN_TTD_SELECT_ID = ['fePjAkun','dcManagerAkun','dcAmhsAkun_amhs','dcAmhsAkun_aadps','dcAmhsAkun_datis','monOpsAkun','dsManagerAkun','radioManagerAkun','wkManagerAkun','bkManagerAkun','ltkManagerAkun'];
 
 /** Isi <datalist> saran nama akun dan tiap <select> pilihan akun eksplisit —
     dipanggil sekali saat data dimuat. */

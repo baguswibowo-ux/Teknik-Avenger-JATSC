@@ -31,6 +31,27 @@ table.dc.dc-j{min-width:0;}
 table.dc.dc-j th{font-size:10px; padding:4px 6px;}
 table.dc.dc-j td{padding:3px 6px;}
 
+/* ---------- Daily Check Pengamatan (kompak, berjejer) ----------
+   Form CKG 3 / Fasilitas Pengamatan padat sekali blok kecil. Supaya sekali
+   layar terlihat banyak (ikut kepadatan lembar Excel-nya), tiap blok dibuat
+   selebar isinya saja lalu dialirkan ke beberapa kolom yang mengisi lebar —
+   bukan satu tabel penuh per blok yang menyisakan kolom status melompong.
+   break-inside:avoid menjaga satu blok tidak terpotong antar kolom. */
+.pgm-seksi{margin-bottom:12px;}
+.pgm-seksi-judul{font-family:var(--font-mono); font-size:11px; letter-spacing:.1em;
+                 text-transform:uppercase; color:var(--accent); margin:12px 0 6px;}
+.pgm-cols{column-width:225px; column-gap:14px;}
+.pgm-blok{break-inside:avoid; -webkit-column-break-inside:avoid; margin:0 0 9px;}
+.pgm-blok-judul{font-size:10.5px; color:var(--muted); margin:0 0 2px;}
+table.pgm{border-collapse:collapse; width:100%; font-size:11px;}
+table.pgm th{background:var(--panel-2); font-family:var(--font-mono); font-size:9px;
+             letter-spacing:.02em; color:var(--muted); text-transform:uppercase;
+             padding:2px 5px; border:1px solid var(--line); text-align:center;}
+table.pgm td{border:1px solid var(--line); padding:1px 4px; text-align:center;}
+table.pgm td.name{text-align:left; font-family:var(--font-mono); font-size:10px;
+                  white-space:nowrap; background:var(--zebra); padding:1px 6px;}
+table.pgm .status-btn{width:22px; height:18px; font-size:11px; border-radius:4px; padding:0;}
+
 table.dc.mon{min-width:1000px;}
 table.dc.mon th{font-size:10px; white-space:nowrap;}
 table.dc.mon td{padding:2px 4px;}

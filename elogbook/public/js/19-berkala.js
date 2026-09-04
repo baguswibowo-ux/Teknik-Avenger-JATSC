@@ -637,7 +637,10 @@ async function saveBerkala(){
   btn.disabled = false;
 }
 
+/** Per-jenis: "Tampilkan Semua" melepas batas seminggu untuk tab itu saja. */
+let berkalaTampilSemua = {};
 function resetCariBerkala(jenis){
+  berkalaTampilSemua[jenis] = true;
   const t = (BK_TAB[jenis] || '').replace('bk-', '');
   const el = document.getElementById('cariBkTanggal-' + t);
   if(el) el.value = '';
@@ -671,7 +674,8 @@ function renderBerkalaList(){
     const t = (BK_TAB[jenis] || '').replace('bk-', '');
     const tgl = (document.getElementById('cariBkTanggal-' + t) || {}).value || '';
     const semua = berkalaList.filter(b => b.jenis === jenis);
-    const daftar = tgl ? semua.filter(b => String(b.tanggal||'').slice(0,10) === tgl) : semua;
+    const daftar = tgl ? semua.filter(b => String(b.tanggal||'').slice(0,10) === tgl)
+                       : (berkalaTampilSemua[jenis] ? semua : semua.filter(b => dalamSeminggu(b.tanggal)));
 
     if(semua.length === 0){ wrap.innerHTML = '<div class="empty">' + T('belumAdaBk') + '</div>'; return; }
     if(daftar.length === 0){ wrap.innerHTML = '<div class="empty">' + T('takAdaHasil') + '</div>'; return; }
@@ -984,7 +988,6 @@ function printBerkala(id){
   if(!tolakCetakBilaBelumTtd(b, 'berkala')) return;
   const gv = (b.jenis === 'gatevox');
   const np = (b.jenis === 'neptuno');
-  const nama = (b.teknisiNamaList && b.teknisiNamaList.length) ? b.teknisiNamaList : [b.teknisiNama || ''];
   const judul = BK_JUDUL_CETAK[b.jenis] || BK_JUDUL_CETAK.neptuno;
   const n = berkalaHitung(b.state, b.jenis);
   const catatan = b.catatan
@@ -1017,10 +1020,9 @@ function printBerkala(id){
     ${catatan}
     <table class="no-border" style="font-size:9pt;margin-top:14px;">
       <tr>
-        <td style="width:55%;text-align:center;vertical-align:top;">
+        <td style="width:55%;text-align:left;vertical-align:top;">
           <div style="margin-bottom:6px;">TEKNISI PELAKSANA :</div>
-          ${nama.map((n,i)=>`<div>${i+1}. ${b.teknisiTtd ? (escapeHtml(n) || '______________________') : '______________________'}</div>`).join('')}
-          <div style="height:40px;margin-top:4px;">${ttdImg(b.teknisiTtd, 34)}</div>
+          ${teknisiPrintBlock(b)}
         </td>
         <td style="text-align:center;vertical-align:top;">
           <div>Mengetahui,</div>

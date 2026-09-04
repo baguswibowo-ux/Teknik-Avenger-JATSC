@@ -38,16 +38,69 @@ const dcRadkomAktif = () => unitAktif === 'radkom';
 function resetDcForm(){
   initDcState(); renderDcTable();
   initDcRkState(); renderDcRkTable();
-  // Form baru: sesi DS default ke sesi berikut yang belum tersimpan (siklus 1..9).
-  dcJDsSesi = dsSesiBerikut();
   initDcJState(); renderDcJatscTable();
   initDcNState(); renderDcNavTable();
+  if(typeof initDcPgmState === 'function'){ initDcPgmState(); renderDcPgmTable(); }
   document.getElementById('dcSuhu').value=''; document.getElementById('dcRemark').value='';
   document.getElementById('dcManagerNama').value='';
   document.getElementById('dcManagerAkun').value='';
   ['sigDcTeknisi'].forEach(id=>{ if(sigPads[id]) clearSig(id); });
   teknisiRows = []; teknisiSeq = 0;
   addTeknisi();  // mulai dengan 1 baris nama
+}
+
+/* ---------- Modal form daily check ----------
+   Form daily check dibuka lewat "+ Form Baru" sebagai modal — riwayat tampil
+   lebih dulu, pola sama dengan DS Test/Berkala. Semua id di dalam form tak
+   berubah; hanya wadahnya jadi modal, jadi 07-unit.js & fungsi simpan/detail
+   membacanya seperti semula. Unit AMHS & officer tidak memakai modal ini
+   (07-unit.js menyembunyikan tombolnya) — AMHS punya form inline sendiri. */
+function openDcFormModal(){
+  // Unit AMHS punya form inline sendiri (#dcAmhsWrap), bukan modal Garex —
+  // "+ Form Baru" cukup menampakkannya (juga riwayat-dulu, seperti unit lain).
+  if(typeof dcAmhsAktif === 'function' && dcAmhsAktif()){ bukaFormAmhs(); return; }
+  // "+ Form Baru" selalu entri baru: kalau tadinya sedang menyunting, keluar
+  // dari mode itu dulu (batalEditDc me-reset form), kalau tidak reset biasa.
+  if(dcEditingId) batalEditDc();
+  else resetDcForm();
+  setDcTanggal();
+  const bg = document.getElementById('dcFormModalBg');
+  if(bg) bg.classList.add('show');
+  // Kanvas TTD berlebar 0 selama modal tersembunyi — ukur ulang setelah tampil.
+  setTimeout(()=>{ if(typeof resizeAllVisibleSigPads === 'function') resizeAllVisibleSigPads(); }, 60);
+}
+function closeDcFormModal(){
+  const bg = document.getElementById('dcFormModalBg');
+  if(bg) bg.classList.remove('show');
+}
+
+/* ---------- AMHS: form inline yang ikut pola "riwayat-dulu, form saat diklik" ----------
+   Form AMHS terlalu besar untuk modal — dibiarkan inline (#dcAmhsWrap) tapi
+   disembunyikan sampai "+ Form Baru" ditekan. Sebuah bilah "Tutup" disisipkan
+   di atasnya untuk kembali ke daftar riwayat. Alur Riwayat→Edit AMHS juga
+   memanggil bukaFormAmhs() supaya form-nya muncul saat menyunting. */
+function pasangTombolTutupAmhs(){
+  const wrap = document.getElementById('dcAmhsWrap');
+  if(!wrap || document.getElementById('amhsTutupBar')) return;
+  const bar = document.createElement('div');
+  bar.id = 'amhsTutupBar';
+  bar.style.cssText = 'display:flex;justify-content:flex-end;margin-bottom:10px;';
+  bar.innerHTML = '<button class="btn ghost" onclick="tutupFormAmhs()">✕ Tutup — kembali ke riwayat</button>';
+  wrap.insertBefore(bar, wrap.firstChild);
+}
+function bukaFormAmhs(){
+  const wrap = document.getElementById('dcAmhsWrap');
+  if(!wrap) return;
+  wrap.style.display = '';
+  pasangTombolTutupAmhs();
+  if(typeof resizeAllVisibleSigPads === 'function') setTimeout(resizeAllVisibleSigPads, 60);
+  wrap.scrollIntoView({ behavior:'smooth', block:'start' });
+}
+function tutupFormAmhs(){
+  const wrap = document.getElementById('dcAmhsWrap');
+  if(wrap) wrap.style.display = 'none';
+  const rw = document.getElementById('dcRiwayatWrap');
+  if(rw) rw.scrollIntoView({ behavior:'smooth', block:'start' });
 }
 
 /** Dipanggil oleh selector Lokasi. Kalau bentuk formnya berubah, layar bagian
@@ -150,6 +203,7 @@ async function saveDailyCheck(){
   const radkom = dcRadkomAktif();
   const jatsc  = dcRadtelJatscAktif();
   const nav    = (typeof dcNavAktif === 'function') && dcNavAktif();
+  const pgm    = (typeof dcPengamatanAktif === 'function') && dcPengamatanAktif();
   const fails = [], warns = [];
 
   if(radkom){
@@ -161,6 +215,10 @@ async function saveDailyCheck(){
     warns.push(...t.warns);
   }else if(jatsc){
     const t = jatscTemuan();
+    fails.push(...t.fails);
+    warns.push(...t.warns);
+  }else if(pgm){
+    const t = pgmTemuan(dcPgmForm);
     fails.push(...t.fails);
     warns.push(...t.warns);
   }else{
@@ -181,17 +239,20 @@ async function saveDailyCheck(){
   const meta = nav
     ? { __lokasi:'navigasi', __tempat:'navigasi' }
     : jatsc
-      ? { __lokasi:'jatsc', __tempat: tempatDipilih, __sesiDs: dcJDsSesi }
+      ? { __lokasi:'jatsc', __tempat: tempatDipilih }
       : { __lokasi:'new-jatsc', __tempat: tempatDipilih };
+  // Pengamatan menumpang tabel dailychecks yang sama (pola AMHS): form-nya
+  // ditandai __format:'pengamatan' + __pgmForm (ckg3/mer) di dalam state JSON.
   const stateDipakai = radkom ? dcRkState
                      : nav    ? { ...dcNState, ...meta }
                      : jatsc  ? { ...dcJState, ...meta }
+                     : pgm    ? { ...dcPgmState[dcPgmForm], __format:'pengamatan', __pgmForm:dcPgmForm }
                               : { ...dcState,  ...meta };
   const payload = {
     tanggal: tanggalDcTersimpan(),
     tanggalIso: document.getElementById('dcTanggal').value,
     dinas: document.getElementById('dcDinas').value,
-    suhu: (radkom || jatsc || nav) ? '' : document.getElementById('dcSuhu').value.trim(),
+    suhu: (radkom || jatsc || nav || pgm) ? '' : document.getElementById('dcSuhu').value.trim(),
     remark: document.getElementById('dcRemark').value.trim(),
     teknisiNamaList: namaList,
     teknisiNama: namaList.join(', '),
@@ -215,35 +276,78 @@ async function saveDailyCheck(){
       const saved = await gsRun('addDailyCheck', payload);
       dcHistory.unshift(mapDc(saved));
       renderDcHistory();
-      // Sesi DS yang barusan tersimpan diingat supaya form baru berikutnya
-      // langsung menawarkan sesi selanjutnya (siklus 1..9).
-      if(jatsc) dsCatatSesiTersimpan(dcJDsSesi);
+      closeDcFormModal();
       toast('Daily check tersimpan.');
     }
   }catch(e){ toast('Gagal menyimpan — ' + (e.message||'coba lagi.')); }
   btn.disabled = false;
 }
 
-/** Rentang tanggal dari bilah filter di atas riwayat, dipakai memilah daftar
-    yang tampil — supaya administrator gampang menemukan catatan lama yang
-    mau dihapus tanpa harus menggulir seluruh riwayat. */
+/** YYYY-MM-DD `n` hari lalu (UTC), untuk batas "seminggu terakhir". */
+function isoMundurHari(n){
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - n)).toISOString().slice(0,10);
+}
+/** True jika tanggal (apa pun bentuknya, diambil 10 huruf awal = YYYY-MM-DD)
+    masih dalam 7 hari terakhir. Dipakai semua daftar riwayat untuk membatasi
+    tampilan default ke seminggu; catatan lebih lama disembunyikan sampai
+    dipanggil lewat filter tanggal / kata, atau "Tampilkan Semua". */
+function dalamSeminggu(dateLike){
+  const d = String(dateLike || '').slice(0,10);
+  return !!d && d >= isoMundurHari(6);
+}
+
+/** Default riwayat: hanya SEMINGGU terakhir supaya ringkas. Isi rentang tanggal
+    untuk periode lain; tombol "↺ Tampilkan Semua" (resetCariDc) menyetel
+    dcTampilSemua=true untuk membuka seluruh riwayat. Dipakai bersama daftar
+    daily check biasa (renderDcHistory) dan AMHS (renderDcAmhsHistory) — bukan
+    oleh cetak (cetak per-catatan), jadi batas ini murni untuk tampilan layar. */
+let dcTampilSemua = false;
 function dcHistoryTersaring(){
   const from = (document.getElementById('cariDcDari')   || {}).value || '';
   const to   = (document.getElementById('cariDcSampai') || {}).value || '';
-  if(!from && !to) return dcHistory;
+  if(from || to){
+    return dcHistory.filter(r=>{
+      const d = String(r.tanggalIso || '').slice(0,10);
+      if(!d) return false;
+      if(from && d < from) return false;
+      if(to   && d > to)   return false;
+      return true;
+    });
+  }
+  if(dcTampilSemua) return dcHistory;
+  const batas = isoMundurHari(6);   // hari ini + 6 hari ke belakang = 7 hari
   return dcHistory.filter(r=>{
     const d = String(r.tanggalIso || '').slice(0,10);
-    if(!d) return false;
-    if(from && d < from) return false;
-    if(to   && d > to)   return false;
-    return true;
+    return d && d >= batas;
   });
 }
 function resetCariDc(){
+  // "Tampilkan Semua" benar-benar membuka semua riwayat (lepas batas seminggu).
+  dcTampilSemua = true;
   ['cariDcDari','cariDcSampai'].forEach(id=>{ const el = document.getElementById(id); if(el) el.value = ''; });
   renderDcHistory();
 }
+/** Chip dinas di kartu riwayat. Menandai HANYA dinas milik catatan itu
+    (hijau ✓); dinas lain abu (−). Sebelumnya menandai cakupan seharian —
+    membingungkan saat satu hari punya beberapa dinas (mis. Siang & PS dua-duanya
+    hijau di semua kartu hari itu). Daftar dinas ikut unit (Radtel P/S/M/PS,
+    Radkom PS/M). */
+function dcSingkatDinas(n){ return n==='Pagi'?'P' : n==='Siang'?'S' : n==='Malam'?'M' : n; }
+function dcChipDinasHtml(r){
+  const u = (typeof infoUnit === 'function') ? infoUnit() : null;
+  const daftar = (u && u.dinas && u.dinas.length) ? u.dinas : ['Pagi','Siang','Malam','PS'];
+  return `<div style="display:flex;gap:5px;flex-wrap:wrap;margin:6px 0 2px;">` +
+    daftar.map(n=>{
+      const ini = (n === r.dinas);
+      return `<span class="status-btn ${ini?'ok':'minus'}" title="${escapeHtml(n)}${ini?' — dinas catatan ini':''}"
+                style="cursor:default;width:auto;padding:0 9px;font-size:10.5px;">${escapeHtml(dcSingkatDinas(n))} ${ini?'✓':'−'}</span>`;
+    }).join('') + `</div>`;
+}
+
 function renderDcHistory(){
+  // Unit AMHS punya daftar riwayatnya sendiri (kolom dinas/suhu tidak dipakai).
+  if(typeof dcAmhsAktif === 'function' && dcAmhsAktif()){ renderDcAmhsHistory(); return; }
   const wrap = document.getElementById('dcHistory');
   if(dcHistory.length===0){ wrap.innerHTML = '<div class="empty">' + T('belumAdaDc') + '</div>'; return; }
   const daftar = dcHistoryTersaring();
@@ -255,6 +359,7 @@ function renderDcHistory(){
     return `<div class="dc-history-item">
       <div><b>${r.tanggal}</b> &middot; Dinas ${escapeHtml(r.dinas)} &middot; Suhu MER ${escapeHtml(r.suhu)||'-'}</div>
       ${tag}
+      ${dcChipDinasHtml(r)}
       <div style="font-size:11.5px;color:var(--muted);">Teknisi: ${escapeHtml(r.teknisiNama)||'-'} &middot; Mengetahui: ${escapeHtml(r.managerNama)||'-'}</div>
       ${diinputOlehHtml(r.diinputOleh, r.dibuatPada, r.tanggalIso)}
       <div style="display:flex;gap:4px;">
@@ -407,6 +512,14 @@ async function openDcDetail(id){
   try{ detail = await gsRun('getDailyCheckDetail', id) || {}; }
   catch(e){ body.innerHTML = '<div class="empty">Gagal memuat detail. Coba lagi.</div>'; return; }
   const state = detail.state || {};
+  // Unit AMHS: form-nya beda total (3 sub-sistem + TTD tiap dinas). Render
+  // detailnya lewat modul-nya sendiri; edit belum didukung, jadi tombolnya
+  // disembunyikan. TTD Manager tetap lewat alur pihak-kedua yang sama.
+  if(state.__format === 'amhs'){
+    dcEditBtn.style.display = 'none';
+    renderDcAmhsDetail(r, detail, state);
+    return;
+  }
   const teknisiTtd = detail.teknisiTtd || r.teknisiTtd;
   const managerTtd = detail.managerTtd || r.managerTtd;
 
@@ -420,20 +533,23 @@ async function openDcDetail(id){
   // ini ada; state tanpa __lokasi diperlakukan sebagai New JATSC.
   const jatscTersimpan = state && state.__lokasi === 'jatsc';
   const navTersimpan   = state && state.__lokasi === 'navigasi';
+  const pgmTersimpan   = state && state.__format === 'pengamatan';
   body.innerHTML = `
     <div style="font-size:13px;margin-bottom:10px;line-height:1.7;">
       <b>${escapeHtml(r.tanggal)}</b><br>
-      Dinas: ${escapeHtml(r.dinas)||'-'}${(jatscTersimpan || navTersimpan) ? '' : ' &middot; Suhu MER: ' + (escapeHtml(r.suhu)||'-')}
+      Dinas: ${escapeHtml(r.dinas)||'-'}${(jatscTersimpan || navTersimpan || pgmTersimpan) ? '' : ' &middot; Suhu MER: ' + (escapeHtml(r.suhu)||'-')}${pgmTersimpan ? ' &middot; Form: ' + escapeHtml((typeof DC_PGM_LABEL !== 'undefined' && DC_PGM_LABEL[state.__pgmForm]) || 'Radar CKG 3') : ''}
     </div>
     ${dcRadkomAktif()
       ? dcRkDetailHtml(state)
-      : (navTersimpan
+      : (pgmTersimpan
+          ? dcPgmDetailHtml(state)
+          : (navTersimpan
           ? dcNavDetailHtml(state)
           : (jatscTersimpan
               ? dcJatscDetailHtml(state)
               : dcDetailTable(dcLeftItems.slice(0,dcLeftItems.indexOf('TMCS 1')), dcRightItems.slice(0,dcRightItems.indexOf('SW 3')), state) +
                 '<div style="height:8px;"></div>' +
-                dcDetailTable(dcLeftItems.slice(dcLeftItems.indexOf('TMCS 1')), dcRightItems.slice(dcRightItems.indexOf('SW 3')), state)))}
+                dcDetailTable(dcLeftItems.slice(dcLeftItems.indexOf('TMCS 1')), dcRightItems.slice(dcRightItems.indexOf('SW 3')), state))))}
     ${r.remark ? `<div style="margin-top:12px;font-size:13px;"><b>Remark:</b><br>${escapeHtml(r.remark).replace(/\n/g,'<br>')}</div>` : ''}
     <div class="detail-ttd">
       <div class="sig-block"><b>${T('teknisiPelaksana')}</b>${tekHtml}</div>
@@ -473,7 +589,14 @@ async function openDcEditModal(id){
   const state = detail.state || {};
   const isJatsc = state && state.__lokasi === 'jatsc';
   const isNav   = state && state.__lokasi === 'navigasi';
+  const isPgm   = state && state.__format === 'pengamatan';
   const tempat  = (state && state.__tempat) || 'new-jatsc';
+  // Pengamatan: kembalikan dulu form yang tersimpan (Radar CKG 3 / Fasilitas
+  // Pengamatan) sebelum layar unit dipasang, supaya wrap-nya menggambar
+  // lembar yang benar.
+  if(isPgm && typeof setDcPgmForm === 'function'){
+    dcPgmForm = (state.__pgmForm === 'mer') ? 'mer' : 'ckg3';
+  }
 
   // Selector nama alat & lokasi. Untuk Navigasi tidak ada pilihan
   // Garex/Frequentis — form-nya tunggal — jadi kedua selector dibiarkan
@@ -488,7 +611,15 @@ async function openDcEditModal(id){
   if(typeof terapkanUnit === 'function') terapkanUnit();
 
   // Isi state checklist ke variabel form.
-  if(isNav){
+  if(isPgm){
+    initDcPgmState();
+    Object.entries(state).forEach(([k, v])=>{
+      if(k.startsWith('__')) return;
+      dcPgmState[dcPgmForm][k] = v;
+    });
+    renderDcPgmTable();
+    if(typeof sinkronSubtabPgm === 'function') sinkronSubtabPgm();
+  }else if(isNav){
     initDcNState();
     Object.entries(state).forEach(([k, v])=>{
       if(k.startsWith('__')) return;
@@ -496,11 +627,6 @@ async function openDcEditModal(id){
     });
     renderDcNavTable();
   }else if(isJatsc){
-    // Sesi DS harus disetel SEBELUM initDcJState — init memakai dcJDsSesi
-    // untuk menentukan default channel section C. Kalau catatan lama (belum
-    // punya __sesiDs), tetap ke 1 supaya edit-nya konsisten.
-    const sesi = +state.__sesiDs;
-    dcJDsSesi = (sesi >= 1 && sesi <= 9) ? sesi : 1;
     initDcJState();
     Object.entries(state).forEach(([k, v])=>{
       if(k.startsWith('__')) return;
@@ -552,11 +678,15 @@ async function openDcEditModal(id){
   const bannerTeks = document.getElementById('dcEditingTeks');
   if(bannerTeks) bannerTeks.textContent = 'Menyunting daily check: ' + (r.tanggal || '');
   if(banner) banner.style.display = '';
-  const layar = document.getElementById('view-dailycheck');
-  if(layar) layar.scrollIntoView({ behavior:'smooth', block:'start' });
+  // Sunting berlangsung di modal yang sama dengan "+ Form Baru".
+  const bg = document.getElementById('dcFormModalBg');
+  if(bg) bg.classList.add('show');
+  setTimeout(()=>{ if(typeof resizeAllVisibleSigPads === 'function') resizeAllVisibleSigPads(); }, 60);
 }
 
-/** Batalkan edit — form kembali ke keadaan mengisi baru. */
+/** Batalkan edit — form kembali ke keadaan mengisi baru. Dipakai juga oleh
+    saveDailyCheck (edit-sukses) dan openDcFormModal; menutup modal supaya
+    setelah simpan/batal kembali ke daftar riwayat. */
 function batalEditDc(){
   dcEditingId = null;
   const btn = document.getElementById('dcSaveBtn');
@@ -564,4 +694,5 @@ function batalEditDc(){
   const banner = document.getElementById('dcEditingBanner');
   if(banner) banner.style.display = 'none';
   resetDcForm();
+  if(typeof closeDcFormModal === 'function') closeDcFormModal();
 }

@@ -308,10 +308,18 @@ app.post('/api/logout', async (req, res) => {
 });
 
 /**
- * Pendaftaran mandiri. Akun terbentuk dalam keadaan NONAKTIF dan tanpa unit,
- * jadi belum bisa masuk maupun membuka apa pun sampai administrator
- * mengaktifkannya dan menentukan perannya. Dengan begitu, membuka pendaftaran
- * tidak sama dengan membuka pintu.
+ * Pendaftaran mandiri. Akun terbentuk dalam keadaan NONAKTIF, jadi belum bisa
+ * masuk maupun membuka apa pun sampai administrator mengaktifkannya. Membuka
+ * pendaftaran tidak sama dengan membuka pintu.
+ *
+ * Yang mendaftar sekarang MEMILIH unit yang dituju, dan pilihan itu langsung
+ * disimpan sebagai unit akunnya. Dulu akun lahir tanpa unit dan administrator
+ * yang menentukannya sesudah aktif; itu berarti tiap pendaftar harus disusul
+ * satu langkah manual sebelum akunnya berguna. Menaruh unitnya di muka
+ * memangkas langkah itu — administrator tinggal mengaktifkan, dan tetap bebas
+ * memindahkan unitnya lewat Kelola Akun kalau si pendaftar salah pilih.
+ * Perannya tetap 'teknisi': peran menyangkut kewenangan, bukan tujuan, dan itu
+ * memang tetap milik administrator.
  */
 app.post('/api/daftar', async (req, res) => {
   const ip = req.ip || 'x';
@@ -324,6 +332,7 @@ app.post('/api/daftar', async (req, res) => {
   const username = String(req.body?.username || '').trim().toLowerCase();
   const nama = String(req.body?.nama || '').trim();
   const password = String(req.body?.password || '');
+  const unit = String(req.body?.unit || '').trim();
 
   try {
     if (!/^[a-z0-9._-]{3,32}$/.test(username)) {
@@ -331,11 +340,13 @@ app.post('/api/daftar', async (req, res) => {
     }
     if (!nama) throw new Error('Nama lengkap belum diisi.');
     if (password.length < 6) throw new Error('Password minimal 6 karakter.');
+    if (!unit) throw new Error('Unit yang dituju belum dipilih.');
+    if (!unitSah(unit)) throw new Error('Unit yang dituju tidak dikenal.');
     if (await getUserByUsername(username)) throw new Error('Username itu sudah dipakai. Pilih yang lain.');
 
-    const dibuat = await createUser({ username, password, nama, role: 'teknisi', unit: [] });
+    const dibuat = await createUser({ username, password, nama, role: 'teknisi', unit: [unit] });
     await setAktif(username, false);
-    console.log('[daftar] akun baru menunggu konfirmasi:', username);
+    console.log('[daftar] akun baru menunggu konfirmasi:', username, '→ unit', unit);
     res.json({ ok: true, username: dibuat.username });
   } catch (err) {
     catatGagal(ip);
@@ -409,6 +420,20 @@ app.get('/api/akun-daftar', async (_req, res) => {
     console.error('[akun-daftar]', err);
     res.status(500).json({ error: 'Gagal mengambil daftar akun.' });
   }
+});
+
+/**
+ * Daftar unit untuk pemilih di formulir pendaftaran — dijawab SEBELUM login,
+ * sengaja. Formulir daftar ada di layar masuk, sebelum ada sesi mana pun, dan
+ * ia butuh nama unit yang benar untuk pemilihnya.
+ *
+ * Tidak ada yang dikorbankan dengan membukanya: daftar unit adalah bentuk
+ * organisasi, bukan rahasia — komentar di getAllData menyebutnya persis begitu.
+ * Isinya ditipiskan sampai yang perlu untuk memilih: kode dan nama. Satu
+ * sumber, UNIT di db.js — layar tidak menyalin ulang daftarnya.
+ */
+app.get('/api/unit-publik', (_req, res) => {
+  res.json({ unit: UNIT.map((u) => ({ kode: u.kode, nama: u.nama })) });
 });
 
 /* ============== API — nama fungsi sama dengan Apps Script lama ============== */
@@ -806,7 +831,9 @@ const API = {
     const unit = await unitCatatan('dailycheck', String(id));
     if (!unit) throw new Error('Catatan tidak ditemukan — mungkin sudah dihapus.');
     await pastikanUnit(user, unit);
-    return updateDailyCheck(String(id), patch || {}, { username: user.username, admin: isAdmin(user) });
+    // `role` dibawa supaya updateDailyCheck bisa menolak Officer (pejabat) ikut
+    // menyunting checklist AMHS — tugasnya hanya melihat & menandatangani.
+    return updateDailyCheck(String(id), patch || {}, { username: user.username, admin: isAdmin(user), role: user.role });
   },
 
   getDailyCheckDetail: (id) => getDailyCheckDetailById(String(id)),
@@ -1029,6 +1056,36 @@ const pastikanBolehUbahTarget = (target, user) => {
 };
 
 /**
+ * Pagar khusus admin unit untuk mengelola akun teknisi di unitnya — dipakai
+ * mengaktifkan/menonaktifkan (setUserAktif) dan mengganti sandinya
+ * (setUserPassword). Administrator penuh melewatinya begitu saja; wewenangnya
+ * sudah lintas unit. Admin unit hanya sampai ke sini lewat
+ * API_ADMIN_UNTUK_ADMINUNIT, dan wewenangnya sengaja sesempit tugasnya:
+ * mengurus orang DI UNITNYA SENDIRI tanpa menunggu admin utama.
+ *
+ * Dua batas, dan keduanya perlu:
+ *   - hanya akun TEKNISI. Menyentuh admin, pejabat, atau admin unit lain berarti
+ *     ikut memutuskan siapa yang memegang kunci, dan itu tetap milik admin utama.
+ *   - seluruh unit target harus jatuh di dalam unit yang dipegang si admin unit.
+ *     Pendaftar baru selalu satu unit, jadi ini berarti "unit yang dia pilih
+ *     memang unit saya"; akun lintas-unit yang bocor keluar cakupan ditolak.
+ */
+async function pastikanAdminUnitBolehKelola(target, user) {
+  if (isAdmin(user)) return;
+  if (target.role !== 'teknisi') {
+    throw new Error('Admin unit hanya boleh mengelola akun teknisi, bukan peran lain.');
+  }
+  const unitSaya = await unitUntukUser(user);
+  if (unitSaya.length === 0) {
+    throw new Error('Akun Anda belum diberi unit, jadi belum bisa mengelola siapa pun.');
+  }
+  const unitTarget = await unitUntukUser(target);
+  if (unitTarget.length === 0 || !unitTarget.every((k) => unitSaya.includes(k))) {
+    throw new Error('Akun itu bukan bagian dari unit yang Anda pegang.');
+  }
+}
+
+/**
  * Fungsi khusus administrator: seluruh perubahan, penghapusan, dan pengelolaan
  * akun. Penjagaannya di sini, bukan di tombol — menyembunyikan tombol saja
  * tidak menghalangi siapa pun memanggil API-nya langsung.
@@ -1124,6 +1181,7 @@ const API_ADMIN = {
     const target = await getUserByUsername(u);
     if (!target) throw new Error(`Pengguna "${u}" tidak ditemukan.`);
     pastikanBolehUbahTarget(target, user);
+    await pastikanAdminUnitBolehKelola(target, user);
     await setPassword(u, String(password));
     return true;
   },
@@ -1142,6 +1200,7 @@ const API_ADMIN = {
     const target = await getUserByUsername(u);
     if (!target) throw new Error(`Pengguna "${u}" tidak ditemukan.`);
     pastikanBolehUbahTarget(target, user);
+    await pastikanAdminUnitBolehKelola(target, user);
     await setNama(u, n);
     return listUsers();
   },
@@ -1163,6 +1222,7 @@ const API_ADMIN = {
     const target = await getUserByUsername(u);
     if (!target) throw new Error(`Pengguna "${u}" tidak ditemukan.`);
     pastikanBolehUbahTarget(target, user);
+    await pastikanAdminUnitBolehKelola(target, user);
     if (sameUser(target.username, user.username)) {
       throw new Error('Anda tidak bisa mengubah username akun Anda sendiri. Minta admin lain.');
     }
@@ -1220,6 +1280,7 @@ const API_ADMIN = {
     const target = await getUserByUsername(u);
     if (!target) throw new Error(`Pengguna "${u}" tidak ditemukan.`);
     pastikanBolehUbahTarget(target, user);
+    await pastikanAdminUnitBolehKelola(target, user);
     if (sameUser(target.username, user.username)) {
       throw new Error('Anda tidak bisa menonaktifkan akun Anda sendiri.');
     }
@@ -1236,9 +1297,19 @@ const API_ADMIN = {
 /* Fungsi API_ADMIN yang secara khusus dibuka untuk peran non-admin tertentu.
    Admin unit butuh listUsers agar dashboard bisa memvalidasi penunjukan orang
    di panel "Siapa Boleh Mengisi Apa" — tanpa itu, ia tidak tahu nama siapa
-   saja yang jatuh di unitnya. Fungsi ini hanya membaca (username, nama, role,
-   aktif, unit), tidak menyentuh password. */
-const API_ADMIN_UNTUK_ADMINUNIT = new Set(['listUsers']);
+   saja yang jatuh di unitnya. listUsers hanya membaca (username, nama, role,
+   aktif, unit), tidak menyentuh password.
+
+   setUserAktif, setUserPassword, setUserNama, dan setUserUsername ikut supaya
+   admin unit bisa mengurus teknisi di unitnya sendiri — meloloskan pendaftar
+   baru, mengganti sandi yang lupa, membetulkan nama atau username — tanpa
+   menunggu admin utama. Wewenangnya dipagari di tiap handler lewat
+   pastikanAdminUnitBolehKelola: hanya akun teknisi yang seluruh unitnya jatuh
+   di dalam unit yang dipegang si admin unit. Peran, unit, penambahan, dan
+   penghapusan akun sengaja TIDAK ikut — itu tetap milik admin utama. */
+const API_ADMIN_UNTUK_ADMINUNIT = new Set([
+  'listUsers', 'setUserAktif', 'setUserPassword', 'setUserNama', 'setUserUsername'
+]);
 
 app.post('/api/:fn', requireAuth, async (req, res) => {
   const fn = req.params.fn;

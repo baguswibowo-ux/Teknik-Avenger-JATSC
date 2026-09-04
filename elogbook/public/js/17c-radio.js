@@ -362,7 +362,8 @@ async function saveRadio(){
   btn.disabled = false;
 }
 
-function resetCariRadio(){ const el = document.getElementById('cariRadioTanggal'); if(el) el.value = ''; renderRadioList(); }
+let radioTampilSemua = false;
+function resetCariRadio(){ radioTampilSemua = true; const el = document.getElementById('cariRadioTanggal'); if(el) el.value = ''; renderRadioList(); }
 
 /* ---------- Ringkasan temuan ---------- */
 
@@ -388,7 +389,8 @@ function renderRadioList(){
   if(!wrap) return;
   const semua = (typeof dsList !== 'undefined' ? dsList : []).filter(radioAdalah);
   const tgl = (document.getElementById('cariRadioTanggal') || {}).value || '';
-  const daftar = tgl ? semua.filter(d=>String(d.tanggal||'').slice(0,10) === tgl) : semua;
+  const daftar = tgl ? semua.filter(d=>String(d.tanggal||'').slice(0,10) === tgl)
+                     : (radioTampilSemua ? semua : semua.filter(d=>dalamSeminggu(d.tanggal)));
 
   if(semua.length === 0){ wrap.innerHTML = '<div class="empty">Belum ada checklist Maintenance Radio.</div>'; return; }
   if(daftar.length === 0){ wrap.innerHTML = '<div class="empty">' + T('takAdaHasil') + '</div>'; return; }
@@ -488,7 +490,6 @@ function printRadio(id){
   const d = dsList.find(x=>x.id===id);
   if(!d) return;
   if(!tolakCetakBilaBelumTtd(d, 'dstest')) return;
-  const nama = (d.teknisiNamaList && d.teknisiNamaList.length) ? d.teknisiNamaList : [d.teknisiNama || ''];
   const legend = '<b>NB :</b> ✓ : OK &nbsp;&nbsp; ✕ : NOT OK &nbsp;&nbsp; ? : NO ANSWER &nbsp;&nbsp; · Indikasi PTT: Standby 5–60 VDC, Aktif 0–40 VDC. Power RX/TX dicatat manual (dB).';
   doPrint(`
     <div style="text-align:center;font-weight:bold;font-size:12pt;margin-bottom:4px;">CHECKLIST MAINTENANCE RADIO</div>
@@ -497,10 +498,9 @@ function printRadio(id){
     <div style="font-size:8.5pt;margin-top:8px;">${legend}</div>
     <table class="no-border" style="font-size:9pt;margin-top:14px;">
       <tr>
-        <td style="width:55%;text-align:center;vertical-align:top;">
+        <td style="width:55%;text-align:left;vertical-align:top;">
           <div style="margin-bottom:6px;">TEKNISI PELAKSANA :</div>
-          ${nama.map((n,i)=>`<div>${i+1}. ${d.teknisiTtd ? (escapeHtml(n) || '______________________') : '______________________'}</div>`).join('')}
-          <div style="height:40px;margin-top:4px;">${ttdImg(d.teknisiTtd, 34)}</div>
+          ${teknisiPrintBlock(d)}
         </td>
         <td style="text-align:center;vertical-align:top;">
           <div>Mengetahui,</div>

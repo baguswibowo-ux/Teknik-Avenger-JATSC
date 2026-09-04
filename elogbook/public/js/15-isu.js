@@ -310,7 +310,12 @@ function isuTersaring(){
   const to     = (document.getElementById('prIsuTo')     || {}).value || '';
   const status = (document.getElementById('prIsuStatus') || {}).value || '';
   const cari   = String((document.getElementById('prIsuCari') || {}).value || '').trim().toLowerCase();
-  if(!from && !to && !status && !cari) return issues;
+  // Tanpa filter: default seminggu terakhir (pakai Tgl Report). "↺ Tampilkan
+  // Semua" (resetFilterIssues) atau filter kata/tanggal/status membuka sisanya.
+  if(!from && !to && !status && !cari){
+    if(isuTampilSemua) return issues;
+    return issues.filter(it => dalamSeminggu(it.tglReport));
+  }
   return issues.filter(it=>{
     const d = String(it.tglReport || '').slice(0,10);
     if(from && (!d || d < from)) return false;
@@ -326,7 +331,9 @@ function isuTersaring(){
     return true;
   });
 }
+let isuTampilSemua = false;
 function resetFilterIssues(){
+  isuTampilSemua = true;
   ['prIsuFrom','prIsuTo','prIsuStatus','prIsuCari'].forEach(id=>{ const el = document.getElementById(id); if(el) el.value = ''; });
   renderIssues();
 }

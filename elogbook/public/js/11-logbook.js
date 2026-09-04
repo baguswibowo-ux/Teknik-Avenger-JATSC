@@ -160,13 +160,21 @@ function teknisiListOf(r){
     langsung terpanggil tanpa menggulir seluruh riwayat. Pencarian teks tidak
     peka huruf besar/kecil dan menelusuri uraian, frekuensi, dinas, lokasi,
     nama teknisi (termasuk daftar), dan nama penanggung jawab. */
+let logbookTampilSemua = false;
 function entriesTersaring(){
   const from   = (document.getElementById('prFrom')   || {}).value || '';
   const to     = (document.getElementById('prTo')     || {}).value || '';
   const dinas  = (document.getElementById('prDinas')  || {}).value || '';
   const lokasi = (document.getElementById('prLokasi') || {}).value || '';
   const cari   = String((document.getElementById('prCari') || {}).value || '').trim().toLowerCase();
-  if(!from && !to && !dinas && !lokasi && !cari) return entries;
+  // Tanpa filter apa pun: default SEMINGGU terakhir supaya daftar ringkas.
+  // "↺ Tampilkan Semua" (resetFilterEntries) menyetel logbookTampilSemua=true.
+  // Batas ini hanya untuk daftar di layar — cetak logbook punya penyaring sendiri.
+  if(!from && !to && !dinas && !lokasi && !cari){
+    if(logbookTampilSemua) return entries;
+    const batas = (typeof isoMundurHari === 'function') ? isoMundurHari(6) : '';
+    return batas ? entries.filter(e => String(e.tanggal || '').slice(0,10) >= batas) : entries;
+  }
   return entries.filter(e=>{
     const d = String(e.tanggal || '').slice(0,10);
     if(from && d < from) return false;
@@ -185,6 +193,8 @@ function entriesTersaring(){
   });
 }
 function resetFilterEntries(){
+  // "Tampilkan Semua" membuka seluruh catatan (lepas batas seminggu bawaan).
+  logbookTampilSemua = true;
   ['prFrom','prTo','prDinas','prLokasi','prCari'].forEach(id=>{ const el = document.getElementById(id); if(el) el.value = ''; });
   renderEntries();
 }
@@ -210,12 +220,14 @@ function renderEntries(){
           <button class="icon-btn hanya-admin" title="Hapus" onclick="deleteEntry('${e.id}')">✕</button>
         </div>
       </div>
-      <div class="entry-body">${escapeHtml(e.uraian)}</div>
-      <div class="entry-sigs">
-        <div class="sig-block"><b>${tekLabel}</b>${sigThumbHtml(e.teknisiTtd)}</div>
-        <div class="sig-block"><b>${escapeHtml(e.pjNama)||'Manager Teknik'}</b>${sigThumbHtml(e.pjTtd)}</div>
-        <div style="flex:1;display:flex;align-items:flex-end;justify-content:flex-end;">${diinputOlehHtml(e.diinputOleh, e.dibuatPada, acuanWaktuEntry(e))}</div>
+      <div class="entry-main">
+        <div class="entry-body">${escapeHtml(e.uraian)}</div>
+        <div class="entry-sigs">
+          <div class="sig-block"><b>${tekLabel}</b>${sigThumbHtml(e.teknisiTtd)}</div>
+          <div class="sig-block"><b>${escapeHtml(e.pjNama)||'Manager Teknik'}</b>${sigThumbHtml(e.pjTtd)}</div>
+        </div>
       </div>
+      <div class="entry-diinput">${diinputOlehHtml(e.diinputOleh, e.dibuatPada, acuanWaktuEntry(e))}</div>
     </div>`;
   }).join('');
 }

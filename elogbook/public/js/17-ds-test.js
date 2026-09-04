@@ -397,7 +397,8 @@ async function saveDs(){
   btn.disabled = false;
 }
 
-function resetCariDs(){ document.getElementById('cariDsTanggal').value = ''; renderDsList(); }
+let dsTampilSemua = false;
+function resetCariDs(){ dsTampilSemua = true; document.getElementById('cariDsTanggal').value = ''; renderDsList(); }
 
 /* ---------- Ringkasan temuan ---------- */
 
@@ -435,7 +436,9 @@ function renderDsList(){
   // supaya hanya muncul di sub-tab Maintenance Radio (lihat 17c-radio.js).
   const semua = dsList.filter(d => !(d.state && d.state.__format === 'radio'));
   const tgl = (document.getElementById('cariDsTanggal') || {}).value || '';
-  const daftar = tgl ? semua.filter(d=>String(d.tanggal||'').slice(0,10) === tgl) : semua;
+  // Default seminggu terakhir; "Tampilkan Semua" (resetCariDs) buka semua.
+  const daftar = tgl ? semua.filter(d=>String(d.tanggal||'').slice(0,10) === tgl)
+                     : (dsTampilSemua ? semua : semua.filter(d=>dalamSeminggu(d.tanggal)));
 
   if(semua.length === 0){ wrap.innerHTML = '<div class="empty">' + T('belumAdaDs') + '</div>'; return; }
   if(daftar.length === 0){ wrap.innerHTML = '<div class="empty">' + T('takAdaHasil') + '</div>'; return; }
@@ -603,7 +606,6 @@ function printDs(id){
   if(!d) return;
   if(d.state && d.state.__format === 'radio' && typeof printRadio === 'function') return printRadio(id);
   if(!tolakCetakBilaBelumTtd(d, 'dstest')) return;
-  const nama = (d.teknisiNamaList && d.teknisiNamaList.length) ? d.teknisiNamaList : [d.teknisiNama || ''];
   const baru = dsFormatBaru(d.state);
   const judul = baru
     ? 'CHECKLIST PENGECEKAN DIRECT SPEECH (DS)'
@@ -618,10 +620,9 @@ function printDs(id){
     <div style="font-size:8.5pt;margin-top:8px;">${legend}</div>
     <table class="no-border" style="font-size:9pt;margin-top:14px;">
       <tr>
-        <td style="width:55%;text-align:center;vertical-align:top;">
+        <td style="width:55%;text-align:left;vertical-align:top;">
           <div style="margin-bottom:6px;">TEKNISI PELAKSANA :</div>
-          ${nama.map((n,i)=>`<div>${i+1}. ${d.teknisiTtd ? (escapeHtml(n) || '______________________') : '______________________'}</div>`).join('')}
-          <div style="height:40px;margin-top:4px;">${ttdImg(d.teknisiTtd, 34)}</div>
+          ${teknisiPrintBlock(d)}
         </td>
         <td style="text-align:center;vertical-align:top;">
           <div>Mengetahui,</div>

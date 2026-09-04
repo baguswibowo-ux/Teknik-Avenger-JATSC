@@ -95,13 +95,15 @@ async function saveMon(){
   btn.disabled = false;
 }
 
-function resetCariMon(){ document.getElementById('cariMonTanggal').value = ''; renderMonList(); }
+let monTampilSemua = false;
+function resetCariMon(){ monTampilSemua = true; document.getElementById('cariMonTanggal').value = ''; renderMonList(); }
 
 function renderMonList(){
   const wrap = document.getElementById('monList');
   if(!wrap) return;
   const tgl = (document.getElementById('cariMonTanggal') || {}).value || '';
-  const daftar = tgl ? monitoring.filter(m => String(m.tanggal||'').slice(0,10) === tgl) : monitoring;
+  const daftar = tgl ? monitoring.filter(m => String(m.tanggal||'').slice(0,10) === tgl)
+                     : (monTampilSemua ? monitoring : monitoring.filter(m => dalamSeminggu(m.tanggal)));
 
   if(monitoring.length === 0){ wrap.innerHTML = '<div class="empty">' + T('belumAdaMon') + '</div>'; return; }
   if(daftar.length === 0){ wrap.innerHTML = '<div class="empty">' + T('takAdaHasil') + '</div>'; return; }

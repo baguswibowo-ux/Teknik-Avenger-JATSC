@@ -33,8 +33,11 @@
   .sig-wrap canvas{height:110px;}
 
   .entry-top{padding:9px 12px;}
+  /* Deskripsi di atas, TTD di bawah — tanpa garis pemisah. */
+  .entry-main{flex-direction:column;}
   .entry-body{padding:10px 12px; font-size:13px;}
   .entry-sigs{padding:8px 12px 12px; gap:16px;}
+  .entry-diinput{padding:8px 12px 10px;}
 
   table.dc{font-size:11px; min-width:760px;}
   /* DS Test tetap tanpa geseran kiri-kanan di layar sesempit 375px: nama site

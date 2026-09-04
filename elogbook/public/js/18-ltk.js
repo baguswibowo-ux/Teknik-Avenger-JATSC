@@ -57,7 +57,9 @@ async function saveLtk(){
   btn.disabled = false;
 }
 
+let ltkTampilSemua = false;
 function resetCariLtk(){
+  ltkTampilSemua = true;
   ['cariLtkKata','cariLtkDari','cariLtkSampai','cariLtkStatus'].forEach(id=>{
     const el = document.getElementById(id); if(el) el.value = '';
   });
@@ -69,8 +71,9 @@ function saringLtk(){
   const nilai = id => ((document.getElementById(id) || {}).value || '').trim();
   const kata = nilai('cariLtkKata').toLowerCase();
   const dari = nilai('cariLtkDari'), sampai = nilai('cariLtkSampai'), status = nilai('cariLtkStatus');
+  const adaFilter = !!(kata || dari || sampai || status);
 
-  return ltkList.filter(l=>{
+  const hasil = ltkList.filter(l=>{
     if(kata){
       const cakupan = [l.peralatan, l.modul, l.analisa].join(' ').toLowerCase();
       // Semua kata harus ada, urutannya bebas — "processor vhf" tetap ketemu.
@@ -83,6 +86,9 @@ function saringLtk(){
     if(status === 'belum' && l.tanggalSelesai) return false;
     return true;
   });
+  // Tanpa filter apa pun: default seminggu terakhir (pakai Tanggal Pelaporan).
+  if(!adaFilter && !ltkTampilSemua) return hasil.filter(l => dalamSeminggu(l.tanggalLapor));
+  return hasil;
 }
 
 function renderLtkList(){

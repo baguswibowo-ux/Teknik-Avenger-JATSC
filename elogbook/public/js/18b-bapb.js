@@ -173,6 +173,8 @@ async function saveBapb(){
 
 /* ---------- Daftar riwayat ---------- */
 
+let bapbTampilSemua = false;
+function resetCariBapb(){ bapbTampilSemua = true; const el = document.getElementById('cariBapbTanggal'); if(el) el.value = ''; renderBapbList(); }
 function renderBapbList(){
   const wrap = document.getElementById('bapbList');
   if (!wrap) return;
@@ -180,7 +182,11 @@ function renderBapbList(){
     wrap.innerHTML = '<div class="empty">' + T('belumAdaBapb') + '</div>';
     return;
   }
-  wrap.innerHTML = bapbList.map(b => `
+  const tgl = (document.getElementById('cariBapbTanggal') || {}).value || '';
+  const daftar = tgl ? bapbList.filter(b => String(b.tanggal||'').slice(0,10) === tgl)
+                     : (bapbTampilSemua ? bapbList : bapbList.filter(b => (typeof dalamSeminggu==='function') ? dalamSeminggu(b.tanggal) : true));
+  if (daftar.length === 0) { wrap.innerHTML = '<div class="empty">' + T('takAdaHasil') + '</div>'; return; }
+  wrap.innerHTML = daftar.map(b => `
     <div class="dc-history-item">
       <div><b>${escapeHtml(b.nomor) || T('bapbTanpaNomor')}</b>
         &middot; ${escapeHtml(b.tanggal) || '-'}

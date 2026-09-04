@@ -565,9 +565,12 @@ export const UNIT = [
     pakaiFrek: false,
     labelUraian: 'Uraian Pekerjaan / Kejadian',
     labelPj: 'Manager Teknik',
-    // Formulir khusus unit ini menunggu form aslinya. Sampai itu ada, yang
-    // tersedia baru Logbook Fasilitas, Isu, dan LTK yang memang berlaku umum.
-    adaDailyCheck: false,
+    // Daily Check punya form-nya sendiri: dua lembar (Radar CKG 3 + Fasilitas
+    // Pengamatan) yang dipilih lewat sub-tab — lihat
+    // js/12e-daily-check-pengamatan.js. Monitoring, DS Test, dan berkala belum
+    // berlaku di unit ini.
+    adaDailyCheck: true,
+    dcJudul: 'Daily Check Fasilitas Pengamatan — Radar CKG 3 · Fasilitas Pengamatan',
     adaMonitoring: false,
     adaDsTest: false,
     adaBerkala: false,
@@ -584,15 +587,16 @@ export const UNIT = [
     brand: 'E-Logbook Fasilitas Otomasi',
     judul: 'Buku Catatan Fasilitas',
     kelompok: 'Fasilitas Otomasi',
-    peralatan: 'AMHS dan ADPS',
+    peralatan: 'AMHS, AADPS, D-ATIS',
     dinas: ['Pagi', 'Siang', 'Malam', 'PS'],
     pakaiJamSelesai: true,
     pakaiFrek: false,
     labelUraian: 'Uraian Pekerjaan / Kejadian',
     labelPj: 'Manager Teknik',
-    // Formulir khusus unit ini menunggu form aslinya. Sampai itu ada, yang
-    // tersedia baru Logbook Fasilitas, Isu, dan LTK yang memang berlaku umum.
-    adaDailyCheck: false,
+    // Daily Check punya form sendiri (AMHS · AADPS · D-ATIS) — lihat
+    // js/12d-daily-check-amhs.js. Monitoring, DS Test, dan berkala belum berlaku.
+    adaDailyCheck: true,
+    dcJudul: 'Daily Check Fasilitas Otomasi — AMHS · AADPS · D-ATIS',
     adaMonitoring: false,
     adaDsTest: false,
     adaBerkala: false,
@@ -696,14 +700,22 @@ export function setUnitUser(userId, daftar) {
   return bersih;
 }
 
+// Peran PIC dokumen — penanggung-jawab satu jenis dokumen (jadwal dinas,
+// sparepart, atau ISR) LINTAS seluruh unit. Didefinisikan di sini, di atas
+// pemakaian pertamanya (loop bootstrap unit di bawah tidak boleh menaruh baris
+// user_unit untuk peran semua-unit). Dipakai lagi di ROLE_VALID dan SEMUA_UNIT.
+export const PIC_ROLE = ['pic-dinas', 'pic-sparepart', 'pic-isr'];
+
 // Akun yang sudah ada dibuat sebelum unit dikenal — beri akses Radtel supaya
 // tidak ada yang mendadak kehilangan logbook yang selama ini dipakainya.
-// Admin dan pejabat sengaja dilewat: akses mereka sudah lintas unit lewat
-// peran, jadi baris user_unit di sini bukan pagar akses melainkan opt-in
-// tampil sebagai teknisi di unit itu (lihat listTeknisiUnit). Menaruh
-// 'radtel' otomatis untuk mereka berarti nama mereka muncul di daftar saran
-// teknisi Radtel tanpa pernah memintanya.
-for (const u of db.prepare("SELECT id FROM users WHERE role NOT IN ('admin','pejabat')").all()) {
+// Peran lintas-unit (admin, pejabat, dan PIC) sengaja dilewat: akses mereka
+// sudah lintas unit lewat peran, jadi baris user_unit di sini bukan pagar akses
+// melainkan opt-in tampil sebagai teknisi di unit itu (lihat listTeknisiUnit).
+// Menaruh 'radtel' otomatis untuk mereka berarti nama mereka muncul di daftar
+// saran teknisi Radtel tanpa pernah memintanya.
+const LEWAT_BOOTSTRAP_UNIT = ['admin', 'pejabat', ...PIC_ROLE];
+const qLewat = LEWAT_BOOTSTRAP_UNIT.map(() => '?').join(',');
+for (const u of db.prepare(`SELECT id FROM users WHERE role NOT IN (${qLewat})`).all(...LEWAT_BOOTSTRAP_UNIT)) {
   const punya = db.prepare('SELECT COUNT(*) AS n FROM user_unit WHERE user_id = ?').get(u.id).n;
   if (punya === 0) db.prepare("INSERT INTO user_unit (user_id, unit) VALUES (?, 'radtel')").run(u.id);
 }
@@ -736,15 +748,22 @@ db.prepare(
  * dalam E-Logbook sendiri ia berperilaku seperti teknisi: bukan SEMUA_UNIT,
  * jadi tetap dibatasi unit yang diberikan kepadanya.
  *
- * Peran `pic` sudah dihapus. Akun lama dengan role='pic' dimigrasikan
- * otomatis jadi `adminunit` di blok migrasi cold start di bawah.
+ * pic-dinas / pic-sparepart / pic-isr — PIC (penanggung-jawab) satu jenis
+ * dokumen LINTAS seluruh unit. Dipakai Dashboard Fasilitas Teknik: di sana
+ * mereka hanya membuka satu database (jadwal dinas / sparepart / ISR) untuk
+ * semua unit, boleh menyunting dan mencetak. Di E-Logbook mereka SEMUA_UNIT
+ * (membaca seluruh unit) tetapi bukan pengisi — dashboard yang menegakkan
+ * batas "satu modul saja". Lihat PIC_ROLE di atas.
+ *
+ * Peran `pic` (lama, tanpa akhiran) sudah dihapus. Akun lama dengan role='pic'
+ * dimigrasikan otomatis jadi `adminunit` di blok migrasi cold start di bawah.
  */
-export const ROLE_VALID = ['admin', 'pejabat', 'adminunit', 'teknisi'];
+export const ROLE_VALID = ['admin', 'pejabat', 'adminunit', 'teknisi', ...PIC_ROLE];
 
 /** Peran yang boleh membuka seluruh unit tanpa perlu diberi satu per satu.
     adminunit sengaja TIDAK di sini: seluruh gunanya justru terletak pada
-    wilayahnya yang satu unit. */
-export const SEMUA_UNIT = ['admin', 'pejabat'];
+    wilayahnya yang satu unit. PIC ikut — jangkauannya memang seluruh unit. */
+export const SEMUA_UNIT = ['admin', 'pejabat', ...PIC_ROLE];
 
 /* ---------- Migrasi role: pic → adminunit ----------
    Peran `pic` dihapus. Akun lama diubah jadi `adminunit` — peran terdekat
@@ -1608,8 +1627,18 @@ export function updateDailyCheck(id, patch = {}, actor = {}) {
   const row = db.prepare('SELECT * FROM dailychecks WHERE id = ?').get(String(id));
   if (!row) throw new Error('Catatan tidak ditemukan — mungkin sudah dihapus.');
   if (row.manager_ttd) throw new Error('Catatan ini sudah ditandatangani manager teknik — tidak bisa disunting lagi.');
-  if (!actor.admin && row.dibuat_oleh && row.dibuat_oleh !== actor.username) {
-    throw new Error('Hanya pembuat catatan ini yang bisa menyuntingnya.');
+  if (!actor.admin) {
+    if (row.unit === 'amhsadps') {
+      // Daily check AMHS sengaja kolaboratif lintas dinas: pagi mengisi, siang/
+      // malam melanjutkan lewat Edit (tiap dinas akun sendiri) — jadi batasan
+      // "hanya pembuat" tidak berlaku. TAPI Officer (pejabat) hanya melihat &
+      // menandatangani, tidak menyunting checklist.
+      if (actor.role === 'pejabat') {
+        throw new Error('Officer hanya bisa melihat dan menandatangani, tidak menyunting checklist.');
+      }
+    } else if (row.dibuat_oleh && row.dibuat_oleh !== actor.username) {
+      throw new Error('Hanya pembuat catatan ini yang bisa menyuntingnya.');
+    }
   }
 
   const tanggal = patch.tanggal !== undefined ? String(patch.tanggal || '') : row.tanggal;
@@ -1639,21 +1668,25 @@ export function updateDailyCheck(id, patch = {}, actor = {}) {
   const state_json = patch.state !== undefined ? JSON.stringify(patch.state || {}) : row.state_json;
   const fails_json = Array.isArray(patch.fails) ? JSON.stringify(patch.fails) : row.fails_json;
   const warns_json = Array.isArray(patch.warns) ? JSON.stringify(patch.warns) : row.warns_json;
+  // Akun tujuan TTD susulan (kotak masuk Manager). Untuk AMHS ini baru diisi
+  // dinas malam lewat Edit, jadi harus ikut diperbarui — kalau tidak, TTD
+  // Manager tak pernah terkirim. Belum ditandatangani (dijaga di atas), aman.
+  const ttd_untuk = patch.ttdUntuk !== undefined ? String(patch.ttdUntuk || '') : row.ttd_untuk;
 
   db.prepare(`UPDATE dailychecks SET tanggal = ?, tanggal_urut = ?, dinas = ?, suhu = ?, remark = ?,
                                     teknisi_nama = ?, teknisi_nama_list = ?, teknisi_ttd = ?,
-                                    manager_nama = ?,
+                                    manager_nama = ?, ttd_untuk = ?,
                                     state_json = ?, fails_json = ?, warns_json = ?
                               WHERE id = ?`)
     .run(tanggal, tanggal_urut, dinas, suhu, remark,
          teknisiNama, teknisi_nama_list, teknisi_ttd,
-         managerNama,
+         managerNama, ttd_untuk,
          state_json, fails_json, warns_json, String(id));
 
   const nama = petaNamaPengguna();
   const rowBaru = { ...row, tanggal, tanggal_urut, dinas, suhu, remark,
                     teknisi_nama: teknisiNama, teknisi_nama_list, teknisi_ttd,
-                    manager_nama: managerNama,
+                    manager_nama: managerNama, ttd_untuk,
                     state_json, fails_json, warns_json };
   return rowToDcRingkas(rowBaru, {
     diinputOleh: namaTampil(nama, row.dibuat_oleh),
@@ -1990,14 +2023,18 @@ export function listDsTest(unit = 'radtel', limit = 200) {
 
 export function insertDsTest(rec = {}, olehUsername = '', olehNama = '') {
   const namaList = Array.isArray(rec.teknisiNamaList) ? rec.teknisiNamaList : [];
-  // Catatan Maintenance Radio menumpang tabel ini (state.__format === 'radio').
-  // Daftar radionya ada di peramban (17c-radio.js), bukan di ds-site.js, jadi
-  // kategori 'radio' tidak punya entri DS_SITE — lewati pemeriksaan site.
-  const isRadio = !!(rec.state && rec.state.__format === 'radio');
-  const kategori = isRadio ? 'radio' : (kategoriDsSah(rec.kategori) ? rec.kategori : 'domestik');
+  // Maintenance Radio (state.__format === 'radio') dan Weekly Check Pengamatan
+  // (state.__format === 'pgmweekly') menumpang tabel ini. Keduanya tak punya
+  // entri DS_SITE — daftar item/lembarnya ada di peramban (17c/17d) — jadi
+  // pemeriksaan site dilewati.
+  const fmt = rec.state && rec.state.__format;
+  const isKhusus = fmt === 'radio' || fmt === 'pgmweekly';
+  const kategori = fmt === 'radio' ? 'radio'
+                 : fmt === 'pgmweekly' ? 'pgmweekly'
+                 : (kategoriDsSah(rec.kategori) ? rec.kategori : 'domestik');
   // Daftar site yang masih kosong berarti formnya belum bisa dipakai —
   // menyimpan lembar tanpa satu pun site hanya menghasilkan berkas kosong.
-  if (!isRadio && dsSiteUntuk(kategori).length === 0) {
+  if (!isKhusus && dsSiteUntuk(kategori).length === 0) {
     throw new Error('Daftar site untuk kategori ' + kategori + ' belum diisi.');
   }
   const row = {
