@@ -35,6 +35,10 @@ function resizeSigCanvas(id){
 
 function setupSigCanvas(id){
   const canvas = document.getElementById(id);
+  // Kanvas bisa tidak ada — mis. papan yang dihapus dari sebuah form (Manager
+  // Teknik BAPB kini TTD susulan, tanpa kanvas). Lewati diam-diam supaya
+  // initAllSigPads() tidak putus di tengah dan menyeret init() ikut gagal.
+  if(!canvas) return;
   const ctx = canvas.getContext('2d');
   const state = {canvas, ctx, drawing:false, empty:true};
   sigPads[id] = state;
@@ -84,7 +88,7 @@ function getSigDataUrl(id){
    yang jalan sekali di init() ikut memasang tombol "pakai TTD tersimpan" di
    atasnya. Kanvas di dalam modal tersembunyi berlebar 0; resizeSigCanvas
    menunda dirinya sendiri sampai jendelanya benar-benar terlihat. */
-function initAllSigPads(){ ['sigFeTeknisi','sigFeeTeknisi','sigDcTeknisi','sigMon','sigMonOps','sigDs','sigRadio','sigWk','sigLtkTeknisi','sigTtdPejabat','sigBerkala','sigBapbPemakai','sigBapbTeknik','sigBapbPetugas'].forEach(id=>{ if(!sigPads[id]) setupSigCanvas(id); }); }
+function initAllSigPads(){ ['sigFeTeknisi','sigFeeTeknisi','sigDcTeknisi','sigMon','sigMonOps','sigDs','sigRadio','sigWk','sigLtkTeknisi','sigTtdPejabat','sigBerkala','sigBapbPemakai','sigBapbPetugas'].forEach(id=>{ if(!sigPads[id]) setupSigCanvas(id); }); }
 function resizeAllVisibleSigPads(){ Object.keys(sigPads).forEach(resizeSigCanvas); }
 window.addEventListener('resize', resizeAllVisibleSigPads);
 window.addEventListener('orientationchange', ()=>setTimeout(resizeAllVisibleSigPads, 250));

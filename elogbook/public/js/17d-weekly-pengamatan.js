@@ -157,9 +157,9 @@ const WK_SMR = [
 
 /** Katalog lembar. `label`/`sub` dipakai kepala sub-tab; `judul` untuk cetak. */
 const WK_FORMS = {
-  ckg3:  { data: WK_CKG3, judul: 'WEEKLY CHECK RADAR CKG 3' },
-  smrt1: { data: WK_SMR,  judul: 'WEEKLY CHECK SURFACE MOVEMENT RADAR (SMR T1)' },
-  smrt3: { data: WK_SMR,  judul: 'WEEKLY CHECK SURFACE MOVEMENT RADAR (SMR T3)' }
+  ckg3:  { data: WK_CKG3, judul: 'RADAR CKG 3' },
+  smrt1: { data: WK_SMR,  judul: 'SURFACE MOVEMENT RADAR (SMR T1)' },
+  smrt3: { data: WK_SMR,  judul: 'SURFACE MOVEMENT RADAR (SMR T3)' }
 };
 const WK_URUT = ['ckg3','smrt1','smrt3'];
 
@@ -411,13 +411,10 @@ function openWkModal(form){
   wkTeknisiRows = []; wkTeknisiSeq = 0; addWkTeknisi();
   if(!sigPads['sigWk']) setupSigCanvas('sigWk');
   resizeSigCanvas('sigWk'); clearSig('sigWk');
-  // Pastikan tombol "✍ pakai TTD tersimpan" terpasang (idempoten) lalu langsung
-  // pakai TTD tersimpan milik akun kalau ada — teknisi tinggal Bersihkan bila
-  // mau tanda tangan baru.
+  // Kanvas TTD SENGAJA dibiarkan kosong — teknisi tanda tangan sendiri, atau
+  // klik "✍ pakai TTD tersimpan" kalau mau. Jangan auto-tempel: biar ada
+  // effort nempel TTD, bukan tiba-tiba sudah ada tanda tangan kita.
   if(typeof pasangTombolTtdTersimpan === 'function') pasangTombolTtdTersimpan();
-  if(typeof ttdTersimpanSaya !== 'undefined' && ttdTersimpanSaya && typeof pakaiTtdTersimpan === 'function'){
-    pakaiTtdTersimpan('sigWk');
-  }
   renderWkTable();
   document.getElementById('wkModalBg').classList.add('show');
   setTimeout(()=>resizeSigCanvas('sigWk'), 60);

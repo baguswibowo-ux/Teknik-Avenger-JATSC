@@ -393,9 +393,14 @@
       <!-- Weekly Check unit Pengamatan (tiga lembar). Ketampakannya di
            07-unit.js hanya untuk unit pengamatan; sub-tab lain justru
            disembunyikan untuk unit itu (adaDsTest/adaBerkala=false). -->
-      <button class="subtab-btn" data-subtab="wk-ckg3" data-t="tabWkCkg3">🛰 WEEKLY CKG 3</button>
-      <button class="subtab-btn" data-subtab="wk-smrt1" data-t="tabWkSmrt1">📡 WEEKLY SMR T1</button>
-      <button class="subtab-btn" data-subtab="wk-smrt3" data-t="tabWkSmrt3">📡 WEEKLY SMR T3</button>
+      <button class="subtab-btn" data-subtab="wk-ckg3" data-t="tabWkCkg3">🛰 CKG 3</button>
+      <button class="subtab-btn" data-subtab="wk-smrt1" data-t="tabWkSmrt1">📡 SMR T1</button>
+      <button class="subtab-btn" data-subtab="wk-smrt3" data-t="tabWkSmrt3">📡 SMR T3</button>
+      <!-- Ground Check — hanya untuk unit Navigasi (ppabn). Di dalamnya
+           bertingkat: jenis fasilitas (LLZ, nanti GP & MM) → tiap fasilitas
+           punya lembarnya sendiri (LLZ: 07L/07R/25R/25L). Lihat #view-gcheck
+           dan js/17e-llz-navigasi.js. -->
+      <button class="subtab-btn" data-subtab="gcheck" data-t="tabGcheck">📈 GROUND CHECK</button>
     </nav>
 
     <!-- ===== SUB-TAB: DS TEST ===== -->
@@ -497,7 +502,7 @@
          "+ Form Baru". Lihat js/17d-weekly-pengamatan.js. -->
     <section class="subview" id="view-wk-ckg3">
       <div class="section-head">
-        <div><h2 data-t="wkCkg3Judul">Weekly Check Radar CKG 3</h2><p data-t="wkSub">Pemeriksaan mingguan — klik status untuk mengubah: Normal → Alarm → Gangguan.</p></div>
+        <div><h2 data-t="wkCkg3Judul">Radar CKG 3</h2><p data-t="wkSub">Pemeriksaan mingguan — klik status untuk mengubah: Normal → Alarm → Gangguan.</p></div>
         <button class="btn btn-tambah" onclick="openWkModal('ckg3')" data-t="tambahWk">+ Form Baru</button>
       </div>
       <div class="card">
@@ -512,7 +517,7 @@
 
     <section class="subview" id="view-wk-smrt1">
       <div class="section-head">
-        <div><h2 data-t="wkSmrt1Judul">Weekly Check SMR T1</h2><p data-t="wkSub">Pemeriksaan mingguan — klik status untuk mengubah: Normal → Alarm → Gangguan.</p></div>
+        <div><h2 data-t="wkSmrt1Judul">SMR T1</h2><p data-t="wkSub">Pemeriksaan mingguan — klik status untuk mengubah: Normal → Alarm → Gangguan.</p></div>
         <button class="btn btn-tambah" onclick="openWkModal('smrt1')" data-t="tambahWk">+ Form Baru</button>
       </div>
       <div class="card">
@@ -527,7 +532,7 @@
 
     <section class="subview" id="view-wk-smrt3">
       <div class="section-head">
-        <div><h2 data-t="wkSmrt3Judul">Weekly Check SMR T3</h2><p data-t="wkSub">Pemeriksaan mingguan — klik status untuk mengubah: Normal → Alarm → Gangguan.</p></div>
+        <div><h2 data-t="wkSmrt3Judul">SMR T3</h2><p data-t="wkSub">Pemeriksaan mingguan — klik status untuk mengubah: Normal → Alarm → Gangguan.</p></div>
         <button class="btn btn-tambah" onclick="openWkModal('smrt3')" data-t="tambahWk">+ Form Baru</button>
       </div>
       <div class="card">
@@ -538,6 +543,98 @@
         <div class="subtle-note" data-t="noteCariWk">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
       </div>
       <div id="wkList-smrt3"></div>
+    </section>
+
+    <!-- ===== SUB-TAB: GROUND CHECK (bertingkat) =====
+         Level 1 (sub-tab Preventive) = Ground Check. Di dalamnya dua tingkat
+         tab generik ".lvl" (handler di 04-toast-tab.js; scoping pakai ":scope >"
+         jadi tiap tingkat cuma menukar panelnya sendiri):
+           Level 2  jenis fasilitas — LLZ (nanti GP, MM)
+           Level 3  lembar per fasilitas — LLZ: 07L / 07R / 25R / 25L
+         Isi lembar (tabel ukur TX 1/TX 2 + dua grafik) tetap dibangun di modal
+         #llzModalBg oleh openLlzModal(form); tiap panel cuma riwayat + tombol
+         "+ Form Baru". Lihat js/17e-llz-navigasi.js. -->
+    <section class="subview" id="view-gcheck">
+      <div class="lvl">
+        <div class="lvl-tabs">
+          <button class="lvl-btn active" data-target="gc-llz">LLZ</button>
+          <!-- Menyusul: <button class="lvl-btn" data-target="gc-gp">GP</button>
+                         <button class="lvl-btn" data-target="gc-mm">MM</button> -->
+        </div>
+        <div class="lvl-body">
+          <div class="lvl-panel active" id="gc-llz">
+            <div class="lvl">
+              <div class="lvl-tabs sub">
+                <button class="lvl-btn active" data-target="gc-llz-07l">LLZ 07L</button>
+                <button class="lvl-btn" data-target="gc-llz-07r">LLZ 07R</button>
+                <button class="lvl-btn" data-target="gc-llz-25r">LLZ 25R</button>
+                <button class="lvl-btn" data-target="gc-llz-25l">LLZ 25L</button>
+              </div>
+              <div class="lvl-body">
+                <div class="lvl-panel active" id="gc-llz-07l">
+                  <div class="section-head">
+                    <div><h2>Ground Check LLZ 07L</h2><p>Groundcheck performance curve localizer — grafik TX 1 & TX 2 tergambar otomatis dari angka ukur.</p></div>
+                    <button class="btn btn-tambah" onclick="openLlzModal('07l')" data-t="tambahLlz">+ Form Baru</button>
+                  </div>
+                  <div class="card">
+                    <div class="print-bar">
+                      <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariLlzTanggal-07l" onchange="renderLlzList('07l')"></div>
+                      <button class="btn ghost" onclick="resetCariLlz('07l')" data-t="resetCari">↺ Tampilkan Semua</button>
+                    </div>
+                    <div class="subtle-note" data-t="noteCariLlz">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+                  </div>
+                  <div id="llzList-07l"></div>
+                </div>
+
+                <div class="lvl-panel" id="gc-llz-07r">
+                  <div class="section-head">
+                    <div><h2>Ground Check LLZ 07R</h2><p>Groundcheck performance curve localizer — grafik TX 1 & TX 2 tergambar otomatis dari angka ukur.</p></div>
+                    <button class="btn btn-tambah" onclick="openLlzModal('07r')" data-t="tambahLlz">+ Form Baru</button>
+                  </div>
+                  <div class="card">
+                    <div class="print-bar">
+                      <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariLlzTanggal-07r" onchange="renderLlzList('07r')"></div>
+                      <button class="btn ghost" onclick="resetCariLlz('07r')" data-t="resetCari">↺ Tampilkan Semua</button>
+                    </div>
+                    <div class="subtle-note" data-t="noteCariLlz">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+                  </div>
+                  <div id="llzList-07r"></div>
+                </div>
+
+                <div class="lvl-panel" id="gc-llz-25r">
+                  <div class="section-head">
+                    <div><h2>Ground Check LLZ 25R</h2><p>Groundcheck performance curve localizer — grafik TX 1 & TX 2 tergambar otomatis dari angka ukur.</p></div>
+                    <button class="btn btn-tambah" onclick="openLlzModal('25r')" data-t="tambahLlz">+ Form Baru</button>
+                  </div>
+                  <div class="card">
+                    <div class="print-bar">
+                      <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariLlzTanggal-25r" onchange="renderLlzList('25r')"></div>
+                      <button class="btn ghost" onclick="resetCariLlz('25r')" data-t="resetCari">↺ Tampilkan Semua</button>
+                    </div>
+                    <div class="subtle-note" data-t="noteCariLlz">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+                  </div>
+                  <div id="llzList-25r"></div>
+                </div>
+
+                <div class="lvl-panel" id="gc-llz-25l">
+                  <div class="section-head">
+                    <div><h2>Ground Check LLZ 25L</h2><p>Groundcheck performance curve localizer — grafik TX 1 & TX 2 tergambar otomatis dari angka ukur.</p></div>
+                    <button class="btn btn-tambah" onclick="openLlzModal('25l')" data-t="tambahLlz">+ Form Baru</button>
+                  </div>
+                  <div class="card">
+                    <div class="print-bar">
+                      <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariLlzTanggal-25l" onchange="renderLlzList('25l')"></div>
+                      <button class="btn ghost" onclick="resetCariLlz('25l')" data-t="resetCari">↺ Tampilkan Semua</button>
+                    </div>
+                    <div class="subtle-note" data-t="noteCariLlz">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+                  </div>
+                  <div id="llzList-25l"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </section>
   </section>
 
@@ -904,6 +1001,42 @@
   </div>
 </div>
 
+<!-- MODAL GROUND CHECK LLZ (unit Navigasi)
+     Satu jendela untuk keempat ujung landas (07L / 07R / 25R / 25L). Judul,
+     nilai default header, dan tabelnya diatur openLlzModal(form) di
+     js/17e-llz-navigasi.js. Dua grafik "Ground Performance Curve" di
+     #llzCharts tergambar ulang tiap kali kolom DDM (ddm) diketik. -->
+<div class="modal-bg" id="llzModalBg">
+  <div class="modal" style="max-width:1180px;">
+    <h3 id="llzModalJudul">Ground Check Performance Curve</h3>
+    <div class="grid2">
+      <div class="field"><label data-t="hariTanggal">Hari / Tanggal</label><input type="date" id="llzTanggal"></div>
+      <div class="field"><label>Jarak dari antenna localizer (M)</label><input type="text" inputmode="decimal" id="llzJarakAntena" placeholder="mis. 60"></div>
+      <div class="field"><label>Merk</label><input type="text" id="llzMerk" placeholder="Selex 2100"></div>
+      <div class="field"><label>Ident-Freq</label><input type="text" id="llzIdent" placeholder="ICHL / 111.5 MHz"></div>
+    </div>
+    <div class="subtle-note" style="margin-top:6px;">Kolom <b>DDM (µA)</b> dihitung otomatis dari <b>DDM (ddm)</b> (0,155 ddm = 150 µA); grafik ikut tergambar begitu angkanya diketik. Isi kolom lain apa adanya dari alat ukur.</div>
+    <div id="llzWrap" style="margin-top:8px;overflow-x:auto;"></div>
+    <div id="llzCharts" style="margin-top:14px;"></div>
+    <div class="grid2" style="margin-top:14px;">
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <label style="font-family:var(--font-mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);" data-t="namaTeknisiPelaksana">Nama Teknisi Pelaksana</label>
+          <button class="btn ghost" style="padding:5px 10px;" onclick="addLlzTeknisi()" data-t="tambahNama">+ Nama</button>
+        </div>
+        <div id="llzTeknisiList" style="margin-top:8px;"></div>
+      </div>
+      <div class="field"><label data-t="ttdTeknisi">TTD Teknisi</label><div class="sig-wrap"><canvas id="sigLlz"></canvas><div class="sig-toolbar"><span class="sig-hint" data-t="ttdHintTeknisi">tanda tangan teknisi</span><button class="sig-clear" onclick="clearSig('sigLlz')" data-t="bersihkan">bersihkan</button></div></div></div>
+    </div>
+    <div class="field" style="margin-top:8px;"><label data-t="mengetahuiManager">Mengetahui — Manager Teknik</label><input type="text" id="llzManagerNama" list="pejabatDatalist" data-t-ph="phNamaManager" placeholder="Nama manager teknik"></div>
+    <div class="field" style="margin-top:6px;"><label data-t="kirimTtdKe">Kirim TTD ke akun</label><select id="llzManagerAkun"><option value="" data-t="kirimTtdOtomatis">Otomatis (dari nama di atas)</option></select></div>
+    <div class="modal-footer">
+      <button class="btn ghost" onclick="closeLlzModal()" data-t="batal">Batal</button>
+      <button class="btn" id="llzSaveBtn" onclick="saveLlz()" data-t="simpanLlz">💾 Simpan Ground Check</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL PEKERJAAN BERKALA
      Satu jendela untuk keempat jenis. Judul dan isi tabelnya diatur
      openBerkalaModal(jenis); tidak ada pemilih jenis di dalam sini, karena
@@ -1040,8 +1173,12 @@
         <div class="field"><label data-t="ttdDiSini">Tanda Tangan</label><div class="sig-wrap"><canvas id="sigBapbPemakai"></canvas><div class="sig-toolbar"><span class="sig-hint" data-t="ttdHintUmum">tanda tangan di sini</span><button class="sig-clear" onclick="clearSig('sigBapbPemakai')" data-t="bersihkan">bersihkan</button></div></div></div>
       </div>
       <div>
-        <div class="field"><label data-t="bapbTeknik">Manager Teknik</label><input type="text" id="bapbTeknikNama" data-t-ph="phBapbTeknikNama" placeholder="Nama manager teknik"></div>
-        <div class="field"><label data-t="ttdDiSini">Tanda Tangan</label><div class="sig-wrap"><canvas id="sigBapbTeknik"></canvas><div class="sig-toolbar"><span class="sig-hint" data-t="ttdHintUmum">tanda tangan di sini</span><button class="sig-clear" onclick="clearSig('sigBapbTeknik')" data-t="bersihkan">bersihkan</button></div></div></div>
+        <div class="field"><label data-t="bapbTeknik">Manager Teknik</label><input type="text" id="bapbTeknikNama" list="pejabatDatalist" data-t-ph="phBapbTeknikNama" placeholder="Nama manager teknik"></div>
+        <div class="field" style="margin-top:6px;"><label data-t="kirimTtdKe">Kirim TTD ke akun</label><select id="bapbTeknikAkun"><option value="" data-t="kirimTtdOtomatis">Otomatis (dari nama di atas)</option></select></div>
+        <!-- Manager Teknik tidak lagi tanda tangan di form: lembar ini masuk
+             kotak masuk TTD akun mantek yang dituju, dibubuhkan susulan di
+             sana — langkah terakhir setelah pemakai. -->
+        <div class="subtle-note" data-t="bapbTeknikSusulan">TTD Manager Teknik dibubuhkan belakangan lewat kotak masuk akun yang dituju.</div>
       </div>
       <div>
         <!-- Teknisi pelaksana bisa lebih dari satu — sama polanya seperti
@@ -1059,6 +1196,21 @@
     <div class="modal-footer">
       <button class="btn ghost" onclick="closeBapbModal()" data-t="batal">Batal</button>
       <button class="btn" id="bapbSaveBtn" onclick="saveBapb()" data-t="simpanBapb">💾 Simpan BAPB</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL SUNTING TTD MANAGER PEMAKAI (BAPB) — langkah terakhir sebelum mantek.
+     Pembuat lembar / admin bisa membubuhkan atau mengganti paraf Manager
+     Pemakai belakangan, selama Manager Teknik belum tanda tangan. -->
+<div class="modal-bg" id="bapbPemakaiBg">
+  <div class="modal" style="max-width:440px;">
+    <h3 data-t="bapbPemakaiUbahJudul">TTD Manager Pemakai</h3>
+    <div class="field"><label data-t="bapbPemakai">Manager Pemakai</label><input type="text" id="bapbPemakaiEditNama" data-t-ph="phBapbPemakaiNama" placeholder="Nama manager pemakai"></div>
+    <div class="field" style="margin-top:6px;"><label data-t="ttdDiSini">Tanda Tangan</label><div class="sig-wrap"><canvas id="sigBapbPemakaiEdit"></canvas><div class="sig-toolbar"><span class="sig-hint" data-t="ttdHintUmum">tanda tangan di sini</span><button class="sig-clear" onclick="clearSig('sigBapbPemakaiEdit')" data-t="bersihkan">bersihkan</button></div></div></div>
+    <div class="modal-footer">
+      <button class="btn ghost" onclick="closeBapbPemakaiModal()" data-t="batal">Batal</button>
+      <button class="btn" id="bapbPemakaiSaveBtn" onclick="simpanBapbPemakai()" data-t="simpan">💾 Simpan</button>
     </div>
   </div>
 </div>
@@ -1317,6 +1469,7 @@
 <script src="js/17-ds-test.js"></script>
 <script src="js/17c-radio.js"></script>
 <script src="js/17d-weekly-pengamatan.js"></script>
+<script src="js/17e-llz-navigasi.js"></script>
 <script src="js/18-ltk.js"></script>
 <script src="js/18b-bapb.js"></script>
 <script src="js/19-berkala.js"></script>

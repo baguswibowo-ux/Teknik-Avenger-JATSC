@@ -51,8 +51,10 @@ const KODE_DINAS = [
   /* Tidak berdinas — orangnya tetap muncul di petak hari itu supaya siapa yang
      absen kelihatan, tetapi tanpa jam dan tanpa hitungan cakupan (lihat entri
      `libur:true` di SHIFT). Pengimpor membedakannya dari sel kosong, jadi
-     'CUTI' di lembar aslinya tidak lagi jatuh ke "libur" begitu saja. */
-  'CUTI','CAP','IJIN'
+     'CUTI' di lembar aslinya tidak lagi jatuh ke "libur" begitu saja.
+     DL (Dinas Luar) ikut di sini: orangnya bertugas tetapi di luar stasiun,
+     jadi tampil di petaknya tanpa jam dan tanpa cakupan — sama seperti CUTI. */
+  'CUTI','CAP','IJIN','DL'
 ];
 
 /* Yang dipasang sebagai petak sebelum ada jadwal yang bisa dibaca. P dan S
@@ -86,6 +88,10 @@ let UNIT = [];
    Sengaja dibiarkan kosong di sini: unit yang belum punya catatan harus
    terlihat kosong, bukan terisi daftar yang tidak pernah ada. */
 const PERALATAN = {};
+
+/* Izin Stasiun Radio per unit — juga dari /unitdb, berkunci kode unit.
+   { kode unit -> [ {id, nama, nomor, frek, kelas, lokasi, mulai, habis, ket} ] } */
+const ISR = {};
 
 /* Papan trouble, disusun dari isu E-Logbook oleh srvPasang(). */
 let TROUBLE = [];

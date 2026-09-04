@@ -69,7 +69,7 @@ async function init(){
   // dsList memuat DS Test + Maintenance Radio (satu tabel dstest). Tiap sub-tab
   // menyaring jenisnya sendiri: renderDsList() membuang catatan radio,
   // renderRadioList() hanya menampilkan yang radio.
-  try{ dsList = (data.dstest||[]).map(mapDs); renderDsList(); if(typeof renderRadioList === 'function') renderRadioList(); if(typeof renderSemuaWkList === 'function') renderSemuaWkList(); }
+  try{ dsList = (data.dstest||[]).map(mapDs); renderDsList(); if(typeof renderRadioList === 'function') renderRadioList(); if(typeof renderSemuaWkList === 'function') renderSemuaWkList(); if(typeof renderSemuaLlzList === 'function') renderSemuaLlzList(); }
   catch(e){ document.getElementById('dsList').innerHTML = '<div class="empty">DS Test gagal ditampilkan: '+escapeHtml(String(e.message||e))+'</div>'; }
   berkalaItemSemua = data.berkalaItem || berkalaItemSemua;
   berkalaJenisUrut = (data.jenisBerkala && data.jenisBerkala.length) ? data.jenisBerkala : berkalaJenisUrut;

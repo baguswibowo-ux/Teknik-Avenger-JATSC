@@ -318,7 +318,8 @@ const IMPOR_ALIAS = {
   'PAGI':'P', 'SIANG':'S',
   'CUTI TAHUNAN':'CUTI', 'CT':'CUTI',
   'CUTI ALASAN PENTING':'CAP', 'SAKIT':'CAP',
-  'IZIN':'IJIN'
+  'IZIN':'IJIN',
+  'DINAS LUAR':'DL', 'DL':'DL'
 };
 
 function imporKode(nilai, kodeUnit){

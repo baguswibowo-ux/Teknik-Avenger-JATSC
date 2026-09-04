@@ -82,8 +82,10 @@ function terapkanUnit(){
   // — tidak ada unit yang punya sebagiannya saja.
   const tabPm = document.querySelector('.tab-btn[data-tab="preventive"]');
   // Unit Pengamatan memakai wadah Preventive untuk tiga lembar Weekly Check
-  // (js/17d-weekly-pengamatan.js) meski tak punya DS Test / berkala.
-  const adaPm = !!(u.adaDsTest || u.adaBerkala || u.kode === 'pengamatan');
+  // (js/17d-weekly-pengamatan.js) meski tak punya DS Test / berkala. Unit
+  // Navigasi (ppabn) memakainya untuk empat lembar Ground Check LLZ
+  // (js/17e-llz-navigasi.js) — juga tanpa DS Test / berkala.
+  const adaPm = !!(u.adaDsTest || u.adaBerkala || u.kode === 'pengamatan' || u.kode === 'ppabn');
   if(tabPm){
     tabPm.style.display = adaPm ? '' : 'none';
     if(!adaPm && tabPm.classList.contains('active')) pilihTab('logbook');
@@ -104,6 +106,13 @@ function terapkanUnit(){
     if(s) s.style.display = adaWk ? '' : 'none';
   });
   if(adaWk && typeof renderSemuaWkList === 'function') renderSemuaWkList();
+  // Ground Check (bertingkat: LLZ→ujung landas, nanti GP & MM) hanya untuk
+  // unit Navigasi (ppabn). Sub-tab tingkat-atasnya satu; cabang di dalamnya
+  // diatur handler .lvl generik, bukan visibilitas per-unit.
+  const adaGcheck = u.kode === 'ppabn';
+  const subGcheck = document.querySelector('.subtab-btn[data-subtab="gcheck"]');
+  if(subGcheck) subGcheck.style.display = adaGcheck ? '' : 'none';
+  if(adaGcheck && typeof renderSemuaLlzList === 'function') renderSemuaLlzList();
   // Kalau sub-tab yang lagi aktif ternyata tidak dipakai unit ini, pindah
   // ke sub-tab pertama yang masih terlihat — kalau tidak, wadahnya terbuka
   // di ruang kosong dan seolah tidak ada isinya.

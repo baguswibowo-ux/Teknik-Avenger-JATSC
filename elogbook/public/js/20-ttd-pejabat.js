@@ -197,11 +197,13 @@ async function simpanRuteTtd(){
               : kind === 'ltk' ? (typeof ltkList !== 'undefined' ? ltkList : null)
               : kind === 'berkala' ? (typeof berkalaList !== 'undefined' ? berkalaList : null)
               : kind === 'dstest' ? (typeof dsList !== 'undefined' ? dsList : null)
+              : kind === 'bapb' ? (typeof bapbList !== 'undefined' ? bapbList : null)
               : null;
     if(Array.isArray(arr)){
       const rec = arr.find(x=>x.id===id);
       if(rec){
         if(kind === 'entry'){ rec.pjNama = nama; }
+        else if(kind === 'bapb'){ rec.teknikNama = nama; }
         else                { rec.managerNama = nama; }
         rec.ttdUntuk = akun;
       }
@@ -215,6 +217,7 @@ async function simpanRuteTtd(){
     if(kind === 'ltk' && typeof renderLtkList === 'function') renderLtkList();
     if(kind === 'berkala' && typeof renderBerkalaList === 'function') renderBerkalaList();
     if(kind === 'dstest' && typeof renderDsList === 'function') renderDsList();
+    if(kind === 'bapb' && typeof renderBapbList === 'function') renderBapbList();
   }catch(e){
     toast('Gagal menyimpan rute TTD — ' + (e.message || 'coba lagi.'));
   }
@@ -226,7 +229,7 @@ let ttdTarget = null;   // { jenis, id }
 
 const TTD_JUDUL = {
   logbook:'ttdSbgPj', dailycheck:'ttdSbgManager', monitoring:'ttdSbgOps',
-  dstest:'ttdSbgManager', berkala:'ttdSbgManager', ltk:'ttdSbgManager'
+  dstest:'ttdSbgManager', berkala:'ttdSbgManager', ltk:'ttdSbgManager', bapb:'ttdSbgManager'
 };
 
 /** Nama yang sudah tertulis pada formulir, dari catatan yang ada di memori. */
@@ -238,6 +241,7 @@ function namaPadaFormulir(jenis, id){
     case 'dstest':     return dsList.find(x=>x.id===id)?.managerNama || '';
     case 'berkala':    return berkalaList.find(x=>x.id===id)?.managerNama || '';
     case 'ltk':        return ltkList.find(x=>x.id===id)?.managerNama || '';
+    case 'bapb':       return bapbList.find(x=>x.id===id)?.teknikNama || '';
     default:           return '';
   }
 }
@@ -308,6 +312,12 @@ const TTD_TERAP = {
     const l = ltkList.find(x=>x.id===r.id);
     if(l){ l.managerNama = r.nama; l.managerTtd = r.ttd; l.ttdOleh = r.ttdOleh; l.ttdPada = r.ttdPada; }
     renderLtkList();
+  },
+  bapb: (r)=>{
+    // Slot yang dirutekan di BAPB adalah Manager Teknik (teknik_nama/teknik_ttd).
+    const b = bapbList.find(x=>x.id===r.id);
+    if(b){ b.teknikNama = r.nama; b.teknikTtd = r.ttd; b.ttdOleh = r.ttdOleh; b.ttdPada = r.ttdPada; }
+    if(typeof renderBapbList === 'function') renderBapbList();
   }
 };
 
@@ -318,7 +328,8 @@ const TTD_BUKA_ULANG = {
   monitoring: (id)=>openMonDetail(id),
   dstest: (id)=>openDsDetail(id),
   berkala: (id)=>openBerkalaDetail(id),
-  ltk: (id)=>openLtkDetail(id)
+  ltk: (id)=>openLtkDetail(id),
+  bapb: (id)=>openBapbDetail(id)
 };
 
 async function simpanTtdPejabat(){
@@ -376,7 +387,7 @@ function tutupSemuaDetail(){
    sama seperti sebelum fitur ini ada: sekadar tidak ada yang diberi tahu. */
 
 /** Tiap <select> pilihan akun TTD susulan, satu per formulir yang punya isian nama pejabat. */
-const AKUN_TTD_SELECT_ID = ['fePjAkun','dcManagerAkun','dcAmhsAkun_amhs','dcAmhsAkun_aadps','dcAmhsAkun_datis','monOpsAkun','dsManagerAkun','radioManagerAkun','wkManagerAkun','bkManagerAkun','ltkManagerAkun'];
+const AKUN_TTD_SELECT_ID = ['fePjAkun','dcManagerAkun','dcAmhsAkun_amhs','dcAmhsAkun_aadps','dcAmhsAkun_datis','monOpsAkun','dsManagerAkun','radioManagerAkun','wkManagerAkun','llzManagerAkun','bkManagerAkun','ltkManagerAkun','bapbTeknikAkun'];
 
 /** Isi <datalist> saran nama akun dan tiap <select> pilihan akun eksplisit —
     dipanggil sekali saat data dimuat. */
@@ -432,13 +443,29 @@ function ttdUntukTerpilih(selectId, nama){
 /* Pekerjaan berkala punya empat tab tapi satu jenis catatan, jadi tab
    tujuannya baru diketahui dari lembarnya sendiri — lihat tabInbox(). */
 const INBOX_TAB = { logbook:'logbook', dailycheck:'dailycheck', monitoring:'monitoring', dstest:'dstest',
-                    ltk:'ltk' };
+                    ltk:'ltk', bapb:'bapb' };
 
 /** Tab yang harus dibuka untuk satu baris kotak masuk. */
 function tabInbox(jenis, id){
   if(jenis !== 'berkala') return INBOX_TAB[jenis];
   const b = berkalaList.find(x=>x.id===id);
   return BK_TAB[b ? b.jenis : 'neptuno'] || 'bk-neptuno';
+}
+
+/* LTK dan BAPB duduk sebagai sub-tab di dalam satu tab wadah "FORM".
+   pilihTab hanya mengenal tab tingkat-atas, jadi keduanya butuh dua langkah:
+   buka tab wadahnya dulu, baru klik sub-tabnya. */
+const INBOX_SUBTAB = { ltk:'form', bapb:'form' };
+function bukaTabInbox(jenis, id){
+  const wadah = INBOX_SUBTAB[jenis];
+  if(wadah){
+    pilihTab(wadah);
+    const sub = document.querySelector(`.subtab-btn[data-subtab="${tabInbox(jenis, id)}"]`);
+    if(sub) sub.click();
+    return;
+  }
+  const tab = tabInbox(jenis, id);
+  if(tab) pilihTab(tab);
 }
 
 function renderInboxBadge(){
@@ -487,7 +514,6 @@ async function bukaInboxItem(jenis, unit, id){
     tutupPratinjau();
     await init();
   }
-  const tab = tabInbox(jenis, id);
-  if(tab) pilihTab(tab);
+  bukaTabInbox(jenis, id);
   if(TTD_BUKA_ULANG[jenis]) TTD_BUKA_ULANG[jenis](id);
 }

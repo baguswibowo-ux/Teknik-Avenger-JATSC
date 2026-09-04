@@ -787,10 +787,26 @@ async function targetSuperadmin(username, req) {
 
 const MODUL_HAK = ['dinas', 'dinas-ttd', 'dinas-cetak', 'berkala', 'personel',
                    'peralatan', 'sparepart', 'sparepart-ttd',
-                   'sejarah', 'sejarah-ttd',
+                   'sejarah', 'sejarah-ttd', 'isr',
                    'dokumen', 'galeri'];
 
-const PERAN_SAH = ['admin', 'pejabat', 'adminunit', 'teknisi'];
+const PERAN_SAH = ['admin', 'pejabat', 'adminunit', 'teknisi',
+                   'pic-dinas', 'pic-sparepart', 'pic-isr'];
+
+/* PIC dokumen — penanggung-jawab satu jenis dokumen LINTAS seluruh unit. Peta
+   peran → modul yang boleh diisinya. Bedanya dengan peran biasa: haknya TIDAK
+   datang dari hak.json (rapikanHak membuang peran di luar HAK_BAWAAN toh), tapi
+   dari peta ini — satu modul saja, di semua unit. Jangkauan semua-unit datang
+   dari E-Logbook (SEMUA_UNIT), jadi unitDipegang() sudah balas null untuknya.
+   PIC bukan penghapus (tidak masuk PERAN_HAPUS) dan bukan penanda-tangan. */
+const PERAN_PIC = { 'pic-dinas': 'dinas', 'pic-sparepart': 'sparepart', 'pic-isr': 'isr' };
+/** Modul yang boleh diisi sebuah peran PIC. pic-dinas ikut 'dinas-cetak' supaya
+    lolos gerbang cetak Jadwal Dinas di POST /cetak-antrian. Kosong = bukan PIC. */
+function modulPicBoleh(peran) {
+  const m = PERAN_PIC[peran];
+  if (!m) return null;
+  return m === 'dinas' ? new Set(['dinas', 'dinas-cetak']) : new Set([m]);
+}
 
 /* Peran yang wilayahnya satu unit saja. Dipakai untuk memutuskan apakah
    penjagaan unit perlu ditegakkan — bukan untuk memutuskan haknya. */
@@ -805,7 +821,7 @@ const PERAN_HAPUS = new Set(['admin', 'adminunit']);
    hak, misalnya — penjagaan unit tidak berlaku karena tidak ada unit yang
    bisa dijadikan pagar. */
 const MODUL_PER_UNIT = new Set(['dinas', 'berkala', 'peralatan', 'sparepart',
-                                'sejarah', 'dokumen', 'galeri']);
+                                'sejarah', 'isr', 'dokumen', 'galeri']);
 
 /* Bawaan kalau hak.json belum ada.
 
@@ -848,6 +864,10 @@ const HAK_BAWAAN = {
      alat itu adalah pekerjaan orang yang sedang berdinas di depannya. Kalau
      ia harus menunggu administrator, riwayatnya tidak akan pernah terisi. */
   sejarah:   { peran: ['admin', 'adminunit', 'teknisi'],               petugas: [] },
+  /* Izin Stasiun Radio — dibuka sampai teknisi, sama seperti sparepart:
+     yang mencatat pembaruan izin adalah orang yang mengurus stasiunnya. Yang
+     menahannya tetap pagar unit dan pagar hapus (menghapus = admin/adminunit). */
+  isr:       { peran: ['admin', 'adminunit', 'teknisi'],               petugas: [] },
   /* Officer yang boleh membubuhkan TTD Sejarah Peralatan. Berbeda dari
      `sejarah` di atas: yang itu "siapa yang boleh MENULIS riwayat", ini
      "siapa yang boleh menandatangani LEMBAR CETAK-nya". Kolom peran tidak
@@ -955,6 +975,11 @@ async function bolehIsi(user, modul, unit = '') {
   // rapikanHak() sudah membuang pejabat dari daftar, tapi ini palang keduanya.
   if (PERAN_HANYA_LIHAT.has(peranUser(user))) return false;
   if (MODUL_PER_UNIT.has(modul) && !bolehUnit(user, unit)) return false;
+  // PIC dokumen: hanya satu modul (peta PERAN_PIC), di semua unit. hak.json
+  // tidak berlaku untuknya — haknya seluruhnya dari peta ini. Gerbang unit di
+  // atas sudah dilewati mulus karena PIC semua-unit (unitDipegang() = null).
+  const picBoleh = modulPicBoleh(peranUser(user));
+  if (picBoleh) return picBoleh.has(modul);
   const hak = (await bacaHak())[modul];
   if (!hak) return false;
   if (hak.peran.includes(peranUser(user))) return true;
@@ -2249,7 +2274,9 @@ app.put('/personel', badanDinas, async (req, res) => {
 
 const UNITDB_JSON = {
   peralatan: path.join(DATA_DIR, 'peralatan.json'),
-  sparepart: path.join(DATA_DIR, 'sparepart.json')
+  sparepart: path.join(DATA_DIR, 'sparepart.json'),
+  // Izin Stasiun Radio — daftar lisensi frekuensi per unit, dengan masa berlaku.
+  isr: path.join(DATA_DIR, 'isr.json')
 };
 
 /* Baris peralatan yang tampil di kepala unit ("VCS Garex, Recording Neptuno"
@@ -2376,7 +2403,29 @@ function rapikanPart(p, adaId) {
   };
 }
 
-const UNITDB_RAPI = { peralatan: rapikanAlat, sparepart: rapikanPart };
+/* Izin Stasiun Radio (ISR) — satu baris satu lisensi frekuensi. Bentuknya
+   datar: tidak ada sub-unit atau papan nama seperti peralatan, cukup keterangan
+   izin dan dua tanggal masa berlaku. Statusnya (aktif/mendekati habis/lewat)
+   dihitung dari `habis` di sisi halaman, tidak disimpan — supaya tidak pernah
+   basi. */
+function rapikanIsr(x, adaId) {
+  const nama = String(x?.nama || '').trim().slice(0, 120);
+  if (!nama) return null;
+  return {
+    id: idBaris(x?.id, adaId, 'i'),
+    nama,
+    nomor:  String(x?.nomor  || '').trim().slice(0, 60),
+    frek:   String(x?.frek   || '').trim().slice(0, 80),
+    kelas:  String(x?.kelas  || '').trim().slice(0, 40),
+    lokasi: String(x?.lokasi || '').trim().slice(0, 80),
+    mulai:  tglSah(x?.mulai),
+    habis:  tglSah(x?.habis),
+    ket:    String(x?.ket    || '').trim().slice(0, 300),
+    dibuat: tglJamSah(x?.dibuat)
+  };
+}
+
+const UNITDB_RAPI = { peralatan: rapikanAlat, sparepart: rapikanPart, isr: rapikanIsr };
 
 /** Seluruh database unit. Terbuka seperti kegiatan berkala — yang berdinas
     perlu melihat daftar peralatan unitnya tanpa harus masuk dulu. */
@@ -2384,6 +2433,7 @@ app.get('/unitdb', async (_req, res) => {
   res.json({
     peralatan: await bacaJson(UNITDB_JSON.peralatan, {}),
     sparepart: await bacaJson(UNITDB_JSON.sparepart, {}),
+    isr:       await bacaJson(UNITDB_JSON.isr, {}),
     logo:      await bacaLogo(),
     // Baris peralatan pengganti — kosong berarti pakai bawaan dari E-Logbook.
     namaAlat:  await bacaJson(NAMA_ALAT_JSON, {})
@@ -2413,7 +2463,10 @@ app.put('/unitdb/:modul/:unit', badanDinas, async (req, res) => {
 
   const adaId = new Set();
   const rapi = UNITDB_RAPI[modul];
-  const kunci = modul === 'peralatan' ? 'peralatan' : 'sparepart';
+  // Kunci badan = nama modulnya sendiri. Dulu ternari peralatan/sparepart;
+  // begitu modul ketiga (isr) masuk, ternari itu diam-diam melempar isr ke
+  // 'sparepart'. Nama modul sebagai kunci berlaku seragam untuk ketiganya.
+  const kunci = modul;
   const daftar = (Array.isArray(req.body?.[kunci]) ? req.body[kunci] : [])
     .slice(0, 300).map((x) => rapi(x, adaId)).filter(Boolean);
 
@@ -2815,6 +2868,9 @@ const dokBaris = (b) => ({
   ukuran:   Number(b.ukuran) || 0,
   kategori: String(b.kategori || '').slice(0, 40),
   alat:     String(b.alat || '').slice(0, 40),
+  // Kaitan ke satu baris Izin Stasiun Radio (id ISR). Sama pola dengan `alat`:
+  // berkasnya tinggal di rak dokumen unit, tapi dilampirkan ke satu ISR tertentu.
+  isr:      String(b.isr || '').slice(0, 40),
   waktu:    String(b.waktu || ''),
   oleh:     String(b.oleh || ''),
   olehNama: String(b.olehNama || '')
@@ -3003,6 +3059,7 @@ app.post('/dokumen/:unit/catat', dokumenHidup, badanDinas, async (req, res) => {
       ukuran,
       kategori: req.body?.kategori,
       alat: req.body?.alat,
+      isr: req.body?.isr,
       waktu: new Date().toISOString(),
       oleh: user.username,
       olehNama: user.nama || user.username
@@ -3053,6 +3110,7 @@ app.post('/dokumen/:unit', dokumenHidup, badanGaleri, async (req, res) => {
       ukuran: isi.length,
       kategori: req.body?.kategori,
       alat: req.body?.alat,
+      isr: req.body?.isr,
       waktu: new Date().toISOString(),
       oleh: user.username,
       olehNama: user.nama || user.username
@@ -3640,16 +3698,28 @@ app.get('/cetak-antrian', async (req, res) => {
          tangannya (deputyUser=saya, status='menunggu-deputy')
        · permintaan lain yang sudah selesai / ditolak dengan Anda sebagai
          MT atau Deputy — supaya arsipnya tetap terlihat di sana. */
-  const untukSaya  = daftar.filter((b) => (
-    (b.pejabatUser === saya) || (b.deputyUser && b.deputyUser === saya)
-  ) && jenisLolos(b));
+  /* PIC dokumen (pic-dinas / pic-sparepart) menjangkau seluruh unit, jadi
+     kotak masuknya berisi permintaan jenis dokumennya dari SEMUA unit — bukan
+     hanya yang ditujukan namanya. Yang ditampilkan HANYA yang sudah 'disetujui':
+     PIC menerima HASIL akhirnya untuk dicetak (kartu inbox menggambar "Cetak
+     lagi" untuk status ini), bukan permintaan yang masih menunggu TTD. Alur TTD
+     pejabat tidak berubah; PIC bukan penanda-tangan, hanya pencetak. pic-isr
+     tidak punya jalur cetak — tidak ada jenis 'isr' di antrian. */
+  const picJenis = PERAN_PIC[peranUser(user)];   // 'dinas' | 'sparepart' | 'isr' | undefined
+  const untukSaya  = picJenis
+    ? daftar.filter((b) => b.jenis === picJenis && b.status === 'disetujui')
+    : daftar.filter((b) => (
+        (b.pejabatUser === saya) || (b.deputyUser && b.deputyUser === saya)
+      ) && jenisLolos(b));
   const dariSaya   = daftar.filter((b) => b.pembuatUser === saya);
   const semuanya   = superAtauAdmin ? daftar : [];
 
   res.json({
     untukSaya, dariSaya, semua: semuanya,
-    // Ringkasan untuk lencana rel di dashboard.
-    menungguSaya: untukSaya.filter((b) =>
+    // Ringkasan untuk lencana rel di dashboard. Untuk PIC sengaja 0: yang
+    // masuk kotaknya adalah hasil untuk dicetak, bukan tugas menanti tanda
+    // tangan — lencana yang tak bisa dikosongkan siapa pun akan berhenti dibaca.
+    menungguSaya: picJenis ? 0 : untukSaya.filter((b) =>
       (b.status === 'menunggu' && b.pejabatUser === saya)
       || (b.status === 'menunggu-deputy' && b.deputyUser === saya)).length
   });
@@ -3667,6 +3737,7 @@ app.get('/cetak-antrian/:id', async (req, res) => {
   const saya = String(user.username || '').toLowerCase();
   const boleh = saya === b.pejabatUser || saya === b.pembuatUser
              || (b.deputyUser && saya === b.deputyUser)
+             || PERAN_PIC[peranUser(user)] === b.jenis   // PIC dokumen jenis ini
              || user.role === 'admin' || user.superadmin === true;
   if (!boleh) return res.status(403).json({ error: 'Anda bukan pihak yang berhak melihat permintaan ini.' });
 

@@ -32,6 +32,12 @@ async function unitdbMuat(){
       (Array.isArray(baris) ? baris : []).forEach(b=>datar.push({ ...b, unit })));
     PART.splice(0, PART.length, ...datar);
 
+    // ISR disimpan server berkunci unit, dan layar ini memakainya persis
+    // seperti itu (berbeda dari sparepart yang diratakan) — tiap unit punya
+    // daftar izinnya sendiri.
+    Object.keys(ISR).forEach(k=>delete ISR[k]);
+    Object.assign(ISR, j.isr || {});
+
     Object.keys(LOGO).forEach(k=>delete LOGO[k]);
     Object.assign(LOGO, j.logo || {});
 
@@ -55,10 +61,13 @@ async function unitdbMuat(){
  * layar akan membuat orang mengira pekerjaannya sudah aman.
  */
 async function dbSimpanUnit(jenis, unit){
-  const modul = jenis === 'peralatan' ? 'peralatan' : 'sparepart';
-  const isi = modul === 'peralatan'
-    ? (PERALATAN[unit] || [])
-    : PART.filter(p=>p.unit === unit).map(({ unit:_buang, ...sisa })=>sisa);
+  // Nama modul dikirim apa adanya. Pemanggil sudah memetakan 'subunit' ke
+  // 'peralatan' sebelum sampai sini; sisanya ('peralatan', 'sparepart', 'isr')
+  // adalah nama modul yang dikenal server.
+  const modul = jenis;
+  const isi = modul === 'peralatan' ? (PERALATAN[unit] || [])
+            : modul === 'isr'       ? (ISR[unit] || [])
+            : PART.filter(p=>p.unit === unit).map(({ unit:_buang, ...sisa })=>sisa);
   try{
     const r = await srvFetch(`/unitdb/${modul}/${encodeURIComponent(unit)}`, {
       method:'PUT', headers:{ 'Content-Type':'application/json' },

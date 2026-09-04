@@ -351,6 +351,7 @@ function gambarPerhatian(){
 
   const kerja = bklJatuhTempo().filter(x=>x.sisa <= 3);
   const sert  = sertPerhatian();
+  const izin  = (typeof isrPerhatian === 'function') ? isrPerhatian() : [];
 
   const kartuKerja = kerja.map(({unit, k, sisa})=>`
     <article class="hal ${sisa < 0 ? 'bahaya' : sisa === 0 ? 'awas' : ''}" data-hal-unit="${esc(unit)}">
@@ -372,19 +373,29 @@ function gambarPerhatian(){
         : T(`tinggal ${sisa} hari`, `${sisa} days left`)}</span>
     </article>`).join('');
 
-  const kosong = !kerja.length && !sert.length;
+  const kartuIzin = izin.map(({unit, row, sisa})=>`
+    <article class="hal ${sisa < 0 ? 'bahaya' : 'awas'}" data-hal-unit="${esc(unit)}" data-hal-sub="isr">
+      <span class="cip ${sisa < 0 ? 'bahaya' : 'awas'}">ISR</span>
+      <span class="jd">${esc(row.nama)}</span>
+      <span class="rn">${esc(namaUnit(unit))} · ${sisa < 0
+        ? T(`kadaluarsa ${-sisa} hari lalu`, `lapsed ${-sisa} days ago`)
+        : sisa === 0 ? T('habis hari ini','expires today')
+        : T(`tinggal ${sisa} hari`, `${sisa} days left`)}</span>
+    </article>`).join('');
+
+  const kosong = !kerja.length && !sert.length && !izin.length;
   kotak.innerHTML = kosong
     ? `<div class="hal-kosong">${
-        T('Tidak ada pekerjaan berkala yang lewat jatuh tempo, dan tidak ada lisensi yang mendekati '
-        + 'masa habisnya dalam dua bulan ke depan.',
-          'No recurring job is past its due date, and no licence comes near its expiry in the next two '
-        + 'months.')}</div>`
-    : kartuKerja + kartuSert;
+        T('Tidak ada pekerjaan berkala yang lewat jatuh tempo, dan tidak ada lisensi atau izin yang '
+        + 'mendekati masa habisnya dalam dua bulan ke depan.',
+          'No recurring job is past its due date, and no licence or radio permit comes near its expiry '
+        + 'in the next two months.')}</div>`
+    : kartuKerja + kartuSert + kartuIzin;
 
   el('ketPerhatian').textContent = kosong
     ? T('semuanya terkendali','all clear')
-    : T(`${kerja.length + sert.length} hal · ${kerja.length} pekerjaan · ${sert.length} sertifikat`,
-        `${kerja.length + sert.length} items · ${kerja.length} jobs · ${sert.length} certificates`);
+    : T(`${kerja.length + sert.length + izin.length} hal · ${kerja.length} pekerjaan · ${sert.length} sertifikat · ${izin.length} ISR`,
+        `${kerja.length + sert.length + izin.length} items · ${kerja.length} jobs · ${sert.length} certificates · ${izin.length} ISR`);
 
   kotak.querySelectorAll('[data-hal-unit]').forEach(a=>{
     a.addEventListener('click', ()=>{

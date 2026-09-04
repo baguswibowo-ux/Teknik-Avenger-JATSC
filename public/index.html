@@ -100,7 +100,7 @@
 
   <div class="lm-kanvas">
     <div class="lm-merek">
-      <div class="lm-tanda"><i></i></div>
+      <div class="lm-tanda"><img src="/images/airnav-logo.png" alt="AirNav Indonesia"></div>
       <div class="lm-merek-teks">
         <b>PERUM LPPNPI</b>
         <span>CABANG JATSC &middot; SOEKARNO&ndash;HATTA</span>
@@ -153,6 +153,8 @@
         <div class="lm-kolom"><label for="dfUser">Username</label>
           <input type="text" id="dfUser" autocomplete="off" spellcheck="false"
                  autocapitalize="off" placeholder="cth. budi.santoso"></div>
+        <div class="lm-kolom"><label for="dfUnit">Unit yang dituju</label>
+          <select id="dfUnit"><option value="">Memuat daftar unit…</option></select></div>
         <div class="lm-kolom"><label for="dfPass">Password</label>
           <input type="password" id="dfPass" autocomplete="new-password" placeholder="minimal 6 karakter"></div>
         <div class="lm-kolom"><label for="dfPass2">Ulangi password</label>
@@ -191,8 +193,8 @@
       <h1 data-en="Technical Facility Dashboard">Dashboard Fasilitas Teknik</h1>
     </div>
     <div class="jam">
-      <div class="blok"><div class="nilai" id="jamUtc">--:--:--</div><div class="label">UTC</div></div>
-      <div class="blok"><div class="nilai" id="jamWib">--:--:--</div><div class="label" id="tglWib">WIB</div></div>
+      <div class="blok"><div class="nilai"><span id="jamUtc">--:--:--</span> <span class="zona">UTC</span></div><div class="label" id="tglUtc">—</div></div>
+      <div class="blok"><div class="nilai"><span id="jamWib">--:--:--</span> <span class="zona">WIB</span></div><div class="label" id="tglWib">—</div></div>
       <div class="kartu-akun"><span class="av" id="avAkun">--</span>
         <span><span class="nm" id="nmAkun">—</span><br><span class="pr" id="prAkun">—</span></span></div>
       <!-- Pintasan ke E-Logbook. Ditempatkan menempel di sisi kartu akun karena
@@ -465,6 +467,28 @@
   </div>
   </div><!-- /bagianAkun -->
 
+  <!-- Aktivasi akun untuk admin unit. Panel ringkas, bukan pengelolaan akun
+       penuh: admin unit tidak menambah, menghapus, atau mengganti peran/unit —
+       ia hanya boleh mengaktifkan (atau menonaktifkan kembali) akun teknisi yang
+       jatuh di unitnya sendiri, cukup untuk meloloskan pendaftar baru tanpa
+       menunggu admin utama. Disembunyikan untuk administrator penuh (punya panel
+       Daftar Akun lengkap di atas) dan untuk peran lain. Servernya memagari
+       ulang lewat pastikanAdminUnitBolehAktif. -->
+  <div id="bagianAktivasiUnit" hidden>
+    <div class="panel" style="margin-top:18px">
+      <div class="kepala"><h3 data-en="Activate Unit Accounts">Aktivasi Akun Unit</h3>
+        <span style="display:flex;gap:8px;align-items:center">
+          <span class="ket" id="ketAktivasiUnit"></span>
+          <button class="btn garis kecil" id="btnSegarAktivasiUnit" data-en="Reload">Muat ulang</button>
+        </span>
+      </div>
+      <div class="badan" style="border-bottom:1px solid var(--line)">
+        <div class="catatan" id="catatanAktivasiUnit"></div>
+      </div>
+      <div class="gulir" style="max-height:none"><table id="tblAktivasiUnit"></table></div>
+    </div>
+  </div>
+
   <!-- Hak tiga modul milik dashboard ini. Di sini, bukan di layar masing-masing:
        yang menentukan siapa boleh apa adalah pekerjaan mengelola akun, dan
        tempatnya satu dengan daftar akunnya. Untuk admin unit, panel ini tetap
@@ -553,6 +577,34 @@
   </div>
 </div>
 
+<!-- Kartu ubah ringkas untuk admin unit: hanya nama, username, dan password
+     teknisi di unitnya. Sengaja terpisah dari kartu akun penuh di atas — admin
+     unit tidak menyentuh peran, unit, aktif-nonaktif (itu tombol tersendiri di
+     panel), penambahan, atau penghapusan. Servernya memagari ulang lewat
+     pastikanAdminUnitBolehKelola. -->
+<div class="lapis-ubah" id="lapisUnitAkun" role="dialog" aria-modal="true" aria-labelledby="judulUnitAkun">
+  <div class="kartu-ubah">
+    <div class="kepala">
+      <h3 id="judulUnitAkun" data-en="Edit unit technician">Ubah teknisi unit</h3>
+      <span class="ket" id="ketUnitAkun"></span>
+    </div>
+    <div class="badan">
+      <div class="isian"><label for="uaUser" data-en="Username">Username</label>
+        <input id="uaUser" autocomplete="off" spellcheck="false" placeholder="mis. budi.santoso">
+        <div class="bantu" data-en="3–32 characters: lowercase letters, digits, dots, underscores, or hyphens.">3–32 karakter: huruf kecil, angka, titik, garis bawah, atau strip.</div></div>
+      <div class="isian"><label for="uaNama" data-en="Display name">Nama tampilan</label>
+        <input id="uaNama" autocomplete="off" placeholder="nama yang muncul di logbook"></div>
+      <div class="isian"><label for="uaPass" data-en="Change password">Ganti password</label>
+        <input type="password" id="uaPass" autocomplete="new-password" placeholder="kosongkan bila tidak diganti">
+        <div class="bantu" data-en="Leave empty to keep it. At least 6 characters. The old password cannot be read from anywhere.">Kosongkan kalau tidak ingin mengganti. Minimal 6 karakter. Password lama tidak bisa dibaca dari mana pun.</div></div>
+    </div>
+    <div class="kaki">
+      <button class="btn garis" id="btnBatalUnitAkun" data-en="Cancel">Batal</button>
+      <button class="btn" id="btnSimpanUnitAkun" data-en="Save changes">Simpan perubahan</button>
+    </div>
+  </div>
+</div>
+
 <!-- Kartu ubah/tambah isi Database Unit — peralatan dan sparepart. Bentuknya
      sengaja sama persis dengan kartu akun di atas: dua kartu yang berbeda rupa
      untuk pekerjaan yang sejenis hanya membuat orang ragu sebelum menekan. -->
@@ -566,6 +618,22 @@
     <div class="kaki">
       <button class="btn garis" id="btnBatalData" data-en="Cancel">Batal</button>
       <button class="btn" id="btnSimpanData">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Kartu tambah/ubah Izin Stasiun Radio. Isinya dibangun JS (37-isr.js) —
+     satu kartu untuk tambah dan ubah, sepola dengan kartu Database Unit di atas. -->
+<div class="lapis-ubah" id="lapisIsr" role="dialog" aria-modal="true" aria-labelledby="judulIsr">
+  <div class="kartu-ubah data">
+    <div class="kepala">
+      <h3 id="judulIsr" data-en="Radio Station Licence">Izin Stasiun Radio</h3>
+      <span class="ket" id="ketIsr"></span>
+    </div>
+    <div class="badan" id="badanIsr"></div>
+    <div class="kaki">
+      <button class="btn garis" id="btnBatalIsr" data-en="Cancel">Batal</button>
+      <button class="btn" id="btnSimpanIsr">Simpan</button>
     </div>
   </div>
 </div>
@@ -691,6 +759,7 @@
 <script src="/js/34-sejarah-alat.js"></script>
 <script src="/js/35-impor-sparepart.js"></script>
 <script src="/js/36-cetak.js"></script>
+<script src="/js/37-isr.js"></script>
 <script src="/js/33-mulai.js"></script>
 </body>
 </html>

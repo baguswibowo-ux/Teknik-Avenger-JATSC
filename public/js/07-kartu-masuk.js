@@ -27,10 +27,10 @@ function kmSetTab(tab, fokus){
   el('kmPanelMasuk').hidden  = daftar;
   el('kmPanelDaftar').hidden = !daftar;
   el('kmSubTeks').textContent = daftar
-    ? 'Buat akun E-Logbook baru dari sini. Akunnya langsung terbentuk tetapi masih '
-      + 'nonaktif — administrator yang mengaktifkannya, lalu menentukan peran dan unitnya.'
+    ? 'Buat akun E-Logbook baru dari sini, sekaligus pilih unit yang dituju. Akunnya '
+      + 'langsung terbentuk tetapi masih nonaktif — administrator yang mengaktifkannya.'
     : KM_SUB_MASUK;
-  if(daftar) ketDaftar();
+  if(daftar){ ketDaftar(); daftarMuatUnit(); }
   if(fokus) (daftar ? el('dfNama') : el('iUser')).focus();
 }
 
@@ -39,8 +39,8 @@ function ketDaftar(teks, rupa){
   const k = el('ketDaftar');
   if(!teks){
     teks = SRV.ada
-      ? 'Akun baru lahir sebagai teknisi, tanpa unit, dan nonaktif. Membuka pendaftaran '
-        + 'tidak sama dengan membuka pintu — administrator yang mengaktifkannya.'
+      ? 'Akun baru lahir sebagai teknisi di unit yang dipilih, dan nonaktif. Membuka '
+        + 'pendaftaran tidak sama dengan membuka pintu — administrator yang mengaktifkannya.'
       : 'Pendaftaran menulis ke database E-Logbook, dan servernya tidak terjawab dari sini.';
     rupa = SRV.ada ? '' : 'km-awas';
   }
@@ -48,10 +48,32 @@ function ketDaftar(teks, rupa){
   k.querySelector('span').textContent = teks;
 }
 
+/* Pemilih unit diisi dari /api/unit-publik — satu sumber di server, bukan
+   daftar tebakan di sini. Dimuat sekali saat tab daftar pertama dibuka; sekali
+   berhasil, tidak diminta lagi. Sebelum login UNIT di dashboard masih kosong,
+   jadi endpoint publik inilah satu-satunya sumber nama unit yang benar. */
+let UNIT_DAFTAR_TERISI = false;
+async function daftarMuatUnit(){
+  if(UNIT_DAFTAR_TERISI || !SRV.ada) return;
+  const sel = el('dfUnit');
+  try{
+    const r = await srvFetch('/api/unit-publik', {}, 8000);
+    const j = await r.json().catch(()=>null);
+    const daftar = (j && Array.isArray(j.unit)) ? j.unit : [];
+    if(!r.ok || !daftar.length) throw new Error('kosong');
+    sel.innerHTML = '<option value="">— pilih unit —</option>'
+      + daftar.map(u=>`<option value="${u.kode}">${u.nama}</option>`).join('');
+    UNIT_DAFTAR_TERISI = true;
+  }catch(e){
+    sel.innerHTML = '<option value="">Daftar unit gagal dimuat</option>';
+  }
+}
+
 async function daftarKirim(){
   if(!SRV.ada){ ketDaftar(); return; }
   const nama     = el('dfNama').value.trim();
   const username = el('dfUser').value.trim().toLowerCase();
+  const unit     = el('dfUnit').value;
   const p1 = el('dfPass').value, p2 = el('dfPass2').value;
 
   // Diperiksa di sini juga, bukan cuma di server: yang salah ketik pantas tahu
@@ -62,6 +84,7 @@ async function daftarKirim(){
     ketDaftar('Username 3–32 karakter: huruf kecil, angka, titik, garis bawah, atau strip.', 'km-awas');
     return;
   }
+  if(!unit){ ketDaftar('Unit yang dituju belum dipilih.', 'km-awas'); return; }
   if(p1.length < 6){ ketDaftar('Password minimal 6 karakter.', 'km-awas'); return; }
   if(p1 !== p2){ ketDaftar('Ulangan passwordnya belum sama.', 'km-awas'); return; }
 
@@ -71,11 +94,12 @@ async function daftarKirim(){
   try{
     const r = await srvFetch('/api/daftar', {
       method:'POST', headers:{ 'Content-Type':'application/json' },
-      body: JSON.stringify({ nama, username, password:p1 })
+      body: JSON.stringify({ nama, username, password:p1, unit })
     });
     const j = await r.json().catch(()=>({}));
     if(!r.ok){ ketDaftar(j.error || 'Pendaftaran ditolak server.', 'km-awas'); return; }
     ['dfNama','dfUser','dfPass','dfPass2'].forEach(id=>{ el(id).value = ''; });
+    el('dfUnit').value = '';
     ketDaftar('Akun ' + username + ' terdaftar dan menunggu diaktifkan administrator. '
       + 'Setelah aktif, masuk lewat tab MASUK dengan akun itu.', 'km-baik');
   }catch(e){

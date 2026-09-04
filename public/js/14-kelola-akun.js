@@ -54,7 +54,7 @@ const akuSuperadmin  = () => !!akun && akun.superadmin === true;
  *  dimatikan), dan server melakukan validasi ulang. */
 const bolehAturHak = () => !!akun && (akun.role === 'admin' || akun.role === 'adminunit' || akun.superadmin === true);
 
-const SEMUA_UNIT_PERAN = ['admin', 'pejabat'];
+const SEMUA_UNIT_PERAN = ['admin', 'pejabat', 'pic-dinas', 'pic-sparepart', 'pic-isr'];
 const samaIsi = (a, b) => a.length === b.length && a.every(k => b.includes(k));
 
 /** Cakupan unit orang yang sedang membuka layar.
@@ -111,6 +111,35 @@ function pasangTabAkun(){
   // Admin unit tetap boleh membuka layar, tapi hanya panel Hak yang tampil.
   const bagian = el('bagianAkun');
   if(bagian) bagian.hidden = !bolehKelolaAkun();
+
+  // Panel aktivasi ringkas justru kebalikannya: hanya untuk admin unit — yang
+  // boleh mengatur hak tetapi tidak mengelola akun penuh. Administrator sudah
+  // punya kolom Status di kartu Ubah, jadi tidak perlu panel kedua.
+  const bagAkt = el('bagianAktivasiUnit');
+  if(bagAkt) bagAkt.hidden = !(bolehAturHak() && !bolehKelolaAkun());
+
+  // PIC dokumen: rel navigasi dipangkas ke yang relevan. Beranda & Database Unit
+  // selalu ada. pic-dinas/pic-sparepart menyimpan Kotak Masuk (menerima hasil
+  // cetak jenis dokumennya); pic-dinas juga menyimpan Dinas Hari Ini. Selebihnya
+  // (Trouble Semua Unit, dan Dinas Hari Ini untuk PIC non-dinas) disembunyikan.
+  const picModul = (typeof modulPicAkun === 'function') ? modulPicAkun() : null;
+  const setRel = (layar, tampil) => {
+    const b = document.querySelector(`#rel button[data-layar="${layar}"]`);
+    if(b) b.hidden = !tampil;
+  };
+  setRel('trouble', !picModul);
+  setRel('dinas',   !picModul || picModul === 'dinas');
+  setRel('kotak',   !picModul || picModul === 'dinas' || picModul === 'sparepart');
+  // Kalau layar yang sedang terbuka baru saja disembunyikan untuk PIC, mundur
+  // ke beranda supaya ia tidak menatap layar yang tombolnya sudah hilang.
+  if(picModul){
+    const aktif = document.querySelector('.layar.aktif');
+    const layarAktif = aktif ? aktif.id.replace(/^l-/, '') : '';
+    const bolehLayar = new Set(['beranda', 'unit', 'akun', 'aktivitas',
+      ...(picModul === 'dinas' ? ['dinas'] : []),
+      ...((picModul === 'dinas' || picModul === 'sparepart') ? ['kotak'] : [])]);
+    if(layarAktif && !bolehLayar.has(layarAktif)) pindahLayar('beranda');
+  }
 }
 
 /** Dijaga supaya dua panggilan yang tumpang tindih tidak jadi dua perjalanan
@@ -228,11 +257,12 @@ function gambarAkun(){
   if(!bolehAturHak()) return;
   if(!bolehKelolaAkun()){
     gambarHak();
+    gambarAktivasiUnit();
     // Admin unit tidak menerima awal.users, jadi USERS-nya kosong sampai kita
     // memintanya sendiri. Diambil satu kali di sini — kalau berhasil, tabel
-    // Hak digambar ulang supaya pilihan "atur" berisi.
+    // Hak dan panel aktivasi digambar ulang supaya keduanya berisi.
     if(!USERS.length){
-      muatUsers().then(()=>{ if(USERS.length) gambarHak(); }).catch(()=>{});
+      muatUsers().then(()=>{ if(USERS.length){ gambarHak(); gambarAktivasiUnit(); } }).catch(()=>{});
     }
     return;
   }
@@ -318,6 +348,159 @@ function gambarAkun(){
            'Those accounts can sign in, but will not find a single logbook they are allowed to open. '
            + 'Give them a unit through the Edit button, or deactivate them if they are not in use yet.')}</div>`
     : '';
+}
+
+/* ---------- Aktivasi akun untuk admin unit ----------
+
+   Panel sempit yang sengaja terpisah dari Daftar Akun penuh: admin unit tidak
+   menambah, menghapus, atau mengganti peran/unit. Yang boleh disentuhnya cuma
+   status aktif akun teknisi yang jatuh di unitnya sendiri — pintu masuk untuk
+   meloloskan pendaftar baru tanpa menunggu admin utama. Servernya memagari
+   ulang lewat pastikanAdminUnitBolehAktif, jadi ini penjagaan tampilan saja. */
+function admUnitBolehAktivasi(){
+  return !!akun && akun.role === 'adminunit' && !akun.superadmin;
+}
+
+function gambarAktivasiUnit(){
+  if(!admUnitBolehAktivasi()) return;
+  const tbl = el('tblAktivasiUnit');
+  if(!tbl) return;
+
+  const lingkup = unitLingkupSaya();                 // array kode unit (admin unit tak pernah null di sini)
+  const scope = Array.isArray(lingkup) ? lingkup : [];
+
+  el('ketAktivasiUnit').textContent = USERS_JAM
+    ? T('diambil pukul ','fetched at ') + USERS_JAM.toLocaleTimeString(LOKAL(),{hour:'2-digit',minute:'2-digit'}) : '';
+  el('catatanAktivasiUnit').innerHTML = T(
+    '<b>Meloloskan pendaftar baru.</b> Akun teknisi yang dibuat lewat pendaftaran lahir nonaktif — '
+      + 'aktifkan di sini kalau memang orang unit Anda. Yang tampil hanya akun teknisi di unit yang '
+      + 'Anda pegang; peran, unit, dan penghapusan tetap urusan administrator utama.',
+    '<b>Letting new sign-ups through.</b> Technician accounts created via self-registration start '
+      + 'deactivated — activate one here if the person is really from your unit. Only technician '
+      + 'accounts in the units you hold appear; roles, units, and deletion remain the main '
+      + 'administrator’s job.');
+
+  // Teknisi yang SELURUH unitnya jatuh di dalam unit saya. Akun lintas-unit yang
+  // bocor keluar cakupan tidak muncul — server pun menolaknya.
+  const dalam = (u) => u.role === 'teknisi'
+    && (u.unit || []).length > 0
+    && (u.unit || []).every(k => scope.includes(k));
+  // Nonaktif di atas: yang menunggu diaktifkan adalah alasan panel ini ada.
+  const baris = USERS.filter(dalam).sort((a,b)=>
+    (a.aktif === b.aktif)
+      ? a.username.localeCompare(b.username)
+      : (a.aktif ? 1 : -1));
+
+  tbl.innerHTML =
+    `<thead><tr><th>Username</th><th>${T('Nama','Name')}</th>
+      <th>${T('Unit logbook','Logbook units')}</th><th>Status</th><th></th></tr></thead><tbody>` +
+    (baris.length ? '' : `<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:22px">${
+      USERS.length
+        ? T('Belum ada akun teknisi di unit Anda.','No technician accounts in your unit yet.')
+        : (muatUsersGalat
+            ? T('Tidak bisa memuat daftar akun: ','Could not load accounts: ') + esc(muatUsersGalat)
+            : T('Memuat daftar akun…','Loading accounts…'))}</td></tr>`) +
+    baris.map(u=>{
+      const unit = (u.unit || []).map(k=>`<span class="pil">${esc(namaUnit(k))}</span>`).join('');
+      const ke = u.aktif ? 0 : 1;
+      const label = u.aktif ? T('Nonaktifkan','Deactivate') : T('Aktifkan','Activate');
+      const kelas = u.aktif ? 'btn garis kecil' : 'btn kecil';
+      return `<tr class="${u.aktif ? '' : 'akun-mati'}">
+        <td class="mono">${esc(u.username)}</td>
+        <td>${esc(u.nama || '—')}</td>
+        <td><div class="unit-pil">${unit}</div></td>
+        <td><span class="pil ${u.aktif ? 'aktif-ya' : 'aktif-tidak'}">${
+          u.aktif ? T('Aktif','Active') : T('Nonaktif','Deactivated')}</span></td>
+        <td style="text-align:right;white-space:nowrap">
+          <button class="btn garis kecil" data-ubah-unit="${esc(u.username)}">${T('Ubah','Edit')}</button>
+          <button class="${kelas}" data-aktif-toggle="${esc(u.username)}"
+          data-aktif-ke="${ke}">${label}</button></td>
+      </tr>`;
+    }).join('') + '</tbody>';
+}
+
+async function ubahAktifUnit(username, aktif, btn){
+  if(btn) btn.disabled = true;
+  try{
+    await adminApi('setUserAktif', username, aktif);
+    pesan(aktif
+      ? T('Akun ' + username + ' diaktifkan.', 'Account ' + username + ' activated.')
+      : T('Akun ' + username + ' dinonaktifkan.', 'Account ' + username + ' deactivated.'));
+    await muatUsers();
+    gambarAktivasiUnit();
+    gambarHak();       // daftar Ditunjuk ikut berubah: akun nonaktif tidak muncul di sana
+  }catch(e){
+    pesan(T('Gagal mengubah status akun: ','Could not change the account status: ') + (e && e.message || e));
+    if(btn) btn.disabled = false;
+  }
+}
+
+/* Kartu ubah ringkas admin unit: nama, username, password satu teknisi. Salinan
+   akun disimpan (bukan rujukan) supaya nilai asalnya bisa dibandingkan dengan
+   isian saat Simpan — hanya yang berubah yang dikirim. */
+let unitAkunDibuka = null;
+
+function bukaUnitAkun(u){
+  if(!u) return;
+  unitAkunDibuka = { ...u };
+  el('judulUnitAkun').textContent = T('Ubah teknisi unit','Edit unit technician');
+  el('ketUnitAkun').textContent = u.username;
+  el('uaUser').value = u.username;
+  el('uaNama').value = u.nama || '';
+  el('uaPass').value = '';
+  el('lapisUnitAkun').classList.add('buka');
+  el('uaNama').focus();
+}
+
+function tutupUnitAkun(){
+  el('lapisUnitAkun').classList.remove('buka');
+  unitAkunDibuka = null;
+}
+
+/* Kirim hanya yang berubah, satu panggilan per perubahan, berhenti pada
+   kegagalan pertama. Rename PALING DULU — sama alasannya dengan simpanUbahan:
+   langkah setelahnya merujuk akun lewat username yang berlaku saat itu, jadi
+   kalau username diganti belakangan, nama/password sempat dikirim ke username
+   yang keburu tidak ada. */
+async function simpanUnitAkun(){
+  const asal = unitAkunDibuka;
+  if(!asal) return;
+  const usernameBaru = el('uaUser').value.trim().toLowerCase();
+  const nama = el('uaNama').value.trim();
+  const pass = el('uaPass').value;
+
+  try{
+    if(!nama) throw new Error(T('Nama tampilan tidak boleh kosong.','Display name cannot be empty.'));
+    if(pass && pass.length < 6) throw new Error(T('Password minimal 6 karakter.','Password must be at least 6 characters.'));
+    const ganti = usernameBaru && usernameBaru !== asal.username.toLowerCase();
+    if(ganti && !/^[a-z0-9._-]{3,32}$/.test(usernameBaru)){
+      throw new Error(T('Username 3–32 karakter: huruf kecil, angka, titik, garis bawah, atau strip.',
+                        'Username 3–32 characters: lowercase letters, digits, dots, underscores, or hyphens.'));
+    }
+
+    const kerja = [];
+    if(ganti)                          kerja.push(['setUserUsername', [asal.username, usernameBaru]]);
+    const kunci = ganti ? usernameBaru : asal.username;
+    if(nama !== (asal.nama || ''))     kerja.push(['setUserNama', [kunci, nama]]);
+    if(pass)                           kerja.push(['setUserPassword', [kunci, pass]]);
+
+    if(!kerja.length){ pesan(T('Tidak ada yang diubah.','Nothing was changed.')); return; }
+
+    const b = el('btnSimpanUnitAkun');
+    b.disabled = true;
+    try{
+      for(const [fn, args] of kerja) await adminApi(fn, ...args);
+      pesan(T('Perubahan tersimpan.','Changes saved.'));
+      tutupUnitAkun();
+      await muatUsers();
+      gambarAktivasiUnit();
+      gambarHak();
+    }finally{
+      b.disabled = false;
+    }
+  }catch(e){
+    pesan(T('Gagal menyimpan: ','Could not save: ') + (e && e.message || e));
+  }
 }
 
 /* ---------- Hak tiga modul: jadwal dinas, kegiatan berkala, data personel ----
@@ -717,6 +900,12 @@ function isiKartuAkun(u){
           'Technician — edits their own unit database, cannot delete')}</option>
         <option value="adminunit">${T('Admin Unit — menyunting DAN menghapus, serta membaca log aktivitas, di unitnya saja',
           'Unit Admin — edits AND deletes, and reads the activity log, in their own unit only')}</option>
+        <option value="pic-dinas">${T('PIC Jadwal Dinas — hanya Jadwal Dinas semua unit; edit & cetak, tidak menghapus',
+          'Duty Roster PIC — Duty Roster only, all units; edit & print, cannot delete')}</option>
+        <option value="pic-sparepart">${T('PIC Sparepart — hanya Sparepart semua unit; edit & cetak, tidak menghapus',
+          'Spare Parts PIC — Spare Parts only, all units; edit & print, cannot delete')}</option>
+        <option value="pic-isr">${T('PIC ISR — hanya ISR semua unit; edit, tidak menghapus',
+          'ISR PIC — ISR only, all units; edit, cannot delete')}</option>
         <option value="pejabat">${T('Pejabat — melihat seluruh unit, hanya membubuhkan tanda tangan',
           'Officer — sees every unit, may only sign')}</option>
         <option value="admin">${T('Administrator — kendali penuh, termasuk mengelola akun',
@@ -1049,6 +1238,29 @@ el('tblAkun').addEventListener('click', e=>{
 });
 el('btnTambahAkun').addEventListener('click', ()=>bukaKartuAkun(null));
 
+// Panel aktivasi admin unit: tombol Ubah (nama/username/password) dan tombol
+// aktif/nonaktif per baris.
+el('tblAktivasiUnit').addEventListener('click', e=>{
+  const ubah = e.target.closest('button[data-ubah-unit]');
+  if(ubah){
+    const u = USERS.find(x=>x.username === ubah.dataset.ubahUnit);
+    if(u) bukaUnitAkun(u);
+    return;
+  }
+  const b = e.target.closest('button[data-aktif-toggle]'); if(!b) return;
+  ubahAktifUnit(b.dataset.aktifToggle, b.dataset.aktifKe === '1', b);
+});
+el('btnBatalUnitAkun').addEventListener('click', tutupUnitAkun);
+el('btnSimpanUnitAkun').addEventListener('click', simpanUnitAkun);
+el('lapisUnitAkun').addEventListener('click', e=>{ if(e.target === el('lapisUnitAkun')) tutupUnitAkun(); });
+el('btnSegarAktivasiUnit').addEventListener('click', async ()=>{
+  const b = el('btnSegarAktivasiUnit');
+  b.disabled = true;
+  try{ await muatUsers(); gambarAktivasiUnit(); pesan(T('Daftar akun dimuat ulang.','Account list reloaded.')); }
+  catch(e){ pesan(T('Gagal memuat daftar akun: ','Could not load the account list: ') + (e && e.message || e)); }
+  finally{ b.disabled = false; }
+});
+
 /* Saringan: tiap perubahan langsung menggambar ulang tabelnya. Tidak ada tombol
    "terapkan" — daftarnya di layar yang sama, jadi hasilnya harus terlihat
    seketika. */
@@ -1077,7 +1289,9 @@ el('btnBatalAkun').addEventListener('click', tutupKartuAkun);
 el('btnSimpanAkun').addEventListener('click', simpanAkun);
 el('lapisAkun').addEventListener('click', e=>{ if(e.target === el('lapisAkun')) tutupKartuAkun(); });
 document.addEventListener('keydown', e=>{
-  if(e.key === 'Escape' && el('lapisAkun').classList.contains('buka')) tutupKartuAkun();
+  if(e.key !== 'Escape') return;
+  if(el('lapisAkun').classList.contains('buka')) tutupKartuAkun();
+  if(el('lapisUnitAkun').classList.contains('buka')) tutupUnitAkun();
 });
 
 terapkanBahasa();     // teks statis dashboard mengikuti bahasa yang tersimpan

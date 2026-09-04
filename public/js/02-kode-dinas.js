@@ -73,7 +73,14 @@ const SHIFT = {
      mengingatkan mereka yang sedang cuti. */
   'CUTI': { mulai:0, sampai:0, warna:'var(--muted)', nama:'Cuti Tahunan',       libur:true },
   'CAP':  { mulai:0, sampai:0, warna:'var(--fail)',  nama:'Cuti Alasan Penting', libur:true },
-  'IJIN': { mulai:0, sampai:0, warna:'var(--warn)',  nama:'Ijin',               libur:true }
+  'IJIN': { mulai:0, sampai:0, warna:'var(--warn)',  nama:'Ijin',               libur:true },
+  /* Dinas Luar — orangnya sedang bertugas, tetapi di luar stasiun (diklat,
+     rapat, penugasan lapangan). Untuk papan cakupan ini ia sama seperti cuti:
+     tetap tampil di petak hari itu supaya terlihat siapa yang tidak di tempat,
+     tetapi tanpa jam dan tanpa pita — jadi lonceng berkala tidak mengingatkan
+     yang sedang di luar. Warnanya teal supaya tidak salah dibaca sebagai salah
+     satu kode cuti/absen, dan tetap terbaca di kedua mode tema. */
+  'DL':   { mulai:0, sampai:0, warna:'#14b8a6',      nama:'Dinas Luar',         libur:true }
 };
 
 /* Urutan pita di panel Cakupan 24 Jam, dari yang paling lebar. */

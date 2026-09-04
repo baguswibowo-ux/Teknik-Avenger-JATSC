@@ -47,7 +47,7 @@ const CETAK = {
   // sama walau di layar admin pindah tab. '' = semua peralatan unit.
   grup:   '',
   /* Ragam cetakan Jadwal Dinas: 'teknik' (bawaan; seluruh kode apa adanya
-     — PSJ, PSN, MJ, MN, SPKL*, CUTI, CAP, IJIN) atau 'pum' (hanya PS/M/P/S
+     — PSJ, PSN, MJ, MN, SPKL*, CUTI, CAP, IJIN, DL) atau 'pum' (hanya PS/M/P/S
      yang tampil, sisanya dikosongkan). Dua tombol terpisah di baris pengatur
      Jadwal Dinas menentukan nilainya waktu tombolnya ditekan. */
   formatDinas: 'teknik',
@@ -787,12 +787,14 @@ async function cetakLembarHtml(){
 
   if(CETAK.mode === 'dinas'){
     /* Footer Dinas mengganti blokTtd standar — memuat PIC + tabel cuti +
-       note 5 poin + tanggal + dua kolom TTD. Data untuk footer dikumpulkan
+       note 5 poin + tanggal + dua kolom TTD (di mode PUM, PIC dan note
+       dibuang — lihat dinasFooterHtml). Data untuk footer dikumpulkan
        dari state CETAK yang di-set modal kirim (pic1/pic2/tanggalCetak)
        dan JDW live (untuk daftar cuti). */
     const bulan = JDW.lihat || JDW.bulanIni || bulanKode(new Date());
     const orang = (JDW.jadwalLihat && JDW.jadwalLihat[CETAK.unit]) || [];
     const foot = dinasFooterHtml({
+      pum: CETAK.formatDinas === 'pum',
       pic1: CETAK.picNama1 || '',
       pic2: CETAK.picNama2 || '',
       tanggalIso: CETAK.tanggalCetak || '',
@@ -1768,13 +1770,15 @@ async function cetakLembarPermintaanHtml(p, snap){
   const mengertUrl = CETAK.ttdPejabat && CETAK.ttdPejabat.ada ? CETAK.ttdPejabat.url : '';
   let blok;
   if(p.jenis === 'dinas'){
-    /* Snapshot Dinas: footer penuh (PIC + cuti + note + TTD). Data
-       tambahan (pic1/pic2/tanggalCetak) datang dari snap yang dibekukan
+    /* Snapshot Dinas: footer penuh (PIC + cuti + note + TTD); mode PUM
+       (snap.format === 'pum') membuang PIC dan note. Data tambahan
+       (pic1/pic2/tanggalCetak/format) datang dari snap yang dibekukan
        waktu pengirim menekan tombol Kirim. */
     const bulan = snap.bulan || p.bulan;
     const orang = Array.isArray(snap.orang) ? snap.orang : [];
     const deputyUrl = CETAK.ttdDeputy && CETAK.ttdDeputy.ada ? CETAK.ttdDeputy.url : '';
     blok = dinasFooterHtml({
+      pum: snap.format === 'pum',
       pic1: snap.pic1 || '',
       pic2: snap.pic2 || '',
       tanggalIso: snap.tanggalCetak || '',
@@ -1806,8 +1810,8 @@ async function cetakLembarPermintaanHtml(p, snap){
  * Peta kode dinas untuk versi PUM.
  *
  * Yang tampil di lembar PUM hanya empat kode dasar: PS, M, P, S. Semua kode
- * lain — SPKL apa pun bentuknya, CUTI, CAP, IJIN, dan kode yang tidak dikenali
- * — dikosongkan supaya lembar yang diserahkan ke PUM hanya berisi ritme jaga
+ * lain — SPKL apa pun bentuknya, CUTI, CAP, IJIN, DL, dan kode yang tidak
+ * dikenali — dikosongkan supaya lembar yang diserahkan ke PUM hanya berisi ritme jaga
  * pokok, tanpa lembur dan tanpa keterangan absen yang bukan urusan mereka.
  *
  * Tetap satu tempat, bukan disebar di dua fungsi (live htmlDinas + snapshot
@@ -1820,7 +1824,7 @@ function dinasKodePUM(kode){
   if(k === 'MJ'  || k === 'MN'  || k === 'M')  return 'M';
   if(k === 'PJ'  || k === 'PNJ' || k === 'P')  return 'P';
   if(k === 'SJ'  || k === 'SNJ' || k === 'S')  return 'S';
-  // SPKL apa pun, CUTI, CAP, IJIN, dan sisanya: sengaja dikosongkan.
+  // SPKL apa pun, CUTI, CAP, IJIN, DL, dan sisanya: sengaja dikosongkan.
   return '';
 }
 
@@ -1844,8 +1848,8 @@ function tanggalPanjangID(iso){
 /**
  * Ekstrak baris tabel cuti/SAP/ijin dari daftar orang + bulan.
  *
- * Yang jadi baris: rentang berturut-turut yang kodenya CUTI, CAP, atau
- * IJIN. Rentang yang terputus (misal cuti hari 1-3, masuk hari 4, cuti
+ * Yang jadi baris: rentang berturut-turut yang kodenya CUTI, CAP, IJIN,
+ * atau DL. Rentang yang terputus (misal cuti hari 1-3, masuk hari 4, cuti
  * lagi hari 5) jadi DUA baris — lembar aslinya juga begitu, dan
  * menggabungkannya menyembunyikan hari di antaranya.
  *
@@ -1853,11 +1857,12 @@ function tanggalPanjangID(iso){
  *   CUTI → "Cuti Tahunan"     (bentuk paling umum di lembar aslinya)
  *   CAP  → "SAP"              (Surat Alasan Penting / Cuti Alasan Penting)
  *   IJIN → "Ijin"
+ *   DL   → "Dinas Luar"       (bertugas di luar stasiun)
  * Kode lain tidak masuk daftar ini — mereka bagian dari giliran jaga.
  */
 function dinasBarisCuti(orang, bulan){
   if(!Array.isArray(orang) || !orang.length) return [];
-  const KODE_CUTI = { CUTI: 'Cuti Tahunan', CAP: 'SAP', IJIN: 'Ijin' };
+  const KODE_CUTI = { CUTI: 'Cuti Tahunan', CAP: 'SAP', IJIN: 'Ijin', DL: 'Dinas Luar' };
   const hariN = jumlahHari(bulan);
   const bulanIdx = Number(bulan.slice(5, 7));
   const bulanNama = BULAN_ID[bulanIdx - 1] || '';
@@ -1913,12 +1918,20 @@ const DINAS_NOTE = [
  * ctx supaya fungsi ini bisa dipanggil dari htmlDinas() maupun
  * cetakLembarPermintaanHtml().
  *
+ * Kalau ctx.pum true, blok PIC dan daftar Note dibuang — lembar PUM tinggal
+ * tabel cuti bulan itu + tanggal + dua blok TTD.
+ *
  * ctx: {
- *   pic1, pic2, tanggalIso, cutiRows,
+ *   pum, pic1, pic2, tanggalIso, cutiRows,
  *   ttdMengertUrl, ttdMengertNama, ttdManagerUrl, ttdManagerNama
  * }
  */
 function dinasFooterHtml(ctx){
+  /* Lembar PUM disederhanakan: blok PIC dan daftar Note dibuang, menyisakan
+     tabel cuti/SAP/ijin/DL bulan itu plus tanggal dan dua kolom TTD. Note
+     lima poin (rating, pemenuhan jam) urusan internal Teknik, bukan hal yang
+     perlu ikut ke lembar PUM. */
+  const pum = !!ctx.pum;
   const kotaTgl = ctx.tanggalIso
     ? `Tangerang, ${esc(tanggalPanjangID(ctx.tanggalIso))}`
     : `Tangerang, __________________`;
@@ -1956,14 +1969,23 @@ function dinasFooterHtml(ctx){
       <div class="nama-ttd">${esc(nama || '—')}</div>
     </td>`;
 
-  return `
-    <div class="dinas-footer">
+  const picBlok = pum ? '' : `
       <table class="dinas-pic">
         <tr>
           <td class="pic-lab">PIC</td>
           <td class="pic-nama">${esc(ctx.pic1 || '—')}${ctx.pic2 ? `<br>${esc(ctx.pic2)}` : ''}</td>
         </tr>
-      </table>
+      </table>`;
+
+  const noteBlok = pum ? '' : `
+        <div class="dinas-note">
+          <div class="dinas-note-jd">Note :</div>
+          ${noteLi}
+        </div>`;
+
+  return `
+    <div class="dinas-footer">
+      ${picBlok}
 
       <table class="data dinas-cuti">
         <thead>
@@ -1979,10 +2001,7 @@ function dinasFooterHtml(ctx){
       </table>
 
       <div class="dinas-bawah">
-        <div class="dinas-note">
-          <div class="dinas-note-jd">Note :</div>
-          ${noteLi}
-        </div>
+        ${noteBlok}
         <div class="dinas-ttd-kanan">
           <div class="dinas-ttd-tanggal">${kotaTgl}</div>
           <table class="ttd-blok">

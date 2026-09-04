@@ -265,8 +265,9 @@ function jdwIsi(unit){
           + 'kalau hari itu dipecah <b>P</b> 00:00–07:00 dan <b>S</b> 07:00–13:00, malamnya mundur jadi '
           + '13:00–00:00. <b>SPKL</b> (Surat Perintah Kerja Lembur) mengikuti bentuk shift dasarnya — '
           + '<b>SPKLPSJ</b> berarti SPKL untuk shift PS di JATSC, dan seterusnya — jamnya sama, kartunya '
-          + 'berwarna beda. <b>CUTI</b>, <b>CAP</b> (Cuti Alasan Penting/sakit), dan <b>IJIN</b> tetap '
-          + 'memasang orangnya di petak hari itu supaya kelihatan siapa yang absen, tetapi tidak '
+          + 'berwarna beda. <b>CUTI</b>, <b>CAP</b> (Cuti Alasan Penting/sakit), <b>IJIN</b>, dan '
+          + '<b>DL</b> (Dinas Luar — bertugas di luar stasiun) tetap '
+          + 'memasang orangnya di petak hari itu supaya kelihatan siapa yang tidak di tempat, tetapi tidak '
           + 'dihitung sebagai berdinas. Kartu di atas hanya memuat kode yang benar-benar terisi di '
           + 'jadwal bulan ini; yang tidak dipakai tidak ikut dipasang sebagai kotak kosong.',
             'The last letter names the building — <b>J</b> for JATSC, <b>N</b> for New JATSC — and the hours '
@@ -274,8 +275,9 @@ function jdwIsi(unit){
           + 'a day is split into <b>P</b> 00:00–07:00 and <b>S</b> 07:00–13:00, the night moves back to '
           + '13:00–00:00. <b>SPKL</b> (overtime work order) follows its base shift — <b>SPKLPSJ</b> means '
           + 'SPKL during the PS shift at JATSC, and so on — same hours, distinct colour. <b>CUTI</b> (annual '
-          + 'leave), <b>CAP</b> (leave for a critical reason / sick), and <b>IJIN</b> (permitted absence) '
-          + 'still show the person on that day so an absence is visible, but do not count as on-duty. The '
+          + 'leave), <b>CAP</b> (leave for a critical reason / sick), <b>IJIN</b> (permitted absence), and '
+          + '<b>DL</b> (external duty — on duty away from the station) '
+          + 'still show the person on that day so an absence from the station is visible, but do not count as on-duty. The '
           + 'cards above carry only the codes this month’s roster actually uses; the rest are not laid out '
           + 'as empty slots.')}</div>`
     + `<div class="catatan"><b>${T('Tersimpan di server ini.','Stored on this server.')}</b> ${

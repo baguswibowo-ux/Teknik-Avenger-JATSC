@@ -33,7 +33,9 @@ const mapBapb = b => ({
   petugasNama: b.PetugasNama || '',
   petugasNamaList: Array.isArray(b.PetugasNamaList) ? b.PetugasNamaList : [],
   petugasTtd: b.PetugasTTD || '',
-  diinputOleh: b.DiinputOleh || '', dibuatPada: b.DibuatPada || ''
+  diinputOleh: b.DiinputOleh || '', dibuatOlehUsername: b.DibuatOlehUsername || '', dibuatPada: b.DibuatPada || '',
+  // Slot Manager Teknik dirutekan & dibubuhkan susulan — sejajar form lain.
+  ttdOleh: b.TtdOleh || '', ttdPada: b.TtdPada || '', ttdUntuk: b.TtdUntuk || ''
 });
 
 /* ---------- Baris item dinamis ---------- */
@@ -111,6 +113,9 @@ function openBapbModal(){
   document.getElementById('bapbLokasi').value = '';
   document.getElementById('bapbPemakaiNama').value = '';
   document.getElementById('bapbTeknikNama').value = '';
+  // Akun mantek tujuan TTD susulan — dikosongkan tiap membuka form baru.
+  const akunSel = document.getElementById('bapbTeknikAkun');
+  if (akunSel) akunSel.value = '';
 
   bapbItems = []; bapbItemSeq = 0;
   for (let i = 0; i < 2; i++) tambahBarisBapb();
@@ -124,12 +129,14 @@ function openBapbModal(){
   }
   renderBapbPetugas();
 
-  ['sigBapbPemakai','sigBapbTeknik','sigBapbPetugas'].forEach(id => {
+  // Manager Teknik tidak lagi tanda tangan di form — kanvasnya dihapus,
+  // parafnya dibubuhkan susulan lewat kotak masuk akun mantek yang dituju.
+  ['sigBapbPemakai','sigBapbPetugas'].forEach(id => {
     if (!sigPads[id]) setupSigCanvas(id);
     resizeSigCanvas(id); clearSig(id);
   });
   document.getElementById('bapbModalBg').classList.add('show');
-  setTimeout(() => ['sigBapbPemakai','sigBapbTeknik','sigBapbPetugas'].forEach(resizeSigCanvas), 60);
+  setTimeout(() => ['sigBapbPemakai','sigBapbPetugas'].forEach(resizeSigCanvas), 60);
 }
 
 function closeBapbModal(){ document.getElementById('bapbModalBg').classList.remove('show'); }
@@ -155,7 +162,10 @@ async function saveBapb(){
       lokasi: v('bapbLokasi'),
       items,
       pemakaiNama: v('bapbPemakaiNama'), pemakaiTtd: getSigDataUrl('sigBapbPemakai'),
-      teknikNama: v('bapbTeknikNama'),   teknikTtd: getSigDataUrl('sigBapbTeknik'),
+      // Manager Teknik: nama + akun tujuan TTD susulan (kotak masuk mantek).
+      // Tidak ada teknikTtd dari form — dibubuhkan belakangan oleh mantek.
+      teknikNama: v('bapbTeknikNama'),
+      ttdUntuk: ttdUntukTerpilih('bapbTeknikAkun', v('bapbTeknikNama')),
       // Daftar nama teknisi pelaksana dibersihkan dan dikirim sebagai larik;
       // server yang merangkumnya menjadi kolom `petugas_nama` versi koma.
       petugasNamaList: bapbPetugasRows.map(t => (t.nama || '').trim()).filter(Boolean),
@@ -241,8 +251,8 @@ function openBapbDetail(id){
     </div>
     ${itemsHtml}
     <div class="detail-ttd" style="margin-top:14px;">
-      <div class="sig-block"><b>${T('bapbPemakai')}</b>${escapeHtml(b.pemakaiNama) || '-'}${sigThumbHtml(b.pemakaiTtd)}</div>
-      <div class="sig-block"><b>${T('bapbTeknik')}</b>${escapeHtml(b.teknikNama) || '-'}${sigThumbHtml(b.teknikTtd)}</div>
+      <div class="sig-block"><b>${T('bapbPemakai')}</b>${escapeHtml(b.pemakaiNama) || '-'}${sigThumbHtml(b.pemakaiTtd)}${bolehUbahPemakaiBapb(b) ? bapbPemakaiEditBtn(b.id) : ''}</div>
+      <div class="sig-block"><b>${T('bapbTeknik')}</b>${renderPihakKedua('bapb', b.id, b.teknikNama, b.teknikTtd)}${sigPejabatHtml('bapb', b.id, b.teknikTtd, b)}</div>
       <div class="sig-block"><b>${T('namaTeknisiPelaksana')}</b>${
         (b.petugasNamaList && b.petugasNamaList.length)
           ? b.petugasNamaList.map((n, i) => `${i + 1}. ${escapeHtml(n)}`).join('<br>')
@@ -254,6 +264,67 @@ function openBapbDetail(id){
   const pb = document.getElementById('formDetailPrintBtn');
   if (pb) { pb.style.display = 'none'; pb.onclick = null; }
   document.getElementById('formDetailBg').classList.add('show');
+}
+
+/* ---------- Sunting susulan TTD Manager Pemakai ----------
+   "Langkah terakhir sebelum ke mantek": pembuat lembar (atau admin) bisa
+   membubuhkan atau mengganti paraf Manager Pemakai belakangan, selama Manager
+   Teknik BELUM tanda tangan. Begitu mantek membubuhkan parafnya, panel pemakai
+   ikut beku — mengubah paraf di bawah lembar yang sudah disahkan sama saja
+   memalsu arsip (server juga menolaknya, lihat updateBapb). */
+
+function bolehUbahPemakaiBapb(b){
+  if (!b || b.teknikTtd) return false;
+  if (typeof adminAktif === 'function' && adminAktif()) return true;
+  return !!(userSaatIni && b.dibuatOlehUsername && userSaatIni.username === b.dibuatOlehUsername);
+}
+
+function bapbPemakaiEditBtn(id){
+  return `<button class="btn ghost" style="padding:2px 6px;font-size:11px;vertical-align:middle;margin-top:4px;"
+    onclick="openBapbPemakaiModal('${id}')">${T('bapbUbahTtdPemakai')}</button>`;
+}
+
+let bapbPemakaiTargetId = null;
+
+function openBapbPemakaiModal(id){
+  const b = bapbList.find(x => x.id === id);
+  if (!b) return;
+  bapbPemakaiTargetId = id;
+  document.getElementById('bapbPemakaiEditNama').value = b.pemakaiNama || '';
+  const sig = 'sigBapbPemakaiEdit';
+  if (!sigPads[sig]) setupSigCanvas(sig);
+  resizeSigCanvas(sig); clearSig(sig);
+  document.getElementById('bapbPemakaiBg').classList.add('show');
+  setTimeout(() => resizeSigCanvas(sig), 60);
+}
+
+function closeBapbPemakaiModal(){
+  document.getElementById('bapbPemakaiBg').classList.remove('show');
+  bapbPemakaiTargetId = null;
+}
+
+async function simpanBapbPemakai(){
+  if (!bapbPemakaiTargetId) return;
+  const id = bapbPemakaiTargetId;
+  const nama = document.getElementById('bapbPemakaiEditNama').value.trim();
+  // TTD baru kalau digambar; kalau tidak, biarkan yang lama (kirim undefined).
+  const ttdBaru = getSigDataUrl('sigBapbPemakaiEdit');
+  const patch = { pemakaiNama: nama };
+  if (ttdBaru) patch.pemakaiTtd = ttdBaru;
+  const btn = document.getElementById('bapbPemakaiSaveBtn'); btn.disabled = true;
+  try {
+    const saved = await gsRun('updateBapb', id, patch);
+    const i = bapbList.findIndex(x => x.id === id);
+    if (i >= 0) bapbList[i] = mapBapb(saved);
+    renderBapbList();
+    closeBapbPemakaiModal();
+    // Buka lagi detailnya supaya hasilnya langsung terlihat di tempat yang sama.
+    openBapbDetail(id);
+    toast(T('bapbTersimpan'));
+  } catch (e) {
+    toast(T('gagalSimpan') + ' — ' + (e.message || T('coba')));
+  }
+  btn.disabled = false;
 }
 
 /* ---------- Hapus ---------- */

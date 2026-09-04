@@ -116,6 +116,31 @@ function notifSaya(){
     });
   });
 
+  /* Izin Stasiun Radio yang mendekati/lewat masa habisnya. ISR tidak dimiliki
+     satu orang seperti sertifikat, jadi disaring seperti pekerjaan berkala:
+     dibunyikan ke yang berdinas hari ini di unit itu — yang libur tidak
+     diganggu, dan yang di depan alatnya diingatkan. Beranda tetap menampilkan
+     seluruh unit yang boleh dibuka akun ini, jadi yang di luar dinas tidak
+     kehilangan gambaran keseluruhannya. */
+  if(typeof ISR === 'object' && ISR && typeof isrSisa === 'function'){
+    unitDinasSaya().forEach(unit=>{
+      (ISR[unit] || []).forEach(row=>{
+        const sisa = isrSisa(row);
+        if(sisa == null || sisa > ISR_AWAS) return;
+        keluar.push({
+          rupa: sisa < 0 ? 'bahaya' : 'awas',
+          judul: sisa < 0
+            ? T(`ISR ${row.nama} sudah habis`, `Radio licence ${row.nama} has lapsed`)
+            : T(`ISR ${row.nama} tinggal ${sisa} hari`, `Radio licence ${row.nama} has ${sisa} days left`),
+          rinci: `${row.nomor ? row.nomor + ' · ' : ''}${namaUnit(unit)}${
+            row.habis ? ' · ' + T('berlaku sampai','valid until') + ' ' + tglRingkas(row.habis) : ''}`,
+          layar: 'unit', unit, sub: 'isr',
+          urut: sisa + 50   // di antara pekerjaan hari ini dan sertifikat jauh
+        });
+      });
+    });
+  }
+
   /* Tanda tangan yang belum dibubuhkan padahal jamnya sudah lewat. Disaring ke
      unit yang boleh dibuka akun ini — kalau tidak boleh masuk ke unitnya,
      mengingatkan bahwa lembarnya menggantung cuma menimbulkan pertanyaan yang

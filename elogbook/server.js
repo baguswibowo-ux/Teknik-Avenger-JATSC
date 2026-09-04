@@ -60,7 +60,7 @@ const {
   LOKASI,
   tambahLampiranLtk, hapusLampiranLtk, getLtk,
   listLtk, insertLtk, removeLtk,
-  listBapb, insertBapb, removeBapb,
+  listBapb, insertBapb, updateBapb, removeBapb,
   getUserByUsername, verifyPassword, createUser, countUsers, hapusUser,
   jenisTtdSah, unitCatatan, tandaTanganiCatatan, listPejabatAktif, listPejabatUnit, listTeknisiUnit, listAkunAktif, getInboxTtd,
   getTtdTersimpan, simpanTtdTersimpan, hapusTtdTersimpan, pilihTtdTersimpanAktif, rekapMentah,
@@ -483,7 +483,7 @@ async function unitDanHakAkses(user, unit) {
 /** Fungsi yang menambah atau mengubah data. Pejabat ditolak di sini. */
 const API_TULIS = new Set([
   'addEntry', 'addDailyCheck', 'addIssue', 'addMonitoring', 'addLtk', 'addDsTest', 'addBerkala',
-  'addBapb',
+  'addBapb', 'updateBapb',
   'updateEntry', 'updateDailyCheck', 'updateTtdRouting',
   // Menutup isu dan menempel bukti penutup bukan admin-only: teknisi
   // yang menyelesaikan gangguan boleh menandai isunya selesai.
@@ -857,13 +857,23 @@ const API = {
     { ...(rec || {}), unit: await unitDiminta(user, rec?.unit), ttdUntuk: await ttdUntukSah(rec?.ttdUntuk) },
     user.username, user.nama),
 
-  /* BAPB belum ikut jalur ttdUntuk: dua pihak kedua (Manager Pemakai + Manager
-     Teknik) tidak muat pada satu slot ttd_untuk, dan cara menunjuknya baru
-     ditentukan di langkah tanda tangan. Untuk sekarang tanda tangan dibubuhkan
-     saat isian, tidak susulan. */
+  /* BAPB merutekan SATU slot pihak-kedua ke akun — Manager Teknik — lewat
+     ttd_untuk seperti form lain: begitu lembarnya disimpan, ia muncul di kotak
+     masuk mantek yang ditunjuk untuk dibubuhkan susulan. Manager Pemakai tetap
+     dibubuhkan di form saat mengisi (dan masih bisa disunting belakangan lewat
+     updateBapb selama mantek belum tanda tangan). */
   addBapb: async (rec, user) => insertBapb(
-    { ...(rec || {}), unit: await unitDiminta(user, rec?.unit) },
+    { ...(rec || {}), unit: await unitDiminta(user, rec?.unit), ttdUntuk: await ttdUntukSah(rec?.ttdUntuk) },
     user.username, user.nama),
+
+  /** Sunting susulan panel Manager Pemakai — hanya pembuat lembar atau admin,
+      dan hanya selama Manager Teknik belum menandatangani (dijaga updateBapb). */
+  updateBapb: async (id, patch, user) => {
+    const unit = await unitCatatan('bapb', String(id));
+    if (!unit) throw new Error('Catatan tidak ditemukan — mungkin sudah dihapus.');
+    await pastikanUnit(user, unit);
+    return updateBapb(String(id), patch || {}, { username: user.username, admin: isAdmin(user) });
+  },
 
   /**
    * Bubuhkan tanda tangan pihak kedua pada catatan yang belum ditandatangani.
@@ -1445,7 +1455,26 @@ if (PINTU) {
   });
 }
 
-app.use(express.static(path.join(ROOT, 'public'), { extensions: ['html'] }));
+/* Cache untuk aset statis. Tanpa ini express.static memasang
+   `Cache-Control: public, max-age=0`, dan karena seluruh /logbook/* di Vercel
+   dilayani lewat Serverless Function (bukan CDN), setiap <script>/<link> —
+   index.html memanggil ~45 di antaranya — membangunkan fungsi lagi tiap muat
+   halaman, walau jawabannya cuma 304. Itu penyebab utama Fluid Active CPU.
+
+   s-maxage besar membuat Edge Network Vercel menyimpan aset di tepi, jadi
+   kunjungan berikutnya tidak menyentuh fungsi sama sekali. Aman soal
+   pembaruan: Vercel membersihkan cache CDN otomatis setiap deploy baru, jadi
+   berkas yang berubah langsung terpakai. max-age browser sengaja pendek (1 jam)
+   sebagai penjaga kalau ada yang tidak lewat Vercel. Hanya berlaku untuk aset,
+   bukan HTML/JSON dinamis — dipilih lewat ekstensi. */
+app.use(express.static(path.join(ROOT, 'public'), {
+  extensions: ['html'],
+  setHeaders: (res, filePath) => {
+    if (/\.(css|js|mjs|png|jpg|jpeg|gif|svg|webp|ico|woff2?|ttf|eot)$/i.test(filePath)) {
+      res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=31536000');
+    }
+  }
+}));
 
 app.use((req, res) => res.status(404).send('Halaman tidak ditemukan.'));
 

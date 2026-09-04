@@ -63,15 +63,26 @@
 }
 .lm-merek{display:flex; align-items:center; gap:14px;}
 .lm-tanda{
-  width:44px; height:44px; flex:none;
-  border:2px solid var(--lm-sian); border-radius:6px;
+  width:54px; height:54px; flex:none;
+  border-radius:50%;
   display:grid; place-items:center;
-  box-shadow:0 0 18px rgba(53,224,196,.4);
+  transition:transform .25s ease, filter .25s ease;
 }
-.lm-tanda i{
-  width:15px; height:15px; border-radius:50%;
-  background:var(--lm-sian);
-  box-shadow:0 0 12px var(--lm-sian);
+.lm-tanda img{
+  width:100%; height:100%; object-fit:contain; display:block;
+  /* "Timbul": bayangan gelap memberi kedalaman/mengangkat logo dari latar,
+     lalu glow toska tipis menyatukannya dengan tema kartu. */
+  filter:
+    drop-shadow(0 4px 10px rgba(0,0,0,.55))
+    drop-shadow(0 1px 2px rgba(0,0,0,.4))
+    drop-shadow(0 0 12px rgba(53,224,196,.35));
+}
+.lm-tanda:hover{transform:translateY(-2px) scale(1.04);}
+.lm-tanda:hover img{
+  filter:
+    drop-shadow(0 7px 16px rgba(0,0,0,.6))
+    drop-shadow(0 1px 2px rgba(0,0,0,.45))
+    drop-shadow(0 0 18px rgba(53,224,196,.5));
 }
 .lm-merek-teks{display:flex; flex-direction:column; gap:2px; min-width:0; line-height:1.35;}
 .lm-merek-teks b{
@@ -112,7 +123,11 @@
   margin:0;
   font-family:Georgia,'Times New Roman',serif;
   font-style:italic; font-weight:800;
-  font-size:clamp(76px, 12.5vw, 176px);
+  /* Lantai clamp dibuat kecil (40px) supaya judul menyusut mengikuti lebar
+     layar di HP — dengan lantai 76px lama, judul membeku terlalu besar dan
+     meluber keluar layar di bawah ~600px. Faktor vw menjaganya tetap gagah
+     di tablet/desktop, dan atap 176px tak berubah. */
+  font-size:clamp(40px, 13.2vw, 176px);
   line-height:.9; letter-spacing:.015em;
   background:linear-gradient(180deg,
     #ffd257 0%,
@@ -231,6 +246,33 @@
   border-color:var(--lm-sian);
   box-shadow:0 0 0 3px rgba(53,224,196,.18);
 }
+
+/* --- Pemilih unit pada formulir daftar. Meniru kolom isian, hanya menukar
+   kursor teks dengan tanda panah dan menyisakan ruang untuknya di kanan. */
+.lm-kolom select{
+  width:100%; box-sizing:border-box;
+  padding:13px 40px 13px 15px;
+  background:var(--lm-input-bg);
+  border:1px solid var(--lm-input-garis);
+  border-radius:3px;
+  color:#eef3ff;
+  font-family:'Barlow','IBM Plex Sans',sans-serif;
+  font-size:15px;
+  outline:0; cursor:pointer;
+  -webkit-appearance:none; -moz-appearance:none; appearance:none;
+  /* Panah sian digambar sendiri — appearance:none menghapus panah bawaan. */
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%2335e0c4' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;
+  background-position:right 15px center;
+  transition:border-color .15s, box-shadow .15s, background-color .15s;
+}
+.lm-kolom select:focus{
+  border-color:var(--lm-sian);
+  box-shadow:0 0 0 3px rgba(53,224,196,.18);
+}
+/* Daftar buka biasanya digambar sistem, tetapi paksa warna gelap di peramban
+   yang menghormatinya supaya tidak menyilaukan di kartu bertema malam. */
+.lm-kolom select option{background:#0d1a26; color:#eef3ff;}
 
 /* --- Tombol utama.  */
 .lm-tombol{

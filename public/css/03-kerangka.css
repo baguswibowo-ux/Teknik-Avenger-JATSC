@@ -28,6 +28,8 @@ header.konsol::after{content:"";position:absolute;inset:0;pointer-events:none;
 .jam{display:flex;gap:13px;align-items:center;flex-wrap:wrap;justify-content:flex-end;}
 .jam .blok{text-align:right;}
 .jam .nilai{font-family:var(--font-mono);font-size:18px;font-weight:600;color:var(--accent);line-height:1.1;}
+/* Zona menempel sebaris dengan waktunya sebagai penanda kecil, bukan angka. */
+.jam .zona{font-size:9px;font-weight:600;letter-spacing:.14em;color:var(--muted);}
 .jam .label{font-family:var(--font-mono);font-size:9px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;}
 /* Dipakai <button> maupun <a> — tanpa text-decoration:none, tautannya
    membawa garis bawah yang menyeberang di bawah ikonnya. */

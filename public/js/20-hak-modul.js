@@ -18,12 +18,25 @@
    ======================================================================= */
 
 const HAK_MODUL = ['dinas','dinas-ttd','dinas-cetak','berkala','personel','peralatan',
-                   'sparepart','sparepart-ttd','sejarah','sejarah-ttd',
+                   'sparepart','sparepart-ttd','sejarah','sejarah-ttd','isr',
                    'dokumen','galeri'];
 /* Peran yang selalu view-only di dashboard ini. Manajer Teknik (pejabat) memang
    perannya melihat & membubuhkan TTD di E-Logbook — tidak menyunting apa pun di
    sini. Sama persis dengan PERAN_HANYA_LIHAT di server.js. */
 const PERAN_HANYA_LIHAT = new Set(['pejabat']);
+/* PIC dokumen: peran → satu modul yang boleh diisinya, di semua unit. Sama
+   persis dengan PERAN_PIC di server.js. pic-dinas ikut 'dinas-cetak' (boleh
+   menekan Cetak Jadwal Dinas). Ini cuma tebakan pra-jawaban server — gerbang
+   sebenarnya tetap BOLEH[modul] dari /dinas/saya. */
+const PERAN_PIC_MODUL = {
+  'pic-dinas': ['dinas', 'dinas-cetak'],
+  'pic-sparepart': ['sparepart'],
+  'pic-isr': ['isr']
+};
+/** Modul tunggal database yang dibuka peran PIC ini ('dinas'|'sparepart'|'isr'),
+    atau null kalau bukan PIC. Dipakai layar Database Unit untuk menampilkan
+    hanya satu subtab. */
+const modulPicAkun = () => (akun && PERAN_PIC_MODUL[akun.role]) ? PERAN_PIC_MODUL[akun.role][0] : null;
 /* Peran yang dipertimbangkan di layar Hak Akses. Peran view-only sengaja tidak
    dimasukkan — centangnya toh tidak berpengaruh; menyingkirkannya menghindarkan
    janji palsu. Server sudah menyaring peranSah untuk alasan yang sama. */
@@ -50,6 +63,7 @@ const HAK_NAMA  = {
   // Peran view-only (pejabat) tidak lolos ke kolom peran — pilih pejabatnya
   // lewat tombol "Ditunjuk" di baris ini. Kosong = semua pejabat unit boleh.
   'sejarah-ttd': ['TTD Sejarah Peralatan','Equipment History Signing'],
+  isr:       ['Izin Stasiun Radio (ISR)','Radio Station Licence (ISR)'],
   dokumen:   ['Dokumen','Documents'],
   galeri:    ['Galeri Foto','Photo Gallery']
 };
@@ -90,6 +104,8 @@ const hakBawaan = () => ({
      Kosong = seluruh pejabat unit boleh menerima permintaan TTD (perilaku
      lama). Dinamakan lewat kolom "Ditunjuk" — kolom peran tidak dipakai. */
   'sejarah-ttd': { peran:[],                                             petugas:[] },
+  /* Izin Stasiun Radio — dibuka sampai teknisi (mirror server HAK_BAWAAN). */
+  isr:       { peran:['admin','adminunit','teknisi'],                    petugas:[] },
   dokumen:   { peran:['admin','adminunit','teknisi'],                    petugas:[] },
   galeri:    { peran:['admin','adminunit','teknisi'],                    petugas:[] }
 });
@@ -142,6 +158,9 @@ const hakHitung = (modul) => {
   // Peran view-only tidak pernah lolos, biar tombol simpan/tambah/hapus tidak
   // sempat digambar sekilas sebelum jawaban server datang.
   if(PERAN_HANYA_LIHAT.has(akun.role)) return false;
+  // PIC dokumen: hanya modulnya sendiri (hak.json tidak memuat peran ini).
+  const picModul = PERAN_PIC_MODUL[akun.role];
+  if(picModul) return picModul.includes(modul);
   const h = HAK[modul] || { peran:[], petugas:[] };
   return h.peran.includes(akun.role)
       || h.petugas.includes(String(akun.user || '').toLowerCase());

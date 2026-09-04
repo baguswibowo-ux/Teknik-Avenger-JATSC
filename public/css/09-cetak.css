@@ -436,6 +436,10 @@
 .cetak-lembar .dinas-ttd-kanan {
   width: 340pt;
   flex: none;
+  /* Di lembar PUM blok Note dibuang, jadi tidak ada .dinas-note (flex:1) yang
+     mengisi ruang kiri — margin-auto ini menjaga TTD tetap menempel kanan.
+     Di lembar Teknik ruangnya sudah habis dipakai Note, jadi tak berefek. */
+  margin-left: auto;
 }
 .cetak-lembar .dinas-ttd-tanggal {
   text-align: right;

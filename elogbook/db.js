@@ -197,9 +197,13 @@ CREATE INDEX IF NOT EXISTS idx_lampiran_ltk ON lampiran_ltk(ltk_id);
 -- Daftar barang disimpan sebagai JSON di items_json — kolomnya sama dengan
 -- tabel Excel-nya (No, Nama Barang, Ukuran, Banyaknya, Tgl Pemasangan,
 -- Keterangan) tanpa kueri per-item, jadi tidak perlu tabel anak. Tiga panel
--- tanda tangan: Manager Pemakai, Manager Teknik, Petugas Pemasangan. TTD
--- susulan (ttd_oleh/ttd_pada/ttd_untuk) belum dipasang: dua slot pihak
--- kedua tidak muat pada pola satu-slot di JENIS_TTD, itu urusan berikutnya.
+-- tanda tangan: Manager Pemakai, Manager Teknik, Petugas Pemasangan.
+--
+-- TTD susulan: hanya SATU slot pihak-kedua yang dirutekan ke akun — Manager
+-- Teknik (teknik_nama/teknik_ttd), lewat ttd_untuk seperti form lain (lihat
+-- JENIS_TTD 'bapb'). Manager Pemakai tetap dibubuhkan di form saat mengisi
+-- dan masih bisa disunting belakangan (updateBapb) selama teknik belum
+-- tanda tangan. Petugas (teknisi pelaksana) juga di form saat mengisi.
 CREATE TABLE IF NOT EXISTS bapb (
   id               TEXT PRIMARY KEY,
   unit             TEXT NOT NULL DEFAULT 'radkom',
@@ -215,6 +219,9 @@ CREATE TABLE IF NOT EXISTS bapb (
   petugas_nama       TEXT NOT NULL DEFAULT '',
   petugas_nama_list  TEXT NOT NULL DEFAULT '[]',
   petugas_ttd        TEXT NOT NULL DEFAULT '',
+  ttd_oleh           TEXT NOT NULL DEFAULT '',
+  ttd_pada           TEXT NOT NULL DEFAULT '',
+  ttd_untuk          TEXT NOT NULL DEFAULT '',
   dibuat_pada        TEXT NOT NULL,
   dibuat_oleh        TEXT NOT NULL DEFAULT ''
 );
@@ -316,7 +323,7 @@ tambahKolom('entries', 'lokasi', "TEXT NOT NULL DEFAULT ''");
    catatan mana saja yang menunggunya. Menunjuk akun bukan berarti hanya akun
    itu yang boleh menandatangani — pejabat lain tetap bisa membubuhkan seperti
    biasa kalau yang ditunjuk sedang tidak dinas. */
-for (const tabel of ['entries', 'dailychecks', 'monitoring', 'dstest', 'ltk', 'berkala']) {
+for (const tabel of ['entries', 'dailychecks', 'monitoring', 'dstest', 'ltk', 'berkala', 'bapb']) {
   tambahKolom(tabel, 'ttd_oleh', "TEXT NOT NULL DEFAULT ''");
   tambahKolom(tabel, 'ttd_pada', "TEXT NOT NULL DEFAULT ''");
   tambahKolom(tabel, 'ttd_untuk', "TEXT NOT NULL DEFAULT ''");
@@ -1895,7 +1902,8 @@ const RUTE_TTD_META = {
   dc:      { tabel: 'dailychecks', ttdCol: 'manager_ttd', namaCol: 'manager_nama', subyek: 'manager teknik' },
   ltk:     { tabel: 'ltk',         ttdCol: 'manager_ttd', namaCol: 'manager_nama', subyek: 'manager teknik' },
   berkala: { tabel: 'berkala',     ttdCol: 'manager_ttd', namaCol: 'manager_nama', subyek: 'manager teknik' },
-  dstest:  { tabel: 'dstest',      ttdCol: 'manager_ttd', namaCol: 'manager_nama', subyek: 'manager teknik' }
+  dstest:  { tabel: 'dstest',      ttdCol: 'manager_ttd', namaCol: 'manager_nama', subyek: 'manager teknik' },
+  bapb:    { tabel: 'bapb',        ttdCol: 'teknik_ttd',  namaCol: 'teknik_nama',  subyek: 'manager teknik' }
 };
 
 export function updateTtdRouting(kind, id, patch = {}) {
@@ -2023,14 +2031,15 @@ export function listDsTest(unit = 'radtel', limit = 200) {
 
 export function insertDsTest(rec = {}, olehUsername = '', olehNama = '') {
   const namaList = Array.isArray(rec.teknisiNamaList) ? rec.teknisiNamaList : [];
-  // Maintenance Radio (state.__format === 'radio') dan Weekly Check Pengamatan
-  // (state.__format === 'pgmweekly') menumpang tabel ini. Keduanya tak punya
-  // entri DS_SITE — daftar item/lembarnya ada di peramban (17c/17d) — jadi
-  // pemeriksaan site dilewati.
+  // Maintenance Radio (state.__format === 'radio'), Weekly Check Pengamatan
+  // (state.__format === 'pgmweekly'), dan Ground Check LLZ (state.__format ===
+  // 'llzgc') menumpang tabel ini. Ketiganya tak punya entri DS_SITE — daftar
+  // item/lembarnya ada di peramban (17c/17d/17e) — jadi pemeriksaan site dilewati.
   const fmt = rec.state && rec.state.__format;
-  const isKhusus = fmt === 'radio' || fmt === 'pgmweekly';
+  const isKhusus = fmt === 'radio' || fmt === 'pgmweekly' || fmt === 'llzgc';
   const kategori = fmt === 'radio' ? 'radio'
                  : fmt === 'pgmweekly' ? 'pgmweekly'
+                 : fmt === 'llzgc' ? 'llzgc'
                  : (kategoriDsSah(rec.kategori) ? rec.kategori : 'domestik');
   // Daftar site yang masih kosong berarti formnya belum bisa dipakai —
   // menyimpan lembar tanpa satu pun site hanya menghasilkan berkas kosong.
@@ -2263,7 +2272,10 @@ const rowToBapb = (r, extra = {}) => {
     PetugasNamaList: Array.isArray(petugasList) ? petugasList : [],
     PetugasTTD: r.petugas_ttd,
     DiinputOleh: extra.diinputOleh ?? (r.dibuat_oleh || ''),
-    DibuatPada: r.dibuat_pada || ''
+    DibuatOlehUsername: r.dibuat_oleh || '',
+    DibuatPada: r.dibuat_pada || '',
+    // Keterangan susulan slot Manager Teknik — sejajar form lain.
+    TtdOleh: extra.ttdOleh ?? (r.ttd_oleh || ''), TtdPada: r.ttd_pada || '', TtdUntuk: r.ttd_untuk || ''
   };
 };
 
@@ -2271,7 +2283,10 @@ export function listBapb(unit = 'radkom', limit = 200) {
   const rows = db.prepare(`SELECT * FROM bapb WHERE unit = ?
                            ORDER BY tanggal DESC, dibuat_pada DESC LIMIT ?`).all(unit, limit);
   const nama = petaNamaPengguna();
-  return rows.map((r) => rowToBapb(r, { diinputOleh: namaTampil(nama, r.dibuat_oleh) }));
+  return rows.map((r) => rowToBapb(r, {
+    diinputOleh: namaTampil(nama, r.dibuat_oleh),
+    ttdOleh: namaTampil(nama, r.ttd_oleh)
+  }));
 }
 
 export function insertBapb(rec = {}, olehUsername = '', olehNama = '') {
@@ -2296,28 +2311,67 @@ export function insertBapb(rec = {}, olehUsername = '', olehNama = '') {
     items_json: JSON.stringify(items),
     pemakai_nama: teks(rec.pemakaiNama),
     pemakai_ttd: saveSignature(rec.pemakaiTtd, 'bapb_pemakai'),
+    // Manager Teknik tidak lagi dibubuhkan di form: namanya boleh diisi (sebagai
+    // tujuan), tanda tangannya dibubuhkan susulan lewat kotak masuk. ttd_untuk
+    // menunjuk akun mantek supaya lembarnya muncul di kotak masuknya.
     teknik_nama: teks(rec.teknikNama),
-    teknik_ttd: saveSignature(rec.teknikTtd, 'bapb_teknik'),
+    teknik_ttd: '',
+    ttd_untuk: teks(rec.ttdUntuk),
     petugas_nama: petugasRingkas,
     petugas_nama_list: JSON.stringify(petugasList),
     petugas_ttd: saveSignature(rec.petugasTtd, 'bapb_petugas'),
     dibuat_pada: nowIso()
   };
   db.prepare(`INSERT INTO bapb (id, unit, nomor, tanggal, untuk_pekerjaan, lokasi, items_json,
-                                pemakai_nama, pemakai_ttd, teknik_nama, teknik_ttd,
+                                pemakai_nama, pemakai_ttd, teknik_nama, teknik_ttd, ttd_untuk,
                                 petugas_nama, petugas_nama_list, petugas_ttd, dibuat_pada, dibuat_oleh)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
     .run(row.id, row.unit, row.nomor, row.tanggal, row.untuk_pekerjaan, row.lokasi, row.items_json,
-         row.pemakai_nama, row.pemakai_ttd, row.teknik_nama, row.teknik_ttd,
+         row.pemakai_nama, row.pemakai_ttd, row.teknik_nama, row.teknik_ttd, row.ttd_untuk,
          row.petugas_nama, row.petugas_nama_list, row.petugas_ttd, row.dibuat_pada, olehUsername);
   return rowToBapb(row, { diinputOleh: olehNama || olehUsername });
+}
+
+/**
+ * Sunting susulan BAPB — hanya panel Manager Pemakai (nama + tanda tangan).
+ * Ini "langkah terakhir sebelum ke mantek": teknisi bisa menyimpan lembarnya
+ * dulu, lalu membubuhkan/mengganti TTD pemakai belakangan. Dikunci begitu
+ * Manager Teknik sudah tanda tangan — mengubah paraf di bawah lembar yang
+ * sudah disahkan mantek sama saja memalsu arsip.
+ */
+export function updateBapb(id, patch = {}, { username = '', admin = false } = {}) {
+  const r = db.prepare('SELECT dibuat_oleh, teknik_ttd, pemakai_ttd FROM bapb WHERE id = ?').get(String(id));
+  if (!r) throw new Error('BAPB tidak ditemukan — mungkin sudah dihapus.');
+  if (!admin && String(r.dibuat_oleh || '') !== String(username || '')) {
+    throw new Error('Hanya pembuat lembar ini atau administrator yang boleh menyuntingnya.');
+  }
+  if (r.teknik_ttd) {
+    throw new Error('Manager Teknik sudah tanda tangan — panel pemakai tidak bisa diubah lagi.');
+  }
+  const setBaru = {};
+  if (patch.pemakaiNama !== undefined) setBaru.pemakai_nama = String(patch.pemakaiNama || '').trim();
+  if (patch.pemakaiTtd !== undefined) {
+    // TTD baru: string dataURL → simpan; string kosong → hapus paraf.
+    const path = patch.pemakaiTtd ? saveSignature(patch.pemakaiTtd, 'bapb_pemakai') : '';
+    if (r.pemakai_ttd && r.pemakai_ttd !== path) removeSignatureFile(r.pemakai_ttd);
+    setBaru.pemakai_ttd = path;
+  }
+  const kunci = Object.keys(setBaru);
+  if (kunci.length) {
+    const potongan = kunci.map((k) => `${k} = ?`).join(', ');
+    db.prepare(`UPDATE bapb SET ${potongan} WHERE id = ?`).run(...kunci.map((k) => setBaru[k]), String(id));
+  }
+  return getBapb(String(id));
 }
 
 export function getBapb(id) {
   const r = db.prepare('SELECT * FROM bapb WHERE id = ?').get(id);
   if (!r) return null;
   const nama = petaNamaPengguna();
-  return rowToBapb(r, { diinputOleh: namaTampil(nama, r.dibuat_oleh) });
+  return rowToBapb(r, {
+    diinputOleh: namaTampil(nama, r.dibuat_oleh),
+    ttdOleh: namaTampil(nama, r.ttd_oleh)
+  });
 }
 
 export function removeBapb(id) {
@@ -2354,7 +2408,10 @@ export const JENIS_TTD = {
   monitoring: { tabel: 'monitoring',  nama: 'personil_ops', ttd: 'personil_ops_ttd', prefix: 'monitoring_ops',     label: 'Personil Operasi', tglKolom: 'tanggal' },
   dstest:     { tabel: 'dstest',      nama: 'manager_nama', ttd: 'manager_ttd',      prefix: 'dstest_manager',     label: 'Manager Teknik',   tglKolom: 'tanggal' },
   berkala:    { tabel: 'berkala',     nama: 'manager_nama', ttd: 'manager_ttd',      prefix: 'berkala_manager',    label: 'Manager Teknik',   tglKolom: 'tanggal' },
-  ltk:        { tabel: 'ltk',         nama: 'manager_nama', ttd: 'manager_ttd',      prefix: 'ltk_manager',        label: 'Manager Teknik',   tglKolom: 'tanggal_lapor' }
+  ltk:        { tabel: 'ltk',         nama: 'manager_nama', ttd: 'manager_ttd',      prefix: 'ltk_manager',        label: 'Manager Teknik',   tglKolom: 'tanggal_lapor' },
+  // BAPB hanya merutekan SATU slot pihak-kedua ke akun — Manager Teknik.
+  // Manager Pemakai & petugas dibubuhkan di form, di luar jalur susulan ini.
+  bapb:       { tabel: 'bapb',        nama: 'teknik_nama',  ttd: 'teknik_ttd',       prefix: 'bapb_teknik',        label: 'Manager Teknik (BAPB)', tglKolom: 'tanggal' }
 };
 
 export const jenisTtdSah = (jenis) =>

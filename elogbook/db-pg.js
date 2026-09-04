@@ -179,6 +179,9 @@ const TABEL_SUSULAN = [
      petugas_nama       TEXT NOT NULL DEFAULT '',
      petugas_nama_list  TEXT NOT NULL DEFAULT '[]',
      petugas_ttd        TEXT NOT NULL DEFAULT '',
+     ttd_oleh           TEXT NOT NULL DEFAULT '',
+     ttd_pada           TEXT NOT NULL DEFAULT '',
+     ttd_untuk          TEXT NOT NULL DEFAULT '',
      dibuat_pada        TEXT NOT NULL,
      dibuat_oleh        TEXT NOT NULL DEFAULT ''
    )`,
@@ -214,7 +217,7 @@ const KOLOM_SUSULAN = [
   // Siapa membubuhkan tanda tangan susulan, dan kapan. Terpisah dari nama pada
   // formulir — nama itu milik teknisi yang mengisi. ttd_untuk: akun yang
   // DITUNJUK untuk membubuhkan, dipakai kotak masuk TTD — lihat getInboxTtd.
-  ...['entries', 'dailychecks', 'monitoring', 'dstest', 'ltk'].flatMap((t) => [
+  ...['entries', 'dailychecks', 'monitoring', 'dstest', 'ltk', 'bapb'].flatMap((t) => [
     [t, 'ttd_oleh', "TEXT NOT NULL DEFAULT ''"],
     [t, 'ttd_pada', "TEXT NOT NULL DEFAULT ''"],
     [t, 'ttd_untuk', "TEXT NOT NULL DEFAULT ''"]
@@ -1741,7 +1744,8 @@ const RUTE_TTD_META = {
   dc:      { tabel: 'dailychecks', ttdCol: 'manager_ttd', namaCol: 'manager_nama', subyek: 'manager teknik' },
   ltk:     { tabel: 'ltk',         ttdCol: 'manager_ttd', namaCol: 'manager_nama', subyek: 'manager teknik' },
   berkala: { tabel: 'berkala',     ttdCol: 'manager_ttd', namaCol: 'manager_nama', subyek: 'manager teknik' },
-  dstest:  { tabel: 'dstest',      ttdCol: 'manager_ttd', namaCol: 'manager_nama', subyek: 'manager teknik' }
+  dstest:  { tabel: 'dstest',      ttdCol: 'manager_ttd', namaCol: 'manager_nama', subyek: 'manager teknik' },
+  bapb:    { tabel: 'bapb',        ttdCol: 'teknik_ttd',  namaCol: 'teknik_nama',  subyek: 'manager teknik' }
 };
 
 export async function updateTtdRouting(kind, id, patch = {}) {
@@ -1872,14 +1876,15 @@ export async function listDsTest(unit = 'radtel', limit = 200) {
 
 export async function insertDsTest(rec = {}, olehUsername = '', olehNama = '') {
   const namaList = Array.isArray(rec.teknisiNamaList) ? rec.teknisiNamaList : [];
-  // Maintenance Radio (state.__format === 'radio') dan Weekly Check Pengamatan
-  // (state.__format === 'pgmweekly') menumpang tabel ini. Keduanya tak punya
-  // entri DS_SITE — daftar item/lembarnya ada di peramban (17c/17d) — jadi
-  // pemeriksaan site dilewati.
+  // Maintenance Radio (state.__format === 'radio'), Weekly Check Pengamatan
+  // (state.__format === 'pgmweekly'), dan Ground Check LLZ (state.__format ===
+  // 'llzgc') menumpang tabel ini. Ketiganya tak punya entri DS_SITE — daftar
+  // item/lembarnya ada di peramban (17c/17d/17e) — jadi pemeriksaan site dilewati.
   const fmt = rec.state && rec.state.__format;
-  const isKhusus = fmt === 'radio' || fmt === 'pgmweekly';
+  const isKhusus = fmt === 'radio' || fmt === 'pgmweekly' || fmt === 'llzgc';
   const kategori = fmt === 'radio' ? 'radio'
                  : fmt === 'pgmweekly' ? 'pgmweekly'
+                 : fmt === 'llzgc' ? 'llzgc'
                  : (kategoriDsSah(rec.kategori) ? rec.kategori : 'domestik');
   if (!isKhusus && dsSiteUntuk(kategori).length === 0) {
     throw new Error('Daftar site untuk kategori ' + kategori + ' belum diisi.');
@@ -2115,7 +2120,10 @@ const rowToBapb = (r, extra = {}) => {
     PetugasNamaList: Array.isArray(petugasList) ? petugasList : [],
     PetugasTTD: r.petugas_ttd,
     DiinputOleh: extra.diinputOleh ?? (r.dibuat_oleh || ''),
-    DibuatPada: r.dibuat_pada || ''
+    DibuatOlehUsername: r.dibuat_oleh || '',
+    DibuatPada: r.dibuat_pada || '',
+    // Keterangan susulan slot Manager Teknik — sejajar form lain.
+    TtdOleh: extra.ttdOleh ?? (r.ttd_oleh || ''), TtdPada: r.ttd_pada || '', TtdUntuk: r.ttd_untuk || ''
   };
 };
 
@@ -2125,7 +2133,10 @@ export async function listBapb(unit = 'radkom', limit = 200) {
     [unit, limit]
   );
   const nama = await petaNamaPengguna();
-  return rows.map((r) => rowToBapb(r, { diinputOleh: namaTampil(nama, r.dibuat_oleh) }));
+  return rows.map((r) => rowToBapb(r, {
+    diinputOleh: namaTampil(nama, r.dibuat_oleh),
+    ttdOleh: namaTampil(nama, r.ttd_oleh)
+  }));
 }
 
 export async function insertBapb(rec = {}, olehUsername = '', olehNama = '') {
@@ -2147,8 +2158,11 @@ export async function insertBapb(rec = {}, olehUsername = '', olehNama = '') {
     items_json: JSON.stringify(items),
     pemakai_nama: teks(rec.pemakaiNama),
     pemakai_ttd: await saveSignature(rec.pemakaiTtd, 'bapb_pemakai'),
+    // Manager Teknik dibubuhkan susulan lewat kotak masuk, bukan di form;
+    // ttd_untuk menunjuk akun mantek tujuannya.
     teknik_nama: teks(rec.teknikNama),
-    teknik_ttd: await saveSignature(rec.teknikTtd, 'bapb_teknik'),
+    teknik_ttd: '',
+    ttd_untuk: teks(rec.ttdUntuk),
     petugas_nama: petugasRingkas,
     petugas_nama_list: JSON.stringify(petugasList),
     petugas_ttd: await saveSignature(rec.petugasTtd, 'bapb_petugas'),
@@ -2156,21 +2170,54 @@ export async function insertBapb(rec = {}, olehUsername = '', olehNama = '') {
   };
   await jalankan(
     `INSERT INTO bapb (id, unit, nomor, tanggal, untuk_pekerjaan, lokasi, items_json,
-                       pemakai_nama, pemakai_ttd, teknik_nama, teknik_ttd,
+                       pemakai_nama, pemakai_ttd, teknik_nama, teknik_ttd, ttd_untuk,
                        petugas_nama, petugas_nama_list, petugas_ttd, dibuat_pada, dibuat_oleh)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
     [row.id, row.unit, row.nomor, row.tanggal, row.untuk_pekerjaan, row.lokasi, row.items_json,
-     row.pemakai_nama, row.pemakai_ttd, row.teknik_nama, row.teknik_ttd,
+     row.pemakai_nama, row.pemakai_ttd, row.teknik_nama, row.teknik_ttd, row.ttd_untuk,
      row.petugas_nama, row.petugas_nama_list, row.petugas_ttd, row.dibuat_pada, olehUsername]
   );
   return rowToBapb(row, { diinputOleh: olehNama || olehUsername });
+}
+
+/**
+ * Sunting susulan BAPB — cerminan Postgres dari updateBapb di db.js. Hanya
+ * panel Manager Pemakai (nama + TTD), dan dikunci begitu Manager Teknik sudah
+ * tanda tangan.
+ */
+export async function updateBapb(id, patch = {}, { username = '', admin = false } = {}) {
+  const r = await q1('SELECT dibuat_oleh, teknik_ttd, pemakai_ttd FROM bapb WHERE id = $1', [String(id)]);
+  if (!r) throw new Error('BAPB tidak ditemukan — mungkin sudah dihapus.');
+  if (!admin && String(r.dibuat_oleh || '') !== String(username || '')) {
+    throw new Error('Hanya pembuat lembar ini atau administrator yang boleh menyuntingnya.');
+  }
+  if (r.teknik_ttd) {
+    throw new Error('Manager Teknik sudah tanda tangan — panel pemakai tidak bisa diubah lagi.');
+  }
+  const setBaru = {};
+  if (patch.pemakaiNama !== undefined) setBaru.pemakai_nama = String(patch.pemakaiNama || '').trim();
+  if (patch.pemakaiTtd !== undefined) {
+    const path = patch.pemakaiTtd ? await saveSignature(patch.pemakaiTtd, 'bapb_pemakai') : '';
+    if (r.pemakai_ttd && r.pemakai_ttd !== path) await hapusBerkas(r.pemakai_ttd);
+    setBaru.pemakai_ttd = path;
+  }
+  const kunci = Object.keys(setBaru);
+  if (kunci.length) {
+    const potongan = kunci.map((k, i) => `${k} = $${i + 1}`).join(', ');
+    await jalankan(`UPDATE bapb SET ${potongan} WHERE id = $${kunci.length + 1}`,
+      [...kunci.map((k) => setBaru[k]), String(id)]);
+  }
+  return getBapb(String(id));
 }
 
 export async function getBapb(id) {
   const r = await q1('SELECT * FROM bapb WHERE id = $1', [id]);
   if (!r) return null;
   const nama = await petaNamaPengguna();
-  return rowToBapb(r, { diinputOleh: namaTampil(nama, r.dibuat_oleh) });
+  return rowToBapb(r, {
+    diinputOleh: namaTampil(nama, r.dibuat_oleh),
+    ttdOleh: namaTampil(nama, r.ttd_oleh)
+  });
 }
 
 export async function removeBapb(id) {
@@ -2195,7 +2242,9 @@ export const JENIS_TTD = {
   monitoring: { tabel: 'monitoring',  nama: 'personil_ops', ttd: 'personil_ops_ttd', prefix: 'monitoring_ops',     label: 'Personil Operasi', tglKolom: 'tanggal' },
   dstest:     { tabel: 'dstest',      nama: 'manager_nama', ttd: 'manager_ttd',      prefix: 'dstest_manager',     label: 'Manager Teknik',   tglKolom: 'tanggal' },
   berkala:    { tabel: 'berkala',     nama: 'manager_nama', ttd: 'manager_ttd',      prefix: 'berkala_manager',    label: 'Manager Teknik',   tglKolom: 'tanggal' },
-  ltk:        { tabel: 'ltk',         nama: 'manager_nama', ttd: 'manager_ttd',      prefix: 'ltk_manager',        label: 'Manager Teknik',   tglKolom: 'tanggal_lapor' }
+  ltk:        { tabel: 'ltk',         nama: 'manager_nama', ttd: 'manager_ttd',      prefix: 'ltk_manager',        label: 'Manager Teknik',   tglKolom: 'tanggal_lapor' },
+  // BAPB hanya merutekan slot Manager Teknik; Pemakai & petugas di form.
+  bapb:       { tabel: 'bapb',        nama: 'teknik_nama',  ttd: 'teknik_ttd',       prefix: 'bapb_teknik',        label: 'Manager Teknik (BAPB)', tglKolom: 'tanggal' }
 };
 
 export const jenisTtdSah = (jenis) =>

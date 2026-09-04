@@ -6,7 +6,13 @@ function jalanJam(){
   el('jamUtc').textContent = p(n.getUTCHours())+':'+p(n.getUTCMinutes())+':'+p(n.getUTCSeconds());
   const w = new Date(n.getTime() + (7*60 + n.getTimezoneOffset())*60000);
   el('jamWib').textContent = p(w.getHours())+':'+p(w.getMinutes())+':'+p(w.getSeconds());
-  el('tglWib').textContent = w.toLocaleDateString(LOKAL(),{weekday:'short',day:'numeric',month:'short'});
+  // Tiap jam memikul tanggalnya sendiri. Lewat pukul 17.00 UTC hari sudah
+  // berganti di UTC padahal di WIB masih tanggal kemarin — kalau cuma satu
+  // tanggal yang tampil, daftar dinas jadi rancu "hari mana". Dibaca lewat
+  // timeZone, bukan geseran manual, supaya benar di mesin zona waktu apa pun.
+  const tgl = (tz)=>n.toLocaleDateString(LOKAL(),{weekday:'short',day:'numeric',month:'short',timeZone:tz});
+  el('tglUtc').textContent = tgl('UTC');
+  el('tglWib').textContent = tgl('Asia/Jakarta');
 }
 setInterval(jalanJam, 1000); jalanJam();
 
@@ -46,7 +52,7 @@ function pindahLayar(nama){
   if(nama === 'unit' && !unitDibuka){
     const boleh = unitBoleh();
     if(boleh.length === 1){
-      unitDibuka = boleh[0].kode; subtabAktif = 'peralatan';
+      unitDibuka = boleh[0].kode; subtabAktif = modulPicAkun() || 'peralatan';
       alatDipilih = (PERALATAN[unitDibuka] || [])[0]?.id || null;
       gambarPilihUnit(); gambarUnit();
     }

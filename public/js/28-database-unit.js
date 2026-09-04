@@ -40,7 +40,9 @@ function gambarPilihUnit(){
 }
 
 function bukaUnit(kode){
-  unitDibuka = kode; subtabAktif = 'peralatan';
+  // PIC dokumen langsung mendarat di satu-satunya subtab yang dibukanya —
+  // subtab Peralatan tidak digambar untuk mereka.
+  unitDibuka = kode; subtabAktif = modulPicAkun() || 'peralatan';
   alatDipilih = (PERALATAN[kode] || [])[0] ? PERALATAN[kode][0].id : null;
   subDipilih = null;
   // Grup lokasi milik unit — waktu pindah unit tab aktifnya balik ke Semua,
@@ -209,7 +211,16 @@ function gambarUnit(){
   const radkom = unitDibuka === 'radkom';
   const foto = FOTO[unitDibuka] || [];
 
-  const tab = (id,teks,lencana)=>`<button data-sub="${id}" class="${subtabAktif===id?'aktif':''}">
+  // PIC dokumen hanya membuka satu subtab, di semua unit. Dipaksa di sini —
+  // bukan cuma disembunyikan tombolnya — supaya jalan pintas dari beranda /
+  // kotak masuk yang menyetel subtabAktif ke modul lain tidak sempat menampilkan
+  // panelnya (subisi yang subtabAktif-nya cocok akan tetap tergambar 'aktif').
+  const pic = modulPicAkun();
+  if(pic) subtabAktif = pic;
+
+  // Untuk PIC, hanya tombol subtab miliknya yang digambar; sisanya '' (hilang).
+  const tab = (id,teks,lencana)=> (pic && id !== pic) ? '' :
+    `<button data-sub="${id}" class="${subtabAktif===id?'aktif':''}">
     ${teks}${lencana?` <span class="mono" style="opacity:.75">(${lencana})</span>`:''}</button>`;
 
   el('isiUnit').innerHTML = `
@@ -240,6 +251,7 @@ function gambarUnit(){
       ${tab('peralatan',T('Peralatan','Equipment'),alat.length)}
       ${tab('trouble','Trouble',trouble.length)}
       ${tab('sparepart',T('Sparepart','Spare Parts'),part.length)}
+      ${tab('isr','ISR', isrAwasUnit(unitDibuka) || (ISR[unitDibuka] || []).length || '')}
       ${tab('dinas',T('Jadwal Dinas','Duty Roster'))}
       ${tab('berkala',T('Kegiatan Berkala','Recurring Jobs'),
             bklJatuhTempo(unitDibuka).filter(x=>x.sisa <= 0).length || '')}
@@ -407,6 +419,10 @@ function gambarUnit(){
               T('Belum ada sparepart terdaftar untuk unit ini.','No spare parts registered for this unit yet.')}</div>`}
       </div>
     </div>
+
+    <!-- IZIN STASIUN RADIO (ISR) — daftar lisensi frekuensi per unit, dengan
+         masa berlaku. Isinya digambar panelIsrHtml() di 37-isr.js. -->
+    <div class="subisi ${subtabAktif==='isr'?'aktif':''}" id="s-isr">${panelIsrHtml(unitDibuka)}</div>
 
     <!-- DINAS — isinya digambar jdwGambar() setelah kerangka ini terpasang,
          karena subtab ini menggambar ulang dirinya sendiri saat disunting. -->

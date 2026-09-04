@@ -46,3 +46,24 @@ document.querySelectorAll('.subtab-btn').forEach(btn=>{
     setTimeout(()=>{ if(typeof resizeAllVisibleSigPads === 'function') resizeAllVisibleSigPads(); }, 50);
   });
 });
+
+/* Tab BERTINGKAT generik (.lvl). Dipakai di dalam sub-tab yang isinya masih
+   bercabang — mis. Ground Check → LLZ/GP/MM → 07L/07R/25R/25L. Tiap tingkat
+   adalah satu <div class="lvl"> berisi <div class="lvl-tabs"> (tombol
+   .lvl-btn dengan data-target = id panel) dan <div class="lvl-body"> (panel
+   .lvl-panel). Karena tombolnya menukar hanya anak LANGSUNG level-nya sendiri
+   (":scope >"), tingkat di dalam panel tak ikut terpengaruh — jadi satu handler
+   melayani berapa pun kedalaman. Tak menyentuh .subtab-btn / .subview. */
+document.querySelectorAll('.lvl-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const tabs = btn.parentElement;                       // .lvl-tabs tingkat ini
+    const lvl  = btn.closest('.lvl');
+    const body = lvl && lvl.querySelector(':scope > .lvl-body');
+    if(tabs) tabs.querySelectorAll(':scope > .lvl-btn').forEach(b=>b.classList.remove('active'));
+    if(body) body.querySelectorAll(':scope > .lvl-panel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    const t = document.getElementById(btn.dataset.target);
+    if(t) t.classList.add('active');
+    setTimeout(()=>{ if(typeof resizeAllVisibleSigPads === 'function') resizeAllVisibleSigPads(); }, 50);
+  });
+});

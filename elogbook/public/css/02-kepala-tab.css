@@ -56,6 +56,34 @@ html[data-tema="terang"] .subtab-btn.active{box-shadow:0 4px 12px rgba(2,119,189
 .subview{display:none;}
 .subview.active{display:block; animation:fadein .25s ease;}
 
+/* Tab bertingkat (.lvl) di dalam sebuah sub-tab — lihat handler di
+   js/04-toast-tab.js. Tingkat teratas (jenis fasilitas: LLZ/GP/MM) memakai
+   pil aksen bergaris seperti sub-tab; tingkat di dalamnya (.lvl-tabs.sub, mis.
+   ujung landas 07L/07R/25R/25L) dibuat lebih ramping dan bergaya garis-bawah
+   supaya hierarkinya kebaca sekilas. */
+.lvl-tabs{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; overflow-x:auto;}
+.lvl-btn{background:var(--panel); border:1px solid var(--line); color:var(--text);
+  font-family:var(--font-mono); font-weight:600; font-size:12px; letter-spacing:.05em;
+  padding:9px 15px; cursor:pointer; white-space:nowrap; border-radius:8px;
+  transition:background .15s, color .15s, border-color .15s, transform .15s, box-shadow .15s;}
+.lvl-btn:hover{color:var(--accent-teks); background:var(--accent); border-color:var(--accent);
+  transform:translateY(-1px); box-shadow:0 6px 16px rgba(41,182,246,.35);}
+.lvl-btn:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+.lvl-btn.active{color:var(--accent-teks); background:var(--accent); border-color:var(--accent);
+  box-shadow:0 4px 12px rgba(41,182,246,.35);}
+html[data-tema="terang"] .lvl-btn:hover,
+html[data-tema="terang"] .lvl-btn.active{box-shadow:0 4px 12px rgba(2,119,189,.30);}
+
+.lvl-tabs.sub{gap:4px; margin-bottom:16px; border-bottom:1px solid var(--line); padding-bottom:0;}
+.lvl-tabs.sub .lvl-btn{background:none; border:none; border-bottom:2px solid transparent;
+  border-radius:6px 6px 0 0; padding:8px 14px; color:var(--muted); box-shadow:none;}
+.lvl-tabs.sub .lvl-btn:hover{background:var(--panel); color:var(--accent); transform:none; box-shadow:none;}
+.lvl-tabs.sub .lvl-btn.active{background:none; color:var(--accent); border-bottom-color:var(--accent);
+  box-shadow:none;}
+
+.lvl-panel{display:none;}
+.lvl-panel.active{display:block; animation:fadein .25s ease;}
+
 .section-head{display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:14px; flex-wrap:wrap;}
 .section-head h2{font-family:var(--font-display); font-size:17px; margin:0; font-weight:600;}
 /* Subjudul di bawah h2 mengikuti warna judulnya — putih di mode gelap,
