@@ -162,6 +162,9 @@ function openTtdSayaModal(){
   renderTtdSaya();
   document.getElementById('ttdSayaModalBg').classList.add('show');
   setTimeout(()=>resizeSigCanvas('sigTtdSaya'), 60);
+  // Segarkan panel Notifikasi Telegram (js/28-telegram.js) — menyembunyikan
+  // dirinya sendiri kalau server belum menyalakan bot.
+  if(typeof muatStatusTelegram === 'function') muatStatusTelegram();
 }
 
 function closeTtdSayaModal(){

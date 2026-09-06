@@ -570,6 +570,29 @@ function gambarUnit(){
               ${T('Dua kotak di atas berlaku untuk berkas yang ditambahkan berikutnya.',
                   'The two boxes above apply to the files added next.')}</div>
           </label>
+
+          <!-- Tautan ke berkas yang tinggal di tempat lain. Sengaja di bawah
+               kotak jatuh dan lebih pelan suaranya: yang utama tetap berkas
+               yang benar-benar masuk ke rak ini dan ikut terjaga bersamanya. -->
+          <div class="brk-tautan" id="brkTautan">
+            <div class="judul">${T('…atau catat tautan Google Drive',
+                                   '…or record a Google Drive link')}</div>
+            <div class="baris">
+              <input type="url" id="brkUrl" autocomplete="off" spellcheck="false"
+                placeholder="https://drive.google.com/drive/folders/…">
+              <input type="text" id="brkUrlNama" autocomplete="off"
+                placeholder="${T('Nama yang tampil (boleh kosong)','Display name (optional)')}">
+              <button type="button" class="btn garis kecil" id="brkUrlTambah">${
+                T('Tambah tautan','Add link')}</button>
+            </div>
+            <div class="ket2">${T(
+              'Berkasnya tetap di Drive — yang tersimpan di sini cuma alamatnya, dan tombol Buka '
+              + 'pada barisnya langsung membuka Drive-nya. Pastikan berbagi di Drive sudah diatur, '
+              + 'karena dashboard ini tidak bisa membukakan pintu yang di sana.',
+              'The file stays in Drive — only the address is stored here, and the row\'s Open button '
+              + 'goes straight to Drive. Make sure Drive sharing is set up, because this dashboard '
+              + 'cannot open a door on that side.')}</div>
+          </div>
         </div>
         <div id="daftarBerkas"></div>
       </div>
@@ -582,7 +605,15 @@ function gambarUnit(){
                 'Refreshing the page no longer empties it. They live in data/dokumen/ on this server — not '
               + 'in E-Logbook, and not inside public/, so nobody can download them without signing in '
               + 'first. Who may add is set per unit in the Access Rights panel; only an administrator may '
-              + 'remove, and the file is deleted from the server with it.')}`}
+              + 'remove, and the file is deleted from the server with it.')}
+        <br><br>
+        ${T('Baris bertanda DRIVE bukan berkas di sini melainkan tautan: yang tersimpan cuma '
+          + 'alamatnya, tombol Buka pergi langsung ke seberang sana, dan mengeluarkannya tidak '
+          + 'menghapus apa pun di Drive. Yang bisa membukanya ditentukan pengaturan berbagi di '
+          + 'Drive itu, bukan oleh dashboard ini.',
+            'A row marked DRIVE is not a file here but a link: only the address is stored, the Open '
+          + 'button goes straight to the other side, and removing it deletes nothing in Drive. Who '
+          + 'can open it is decided by that Drive\'s sharing settings, not by this dashboard.')}`}
       </div>
     </div>`;
 

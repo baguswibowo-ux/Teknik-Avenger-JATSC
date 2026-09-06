@@ -81,6 +81,11 @@ html[data-tema="terang"] .lvl-btn.active{box-shadow:0 4px 12px rgba(2,119,189,.3
 .lvl-tabs.sub .lvl-btn.active{background:none; color:var(--accent); border-bottom-color:var(--accent);
   box-shadow:none;}
 
+/* Tingkat keempat (Meter Reading: lembar LLZ/GP/TDME/OM per ujung) dibuat
+   sebagai chip bulat kecil supaya beda jelas dari ujung landas di atasnya. */
+.lvl-tabs.sub2{gap:6px; margin-bottom:12px;}
+.lvl-tabs.sub2 .lvl-btn{font-size:11px; padding:6px 12px; border-radius:14px;}
+
 .lvl-panel{display:none;}
 .lvl-panel.active{display:block; animation:fadein .25s ease;}
 

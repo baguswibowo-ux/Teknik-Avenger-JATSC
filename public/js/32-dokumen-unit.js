@@ -23,8 +23,10 @@ const BRK_BATAS = 25 * 1024 * 1024;      // 25 MB; sama dengan batas di server
 /** Kenapa berkas tidak bisa diunggah, dalam satu kalimat — atau '' kalau bisa.
     Diperiksa di layar supaya penolakannya datang sebelum berkasnya terlanjur
     dibaca jadi base64; yang menolak sungguhan tetap server. */
-function dokSebabTolak(){
-  if(!KEMAMPUAN.dokumenTulis){
+function dokSebabTolak(tautan){
+  // Baris tautan tidak menaruh apa pun di simpanan — ia cuma sebaris
+  // keterangan — jadi lingkungan tanpa simpanan permanen tidak menghalanginya.
+  if(!tautan && !KEMAMPUAN.dokumenTulis){
     return T('Menyimpan dokumen dimatikan di lingkungan ini — penyimpanannya tidak permanen.',
              'Saving documents is off in this environment — its storage is not permanent.');
   }
@@ -102,6 +104,24 @@ async function dokKirim(unit, f, kategori, alat, isr){
   return j.baris;
 }
 
+/**
+ * Catat satu tautan di rak dokumen unit.
+ *
+ * Tidak ada berkas yang berpindah ke mana pun: yang dikirim cuma alamatnya,
+ * dan yang tersimpan di server cuma sebaris keterangan. Berkasnya tetap di
+ * seberang sana — folder Drive unit, situs pabrikan — beserta aturan
+ * berbaginya sendiri, yang tidak diketahui dan tidak diurus dashboard ini.
+ */
+async function dokKirimTautan(unit, tautan, nama, kategori, alat, isr){
+  const r = await srvFetch('/dokumen/' + encodeURIComponent(unit) + '/tautan', {
+    method:'POST', headers:{ 'Content-Type':'application/json' },
+    body: JSON.stringify({ tautan, nama, kategori, alat, isr })
+  }, 15000);
+  const j = await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(j.error || 'server menjawab ' + r.status);
+  return j.baris;
+}
+
 /** Ambil daftar dokumen seluruh unit dari server. Kegagalannya tidak
     menjatuhkan apa pun — tabnya cuma kosong, sama seperti sebelum ada isinya. */
 async function dokMuat(){
@@ -115,7 +135,9 @@ async function dokMuat(){
         ...b,
         // Satu-satunya yang dirangkai di sini: jalan mengambil berkasnya.
         // Servernya yang menjaga, bukan tautan ini — tanpa sesi, 401.
-        url: '/dokumen/' + encodeURIComponent(unit) + '/' + encodeURIComponent(b.id)
+        // Baris tautan tidak punya berkas di simpanan ini, jadi yang dipakai
+        // alamat aslinya; rute di bawah cuma akan menjawab 409 untuknya.
+        url: brkTautan(b) || '/dokumen/' + encodeURIComponent(unit) + '/' + encodeURIComponent(b.id)
       }));
     });
     if(typeof j.bisaTulis === 'boolean') KEMAMPUAN.dokumenTulis = j.bisaTulis;
@@ -142,6 +164,30 @@ const brkEkstensi = (nama) => {
   const t = nama.lastIndexOf('.');
   return t > 0 ? nama.slice(t+1).toUpperCase().slice(0,4) : 'BIN';
 };
+
+/* Baris tautan: yang tersimpan alamatnya, bukan berkasnya. Diperiksa lagi di
+   sini walaupun server sudah menolak selain http/https waktu dicatat — yang
+   jadi href tombol "Buka" di layar orang lain tidak boleh bergantung pada satu
+   pagar saja, dan daftar ini bisa berisi baris yang ditulis versi lama. */
+const brkTautan = (b) => /^https?:\/\//i.test(b && b.tautan || '') ? b.tautan : '';
+
+/* Lencana 4-5 huruf di kotak rupa, dan nama tempatnya untuk baris kedua.
+   Yang disebut nama tempat, bukan "tautan" saja: yang perlu diketahui orang
+   sebelum menekan Buka adalah ke mana ia akan dibawa. */
+function brkRupaTautan(url){
+  try{
+    const h = new URL(url).hostname.replace(/^www\./, '');
+    if(/(^|\.)(drive|docs)\.google\.com$/.test(h))
+      return { lencana:'DRIVE', nama:'Google Drive' };
+    if(/(^|\.)(sharepoint\.com|onedrive\.live\.com)$/.test(h))
+      return { lencana:'CLOUD', nama:'OneDrive' };
+    if(/(^|\.)dropbox\.com$/.test(h))
+      return { lencana:'CLOUD', nama:'Dropbox' };
+    return { lencana:T('TAUT','LINK'), nama:h };
+  }catch(e){
+    return { lencana:T('TAUT','LINK'), nama:T('tautan','link') };
+  }
+}
 
 /* MIME Office panjangnya 70 karakter lebih. Dicetak apa adanya, satu baris
    .docx melebarkan kolom Berkas sampai menghimpit lima kolom sisanya. */
@@ -216,7 +262,10 @@ function brkLolos(b){
   }
   if(BRK_SARING.cari){
     const q = BRK_SARING.cari.toLowerCase();
-    const isi = [b.nama, b.kategori, b.olehNama, b.oleh].filter(Boolean).join(' ').toLowerCase();
+    // Alamatnya ikut dicari: "drive" atau nama folder di dalam tautan sering
+    // satu-satunya yang diingat orang tentang baris itu.
+    const isi = [b.nama, b.kategori, b.olehNama, b.oleh, b.tautan]
+      .filter(Boolean).join(' ').toLowerCase();
     if(!isi.includes(q)) return false;
   }
   return true;
@@ -257,14 +306,84 @@ async function brkTambah(daftarFile){
       `${masuk} files saved to ${namaUnit(unitDibuka)} documents.`));
 }
 
+/**
+ * Catat satu tautan dari dua kotak di bawah kotak jatuh.
+ *
+ * Kategori dan kaitan peralatan diambil dari dua pilihan yang sama dengan
+ * unggahan berkas — satu tempat mengatur, dua jalan memasukkannya. Nama boleh
+ * dikosongkan: server akan memakai nama tempatnya ("Google Drive"), dan itu
+ * lebih baik daripada memaksa orang mengarang nama untuk menempelkan tautan.
+ */
+async function brkTautanTambah(){
+  if(!unitDibuka) return;
+
+  const kotakUrl  = el('brkUrl');
+  const kotakNama = el('brkUrlNama');
+  if(!kotakUrl) return;
+
+  const tautan = kotakUrl.value.trim();
+  if(!tautan){
+    pesan(T('Tempelkan dulu alamat tautannya.', 'Paste the link address first.'));
+    kotakUrl.focus();
+    return;
+  }
+  // Sebab yang sama dengan berkas, dikurangi syarat simpanan biner: baris
+  // tautan tidak menaruh apa pun di simpanan.
+  const tolak = dokSebabTolak(true);
+  if(tolak){ pesan(tolak); return; }
+
+  /* Diperiksa di layar supaya salah tempel — alamat setengah, "drive.google.com"
+     tanpa https:// — ditolak dengan kalimat yang menyebut apa yang kurang, bukan
+     dengan 400 dari server. Yang menolak sungguhan tetap server. */
+  if(!/^https?:\/\//i.test(tautan)){
+    pesan(T('Alamatnya harus dimulai dengan https:// — salin utuh dari bilah alamat peramban.',
+            'The address must start with https:// — copy it whole from the browser address bar.'));
+    kotakUrl.focus();
+    return;
+  }
+
+  const pAlat = el('brkAlat');
+  const pKat  = el('brkKat');
+  const nama  = kotakNama ? kotakNama.value.trim() : '';
+  // Nama tautan sering menyebut isinya ("Manual Garex — Drive"), jadi tebakan
+  // yang sama dengan berkas dipakai juga di sini. Tautan tanpa nama tidak
+  // punya apa pun untuk ditebak; server yang menjatuhkannya ke "Lainnya".
+  const kategori = (pKat && pKat.value) ? pKat.value
+    : (nama ? brkTebakKategori(nama, '') : '');
+
+  const tombol = el('brkUrlTambah');
+  if(tombol) tombol.disabled = true;
+  try{
+    await dokKirimTautan(unitDibuka, tautan, nama,
+      kategori, pAlat && pAlat.value ? pAlat.value : '', '');
+    await dokMuat();
+    gambarBerkas(); brkLencana();
+    kotakUrl.value = '';
+    if(kotakNama) kotakNama.value = '';
+    pesan(T(`Tautan tersimpan di dokumen ${namaUnit(unitDibuka)}.`,
+            `Link saved to ${namaUnit(unitDibuka)} documents.`));
+  }catch(e){
+    pesan(T('Gagal menyimpan tautan: ','Could not save the link: ') + (e && e.message || e));
+  }finally{
+    if(tombol) tombol.disabled = false;
+  }
+}
+
 async function brkBuang(id){
   const kotak = brkDaftar();
   const i = kotak.findIndex(b => b.id === id); if(i < 0) return;
   const b = kotak[i];
 
-  // Berkasnya dihapus sungguhan dari server, jadi ditanya dulu.
-  if(!confirm(T(`Keluarkan "${b.nama}" dari dokumen unit ini?\n\nBerkasnya ikut dihapus dari server.`,
-                `Remove "${b.nama}" from this unit's documents?\n\nThe file is deleted from the server too.`))) return;
+  /* Ditanya dulu, karena berkasnya dihapus sungguhan dari server. Untuk baris
+     tautan yang hilang cuma catatannya: berkas di seberang sana bukan milik
+     dashboard ini, dan mengatakan "ikut dihapus" di situ akan membuat orang
+     ragu mengeluarkan baris yang memang perlu dikeluarkan. */
+  const taut = brkTautan(b);
+  if(!confirm(taut
+    ? T(`Keluarkan "${b.nama}" dari dokumen unit ini?\n\nYang hilang cuma tautannya di daftar ini — berkas di seberang sana tidak tersentuh.`,
+        `Remove "${b.nama}" from this unit's documents?\n\nOnly the link in this list goes — the file on the other side is untouched.`)
+    : T(`Keluarkan "${b.nama}" dari dokumen unit ini?\n\nBerkasnya ikut dihapus dari server.`,
+        `Remove "${b.nama}" from this unit's documents?\n\nThe file is deleted from the server too.`))) return;
   try{
     const r = await srvFetch(`/dokumen/${encodeURIComponent(unitDibuka)}/${encodeURIComponent(id)}`,
       { method:'DELETE' }, 15000);
@@ -272,7 +391,9 @@ async function brkBuang(id){
     if(!r.ok) throw new Error(j.error || 'server menjawab ' + r.status);
     await dokMuat();
     gambarBerkas(); brkLencana();
-    pesan(T(`"${b.nama}" dihapus dari server.`, `"${b.nama}" deleted from the server.`));
+    pesan(taut
+      ? T(`Tautan "${b.nama}" dikeluarkan dari daftar.`, `Link "${b.nama}" removed from the list.`)
+      : T(`"${b.nama}" dihapus dari server.`, `"${b.nama}" deleted from the server.`));
   }catch(e){
     pesan(T('Gagal menghapus: ','Could not delete: ') + (e && e.message || e));
   }
@@ -292,10 +413,10 @@ function gambarBerkas(){
   const isi = semua.filter(brkLolos);
   if(!semua.length){
     kotak.innerHTML = `<div class="badan" style="color:var(--muted);font-size:12.5px;line-height:1.7">
-      ${T('Belum ada berkas di unit ini. Tarik berkas ke kotak di atas, atau tekan kotaknya '
-          + 'untuk memilih dari komputer.',
-          'No files in this unit yet. Drag files onto the box above, or press it to choose from '
-          + 'your computer.')}</div>`;
+      ${T('Belum ada apa pun di unit ini. Tarik berkas ke kotak di atas, tekan kotaknya untuk '
+          + 'memilih dari komputer, atau catat tautan Google Drive di bawahnya.',
+          'Nothing in this unit yet. Drag files onto the box above, press it to choose from your '
+          + 'computer, or record a Google Drive link below it.')}</div>`;
     return;
   }
   const alatUnit = PERALATAN[unitDibuka] || [];
@@ -365,21 +486,36 @@ function gambarBerkas(){
     const saat = new Date(b.waktu);
     const jam = isNaN(saat) ? '—' : saat.toLocaleString(LOKAL(),
       { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
+
+    /* Baris tautan dan baris berkas tinggal di tabel yang sama, dan itu
+       disengaja: yang dicari orang "manual alat ini", bukan "berkas yang
+       kebetulan diunggah". Yang membedakan cuma rupanya — lencana tempatnya
+       menggantikan ekstensi, kolom ukuran kosong karena tidak ada yang bisa
+       diukur di sini, dan tombol Buka pergi ke seberang sana. */
+    const taut = brkTautan(b);
+    const rupa = taut ? brkRupaTautan(taut) : null;
     return `<tr>
       <td><div class="brk-nama">
-        <span class="brk-rupa">${b.jenis.startsWith('image/')
-          ? `<img src="${b.url}" alt="">` : `<span>${esc(brkEkstensi(b.nama))}</span>`}</span>
+        <span class="brk-rupa${taut ? ' taut' : ''}">${
+          rupa ? `<span>${esc(rupa.lencana)}</span>`
+          : b.jenis.startsWith('image/')
+            ? `<img src="${b.url}" alt="">`
+            : `<span>${esc(brkEkstensi(b.nama))}</span>`}</span>
         <span><span class="n">${esc(b.nama)}</span>
-          <span class="j">${esc(brkJenis(b.jenis))}</span></span>
+          <span class="j">${rupa
+            ? esc(rupa.nama) + ' · ' + T('tautan','link')
+            : esc(brkJenis(b.jenis))}</span></span>
       </div></td>
       <td><select class="brk-kat" data-kat="${b.id}"${katTitle}>${BRK_KATEGORI.map(k=>
         `<option value="${esc(k)}"${k===b.kategori?' selected':''}>${esc(brkKategoriNama(k))}</option>`).join('')}</select></td>
       <td>${nmAlat ? esc(nmAlat)
         : '<span class="mono" style="color:var(--muted)">—</span>'}</td>
-      <td><span class="mono">${brkUkuran(b.ukuran)}</span></td>
+      <td><span class="mono"${taut ? ' style="color:var(--muted)"' : ''}>${
+        taut ? '—' : brkUkuran(b.ukuran)}</span></td>
       <td><span class="mono" style="color:var(--muted)">${jam} · ${esc(b.olehNama || b.oleh)}</span></td>
       <td><div style="display:flex;gap:6px;justify-content:flex-end">
-        <a class="btn garis kecil" href="${b.url}" target="_blank" rel="noopener">${T('Buka','Open')}</a>
+        <a class="btn garis kecil" href="${esc(taut || b.url)}" target="_blank"
+          rel="noopener noreferrer">${T('Buka','Open')}</a>
         ${BOLEH_HAPUS.dokumen
           ? `<button class="brk-buang" data-buang="${b.id}">${T('Keluarkan','Remove')}</button>`
           : ''}
@@ -435,15 +571,45 @@ function brkPasangSaring(){
 function brkPasang(){
   const jatuh = el('brkJatuh'); if(!jatuh) return;
 
+  /* Dua penolakan yang tidak selalu sama. Menaruh berkas butuh simpanan biner
+     yang permanen; mencatat tautan tidak butuh apa pun selain hak mengisi.
+     Jadi di lingkungan yang unggahannya mati, kotak jatuh padam sementara
+     kotak tautan tetap hidup — dan itulah satu-satunya sebab keduanya
+     ditanyakan terpisah di sini. */
+  const tolakBerkas = dokSebabTolak();
+  const tolakTautan = dokSebabTolak(true);
+
+  const kotakTaut = el('brkTautan');
+  if(kotakTaut){
+    if(tolakTautan){
+      kotakTaut.classList.add('mati');
+      const ket = kotakTaut.querySelector('.ket2');
+      if(ket) ket.textContent = tolakTautan;
+    }else{
+      const tombol = el('brkUrlTambah');
+      if(tombol) tombol.addEventListener('click', brkTautanTambah);
+      // Enter di kotak alamat menambahkannya juga: menempel lalu menekan Enter
+      // adalah gerak yang sudah ada di jari orang, dan memaksanya pindah ke
+      // tombol cuma menambah satu langkah tanpa alasan.
+      const kotakUrl = el('brkUrl');
+      if(kotakUrl) kotakUrl.addEventListener('keydown', e => {
+        if(e.key === 'Enter'){ e.preventDefault(); brkTautanTambah(); }
+      });
+      const kotakNama = el('brkUrlNama');
+      if(kotakNama) kotakNama.addEventListener('keydown', e => {
+        if(e.key === 'Enter'){ e.preventDefault(); brkTautanTambah(); }
+      });
+    }
+  }
+
   /* Kotak yang bisa ditarik berkas tapi selalu menolaknya adalah janji palsu.
      Kalau sebabnya sudah diketahui sekarang, kotaknya dipadamkan dan sebabnya
      ditulis di tempat ajakannya. */
-  const tolak = dokSebabTolak();
-  if(tolak){
+  if(tolakBerkas){
     jatuh.style.opacity = '.45';
     jatuh.style.pointerEvents = 'none';
     const ajak = jatuh.querySelector('.ajak');
-    if(ajak) ajak.textContent = tolak;
+    if(ajak) ajak.textContent = tolakBerkas;
     gambarBerkas();
     return;
   }

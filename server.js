@@ -2863,6 +2863,11 @@ const dokNamaAman = (nama) => String(nama || 'berkas')
 const dokBaris = (b) => ({
   id:       String(b.id || ''),
   berkas:   String(b.berkas || ''),
+  /* Dokumen yang tidak tinggal di simpanan ini melainkan di tempat lain —
+     folder Google Drive unit, manual di situs pabrikan. Yang tercatat cuma
+     alamatnya, dan `berkas` baris itu kosong. Kedua field tidak pernah terisi
+     bersamaan: satu baris entah berkas, entah tautan. */
+  tautan:   String(b.tautan || '').slice(0, 500),
   nama:     String(b.nama || '').slice(0, 200),
   jenis:    String(b.jenis || '').slice(0, 120),
   ukuran:   Number(b.ukuran) || 0,
@@ -2907,6 +2912,19 @@ app.get('/dokumen/:unit/:id', async (req, res) => {
   const daftar = await bacaJson(DOK_JSON, {});
   const baris = (daftar[unit] || []).find((b) => b.id === req.params.id);
   if (!baris) return res.status(404).json({ error: 'Dokumen tidak ada dalam daftar.' });
+
+  /* Baris tautan tidak menyimpan apa pun di sini, jadi tidak ada yang bisa
+     diserahkan. Layar membuka alamatnya langsung dan tidak pernah sampai ke
+     rute ini; alamatnya tetap ikut dijawab supaya yang menemukannya lewat
+     jalan lain tahu ke mana harus pergi. Sengaja bukan redirect: mengalihkan
+     ke alamat yang datang dari isi daftar menjadikan rute ini pengalih
+     terbuka bagi siapa pun yang boleh menambah dokumen. */
+  if (baris.tautan && !baris.berkas) {
+    return res.status(409).json({
+      error: 'Dokumen ini berupa tautan, bukan berkas yang tersimpan di sini.',
+      tautan: baris.tautan
+    });
+  }
 
   /* Jalurnya dirangkai dari id yang sudah lolos /^[a-f0-9]{16}$/ dan dari
      ekstensi yang sudah lolos daftar putih waktu diunggah, bukan dari apa pun
@@ -3126,11 +3144,115 @@ app.post('/dokumen/:unit', dokumenHidup, badanGaleri, async (req, res) => {
   }
 });
 
+/* =====================================================================
+   TAUTAN — dokumen yang tinggal di tempat lain
+
+   Tidak semua yang perlu tercatat di rak ini pantas disalin ke sini: folder
+   Google Drive unit yang isinya bertambah sendiri, manual pabrikan ratusan
+   megabita, berkas yang memang dikelola bersama di Drive. Untuk hal-hal itu
+   yang dicatat cukup alamatnya, dan tombol "Buka" di barisnya pergi langsung
+   ke sana — bukan ke simpanan dashboard ini.
+
+   Sengaja TIDAK dijaga dokumenHidup. Yang dilarang lingkungan tanpa simpanan
+   permanen adalah menaruh berkas; baris tautan tidak menaruh apa pun selain
+   sebaris di daftar.json, sama seperti keterangan dokumen lainnya. Jadi di
+   lingkungan yang unggahannya mati pun, tautan tetap bisa dicatat.
+
+   Yang boleh menambah sama dengan yang boleh mengunggah — dokPenjagaIsi yang
+   sama, tanpa pengecualian: tautan muncul di rak yang sama dan dibuka orang
+   yang sama.
+   ===================================================================== */
+
+const DOK_TAUTAN_BATAS = 500;
+
+/**
+ * Alamat yang boleh masuk daftar, atau '' kalau tidak.
+ *
+ * http/https saja. Skema lain — javascript:, data:, file: — akan berubah jadi
+ * tombol "Buka" di layar orang lain, dan yang menekannya tidak punya cara tahu
+ * apa yang ada di baliknya. Yang tidak dikenali berhenti di sini, bukan di
+ * layar: layar bisa dilewati, rute ini tidak.
+ */
+function dokTautanSah(x) {
+  const t = String(x || '').trim();
+  if (!t || t.length > DOK_TAUTAN_BATAS) return '';
+  try {
+    const u = new URL(t);
+    return (u.protocol === 'http:' || u.protocol === 'https:') ? u.href : '';
+  } catch {
+    return '';
+  }
+}
+
+/** Nama jatuhan kalau yang menaruh tidak menuliskannya — nama induk alamatnya,
+    supaya tidak ada baris yang tampil tanpa nama sama sekali. */
+function dokNamaTautan(tautan) {
+  try {
+    const h = new URL(tautan).hostname.replace(/^www\./, '');
+    if (/(^|\.)(drive|docs)\.google\.com$/.test(h)) return 'Google Drive';
+    return h;
+  } catch {
+    return 'Tautan';
+  }
+}
+
+app.post('/dokumen/:unit/tautan', badanDinas, async (req, res) => {
+  const unit = String(req.params.unit || '').toLowerCase();
+  const user = await dokPenjagaIsi(req, res, unit);
+  if (!user) return;
+
+  const tautan = dokTautanSah(req.body?.tautan);
+  if (!tautan) {
+    return res.status(400).json({
+      error: 'Tautannya harus alamat http atau https yang utuh — misalnya '
+           + 'https://drive.google.com/drive/folders/…'
+    });
+  }
+
+  const nama = String(req.body?.nama || '').trim().slice(0, 200) || dokNamaTautan(tautan);
+
+  try {
+    const daftar = await bacaJson(DOK_JSON, {});
+    const isiUnit = daftar[unit] || (daftar[unit] = []);
+    const baris = dokBaris({
+      id: crypto.randomBytes(8).toString('hex'),
+      berkas: '',                 // tidak ada apa pun di simpanan untuk baris ini
+      tautan,
+      nama,
+      jenis: '',
+      ukuran: 0,
+      /* Kategori tidak boleh berakhir kosong. Pilihan kategori di barisnya
+         tidak punya pilihan "kosong", jadi baris berkategori '' akan tampil
+         seolah-olah bernilai pilihan pertama — dan sekali disentuh, tersimpan
+         sebagai itu. Berkas yang diunggah selalu ditebak kategorinya di layar;
+         tautan bisa datang tanpa nama sama sekali, jadi jatuhannya di sini. */
+      kategori: String(req.body?.kategori || '').trim() || 'Lainnya',
+      alat: req.body?.alat,
+      isr: req.body?.isr,
+      waktu: new Date().toISOString(),
+      oleh: user.username,
+      olehNama: user.nama || user.username
+    });
+    isiUnit.unshift(baris);       // terbaru di atas, satu urutan dengan berkas
+    await tulisJson(DOK_JSON, daftar);
+
+    await catat(user, { modul: 'dokumen', aksi: 'tautan', unit, rincian: nama + ' — ' + tautan });
+    res.json({ ok: true, baris, jumlah: isiUnit.length });
+  } catch (e) {
+    console.error('[dokumen] gagal menyimpan tautan:', e);
+    res.status(500).json({ error: 'Gagal menyimpan tautan: ' + (e?.message || e) });
+  }
+});
+
 /**
  * Ganti kategori atau kaitan peralatannya. Berkasnya sendiri tidak tersentuh,
  * jadi ini masih "mengisi", bukan "menghapus" — haknya pun hak mengisi.
  */
-app.patch('/dokumen/:unit/:id', dokumenHidup, badanGaleri, async (req, res) => {
+/* Tidak dijaga dokumenHidup, tidak seperti rute unggah: yang diubah di sini
+   cuma keterangannya di daftar.json, dan tak satu byte pun berpindah ke atau
+   dari simpanan biner. Baris tautan yang dicatat di lingkungan tanpa simpanan
+   permanen tetap bisa dirapikan kategorinya di sana. */
+app.patch('/dokumen/:unit/:id', badanGaleri, async (req, res) => {
   const unit = String(req.params.unit || '').toLowerCase();
   if (!unitSah(unit) || !dokIdSah(req.params.id)) {
     return res.status(400).json({ error: 'Permintaan tidak sah.' });
@@ -3171,7 +3293,11 @@ app.patch('/dokumen/:unit/:id', dokumenHidup, badanGaleri, async (req, res) => {
 
 /** Keluarkan satu dokumen. Berkasnya ikut dihapus dari disk — daftar yang
     kosong sementara berkasnya menumpuk cuma menyisakan sampah tak terlihat. */
-app.delete('/dokumen/:unit/:id', dokumenHidup, async (req, res) => {
+/* Penjaga lingkungannya pindah ke dalam, sesudah barisnya diketahui: baris
+   tautan tidak punya berkas untuk dihapus, jadi menolaknya di lingkungan tanpa
+   simpanan permanen berarti tautan yang boleh masuk ke sana tidak akan pernah
+   bisa keluar lagi. */
+app.delete('/dokumen/:unit/:id', async (req, res) => {
   const unit = String(req.params.unit || '').toLowerCase();
   if (!unitSah(unit) || !dokIdSah(req.params.id)) {
     return res.status(400).json({ error: 'Permintaan tidak sah.' });
@@ -3192,9 +3318,17 @@ app.delete('/dokumen/:unit/:id', dokumenHidup, async (req, res) => {
     const baris = isiUnit.find((b) => b.id === req.params.id);
     if (!baris) return res.status(404).json({ error: 'Dokumen tidak ada dalam daftar.' });
 
+    if (baris.berkas && !DOK_TULIS) {
+      return res.status(503).json({
+        error: 'Berkas tidak bisa dihapus di lingkungan ini: simpanannya tidak terjangkau.'
+      });
+    }
+
     daftar[unit] = isiUnit.filter((b) => b.id !== baris.id);
     await tulisJson(DOK_JSON, daftar);
-    await hapusBiner(path.join(DOK_DIR, unit, baris.berkas));
+    // Baris tautan tidak punya berkas di simpanan — yang di seberang sana
+    // (Drive, situs pabrikan) bukan milik dashboard ini dan tidak disentuh.
+    if (baris.berkas) await hapusBiner(path.join(DOK_DIR, unit, baris.berkas));
 
     await catat(user, { modul: 'dokumen', aksi: 'hapus', unit, rincian: baris.nama });
     res.json({ ok: true });
