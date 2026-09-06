@@ -1,0 +1,5 @@
+# Skrip batch Windows harus ber-CRLF di semua komputer — cmd.exe salah
+# membaca berkas .cmd yang cuma ber-LF (baris terpotong di tengah kata),
+# dan itu tidak tergantung setelan core.autocrlf masing-masing PC.
+*.cmd text eol=crlf
+*.bat text eol=crlf

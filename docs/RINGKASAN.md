@@ -298,6 +298,32 @@ ditambahkan lewat commit-commit terbaru dan sebagian belum ter-commit:
   Teknik — jalurnya `updateDsTest` yang baru (db.js + db-pg.js + server.js),
   dan berlaku untuk seluruh form yang menumpang tabel `dstest`.
 
+## 8b. Daftar cek setiap menambah form / modal baru di E-Logbook
+
+Tiap butir pernah menimbulkan bug nyata (6 September 2026); jalankan sebelum
+menyatakan form baru selesai — di PC mana pun, karena catatan ini ikut repo.
+
+1. Daftarkan id `<select>` akun TTD ke `AKUN_TTD_SELECT_ID` di
+   `js/20-ttd-pejabat.js`. Kalau terlewat, pilihannya cuma "Otomatis" dan nama
+   officer tidak muncul.
+2. Kamus bahasa di `js/02-bahasa.js` ada **tiga**: `id`, `en`, `es` — setiap
+   kunci baru harus ada di ketiganya (Bagian 9 di bawah menyebut dua; yang
+   berlaku tiga).
+3. Setiap `<input>/<textarea>/<select>` diwarnai sendiri
+   (`background:var(--panel-2); border:1px solid var(--line); color:var(--text)`).
+   Bawaan peramban putih dan terlihat bercak di tema gelap.
+4. Halaman cetak jangan membawa kelas tabel layar (berlatar gelap) — pakai
+   `.p-kepala` + gaya inline. Orientasi ikut `<pageSetup>` Excel aslinya.
+5. Form yang menumpang tabel `dstest` didaftarkan di empat tempat:
+   `isKhusus`/`kategori` di `insertDsTest` (db.js + db-pg.js), `DS_PENUMPANG`
+   di `js/17-ds-test.js`, `subtabDstest` dan `segarkanSemuaDaftarDstest` di
+   `js/20-ttd-pejabat.js`.
+6. `index.html`, `db.js`, `db-pg.js`, `02-bahasa.js` ber-CRLF — anchor untuk
+   patch otomatis harus memakai `
+`.
+7. Perubahan `db.js` / `db-pg.js` / `server.js` butuh restart `npm start`;
+   aset JS di-cache peramban 1 jam (`max-age=3600`).
+
 ## 9. Ketentuan kerja yang berlaku di seluruh proyek
 
 Dari `docs/rencana/2026-08-17-tujuh-permintaan.md` ("Ketentuan yang berlaku
