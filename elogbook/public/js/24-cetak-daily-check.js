@@ -246,9 +246,127 @@ function buildDcPgmPrintHtml(r, state){
     </table>`;
 }
 
+/** Halaman cetak daily check Gedung & Keamanan — dua lembar (New JATSC /
+    JATSC) yang dipilih dari __fgkForm. Sama pola dengan Pengamatan:
+    kepala judul, tiga kolom meta, tabel baca-saja, legenda NB, keterangan
+    opsional, lalu blok TTD teknisi & manager. Legendanya memakai istilah
+    lembar ini (Baik / Perlu Perhatian / Rusak), bukan Normal/Alarm/Gangguan. */
+function buildDcFgkPrintHtml(r, state){
+  const form = (state && state.__fgkForm === 'jatsc') ? 'jatsc' : 'toilet';
+  const sub = (typeof DC_FGK_SUBJUDUL !== 'undefined' && DC_FGK_SUBJUDUL[form]) || '';
+  // Lokasi IKUT lembarnya — kedua lembar milik gedung yang berbeda, jadi tidak
+  // boleh dipatok 'JATSC' seperti cetakan unit lain yang cuma punya satu gedung.
+  const lokasi = (typeof DC_FGK_LABEL !== 'undefined' && DC_FGK_LABEL[form]) || 'New JATSC';
+  return `
+    <style>
+      /* Rapatkan sel khusus lembar gedung & keamanan supaya muat satu halaman.
+         .pgm-print = lembar New JATSC (dialirkan ke kolom), .fgk-cetak =
+         lembar JATSC (seksi A lebar penuh, B & C berdampingan). */
+      #printArea .pgm-print td, #printArea .fgk-cetak td{padding:0 3px;line-height:1.1;}
+      #printArea .pgm-print .p-kepala td, #printArea .fgk-cetak .p-kepala td{font-size:6pt;}
+      #printArea .fgk-cetak .fgk-sel{display:block;}
+    </style>
+    <div style="text-align:center;font-weight:bold;font-size:12pt;margin-bottom:2px;">
+      PENGECEKAN HARIAN FASILITAS GEDUNG DAN KEAMANAN
+    </div>
+    <div style="text-align:center;font-weight:bold;font-size:10pt;margin-bottom:8px;">
+      ${escapeHtml(sub)}
+    </div>
+    <table class="no-border" style="font-size:9pt;margin-bottom:8px;">
+      <tr>
+        <td style="width:33%;">LOKASI : ${escapeHtml(lokasi.toUpperCase())}</td>
+        <td style="width:33%;">DINAS : ${escapeHtml(r.dinas)||'________'}</td>
+        <td>HARI/TANGGAL : ${escapeHtml(r.tanggal)||'________'}</td>
+      </tr>
+    </table>
+
+    ${dcFgkTabelBaca(form, state, true)}
+
+    <div style="font-size:8.5pt;margin-top:6px;">
+      <b>NB :</b> ✓ : Baik &nbsp;&nbsp; ! : Perlu Perhatian &nbsp;&nbsp; ✕ : Rusak / Tidak Berfungsi
+    </div>
+    ${r.remark ? `<div style="font-size:8.5pt;margin-top:4px;"><b>KETERANGAN :</b> ${escapeHtml(r.remark).replace(/\n/g,'<br>')}</div>` : ''}
+
+    <table class="no-border" style="font-size:9pt;margin-top:14px;">
+      <tr>
+        <td style="width:55%;text-align:left;vertical-align:top;">
+          <div style="margin-bottom:6px;">PETUGAS :</div>
+          ${teknisiPrintBlock(r)}
+        </td>
+        <td style="text-align:center;vertical-align:top;">
+          <div>Mengetahui,</div>
+          <div style="margin-bottom:4px;">Manager Teknik</div>
+          <div style="height:46px;">${ttdImg(r.managerTtd, 40)}</div>
+          <div style="border-top:1px solid #000;display:inline-block;padding:0 24px;">
+            ${r.managerTtd ? (escapeHtml(r.managerNama) || '&nbsp;') : '&nbsp;'}
+          </div>
+        </td>
+      </tr>
+    </table>`;
+}
+
+/** Halaman cetak daily check Listrik & Mekanik — empat lembar (STS / MDS /
+    Beban Listrik / UPS) yang dipilih dari __lkForm. Judul kepalanya memakai
+    judul lembar aslinya apa adanya, dengan baris kedua nama bandara — persis
+    dua baris kepala di berkas Excel-nya.
+
+    Tanpa legenda ✓/!/✕: lembar ini isinya angka ukur. Satu-satunya sandi yang
+    perlu diterangkan ada di kolom KONDISI, dan itu pun sudah dicetak sebagai
+    kata penuh (ON / STANDBY / OFF), bukan simbol.
+
+    PORTRAIT, mengikuti keempat sheet di berkas aslinya (A4, orientation
+    portrait, diperkecil 64–95%). Lembarnya memang lebar — MDS enam belas
+    kolom — jadi hurufnya dikecilkan dan lebar kolom angka dibagi rata
+    (lkColgroupCetak di 12g) supaya tetap muat selebar kertas berdiri. */
+function buildDcLkPrintHtml(r, state){
+  const form = (typeof lkFormTersimpan === 'function') ? lkFormTersimpan(state) : 'sts';
+  const judul = (typeof DC_LK_SUBJUDUL !== 'undefined' && DC_LK_SUBJUDUL[form]) || 'PENGECEKAN HARIAN';
+  return `
+    <style>
+      /* Rapatkan sel supaya lembar yang tinggi (STS 40-an baris) tetap muat. */
+      #printArea .lk-print td{padding:0 3px;line-height:1.15;}
+    </style>
+    <div style="text-align:center;font-weight:bold;font-size:12pt;margin-bottom:2px;">
+      ${escapeHtml(judul)}
+    </div>
+    <div style="text-align:center;font-weight:bold;font-size:10pt;margin-bottom:8px;">
+      BANDARA INTERNASIONAL SOEKARNO — HATTA
+    </div>
+    <table class="no-border" style="font-size:9pt;margin-bottom:8px;">
+      <tr>
+        <td style="width:33%;">LEMBAR : ${escapeHtml(((typeof DC_LK_LABEL !== 'undefined' && DC_LK_LABEL[form]) || 'STS').toUpperCase())}</td>
+        <td style="width:33%;">DINAS : ${escapeHtml(r.dinas)||'________'}</td>
+        <td>HARI/TANGGAL : ${escapeHtml(r.tanggal)||'________'}</td>
+      </tr>
+    </table>
+
+    ${dcLkTabelBaca(form, state, true)}
+
+    ${r.remark ? `<div style="font-size:8.5pt;margin-top:4px;"><b>CATATAN :</b> ${escapeHtml(r.remark).replace(/\n/g,'<br>')}</div>` : ''}
+
+    <table class="no-border" style="font-size:9pt;margin-top:14px;">
+      <tr>
+        <td style="width:55%;text-align:left;vertical-align:top;">
+          <div style="margin-bottom:6px;">PELAKSANA TEKNISI :</div>
+          ${teknisiPrintBlock(r)}
+        </td>
+        <td style="text-align:center;vertical-align:top;">
+          <div>Mengetahui,</div>
+          <div style="margin-bottom:4px;">Manager Teknik</div>
+          <div style="height:46px;">${ttdImg(r.managerTtd, 40)}</div>
+          <div style="border-top:1px solid #000;display:inline-block;padding:0 24px;">
+            ${r.managerTtd ? (escapeHtml(r.managerNama) || '&nbsp;') : '&nbsp;'}
+          </div>
+        </td>
+      </tr>
+    </table>`;
+}
+
 function buildDcPrintHtml(r, state){
   if(state && state.__format === 'amhs') return buildDcAmhsPrintHtml(r, state);
   if(state && state.__format === 'pengamatan') return buildDcPgmPrintHtml(r, state);
+  if(state && state.__format === 'fgk') return buildDcFgkPrintHtml(r, state);
+  if(state && state.__format === 'listrik') return buildDcLkPrintHtml(r, state);
   if(dcRadkomAktif()) return buildDcRkPrintHtml(r, state);
   if(state && state.__lokasi === 'navigasi') return buildDcNavPrintHtml(r, state);
   if(state && state.__lokasi === 'jatsc') return buildDcJatscPrintHtml(r, state);
@@ -318,21 +436,26 @@ function printCurrentDailyCheck(){
   const jatsc = dcRadtelJatscAktif();
   const nav   = (typeof dcNavAktif === 'function') && dcNavAktif();
   const pgm   = (typeof dcPengamatanAktif === 'function') && dcPengamatanAktif();
+  const fgk   = (typeof dcGedungKeamananAktif === 'function') && dcGedungKeamananAktif();
+  const lk    = (typeof dcListrikAktif === 'function') && dcListrikAktif();
   const r = {
     tanggal: tanggalDcTersimpan(),
     dinas: document.getElementById('dcDinas').value,
-    suhu: (jatsc || nav || pgm) ? '' : document.getElementById('dcSuhu').value.trim(),
+    suhu: (jatsc || nav || pgm || fgk || lk) ? '' : document.getElementById('dcSuhu').value.trim(),
     remark: document.getElementById('dcRemark').value.trim(),
     teknisiNamaList: collectTeknisiNama(),
     teknisiTtd: getSigDataUrl('sigDcTeknisi'),
     managerNama: document.getElementById('dcManagerNama').value.trim()
   };
   const state = pgm   ? { ...dcPgmState[dcPgmForm], __format:'pengamatan', __pgmForm:dcPgmForm }
+              : fgk   ? { ...dcFgkState[dcFgkForm], __format:'fgk', __fgkForm:dcFgkForm }
+              : lk    ? { ...dcLkState[dcLkForm], __format:'listrik', __lkForm:dcLkForm }
               : nav   ? { ...dcNState, __lokasi:'navigasi' }
               : jatsc ? { ...dcJState, __lokasi:'jatsc' }
                       : dcState;
-  // Pengamatan mengikuti lembar Excel-nya yang portrait; unit lain landscape.
-  doPrint(buildDcPrintHtml(r, state), pgm ? 'portrait' : 'landscape');
+  // Pengamatan, Gedung & Keamanan, dan Listrik & Mekanik mengikuti lembar
+  // Excel-nya yang portrait; unit lain landscape.
+  doPrint(buildDcPrintHtml(r, state), (pgm || fgk || lk) ? 'portrait' : 'landscape');
 }
 
 /** Cetak daily check yang sudah tersimpan di database. Detailnya dulu diambil
@@ -354,8 +477,11 @@ async function printSavedDailyCheck(id){
     const fmt = (detail.state || {}).__format;
     const isAmhs = fmt === 'amhs';
     const isPgm  = fmt === 'pengamatan';
+    const isFgk  = fmt === 'fgk';
+    const isLk   = fmt === 'listrik';
     if(!isAmhs && !tolakCetakBilaBelumTtd(rPrint, 'dc')) return;
-    // AMHS & Pengamatan mengikuti lembar aslinya yang portrait; sisanya landscape.
-    doPrint(buildDcPrintHtml(rPrint, detail.state || {}), (isAmhs || isPgm) ? 'portrait' : 'landscape');
+    // AMHS, Pengamatan, Gedung-Keamanan, & Listrik-Mekanik mengikuti lembar
+    // aslinya yang portrait; sisanya landscape.
+    doPrint(buildDcPrintHtml(rPrint, detail.state || {}), (isAmhs || isPgm || isFgk || isLk) ? 'portrait' : 'landscape');
   }catch(e){ toast('Gagal mengambil detail daily check.'); }
 }

@@ -185,7 +185,16 @@ const TABEL_SUSULAN = [
      dibuat_pada        TEXT NOT NULL,
      dibuat_oleh        TEXT NOT NULL DEFAULT ''
    )`,
-  'CREATE INDEX IF NOT EXISTS idx_bapb_unit ON bapb(unit, tanggal)'
+  'CREATE INDEX IF NOT EXISTS idx_bapb_unit ON bapb(unit, tanggal)',
+  /* Tautan notifikasi Telegram — sepadan dengan CREATE TABLE telegram_akun di
+     db.js. username disimpan lowercase oleh pemanggil supaya cocok lintas kasus. */
+  `CREATE TABLE IF NOT EXISTS telegram_akun (
+     username       TEXT PRIMARY KEY,
+     chat_id        TEXT NOT NULL DEFAULT '',
+     tautan_token   TEXT NOT NULL DEFAULT '',
+     ditautkan_pada TEXT NOT NULL DEFAULT '',
+     dibuat_pada    TEXT NOT NULL DEFAULT ''
+   )`
 ];
 for (const sql of TABEL_SUSULAN) {
   try {
@@ -920,9 +929,12 @@ export const UNIT = [
     pakaiFrek: false,
     labelUraian: 'Uraian Pekerjaan / Kejadian',
     labelPj: 'Manager Teknik',
-    // Formulir khusus unit ini menunggu form aslinya. Sampai itu ada, yang
-    // tersedia baru Logbook Fasilitas, Isu, dan LTK yang memang berlaku umum.
-    adaDailyCheck: false,
+    // Daily Check punya form-nya sendiri: empat lembar (STS, MDS No Break,
+    // Beban Listrik, dan UPS Beban Utama Operasional) yang dipilih lewat
+    // sub-tab — lihat js/12g-daily-check-listrik.js. Monitoring, DS Test, dan
+    // berkala belum berlaku di unit ini.
+    adaDailyCheck: true,
+    dcJudul: 'Daily Check Fasilitas Listrik & Mekanik — STS · MDS · Beban Listrik · UPS',
     adaMonitoring: false,
     adaDsTest: false,
     adaBerkala: false,
@@ -943,9 +955,13 @@ export const UNIT = [
     pakaiFrek: false,
     labelUraian: 'Uraian Pekerjaan / Kejadian',
     labelPj: 'Manager Teknik',
-    // Formulir khusus unit ini menunggu form aslinya. Sampai itu ada, yang
-    // tersedia baru Logbook Fasilitas, Isu, dan LTK yang memang berlaku umum.
-    adaDailyCheck: false,
+    // Daily Check punya form-nya sendiri: dua lembar (Toilet & Mushalla di New
+    // JATSC, dan Pengecekan Harian JATSC untuk lift / server CCTV / sistem
+    // pengendali jalan masuk) yang dipilih lewat sub-tab — lihat
+    // js/12f-daily-check-fgk.js. Monitoring, DS Test, dan berkala belum
+    // berlaku di unit ini.
+    adaDailyCheck: true,
+    dcJudul: 'Daily Check Fasilitas Gedung & Keamanan — New JATSC · JATSC',
     adaMonitoring: false,
     adaDsTest: false,
     adaBerkala: false,
@@ -1858,6 +1874,9 @@ const rowToDsTest = (r, extra = {}) => ({
   TeknisiNamaListJSON: parseJson(r.teknisi_nama_list, []),
   TeknisiTTD: r.teknisi_ttd,
   DiinputOleh: extra.diinputOleh ?? (r.dibuat_oleh || ''),
+  // Username pembuatnya dibawa apa adanya supaya tombol Sunting bisa
+  // muncul hanya untuk yang berhak — sama pola dengan logbook & daily check.
+  DibuatOlehUsername: r.dibuat_oleh || '',
   DibuatPada: r.dibuat_pada || '',
   TtdOleh: extra.ttdOleh ?? (r.ttd_oleh || ''), TtdPada: r.ttd_pada || '', TtdUntuk: r.ttd_untuk || ''
 });
@@ -1876,15 +1895,22 @@ export async function listDsTest(unit = 'radtel', limit = 200) {
 
 export async function insertDsTest(rec = {}, olehUsername = '', olehNama = '') {
   const namaList = Array.isArray(rec.teknisiNamaList) ? rec.teknisiNamaList : [];
-  // Maintenance Radio (state.__format === 'radio'), Weekly Check Pengamatan
-  // (state.__format === 'pgmweekly'), dan Ground Check LLZ (state.__format ===
-  // 'llzgc') menumpang tabel ini. Ketiganya tak punya entri DS_SITE — daftar
-  // item/lembarnya ada di peramban (17c/17d/17e) — jadi pemeriksaan site dilewati.
+  // Lima jenis lembar menumpang tabel ini, dibedakan lewat state.__format:
+  //   'radio'        Maintenance Radio            (17c)
+  //   'pgmweekly'    Weekly Check Pengamatan      (17d)
+  //   'llzgc'        Ground Check LLZ             (17e)
+  //   'mrreading'    Meter Reading ILS            (17f)
+  //   'maintlistrik' Pemeliharaan Listrik & Mekanik (17g)
+  // Kelimanya tak punya entri DS_SITE — daftar item/lembarnya ada di peramban
+  // — jadi pemeriksaan site dilewati.
   const fmt = rec.state && rec.state.__format;
-  const isKhusus = fmt === 'radio' || fmt === 'pgmweekly' || fmt === 'llzgc';
+  const isKhusus = fmt === 'radio' || fmt === 'pgmweekly' || fmt === 'llzgc' || fmt === 'mrreading' ||
+                   fmt === 'maintlistrik';
   const kategori = fmt === 'radio' ? 'radio'
                  : fmt === 'pgmweekly' ? 'pgmweekly'
                  : fmt === 'llzgc' ? 'llzgc'
+                 : fmt === 'mrreading' ? 'mrreading'
+                 : fmt === 'maintlistrik' ? 'maintlistrik'
                  : (kategoriDsSah(rec.kategori) ? rec.kategori : 'domestik');
   if (!isKhusus && dsSiteUntuk(kategori).length === 0) {
     throw new Error('Daftar site untuk kategori ' + kategori + ' belum diisi.');
@@ -1912,6 +1938,56 @@ export async function insertDsTest(rec = {}, olehUsername = '', olehNama = '') {
      row.dibuat_pada, olehUsername]
   );
   return rowToDsTest(row, { diinputOleh: olehNama || olehUsername });
+}
+
+/**
+ * Sunting lembar dstest yang sudah tersimpan (DS Test dan semua form preventive
+ * yang menumpang tabel ini). Aturannya sama dengan updateDailyCheck:
+ *   · sudah ditandatangani manager teknik → terkunci, tidak bisa disunting;
+ *   · selain administrator, hanya pembuat catatan yang boleh menyuntingnya.
+ * Yang boleh diubah: tanggal, isi lembar (state), daftar & TTD teknisi, nama
+ * manager, dan akun tujuan TTD. Unit dan kategori TIDAK diubah — jenis lembar
+ * itu identitas catatannya, bukan isian.
+ *
+ * TTD teknisi hanya diganti kalau kirimannya URL data baru; kosong berarti
+ * "tidak menyunting TTD", bukan "hapus TTD".
+ */
+export async function updateDsTest(id, patch = {}, actor = {}) {
+  const row = await q1('SELECT * FROM dstest WHERE id = $1', [String(id)]);
+  if (!row) throw new Error('Catatan tidak ditemukan — mungkin sudah dihapus.');
+  if (row.manager_ttd) throw new Error('Catatan ini sudah ditandatangani manager teknik — tidak bisa disunting lagi.');
+  if (!actor.admin && row.dibuat_oleh && row.dibuat_oleh !== actor.username) {
+    throw new Error('Hanya pembuat catatan ini yang bisa menyuntingnya.');
+  }
+
+  const tanggal = patch.tanggal !== undefined ? String(patch.tanggal || '') : row.tanggal;
+  if (!tanggal) throw new Error('Tanggal tidak boleh kosong.');
+  const managerNama = patch.managerNama !== undefined ? String(patch.managerNama || '') : row.manager_nama;
+  const teknisiNamaList = Array.isArray(patch.teknisiNamaList) ? patch.teknisiNamaList : null;
+  const teknisiNama = teknisiNamaList ? teknisiNamaList.join(', ') : row.teknisi_nama;
+  const teknisi_nama_list = teknisiNamaList ? JSON.stringify(teknisiNamaList) : row.teknisi_nama_list;
+
+  let teknisi_ttd = row.teknisi_ttd;
+  if (patch.teknisiTtd !== undefined && patch.teknisiTtd !== null && String(patch.teknisiTtd).startsWith('data:')) {
+    if (row.teknisi_ttd) await hapusBerkas(row.teknisi_ttd);
+    teknisi_ttd = await saveSignature(patch.teknisiTtd, 'dstest_teknisi');
+  }
+  const state_json = patch.state !== undefined ? JSON.stringify(patch.state || {}) : row.state_json;
+  const ttd_untuk = patch.ttdUntuk !== undefined ? String(patch.ttdUntuk || '') : row.ttd_untuk;
+
+  await jalankan(`UPDATE dstest SET tanggal = $1, state_json = $2, teknisi_nama = $3,
+                                    teknisi_nama_list = $4, teknisi_ttd = $5, manager_nama = $6,
+                                    ttd_untuk = $7
+                              WHERE id = $8`,
+    [tanggal, state_json, teknisiNama, teknisi_nama_list, teknisi_ttd, managerNama, ttd_untuk, String(id)]);
+
+  const nama = await petaNamaPengguna();
+  const rowBaru = { ...row, tanggal, state_json, teknisi_nama: teknisiNama, teknisi_nama_list,
+                    teknisi_ttd, manager_nama: managerNama, ttd_untuk };
+  return rowToDsTest(rowBaru, {
+    diinputOleh: namaTampil(nama, row.dibuat_oleh),
+    ttdOleh: namaTampil(nama, row.ttd_oleh)
+  });
 }
 
 export async function removeDsTest(id) {
@@ -2268,7 +2344,9 @@ export async function tandaTanganiCatatan(jenis, id, { nama, username, role, ttd
   if (!jenisTtdSah(jenis)) throw new Error('Jenis catatan tidak dikenal: ' + jenis);
   const t = JENIS_TTD[jenis];
   const row = await q1(
-    `SELECT ${t.nama} AS nama, ${t.ttd} AS ttd, ttd_untuk FROM ${t.tabel} WHERE id = $1`, [String(id)]
+    `SELECT ${t.nama} AS nama, ${t.ttd} AS ttd, ttd_untuk,
+            dibuat_oleh, ${t.tglKolom} AS tanggal
+       FROM ${t.tabel} WHERE id = $1`, [String(id)]
   );
   if (!row) throw new Error('Catatan tidak ditemukan — mungkin sudah dihapus.');
   if (row.ttd) throw new Error('Catatan ini sudah ditandatangani.');
@@ -2290,7 +2368,9 @@ export async function tandaTanganiCatatan(jenis, id, { nama, username, role, ttd
   );
   return {
     jenis, id: String(id), nama: namaTetap, ttd: path,
-    ttdOleh: String(nama || username || ''), ttdPada: pada
+    ttdOleh: String(nama || username || ''), ttdPada: pada,
+    // Untuk notifikasi balik ke pembuat/pelaksana — lihat server.js.
+    dibuatOleh: String(row.dibuat_oleh || ''), tanggal: String(row.tanggal || '')
   };
 }
 
@@ -2391,4 +2471,62 @@ export async function getInboxTtd(username) {
     jenis: r.jenis, id: r.id, unit: r.unit || '', nama: r.nama || '',
     tanggal: r.tanggal || '', label: JENIS_TTD[r.jenis].label, dibuatPada: r.dibuat_pada
   }));
+}
+
+/* ============== TAUTAN TELEGRAM ==============
+ * Cermin Postgres dari fungsi senama di db.js — lihat catatan lengkap di sana.
+ * Postgres TEXT peka huruf besar/kecil, jadi username dinormalkan lowercase di
+ * sini (SQLite memakai COLLATE NOCASE) agar cocok lintas penulisan kasus. */
+
+const tgUser = (u) => String(u || '').trim().toLowerCase();
+
+export async function buatTautanTelegram(username) {
+  const u = tgUser(username);
+  if (!u) throw new Error('Akun tidak dikenal.');
+  const token = crypto.randomBytes(24).toString('base64url');
+  await jalankan(
+    `INSERT INTO telegram_akun (username, chat_id, tautan_token, ditautkan_pada, dibuat_pada)
+     VALUES ($1, '', $2, '', $3)
+     ON CONFLICT (username) DO UPDATE SET tautan_token = EXCLUDED.tautan_token`,
+    [u, token, nowIso()]
+  );
+  return token;
+}
+
+export async function tautkanTelegram(token, chatId) {
+  const t = String(token || '').trim();
+  const c = String(chatId || '').trim();
+  if (!t || !c) return null;
+  const row = await q1(
+    `SELECT username FROM telegram_akun WHERE tautan_token = $1 AND tautan_token <> ''`, [t]
+  );
+  if (!row) return null;
+  await jalankan("UPDATE telegram_akun SET chat_id = '' WHERE chat_id = $1 AND username <> $2",
+    [c, row.username]);
+  await jalankan(
+    `UPDATE telegram_akun SET chat_id = $1, tautan_token = '', ditautkan_pada = $2 WHERE username = $3`,
+    [c, nowIso(), row.username]
+  );
+  const usr = await q1('SELECT nama FROM users WHERE lower(username) = $1', [row.username]);
+  return { username: row.username, nama: (usr && usr.nama) || row.username };
+}
+
+export async function getChatIdTelegram(username) {
+  const u = tgUser(username);
+  if (!u) return '';
+  const row = await q1('SELECT chat_id FROM telegram_akun WHERE username = $1', [u]);
+  return (row && row.chat_id) || '';
+}
+
+export async function putusTautanTelegram(username) {
+  const u = tgUser(username);
+  if (u) await jalankan("UPDATE telegram_akun SET chat_id = '', tautan_token = '' WHERE username = $1", [u]);
+  return { tertaut: false };
+}
+
+export async function statusTautanTelegram(username) {
+  const u = tgUser(username);
+  if (!u) return { tertaut: false, ditautkanPada: '' };
+  const row = await q1('SELECT chat_id, ditautkan_pada FROM telegram_akun WHERE username = $1', [u]);
+  return { tertaut: !!(row && row.chat_id), ditautkanPada: (row && row.ditautkan_pada) || '' };
 }

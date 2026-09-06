@@ -216,7 +216,7 @@ async function simpanRuteTtd(){
     if(kind === 'dc' && typeof renderDcHistory === 'function') renderDcHistory();
     if(kind === 'ltk' && typeof renderLtkList === 'function') renderLtkList();
     if(kind === 'berkala' && typeof renderBerkalaList === 'function') renderBerkalaList();
-    if(kind === 'dstest' && typeof renderDsList === 'function') renderDsList();
+    if(kind === 'dstest') segarkanSemuaDaftarDstest();
     if(kind === 'bapb' && typeof renderBapbList === 'function') renderBapbList();
   }catch(e){
     toast('Gagal menyimpan rute TTD — ' + (e.message || 'coba lagi.'));
@@ -277,6 +277,17 @@ function closeTtdModal(){
  * Setelah server menyimpan, catatan di memori ikut diperbarui lalu daftarnya
  * digambar ulang — tanpa memuat ulang seluruh data dari server.
  */
+/** Semua daftar yang membaca dsList — DS Test, Maintenance Radio, Weekly Check
+    Pengamatan, Ground Check LLZ, Meter Reading, dan Pemeliharaan Listrik.
+    Tiap daftar menyaring jenisnya sendiri, jadi menyegarkan semuanya aman;
+    yang tidak ada di halaman (unit lain) cukup dilewati. */
+function segarkanSemuaDaftarDstest(){
+  ['renderDsList','renderRadioList','renderSemuaWkList','renderSemuaLlzList',
+   'renderSemuaMrList','renderSemuaMlList'].forEach(nama=>{
+    if(typeof window[nama] === 'function') window[nama]();
+  });
+}
+
 /* r.nama datang dari server: nama pada formulir apa adanya, hanya terisi
    sendiri kalau tadinya memang kosong. */
 const TTD_TERAP = {
@@ -298,10 +309,10 @@ const TTD_TERAP = {
   dstest: (r)=>{
     const d = dsList.find(x=>x.id===r.id);
     if(d){ d.managerNama = r.nama; d.managerTtd = r.ttd; d.ttdOleh = r.ttdOleh; d.ttdPada = r.ttdPada; }
-    // Catatan radio berbagi kind 'dstest'; segarkan kedua daftar biar yang
-    // mana pun jenisnya langsung memantulkan TTD baru.
-    renderDsList();
-    if(typeof renderRadioList === 'function') renderRadioList();
+    // Lima jenis lembar berbagi kind 'dstest' (radio, weekly check, ground
+    // check, meter reading, pemeliharaan listrik); segarkan semua daftarnya
+    // biar yang mana pun jenisnya langsung memantulkan TTD baru.
+    segarkanSemuaDaftarDstest();
   },
   berkala: (r)=>{
     const b = berkalaList.find(x=>x.id===r.id);
@@ -387,7 +398,10 @@ function tutupSemuaDetail(){
    sama seperti sebelum fitur ini ada: sekadar tidak ada yang diberi tahu. */
 
 /** Tiap <select> pilihan akun TTD susulan, satu per formulir yang punya isian nama pejabat. */
-const AKUN_TTD_SELECT_ID = ['fePjAkun','dcManagerAkun','dcAmhsAkun_amhs','dcAmhsAkun_aadps','dcAmhsAkun_datis','monOpsAkun','dsManagerAkun','radioManagerAkun','wkManagerAkun','llzManagerAkun','bkManagerAkun','ltkManagerAkun','bapbTeknikAkun'];
+/* Daftar ini HARUS ditambah setiap kali ada modal baru ber-<select> akun —
+   kalau terlewat, pilihannya cuma "Otomatis" dan nama pejabat tidak muncul
+   (itu yang terjadi pada mlManagerAkun sebelum masuk daftar ini). */
+const AKUN_TTD_SELECT_ID = ['fePjAkun','dcManagerAkun','dcAmhsAkun_amhs','dcAmhsAkun_aadps','dcAmhsAkun_datis','monOpsAkun','dsManagerAkun','radioManagerAkun','wkManagerAkun','llzManagerAkun','mrManagerAkun','mlManagerAkun','bkManagerAkun','ltkManagerAkun','bapbTeknikAkun'];
 
 /** Isi <datalist> saran nama akun dan tiap <select> pilihan akun eksplisit —
     dipanggil sekali saat data dimuat. */
@@ -447,6 +461,7 @@ const INBOX_TAB = { logbook:'logbook', dailycheck:'dailycheck', monitoring:'moni
 
 /** Tab yang harus dibuka untuk satu baris kotak masuk. */
 function tabInbox(jenis, id){
+  if(jenis === 'dstest') return subtabDstest(id);
   if(jenis !== 'berkala') return INBOX_TAB[jenis];
   const b = berkalaList.find(x=>x.id===id);
   return BK_TAB[b ? b.jenis : 'neptuno'] || 'bk-neptuno';
@@ -455,7 +470,27 @@ function tabInbox(jenis, id){
 /* LTK dan BAPB duduk sebagai sub-tab di dalam satu tab wadah "FORM".
    pilihTab hanya mengenal tab tingkat-atas, jadi keduanya butuh dua langkah:
    buka tab wadahnya dulu, baru klik sub-tabnya. */
-const INBOX_SUBTAB = { ltk:'form', bapb:'form' };
+/* DS Test & berkala pun sub-tab — di dalam wadah "PREVENTIVE MAINTENANCE".
+   Dulu keduanya diserahkan ke pilihTab dengan nama sub-tabnya dan tidak ada
+   tombol tingkat-atas yang cocok, jadi kotak masuk membuka detailnya di atas
+   tab yang kebetulan sedang aktif. */
+const INBOX_SUBTAB = { ltk:'form', bapb:'form', dstest:'preventive', berkala:'preventive' };
+
+/* Lembar-lembar yang menumpang kind 'dstest' masing-masing punya sub-tabnya
+   sendiri; yang berlembar banyak (weekly check, pemeliharaan listrik) juga
+   menyimpan lembarnya di state, jadi sub-tab tujuannya bisa ditunjuk persis. */
+function subtabDstest(id){
+  const d = (typeof dsList !== 'undefined' ? dsList : []).find(x=>x.id===id);
+  const st = (d && d.state) || {};
+  switch(st.__format){
+    case 'radio':        return 'radio';
+    case 'pgmweekly':    return 'wk-' + (st.__wForm || 'ckg3');
+    case 'llzgc':        return 'gcheck';
+    case 'mrreading':    return 'meter';
+    case 'maintlistrik': return 'ml-' + (st.__mlForm || 'paneldist');
+    default:             return 'dstest';
+  }
+}
 function bukaTabInbox(jenis, id){
   const wadah = INBOX_SUBTAB[jenis];
   if(wadah){

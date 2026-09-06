@@ -123,12 +123,33 @@ function dsAmbilState(state, s){
     dibiarkan seperti aslinya supaya cetakan lama tidak berubah bentuk. */
 const dsFormatBaru = (state) => !!(state && state.__format === 'sampling');
 
+/* Lembar-lembar lain yang menumpang tabel/kind 'dstest' — tiap jenis punya
+   pembuka detail & pencetaknya sendiri. openDsDetail/printDs (dan lewat
+   keduanya: kotak masuk TTD serta buka-ulang setelah TTD) mendelegasikan ke
+   sini menurut state.__format. Nama fungsinya diambil saat dipanggil, bukan
+   saat berkas ini dimuat, karena modul-modul itu (17c–17g) dimuat SESUDAH ini. */
+const DS_PENUMPANG = {
+  radio:        { detail:'openRadioDetail', cetak:'printRadio' },
+  pgmweekly:    { detail:'openWkDetail',    cetak:'printWk' },
+  llzgc:        { detail:'openLlzDetail',   cetak:'printLlz' },
+  mrreading:    { detail:'openMrDetail',    cetak:'printMr' },
+  maintlistrik: { detail:'openMlDetail',    cetak:'printMl' }
+};
+function dsPenumpang(state, peran){
+  const p = state && DS_PENUMPANG[state.__format];
+  const f = p && window[p[peran]];
+  return typeof f === 'function' ? f : null;
+}
+const dsPenumpangDetail = state => dsPenumpang(state, 'detail');
+const dsPenumpangCetak  = state => dsPenumpang(state, 'cetak');
+
 /* ---------- Map catatan dari server ---------- */
 const mapDs = d => ({
   id:d.ID, tanggal:d.Tanggal, state:d.State||{}, kategori:d.Kategori||'domestik',
   managerNama:d.ManagerNama||'', managerTtd:d.ManagerTTD||'',
   teknisiNama:d.TeknisiNama||'', teknisiNamaList:d.TeknisiNamaListJSON||[],
   teknisiTtd:d.TeknisiTTD||'', diinputOleh:d.DiinputOleh||'', dibuatPada:d.DibuatPada||'',
+  dibuatOlehUsername:d.DibuatOlehUsername||'',
   ttdOleh:d.TtdOleh||'', ttdPada:d.TtdPada||'', ttdUntuk:d.TtdUntuk||''
 });
 
@@ -572,9 +593,10 @@ function dsTabelBaca(state, cetak, kategori){
 function openDsDetail(id){
   const d = dsList.find(x=>x.id===id);
   if(!d) return;
-  // Catatan radio menumpang tabel/kind 'dstest' (mis. dibuka dari kotak masuk
-  // TTD) — bentuk lembarnya beda, delegasikan ke renderer radio.
-  if(d.state && d.state.__format === 'radio' && typeof openRadioDetail === 'function') return openRadioDetail(id);
+  // Lembar lain menumpang tabel/kind 'dstest' (mis. dibuka dari kotak masuk
+  // TTD) — bentuk lembarnya beda, delegasikan ke renderer masing-masing.
+  const buka = dsPenumpangDetail(d.state);
+  if(buka) return buka(id);
   const baru = dsFormatBaru(d.state);
   const jenis = baru
     ? `Sampling · Sesi ${+d.state.__sesiDs || '?'}/9`
@@ -604,7 +626,8 @@ const DS_JUDUL_CETAK = {
 function printDs(id){
   const d = dsList.find(x=>x.id===id);
   if(!d) return;
-  if(d.state && d.state.__format === 'radio' && typeof printRadio === 'function') return printRadio(id);
+  const cetak = dsPenumpangCetak(d.state);
+  if(cetak) return cetak(id);
   if(!tolakCetakBilaBelumTtd(d, 'dstest')) return;
   const baru = dsFormatBaru(d.state);
   const judul = baru

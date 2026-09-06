@@ -85,7 +85,10 @@ function terapkanUnit(){
   // (js/17d-weekly-pengamatan.js) meski tak punya DS Test / berkala. Unit
   // Navigasi (ppabn) memakainya untuk empat lembar Ground Check LLZ
   // (js/17e-llz-navigasi.js) — juga tanpa DS Test / berkala.
-  const adaPm = !!(u.adaDsTest || u.adaBerkala || u.kode === 'pengamatan' || u.kode === 'ppabn');
+  // Unit Listrik & Mekanik memakainya untuk tujuh lembar pemeliharaan
+  // (js/17g-maint-listrik.js) — juga tanpa DS Test / berkala.
+  const adaPm = !!(u.adaDsTest || u.adaBerkala || u.kode === 'pengamatan' ||
+                   u.kode === 'ppabn' || u.kode === 'listrikmekanik');
   if(tabPm){
     tabPm.style.display = adaPm ? '' : 'none';
     if(!adaPm && tabPm.classList.contains('active')) pilihTab('logbook');
@@ -113,6 +116,18 @@ function terapkanUnit(){
   const subGcheck = document.querySelector('.subtab-btn[data-subtab="gcheck"]');
   if(subGcheck) subGcheck.style.display = adaGcheck ? '' : 'none';
   if(adaGcheck && typeof renderSemuaLlzList === 'function') renderSemuaLlzList();
+  // Meter Reading (ILS: LLZ/GP/TDME/OM; DVOR/DME menyusul) — sama, hanya ppabn.
+  const subMeter = document.querySelector('.subtab-btn[data-subtab="meter"]');
+  if(subMeter) subMeter.style.display = adaGcheck ? '' : 'none';
+  if(adaGcheck && typeof renderSemuaMrList === 'function') renderSemuaMrList();
+  // Tujuh lembar pemeliharaan Listrik & Mekanik — satu sub-tab per kegiatan,
+  // supaya jadwal berkala tiap kegiatan bisa ditentukan sendiri-sendiri.
+  const adaMl = u.kode === 'listrikmekanik';
+  ['ml-paneldist','ml-sts','ml-ups','ml-chiller','ml-ahu','ml-genset','ml-grounding'].forEach(nama=>{
+    const s = document.querySelector(`.subtab-btn[data-subtab="${nama}"]`);
+    if(s) s.style.display = adaMl ? '' : 'none';
+  });
+  if(adaMl && typeof renderSemuaMlList === 'function') renderSemuaMlList();
   // Kalau sub-tab yang lagi aktif ternyata tidak dipakai unit ini, pindah
   // ke sub-tab pertama yang masih terlihat — kalau tidak, wadahnya terbuka
   // di ruang kosong dan seolah tidak ada isinya.
@@ -156,7 +171,13 @@ function terapkanUnit(){
   const nav = u.kode === 'ppabn';            // Fasilitas Navigasi (ILS + DVOR/DME)
   const amhs = u.kode === 'amhsadps';        // Fasilitas Otomasi (AMHS · AADPS · D-ATIS)
   const pengamatan = u.kode === 'pengamatan';// Radar CKG 3 + Fasilitas Pengamatan
+  const fgk = u.kode === 'gedungkeamanan';   // ceklis New JATSC + JATSC
+  const lk = u.kode === 'listrikmekanik';    // STS · MDS · Beban Listrik · UPS
   const punyaLokasi = u.kode === 'radtel';   // JATSC vs New JATSC
+  // Radtel yang sedang menunjuk lembar JATSC (Frequentis 3020X). Dihitung di
+  // sini — bukan di bawah bersama wadah-wadahnya — karena kolom Suhu MER pun
+  // ikut menentukannya.
+  const jatsc = punyaLokasi && document.getElementById('dcLokasi')?.value === 'jatsc';
 
   // Unit AMHS memakai form-nya sendiri (#dcAmhsWrap, js/12d-daily-check-amhs.js).
   // Wadah form baku (#dcFormCard) disembunyikan, TAPI seksi Riwayat
@@ -184,9 +205,14 @@ function terapkanUnit(){
 
   document.getElementById('dcRadkomWrap').style.display  = radkom ? '' : 'none';
   document.getElementById('dcLegendRadkom').style.display= radkom ? '' : 'none';
-  // Suhu MER hanya untuk Radtel Garex/Frequentis di gedung MER — Radkom,
-  // Navigasi, dan Pengamatan tidak mengukurnya di form daily check-nya.
-  document.getElementById('dcSuhuWrap').style.display    = (radkom || nav || pengamatan) ? 'none' : '';
+  // Suhu MER hanya untuk Radtel Garex di gedung MER. Radkom, Navigasi,
+  // Pengamatan, dan Gedung & Keamanan tidak mengukurnya di form daily check-nya
+  // (yang terakhir punya kolom suhunya sendiri di dalam lembar) — begitu pula
+  // Radtel lembar JATSC, Frequentis-nya tidak di MER. Daftar unitnya kembar
+  // dengan UNIT_TANPA_SUHU_MER di 14-daily-check-umum.js (yang menyembunyikan
+  // kolom itu di riwayat & detail) dan dengan syarat suhu di saveDailyCheck;
+  // kalau nambah unit ber-form sendiri, tambah di ketiga tempat.
+  document.getElementById('dcSuhuWrap').style.display    = (radkom || nav || pengamatan || fgk || lk || jatsc) ? 'none' : '';
   // dcAlatWrap sekarang cuma menampung dua <select> tersembunyi (dcLokasi &
   // dcTempat) — sumber kebenaran yang ditulis lewat setDcLokasi(). Selalu
   // sembunyi, apa pun unitnya.
@@ -198,19 +224,36 @@ function terapkanUnit(){
   // Sub-tab pemilih FORM Pengamatan (Radar CKG 3 vs Fasilitas Pengamatan).
   const dcPgmSubtabs = document.getElementById('dcPgmSubtabs');
   if(dcPgmSubtabs) dcPgmSubtabs.style.display = pengamatan ? '' : 'none';
+  // Sub-tab pemilih LOKASI Gedung & Keamanan (New JATSC vs JATSC).
+  const dcFgkSubtabs = document.getElementById('dcFgkSubtabs');
+  if(dcFgkSubtabs) dcFgkSubtabs.style.display = fgk ? '' : 'none';
+  // Sub-tab pemilih LEMBAR Listrik & Mekanik (STS / MDS / Beban Listrik / UPS).
+  const dcLkSubtabs = document.getElementById('dcLkSubtabs');
+  if(dcLkSubtabs) dcLkSubtabs.style.display = lk ? '' : 'none';
   const dcLegendGarex = document.getElementById('dcLegendGarex');
   const dcJatscWrap = document.getElementById('dcJatscWrap');
   const dcGarexWrap = document.getElementById('dcGarexWrap');
   const dcNavWrap = document.getElementById('dcNavWrap');
   const dcPgmWrap = document.getElementById('dcPgmWrap');
-  const jatsc = punyaLokasi && document.getElementById('dcLokasi')?.value === 'jatsc';
-  dcGarexWrap.style.display = (radkom || jatsc || nav || pengamatan) ? 'none' : '';
-  if(dcJatscWrap) dcJatscWrap.style.display = (!radkom && !nav && jatsc) ? '' : 'none';
+  const dcFgkWrap = document.getElementById('dcFgkWrap');
+  const dcLkWrap = document.getElementById('dcLkWrap');
+  dcGarexWrap.style.display = (radkom || jatsc || nav || pengamatan || fgk || lk) ? 'none' : '';
+  if(dcJatscWrap) dcJatscWrap.style.display = (!radkom && !nav && !fgk && !lk && jatsc) ? '' : 'none';
   if(dcNavWrap) dcNavWrap.style.display = nav ? '' : 'none';
   if(dcPgmWrap) dcPgmWrap.style.display = pengamatan ? '' : 'none';
+  if(dcFgkWrap) dcFgkWrap.style.display = fgk ? '' : 'none';
+  if(dcLkWrap) dcLkWrap.style.display = lk ? '' : 'none';
+  const dcFgkInfo = document.getElementById('dcFgkInfo');
+  if(dcFgkInfo) dcFgkInfo.style.display = fgk ? '' : 'none';
+  const dcLkInfo = document.getElementById('dcLkInfo');
+  if(dcLkInfo) dcLkInfo.style.display = lk ? '' : 'none';
   // Legenda Normal/Alarm/Gangguan dipakai Garex, JATSC, Navigasi, dan
-  // Pengamatan — hanya Radkom yang legendanya sendiri (OK / NOT OK).
-  if(dcLegendGarex) dcLegendGarex.style.display = radkom ? 'none' : '';
+  // Pengamatan. Radkom punya legendanya sendiri (OK / NOT OK); Gedung &
+  // Keamanan membawa legendanya di dalam #dcFgkInfo (Baik / Perlu Perhatian /
+  // Rusak) — istilahnya beda, jadi legenda umum disembunyikan.
+  // Listrik & Mekanik pun tidak memakainya: lembarnya angka ukur, dan arti tiga
+  // keadaan kolom KONDISI sudah disebut di dalam #dcLkInfo.
+  if(dcLegendGarex) dcLegendGarex.style.display = (radkom || fgk || lk) ? 'none' : '';
   // Judul tab tetap "Daily Check" apa pun peralatannya — nama alat sudah
   // disebut di selector di dalam form, tidak perlu diulang di kepala.
   const dcJudul = document.querySelector('[data-t="dcJudul"]');
@@ -224,6 +267,16 @@ function terapkanUnit(){
     if(!dcPgmState || !dcPgmState.ckg3 || Object.keys(dcPgmState.ckg3).length === 0){ initDcPgmState(); }
     renderDcPgmTable();
     if(typeof sinkronSubtabPgm === 'function') sinkronSubtabPgm();
+  }
+  if(fgk && typeof initDcFgkState === 'function'){
+    if(!dcFgkState || !dcFgkState.toilet || Object.keys(dcFgkState.toilet).length === 0){ initDcFgkState(); }
+    renderDcFgkTable();
+    if(typeof sinkronSubtabFgk === 'function') sinkronSubtabFgk();
+  }
+  if(lk && typeof initDcLkState === 'function'){
+    if(!dcLkState || !dcLkState.sts || Object.keys(dcLkState.sts).length === 0){ initDcLkState(); }
+    renderDcLkTable();
+    if(typeof sinkronSubtabLk === 'function') sinkronSubtabLk();
   }
   if(punyaLokasi && typeof sinkronSubtabDc === 'function') sinkronSubtabDc();
 

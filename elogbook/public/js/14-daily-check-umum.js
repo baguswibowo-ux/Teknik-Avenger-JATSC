@@ -35,12 +35,24 @@ function collectTeknisiNama(){
 /** Unit yang sedang dibuka memakai formulir daily check yang mana. */
 const dcRadkomAktif = () => unitAktif === 'radkom';
 
+/** Suhu MER hanya diukur di form Garex — Radtel di gedung MER. Unit yang punya
+    form daily check-nya sendiri tidak mengenal kolom itu: saveDailyCheck memang
+    menyimpannya kosong dan 07-unit.js menyembunyikan isiannya, tapi riwayat &
+    detailnya dulu tetap menulis "Suhu MER -" untuk semua unit — terbaca seolah
+    ada pengukuran yang lupa diisi. Daftarnya kembar dengan yang menyembunyikan
+    #dcSuhuWrap di 07-unit.js; kalau nambah unit ber-form sendiri, tambah di
+    kedua tempat. */
+const UNIT_TANPA_SUHU_MER = ['radkom', 'ppabn', 'pengamatan', 'gedungkeamanan', 'amhsadps', 'listrikmekanik'];
+const unitPakaiSuhuMer = () => !UNIT_TANPA_SUHU_MER.includes(unitAktif);
+
 function resetDcForm(){
   initDcState(); renderDcTable();
   initDcRkState(); renderDcRkTable();
   initDcJState(); renderDcJatscTable();
   initDcNState(); renderDcNavTable();
   if(typeof initDcPgmState === 'function'){ initDcPgmState(); renderDcPgmTable(); }
+  if(typeof initDcFgkState === 'function'){ initDcFgkState(); renderDcFgkTable(); }
+  if(typeof initDcLkState === 'function'){ initDcLkState(); renderDcLkTable(); }
   document.getElementById('dcSuhu').value=''; document.getElementById('dcRemark').value='';
   document.getElementById('dcManagerNama').value='';
   document.getElementById('dcManagerAkun').value='';
@@ -204,6 +216,8 @@ async function saveDailyCheck(){
   const jatsc  = dcRadtelJatscAktif();
   const nav    = (typeof dcNavAktif === 'function') && dcNavAktif();
   const pgm    = (typeof dcPengamatanAktif === 'function') && dcPengamatanAktif();
+  const fgk    = (typeof dcGedungKeamananAktif === 'function') && dcGedungKeamananAktif();
+  const lk     = (typeof dcListrikAktif === 'function') && dcListrikAktif();
   const fails = [], warns = [];
 
   if(radkom){
@@ -219,6 +233,16 @@ async function saveDailyCheck(){
     warns.push(...t.warns);
   }else if(pgm){
     const t = pgmTemuan(dcPgmForm);
+    fails.push(...t.fails);
+    warns.push(...t.warns);
+  }else if(fgk){
+    const t = fgkTemuan(dcFgkForm);
+    fails.push(...t.fails);
+    warns.push(...t.warns);
+  }else if(lk){
+    // Lembar listrik seluruhnya angka ukur — lkTemuan() memang selalu kosong;
+    // dipanggil apa adanya supaya bentuk cabangnya kembar dengan unit lain.
+    const t = lkTemuan(dcLkForm);
     fails.push(...t.fails);
     warns.push(...t.warns);
   }else{
@@ -241,18 +265,22 @@ async function saveDailyCheck(){
     : jatsc
       ? { __lokasi:'jatsc', __tempat: tempatDipilih }
       : { __lokasi:'new-jatsc', __tempat: tempatDipilih };
-  // Pengamatan menumpang tabel dailychecks yang sama (pola AMHS): form-nya
-  // ditandai __format:'pengamatan' + __pgmForm (ckg3/mer) di dalam state JSON.
+  // Pengamatan, Gedung & Keamanan, dan Listrik & Mekanik menumpang tabel
+  // dailychecks yang sama (pola AMHS): lembar mana yang dipakai ditandai
+  // __format + __pgmForm (ckg3/mer), __fgkForm (toilet/jatsc), atau __lkForm
+  // (sts/mds/beban/ups) di dalam state JSON.
   const stateDipakai = radkom ? dcRkState
                      : nav    ? { ...dcNState, ...meta }
                      : jatsc  ? { ...dcJState, ...meta }
                      : pgm    ? { ...dcPgmState[dcPgmForm], __format:'pengamatan', __pgmForm:dcPgmForm }
+                     : fgk    ? { ...dcFgkState[dcFgkForm], __format:'fgk', __fgkForm:dcFgkForm }
+                     : lk     ? { ...dcLkState[dcLkForm], __format:'listrik', __lkForm:dcLkForm }
                               : { ...dcState,  ...meta };
   const payload = {
     tanggal: tanggalDcTersimpan(),
     tanggalIso: document.getElementById('dcTanggal').value,
     dinas: document.getElementById('dcDinas').value,
-    suhu: (radkom || jatsc || nav || pgm) ? '' : document.getElementById('dcSuhu').value.trim(),
+    suhu: (radkom || jatsc || nav || pgm || fgk || lk) ? '' : document.getElementById('dcSuhu').value.trim(),
     remark: document.getElementById('dcRemark').value.trim(),
     teknisiNamaList: namaList,
     teknisiNama: namaList.join(', '),
@@ -357,7 +385,7 @@ function renderDcHistory(){
               : r.warns.length ? `<span class="tag warn">${r.warns.length} alarm</span>`
               : `<span class="tag ok">semua normal</span>`;
     return `<div class="dc-history-item">
-      <div><b>${r.tanggal}</b> &middot; Dinas ${escapeHtml(r.dinas)} &middot; Suhu MER ${escapeHtml(r.suhu)||'-'}</div>
+      <div><b>${r.tanggal}</b> &middot; Dinas ${escapeHtml(r.dinas)}${unitPakaiSuhuMer() ? ' &middot; Suhu MER ' + (escapeHtml(r.suhu)||'-') : ''}</div>
       ${tag}
       ${dcChipDinasHtml(r)}
       <div style="font-size:11.5px;color:var(--muted);">Teknisi: ${escapeHtml(r.teknisiNama)||'-'} &middot; Mengetahui: ${escapeHtml(r.managerNama)||'-'}</div>
@@ -534,14 +562,20 @@ async function openDcDetail(id){
   const jatscTersimpan = state && state.__lokasi === 'jatsc';
   const navTersimpan   = state && state.__lokasi === 'navigasi';
   const pgmTersimpan   = state && state.__format === 'pengamatan';
+  const fgkTersimpan   = state && state.__format === 'fgk';
+  const lkTersimpan    = state && state.__format === 'listrik';
   body.innerHTML = `
     <div style="font-size:13px;margin-bottom:10px;line-height:1.7;">
       <b>${escapeHtml(r.tanggal)}</b><br>
-      Dinas: ${escapeHtml(r.dinas)||'-'}${(jatscTersimpan || navTersimpan || pgmTersimpan) ? '' : ' &middot; Suhu MER: ' + (escapeHtml(r.suhu)||'-')}${pgmTersimpan ? ' &middot; Form: ' + escapeHtml((typeof DC_PGM_LABEL !== 'undefined' && DC_PGM_LABEL[state.__pgmForm]) || 'Radar CKG 3') : ''}
+      Dinas: ${escapeHtml(r.dinas)||'-'}${(!unitPakaiSuhuMer() || jatscTersimpan || navTersimpan || pgmTersimpan || fgkTersimpan || lkTersimpan) ? '' : ' &middot; Suhu MER: ' + (escapeHtml(r.suhu)||'-')}${pgmTersimpan ? ' &middot; Form: ' + escapeHtml((typeof DC_PGM_LABEL !== 'undefined' && DC_PGM_LABEL[state.__pgmForm]) || 'Radar CKG 3') : ''}${fgkTersimpan ? ' &middot; Lokasi: ' + escapeHtml((typeof DC_FGK_LABEL !== 'undefined' && DC_FGK_LABEL[state.__fgkForm]) || 'New JATSC') : ''}${lkTersimpan ? ' &middot; Lembar: ' + escapeHtml((typeof DC_LK_LABEL !== 'undefined' && DC_LK_LABEL[state.__lkForm]) || 'STS') : ''}
     </div>
     ${dcRadkomAktif()
       ? dcRkDetailHtml(state)
-      : (pgmTersimpan
+      : (lkTersimpan
+        ? dcLkDetailHtml(state)
+        : (fgkTersimpan
+        ? dcFgkDetailHtml(state)
+        : (pgmTersimpan
           ? dcPgmDetailHtml(state)
           : (navTersimpan
           ? dcNavDetailHtml(state)
@@ -549,7 +583,7 @@ async function openDcDetail(id){
               ? dcJatscDetailHtml(state)
               : dcDetailTable(dcLeftItems.slice(0,dcLeftItems.indexOf('TMCS 1')), dcRightItems.slice(0,dcRightItems.indexOf('SW 3')), state) +
                 '<div style="height:8px;"></div>' +
-                dcDetailTable(dcLeftItems.slice(dcLeftItems.indexOf('TMCS 1')), dcRightItems.slice(dcRightItems.indexOf('SW 3')), state))))}
+                dcDetailTable(dcLeftItems.slice(dcLeftItems.indexOf('TMCS 1')), dcRightItems.slice(dcRightItems.indexOf('SW 3')), state))))))}
     ${r.remark ? `<div style="margin-top:12px;font-size:13px;"><b>Remark:</b><br>${escapeHtml(r.remark).replace(/\n/g,'<br>')}</div>` : ''}
     <div class="detail-ttd">
       <div class="sig-block"><b>${T('teknisiPelaksana')}</b>${tekHtml}</div>
@@ -590,12 +624,20 @@ async function openDcEditModal(id){
   const isJatsc = state && state.__lokasi === 'jatsc';
   const isNav   = state && state.__lokasi === 'navigasi';
   const isPgm   = state && state.__format === 'pengamatan';
+  const isFgk   = state && state.__format === 'fgk';
+  const isLk    = state && state.__format === 'listrik';
   const tempat  = (state && state.__tempat) || 'new-jatsc';
   // Pengamatan: kembalikan dulu form yang tersimpan (Radar CKG 3 / Fasilitas
   // Pengamatan) sebelum layar unit dipasang, supaya wrap-nya menggambar
-  // lembar yang benar.
+  // lembar yang benar. Gedung & Keamanan sama polanya.
   if(isPgm && typeof setDcPgmForm === 'function'){
     dcPgmForm = (state.__pgmForm === 'mer') ? 'mer' : 'ckg3';
+  }
+  if(isFgk && typeof setDcFgkForm === 'function'){
+    dcFgkForm = (state.__fgkForm === 'jatsc') ? 'jatsc' : 'toilet';
+  }
+  if(isLk && typeof lkFormTersimpan === 'function'){
+    dcLkForm = lkFormTersimpan(state);
   }
 
   // Selector nama alat & lokasi. Untuk Navigasi tidak ada pilihan
@@ -619,6 +661,22 @@ async function openDcEditModal(id){
     });
     renderDcPgmTable();
     if(typeof sinkronSubtabPgm === 'function') sinkronSubtabPgm();
+  }else if(isFgk){
+    initDcFgkState();
+    Object.entries(state).forEach(([k, v])=>{
+      if(k.startsWith('__')) return;   // kunci catatan ("A|__ket") tidak kena — "__" ada di tengah
+      dcFgkState[dcFgkForm][k] = v;
+    });
+    renderDcFgkTable();
+    if(typeof sinkronSubtabFgk === 'function') sinkronSubtabFgk();
+  }else if(isLk){
+    initDcLkState();
+    Object.entries(state).forEach(([k, v])=>{
+      if(k.startsWith('__')) return;
+      dcLkState[dcLkForm][k] = v;
+    });
+    renderDcLkTable();
+    if(typeof sinkronSubtabLk === 'function') sinkronSubtabLk();
   }else if(isNav){
     initDcNState();
     Object.entries(state).forEach(([k, v])=>{

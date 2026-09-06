@@ -206,6 +206,34 @@
       <button class="subtab-btn" data-pgmform="mer"
               onclick="setDcPgmForm('mer')">📡 Fasilitas Pengamatan</button>
     </nav>
+    <!-- Sub-tab pemilih LOKASI untuk unit Gedung & Keamanan: New JATSC (ceklis
+         toilet & mushalla) vs JATSC (lift · server CCTV · sistem pengendali
+         jalan masuk). Dua lembar itu memang milik gedung yang berbeda, jadi
+         labelnya lokasi — sama gaya dengan sub-tab Radtel di atas.
+         setDcFgkForm() di js/12f-daily-check-fgk.js menukar isi #dcFgkWrap.
+         07-unit.js menampilkan nav ini hanya untuk unit gedungkeamanan. -->
+    <nav class="subtabs" id="dcFgkSubtabs" style="display:none;">
+      <button class="subtab-btn active" data-fgkform="toilet"
+              onclick="setDcFgkForm('toilet')">📍 New JATSC</button>
+      <button class="subtab-btn" data-fgkform="jatsc"
+              onclick="setDcFgkForm('jatsc')">📍 JATSC</button>
+    </nav>
+    <!-- Sub-tab pemilih LEMBAR untuk unit Listrik & Mekanik: empat lembar
+         pengecekan harian yang di berkas aslinya jadi empat sheet — STS, MDS
+         No Break, Beban Listrik, dan UPS. Labelnya nama lembar (bukan lokasi):
+         keempatnya di gedung yang sama, yang beda peralatan yang diukur.
+         setDcLkForm() di js/12g-daily-check-listrik.js menukar isi #dcLkWrap.
+         07-unit.js menampilkan nav ini hanya untuk unit listrikmekanik. -->
+    <nav class="subtabs" id="dcLkSubtabs" style="display:none;">
+      <button class="subtab-btn active" data-lkform="sts"
+              onclick="setDcLkForm('sts')">⚡ STS</button>
+      <button class="subtab-btn" data-lkform="mds"
+              onclick="setDcLkForm('mds')">🔌 MDS</button>
+      <button class="subtab-btn" data-lkform="beban"
+              onclick="setDcLkForm('beban')">📊 Beban Listrik</button>
+      <button class="subtab-btn" data-lkform="ups"
+              onclick="setDcLkForm('ups')">🔋 UPS</button>
+    </nav>
     <div class="card" id="dcFormCard">
       <div class="grid3">
         <div class="field" id="dcSuhuWrap"><label data-t="suhuMer">Suhu MER (°C)</label><input type="text" id="dcSuhu" data-t-ph="phSuhu" placeholder="cth. 22°C"></div>
@@ -273,6 +301,26 @@
         <b style="color:var(--text);">Form:</b> <span id="dcPgmInfoNama" style="color:var(--accent);font-weight:600;">Radar CKG 3</span>
       </div>
       <div id="dcPgmWrap" style="display:none;"></div>
+      <!-- Info lembar Gedung & Keamanan yang sedang dipilih + legendanya.
+           Legenda dibawa di sini (bukan #dcLegendGarex) karena istilahnya beda:
+           lembar ini bicara Baik / Perlu Perhatian / Rusak, bukan Normal /
+           Alarm / Gangguan. Diisi sinkronSubtabFgk() di 12f-daily-check-fgk.js. -->
+      <div id="dcFgkInfo" style="display:none;margin-bottom:10px;font-size:12.5px;color:var(--muted);padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:var(--panel-2);">
+        <b style="color:var(--text);">Lokasi:</b> <span id="dcFgkInfoNama" style="color:var(--accent);font-weight:600;">New JATSC</span>
+        &nbsp;·&nbsp; <span id="dcFgkInfoIsi" style="color:var(--text);">Toilet &amp; Mushalla</span>
+        &nbsp;·&nbsp; ✓ Baik &nbsp;·&nbsp; ! Perlu Perhatian &nbsp;·&nbsp; ✕ Rusak / Tidak Berfungsi
+      </div>
+      <div id="dcFgkWrap" style="display:none;"></div>
+      <!-- Info lembar Listrik & Mekanik yang sedang dipilih. Tanpa legenda
+           Normal/Alarm/Gangguan — lembar ini isinya angka ukur, bukan status;
+           yang perlu dijelaskan cuma arti tiga keadaan kolom KONDISI. Diisi
+           sinkronSubtabLk() di js/12g-daily-check-listrik.js. -->
+      <div id="dcLkInfo" style="display:none;margin-bottom:10px;font-size:12.5px;color:var(--muted);padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:var(--panel-2);">
+        <b style="color:var(--text);">Lembar:</b> <span id="dcLkInfoNama" style="color:var(--accent);font-weight:600;">STS</span>
+        &nbsp;·&nbsp; <span id="dcLkInfoIsi" style="color:var(--text);">STS Line 1 &middot; Line 2 &middot; Output — 9 lokasi</span>
+        <span id="dcLkInfoHint">&nbsp;·&nbsp; Kolom KONDISI diklik untuk berputar: ON → STBY → OFF</span>
+      </div>
+      <div id="dcLkWrap" style="display:none;"></div>
       <div id="dcRadkomWrap" style="display:none;"></div>
       <div class="field" style="margin-top:14px;"><label data-t="remark">Remark / Catatan Tambahan</label><textarea id="dcRemark" data-t-ph="phRemark" placeholder="cth. VR3 partial failure of element, masih dalam remote expert Madrid..."></textarea></div>
       <div class="grid2" style="margin-top:8px;">
@@ -401,6 +449,21 @@
            punya lembarnya sendiri (LLZ: 07L/07R/25R/25L). Lihat #view-gcheck
            dan js/17e-llz-navigasi.js. -->
       <button class="subtab-btn" data-subtab="gcheck" data-t="tabGcheck">📈 GROUND CHECK</button>
+      <!-- Meter Reading — juga hanya unit Navigasi (ppabn). Bertingkat empat:
+           ILS/DVOR-DME → ujung landas → lembar (LLZ/GP/TDME/OM). Lihat
+           #view-meter dan js/17f-meter-reading.js. -->
+      <button class="subtab-btn" data-subtab="meter" data-t="tabMeter">📟 METER READING</button>
+      <!-- Tujuh lembar pemeliharaan unit Listrik & Mekanik. Satu kegiatan satu
+           sub-tab supaya jadwal berkalanya bisa ditentukan sendiri-sendiri;
+           07-unit.js menampilkannya hanya untuk unit listrikmekanik.
+           Lihat js/17g-maint-listrik.js. -->
+      <button class="subtab-btn" data-subtab="ml-paneldist" data-t="tabMlPaneldist">🔲 PANEL DISTRIBUSI</button>
+      <button class="subtab-btn" data-subtab="ml-sts" data-t="tabMlSts">⚡ MAINT STS</button>
+      <button class="subtab-btn" data-subtab="ml-ups" data-t="tabMlUps">🔋 MAINT UPS</button>
+      <button class="subtab-btn" data-subtab="ml-chiller" data-t="tabMlChiller">❄ CHILLER</button>
+      <button class="subtab-btn" data-subtab="ml-ahu" data-t="tabMlAhu">🌀 AHU</button>
+      <button class="subtab-btn" data-subtab="ml-genset" data-t="tabMlGenset">🛢 GENSET</button>
+      <button class="subtab-btn" data-subtab="ml-grounding" data-t="tabMlGrounding">⚡ GROUNDING &amp; PETIR</button>
     </nav>
 
     <!-- ===== SUB-TAB: DS TEST ===== -->
@@ -546,95 +609,531 @@
     </section>
 
     <!-- ===== SUB-TAB: GROUND CHECK (bertingkat) =====
-         Level 1 (sub-tab Preventive) = Ground Check. Di dalamnya dua tingkat
-         tab generik ".lvl" (handler di 04-toast-tab.js; scoping pakai ":scope >"
-         jadi tiap tingkat cuma menukar panelnya sendiri):
-           Level 2  jenis fasilitas — LLZ (nanti GP, MM)
-           Level 3  lembar per fasilitas — LLZ: 07L / 07R / 25R / 25L
-         Isi lembar (tabel ukur TX 1/TX 2 + dua grafik) tetap dibangun di modal
+         Level 1 (sub-tab Preventive) = Ground Check. Di dalamnya tab generik
+         ".lvl" (handler di 04-toast-tab.js; scoping ":scope >" jadi tiap tingkat
+         cuma menukar panelnya sendiri) bertingkat empat, SEJAJAR bentuk Meter
+         Reading (#view-meter):
+           Level 2  jenis fasilitas — ILS (aktif) / DVOR-DME (menyusul)
+           Level 3  ujung landas ILS — 07L / 07R / 25L / 25R
+           Level 4  lembar per ujung — LLZ (form ada) · GP (menyusul)
+         Isi lembar LLZ (tabel ukur TX 1/TX 2 + dua grafik) dibangun di modal
          #llzModalBg oleh openLlzModal(form); tiap panel cuma riwayat + tombol
-         "+ Form Baru". Lihat js/17e-llz-navigasi.js. -->
+         "+ Form Baru". Lihat js/17e-llz-navigasi.js. Peralatannya sama dengan
+         Meter Reading, jadi pohonnya pun sama. -->
     <section class="subview" id="view-gcheck">
       <div class="lvl">
         <div class="lvl-tabs">
-          <button class="lvl-btn active" data-target="gc-llz">LLZ</button>
-          <!-- Menyusul: <button class="lvl-btn" data-target="gc-gp">GP</button>
-                         <button class="lvl-btn" data-target="gc-mm">MM</button> -->
+          <button class="lvl-btn active" data-target="gc-ils">ILS</button>
+          <button class="lvl-btn" data-target="gc-dvor">DVOR / DME</button>
         </div>
         <div class="lvl-body">
-          <div class="lvl-panel active" id="gc-llz">
+          <div class="lvl-panel active" id="gc-ils">
             <div class="lvl">
               <div class="lvl-tabs sub">
-                <button class="lvl-btn active" data-target="gc-llz-07l">LLZ 07L</button>
-                <button class="lvl-btn" data-target="gc-llz-07r">LLZ 07R</button>
-                <button class="lvl-btn" data-target="gc-llz-25r">LLZ 25R</button>
-                <button class="lvl-btn" data-target="gc-llz-25l">LLZ 25L</button>
+                <button class="lvl-btn active" data-target="gc-ils-07l">ILS 07L</button>
+                <button class="lvl-btn" data-target="gc-ils-07r">ILS 07R</button>
+                <button class="lvl-btn" data-target="gc-ils-25l">ILS 25L</button>
+                <button class="lvl-btn" data-target="gc-ils-25r">ILS 25R</button>
               </div>
               <div class="lvl-body">
-                <div class="lvl-panel active" id="gc-llz-07l">
-                  <div class="section-head">
-                    <div><h2>Ground Check LLZ 07L</h2><p>Groundcheck performance curve localizer — grafik TX 1 & TX 2 tergambar otomatis dari angka ukur.</p></div>
-                    <button class="btn btn-tambah" onclick="openLlzModal('07l')" data-t="tambahLlz">+ Form Baru</button>
+              <div class="lvl-panel active" id="gc-ils-07l">
+                <div class="lvl">
+                  <div class="lvl-tabs sub2">
+                    <button class="lvl-btn active" data-target="gc-p-llz-07l">LLZ 07L</button>
+                    <button class="lvl-btn" data-target="gc-p-gp-07l">GP 07L</button>
                   </div>
-                  <div class="card">
-                    <div class="print-bar">
-                      <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariLlzTanggal-07l" onchange="renderLlzList('07l')"></div>
-                      <button class="btn ghost" onclick="resetCariLlz('07l')" data-t="resetCari">↺ Tampilkan Semua</button>
+                  <div class="lvl-body">
+                    <div class="lvl-panel active" id="gc-p-llz-07l">
+                      <div class="section-head">
+                        <div><h2>Ground Check LLZ 07L</h2><p>Groundcheck performance curve localizer — grafik TX 1 & TX 2 tergambar otomatis dari angka ukur.</p></div>
+                        <button class="btn btn-tambah" onclick="openLlzModal('07l')" data-t="tambahLlz">+ Form Baru</button>
+                      </div>
+                      <div class="card">
+                        <div class="print-bar">
+                          <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariLlzTanggal-07l" onchange="renderLlzList('07l')"></div>
+                          <button class="btn ghost" onclick="resetCariLlz('07l')" data-t="resetCari">↺ Tampilkan Semua</button>
+                        </div>
+                        <div class="subtle-note" data-t="noteCariLlz">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+                      </div>
+                      <div id="llzList-07l"></div>
                     </div>
-                    <div class="subtle-note" data-t="noteCariLlz">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
-                  </div>
-                  <div id="llzList-07l"></div>
-                </div>
-
-                <div class="lvl-panel" id="gc-llz-07r">
-                  <div class="section-head">
-                    <div><h2>Ground Check LLZ 07R</h2><p>Groundcheck performance curve localizer — grafik TX 1 & TX 2 tergambar otomatis dari angka ukur.</p></div>
-                    <button class="btn btn-tambah" onclick="openLlzModal('07r')" data-t="tambahLlz">+ Form Baru</button>
-                  </div>
-                  <div class="card">
-                    <div class="print-bar">
-                      <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariLlzTanggal-07r" onchange="renderLlzList('07r')"></div>
-                      <button class="btn ghost" onclick="resetCariLlz('07r')" data-t="resetCari">↺ Tampilkan Semua</button>
+                    <div class="lvl-panel" id="gc-p-gp-07l">
+                      <div class="section-head">
+                        <div><h2>Ground Check GP 07L</h2><p>Formnya menyusul — akan dibuat seperti LLZ begitu lembar ground check glidepath dikirim.</p></div>
+                      </div>
+                      <div class="card"><div class="subtle-note">Lembar Ground Check GP 07L belum diaktifkan.</div></div>
                     </div>
-                    <div class="subtle-note" data-t="noteCariLlz">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
                   </div>
-                  <div id="llzList-07r"></div>
                 </div>
-
-                <div class="lvl-panel" id="gc-llz-25r">
-                  <div class="section-head">
-                    <div><h2>Ground Check LLZ 25R</h2><p>Groundcheck performance curve localizer — grafik TX 1 & TX 2 tergambar otomatis dari angka ukur.</p></div>
-                    <button class="btn btn-tambah" onclick="openLlzModal('25r')" data-t="tambahLlz">+ Form Baru</button>
+              </div>
+              <div class="lvl-panel" id="gc-ils-07r">
+                <div class="lvl">
+                  <div class="lvl-tabs sub2">
+                    <button class="lvl-btn active" data-target="gc-p-llz-07r">LLZ 07R</button>
+                    <button class="lvl-btn" data-target="gc-p-gp-07r">GP 07R</button>
                   </div>
-                  <div class="card">
-                    <div class="print-bar">
-                      <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariLlzTanggal-25r" onchange="renderLlzList('25r')"></div>
-                      <button class="btn ghost" onclick="resetCariLlz('25r')" data-t="resetCari">↺ Tampilkan Semua</button>
+                  <div class="lvl-body">
+                    <div class="lvl-panel active" id="gc-p-llz-07r">
+                      <div class="section-head">
+                        <div><h2>Ground Check LLZ 07R</h2><p>Groundcheck performance curve localizer — grafik TX 1 & TX 2 tergambar otomatis dari angka ukur.</p></div>
+                        <button class="btn btn-tambah" onclick="openLlzModal('07r')" data-t="tambahLlz">+ Form Baru</button>
+                      </div>
+                      <div class="card">
+                        <div class="print-bar">
+                          <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariLlzTanggal-07r" onchange="renderLlzList('07r')"></div>
+                          <button class="btn ghost" onclick="resetCariLlz('07r')" data-t="resetCari">↺ Tampilkan Semua</button>
+                        </div>
+                        <div class="subtle-note" data-t="noteCariLlz">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+                      </div>
+                      <div id="llzList-07r"></div>
                     </div>
-                    <div class="subtle-note" data-t="noteCariLlz">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
-                  </div>
-                  <div id="llzList-25r"></div>
-                </div>
-
-                <div class="lvl-panel" id="gc-llz-25l">
-                  <div class="section-head">
-                    <div><h2>Ground Check LLZ 25L</h2><p>Groundcheck performance curve localizer — grafik TX 1 & TX 2 tergambar otomatis dari angka ukur.</p></div>
-                    <button class="btn btn-tambah" onclick="openLlzModal('25l')" data-t="tambahLlz">+ Form Baru</button>
-                  </div>
-                  <div class="card">
-                    <div class="print-bar">
-                      <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariLlzTanggal-25l" onchange="renderLlzList('25l')"></div>
-                      <button class="btn ghost" onclick="resetCariLlz('25l')" data-t="resetCari">↺ Tampilkan Semua</button>
+                    <div class="lvl-panel" id="gc-p-gp-07r">
+                      <div class="section-head">
+                        <div><h2>Ground Check GP 07R</h2><p>Formnya menyusul — akan dibuat seperti LLZ begitu lembar ground check glidepath dikirim.</p></div>
+                      </div>
+                      <div class="card"><div class="subtle-note">Lembar Ground Check GP 07R belum diaktifkan.</div></div>
                     </div>
-                    <div class="subtle-note" data-t="noteCariLlz">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
                   </div>
-                  <div id="llzList-25l"></div>
                 </div>
+              </div>
+              <div class="lvl-panel" id="gc-ils-25l">
+                <div class="lvl">
+                  <div class="lvl-tabs sub2">
+                    <button class="lvl-btn active" data-target="gc-p-llz-25l">LLZ 25L</button>
+                    <button class="lvl-btn" data-target="gc-p-gp-25l">GP 25L</button>
+                  </div>
+                  <div class="lvl-body">
+                    <div class="lvl-panel active" id="gc-p-llz-25l">
+                      <div class="section-head">
+                        <div><h2>Ground Check LLZ 25L</h2><p>Groundcheck performance curve localizer — grafik TX 1 & TX 2 tergambar otomatis dari angka ukur.</p></div>
+                        <button class="btn btn-tambah" onclick="openLlzModal('25l')" data-t="tambahLlz">+ Form Baru</button>
+                      </div>
+                      <div class="card">
+                        <div class="print-bar">
+                          <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariLlzTanggal-25l" onchange="renderLlzList('25l')"></div>
+                          <button class="btn ghost" onclick="resetCariLlz('25l')" data-t="resetCari">↺ Tampilkan Semua</button>
+                        </div>
+                        <div class="subtle-note" data-t="noteCariLlz">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+                      </div>
+                      <div id="llzList-25l"></div>
+                    </div>
+                    <div class="lvl-panel" id="gc-p-gp-25l">
+                      <div class="section-head">
+                        <div><h2>Ground Check GP 25L</h2><p>Formnya menyusul — akan dibuat seperti LLZ begitu lembar ground check glidepath dikirim.</p></div>
+                      </div>
+                      <div class="card"><div class="subtle-note">Lembar Ground Check GP 25L belum diaktifkan.</div></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="lvl-panel" id="gc-ils-25r">
+                <div class="lvl">
+                  <div class="lvl-tabs sub2">
+                    <button class="lvl-btn active" data-target="gc-p-llz-25r">LLZ 25R</button>
+                    <button class="lvl-btn" data-target="gc-p-gp-25r">GP 25R</button>
+                  </div>
+                  <div class="lvl-body">
+                    <div class="lvl-panel active" id="gc-p-llz-25r">
+                      <div class="section-head">
+                        <div><h2>Ground Check LLZ 25R</h2><p>Groundcheck performance curve localizer — grafik TX 1 & TX 2 tergambar otomatis dari angka ukur.</p></div>
+                        <button class="btn btn-tambah" onclick="openLlzModal('25r')" data-t="tambahLlz">+ Form Baru</button>
+                      </div>
+                      <div class="card">
+                        <div class="print-bar">
+                          <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariLlzTanggal-25r" onchange="renderLlzList('25r')"></div>
+                          <button class="btn ghost" onclick="resetCariLlz('25r')" data-t="resetCari">↺ Tampilkan Semua</button>
+                        </div>
+                        <div class="subtle-note" data-t="noteCariLlz">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+                      </div>
+                      <div id="llzList-25r"></div>
+                    </div>
+                    <div class="lvl-panel" id="gc-p-gp-25r">
+                      <div class="section-head">
+                        <div><h2>Ground Check GP 25R</h2><p>Formnya menyusul — akan dibuat seperti LLZ begitu lembar ground check glidepath dikirim.</p></div>
+                      </div>
+                      <div class="card"><div class="subtle-note">Lembar Ground Check GP 25R belum diaktifkan.</div></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
               </div>
             </div>
           </div>
+          <div class="lvl-panel" id="gc-dvor">
+            <div class="section-head">
+              <div><h2>Ground Check DVOR / DME</h2><p>Formnya menyusul — CKG (DVOR + DME) dan DKI (DVOR + DME).</p></div>
+            </div>
+            <div class="card"><div class="subtle-note">Lembar Ground Check DVOR/DME belum diaktifkan.</div></div>
+          </div>
         </div>
       </div>
+    </section>
+
+    <!-- ===== SUB-TAB: METER READING (bertingkat) =====
+         Level 2 jenis fasilitas: ILS (aktif) / DVOR-DME (form menyusul).
+         Level 3 ujung landas ILS: 07L / 07R / 25L / 25R.
+         Level 4 lembar per ujung: LLZ · GP · TDME (·OM di 25R).
+         Isi lembar dibangun di modal #mrModalBg oleh openMrModal(id); tiap
+         panel cuma riwayat + tombol "+ Form Baru". Lihat js/17f-meter-reading.js. -->
+    <section class="subview" id="view-meter">
+      <div class="lvl">
+        <div class="lvl-tabs">
+          <button class="lvl-btn active" data-target="mr-ils">ILS</button>
+          <button class="lvl-btn" data-target="mr-dvor">DVOR / DME</button>
+        </div>
+        <div class="lvl-body">
+          <div class="lvl-panel active" id="mr-ils">
+            <div class="lvl">
+              <div class="lvl-tabs sub">
+                <button class="lvl-btn active" data-target="mr-ils-07l">ILS 07L</button>
+                <button class="lvl-btn" data-target="mr-ils-07r">ILS 07R</button>
+                <button class="lvl-btn" data-target="mr-ils-25l">ILS 25L</button>
+                <button class="lvl-btn" data-target="mr-ils-25r">ILS 25R</button>
+              </div>
+              <div class="lvl-body">
+              <div class="lvl-panel active" id="mr-ils-07l">
+                <div class="lvl">
+                  <div class="lvl-tabs sub2">
+                    <button class="lvl-btn active" data-target="mr-p-llz-07l">LLZ 07L</button>
+                    <button class="lvl-btn" data-target="mr-p-gp-07l">GP 07L</button>
+                    <button class="lvl-btn" data-target="mr-p-tdme-07l">TDME 07L</button>
+                  </div>
+                  <div class="lvl-body">
+                    <div class="lvl-panel active" id="mr-p-llz-07l">
+                      <div class="section-head">
+                        <div><h2>Meter Reading LLZ 07L</h2><p>Lembar meter reading ILS SELEX — isi apa adanya sesuai pembacaan alat ukur.</p></div>
+                        <button class="btn btn-tambah" onclick="openMrModal('llz-07l')">+ Form Baru</button>
+                      </div>
+                      <div class="card">
+                        <div class="print-bar">
+                          <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariMrTanggal-llz-07l" onchange="renderMrList('llz-07l')"></div>
+                          <button class="btn ghost" onclick="resetCariMr('llz-07l')" data-t="resetCari">↺ Tampilkan Semua</button>
+                        </div>
+                        <div class="subtle-note" data-t="noteCariMr">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+                      </div>
+                      <div id="mrList-llz-07l"></div>
+                    </div>
+                    <div class="lvl-panel" id="mr-p-gp-07l">
+                      <div class="section-head">
+                        <div><h2>Meter Reading GP 07L</h2><p>Lembar meter reading ILS SELEX — isi apa adanya sesuai pembacaan alat ukur.</p></div>
+                        <button class="btn btn-tambah" onclick="openMrModal('gp-07l')">+ Form Baru</button>
+                      </div>
+                      <div class="card">
+                        <div class="print-bar">
+                          <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariMrTanggal-gp-07l" onchange="renderMrList('gp-07l')"></div>
+                          <button class="btn ghost" onclick="resetCariMr('gp-07l')" data-t="resetCari">↺ Tampilkan Semua</button>
+                        </div>
+                        <div class="subtle-note" data-t="noteCariMr">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+                      </div>
+                      <div id="mrList-gp-07l"></div>
+                    </div>
+                    <div class="lvl-panel" id="mr-p-tdme-07l">
+                      <div class="section-head">
+                        <div><h2>Meter Reading TDME 07L</h2><p>Lembar meter reading ILS SELEX — isi apa adanya sesuai pembacaan alat ukur.</p></div>
+                        <button class="btn btn-tambah" onclick="openMrModal('tdme-07l')">+ Form Baru</button>
+                      </div>
+                      <div class="card">
+                        <div class="print-bar">
+                          <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariMrTanggal-tdme-07l" onchange="renderMrList('tdme-07l')"></div>
+                          <button class="btn ghost" onclick="resetCariMr('tdme-07l')" data-t="resetCari">↺ Tampilkan Semua</button>
+                        </div>
+                        <div class="subtle-note" data-t="noteCariMr">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+                      </div>
+                      <div id="mrList-tdme-07l"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="lvl-panel" id="mr-ils-07r">
+                <div class="lvl">
+                  <div class="lvl-tabs sub2">
+                    <button class="lvl-btn active" data-target="mr-p-llz-07r">LLZ 07R</button>
+                    <button class="lvl-btn" data-target="mr-p-gp-07r">GP 07R</button>
+                    <button class="lvl-btn" data-target="mr-p-tdme-07r">TDME 07R</button>
+                  </div>
+                  <div class="lvl-body">
+                    <div class="lvl-panel active" id="mr-p-llz-07r">
+                      <div class="section-head">
+                        <div><h2>Meter Reading LLZ 07R</h2><p>Lembar meter reading ILS SELEX — isi apa adanya sesuai pembacaan alat ukur.</p></div>
+                        <button class="btn btn-tambah" onclick="openMrModal('llz-07r')">+ Form Baru</button>
+                      </div>
+                      <div class="card">
+                        <div class="print-bar">
+                          <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariMrTanggal-llz-07r" onchange="renderMrList('llz-07r')"></div>
+                          <button class="btn ghost" onclick="resetCariMr('llz-07r')" data-t="resetCari">↺ Tampilkan Semua</button>
+                        </div>
+                        <div class="subtle-note" data-t="noteCariMr">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+                      </div>
+                      <div id="mrList-llz-07r"></div>
+                    </div>
+                    <div class="lvl-panel" id="mr-p-gp-07r">
+                      <div class="section-head">
+                        <div><h2>Meter Reading GP 07R</h2><p>Lembar meter reading ILS SELEX — isi apa adanya sesuai pembacaan alat ukur.</p></div>
+                        <button class="btn btn-tambah" onclick="openMrModal('gp-07r')">+ Form Baru</button>
+                      </div>
+                      <div class="card">
+                        <div class="print-bar">
+                          <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariMrTanggal-gp-07r" onchange="renderMrList('gp-07r')"></div>
+                          <button class="btn ghost" onclick="resetCariMr('gp-07r')" data-t="resetCari">↺ Tampilkan Semua</button>
+                        </div>
+                        <div class="subtle-note" data-t="noteCariMr">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+                      </div>
+                      <div id="mrList-gp-07r"></div>
+                    </div>
+                    <div class="lvl-panel" id="mr-p-tdme-07r">
+                      <div class="section-head">
+                        <div><h2>Meter Reading TDME 07R</h2><p>Lembar meter reading ILS SELEX — isi apa adanya sesuai pembacaan alat ukur.</p></div>
+                        <button class="btn btn-tambah" onclick="openMrModal('tdme-07r')">+ Form Baru</button>
+                      </div>
+                      <div class="card">
+                        <div class="print-bar">
+                          <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariMrTanggal-tdme-07r" onchange="renderMrList('tdme-07r')"></div>
+                          <button class="btn ghost" onclick="resetCariMr('tdme-07r')" data-t="resetCari">↺ Tampilkan Semua</button>
+                        </div>
+                        <div class="subtle-note" data-t="noteCariMr">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+                      </div>
+                      <div id="mrList-tdme-07r"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="lvl-panel" id="mr-ils-25l">
+                <div class="lvl">
+                  <div class="lvl-tabs sub2">
+                    <button class="lvl-btn active" data-target="mr-p-llz-25l">LLZ 25L</button>
+                    <button class="lvl-btn" data-target="mr-p-gp-25l">GP 25L</button>
+                    <button class="lvl-btn" data-target="mr-p-tdme-25l">TDME 25L</button>
+                  </div>
+                  <div class="lvl-body">
+                    <div class="lvl-panel active" id="mr-p-llz-25l">
+                      <div class="section-head">
+                        <div><h2>Meter Reading LLZ 25L</h2><p>Lembar meter reading ILS SELEX — isi apa adanya sesuai pembacaan alat ukur.</p></div>
+                        <button class="btn btn-tambah" onclick="openMrModal('llz-25l')">+ Form Baru</button>
+                      </div>
+                      <div class="card">
+                        <div class="print-bar">
+                          <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariMrTanggal-llz-25l" onchange="renderMrList('llz-25l')"></div>
+                          <button class="btn ghost" onclick="resetCariMr('llz-25l')" data-t="resetCari">↺ Tampilkan Semua</button>
+                        </div>
+                        <div class="subtle-note" data-t="noteCariMr">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+                      </div>
+                      <div id="mrList-llz-25l"></div>
+                    </div>
+                    <div class="lvl-panel" id="mr-p-gp-25l">
+                      <div class="section-head">
+                        <div><h2>Meter Reading GP 25L</h2><p>Lembar meter reading ILS SELEX — isi apa adanya sesuai pembacaan alat ukur.</p></div>
+                        <button class="btn btn-tambah" onclick="openMrModal('gp-25l')">+ Form Baru</button>
+                      </div>
+                      <div class="card">
+                        <div class="print-bar">
+                          <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariMrTanggal-gp-25l" onchange="renderMrList('gp-25l')"></div>
+                          <button class="btn ghost" onclick="resetCariMr('gp-25l')" data-t="resetCari">↺ Tampilkan Semua</button>
+                        </div>
+                        <div class="subtle-note" data-t="noteCariMr">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+                      </div>
+                      <div id="mrList-gp-25l"></div>
+                    </div>
+                    <div class="lvl-panel" id="mr-p-tdme-25l">
+                      <div class="section-head">
+                        <div><h2>Meter Reading TDME 25L</h2><p>Lembar meter reading ILS SELEX — isi apa adanya sesuai pembacaan alat ukur.</p></div>
+                        <button class="btn btn-tambah" onclick="openMrModal('tdme-25l')">+ Form Baru</button>
+                      </div>
+                      <div class="card">
+                        <div class="print-bar">
+                          <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariMrTanggal-tdme-25l" onchange="renderMrList('tdme-25l')"></div>
+                          <button class="btn ghost" onclick="resetCariMr('tdme-25l')" data-t="resetCari">↺ Tampilkan Semua</button>
+                        </div>
+                        <div class="subtle-note" data-t="noteCariMr">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+                      </div>
+                      <div id="mrList-tdme-25l"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="lvl-panel" id="mr-ils-25r">
+                <div class="lvl">
+                  <div class="lvl-tabs sub2">
+                    <button class="lvl-btn active" data-target="mr-p-llz-25r">LLZ 25R</button>
+                    <button class="lvl-btn" data-target="mr-p-gp-25r">GP 25R</button>
+                    <button class="lvl-btn" data-target="mr-p-tdme-25r">TDME 25R</button>
+                    <button class="lvl-btn" data-target="mr-p-om-25r">OM 25R</button>
+                  </div>
+                  <div class="lvl-body">
+                    <div class="lvl-panel active" id="mr-p-llz-25r">
+                      <div class="section-head">
+                        <div><h2>Meter Reading LLZ 25R</h2><p>Lembar meter reading ILS SELEX — isi apa adanya sesuai pembacaan alat ukur.</p></div>
+                        <button class="btn btn-tambah" onclick="openMrModal('llz-25r')">+ Form Baru</button>
+                      </div>
+                      <div class="card">
+                        <div class="print-bar">
+                          <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariMrTanggal-llz-25r" onchange="renderMrList('llz-25r')"></div>
+                          <button class="btn ghost" onclick="resetCariMr('llz-25r')" data-t="resetCari">↺ Tampilkan Semua</button>
+                        </div>
+                        <div class="subtle-note" data-t="noteCariMr">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+                      </div>
+                      <div id="mrList-llz-25r"></div>
+                    </div>
+                    <div class="lvl-panel" id="mr-p-gp-25r">
+                      <div class="section-head">
+                        <div><h2>Meter Reading GP 25R</h2><p>Lembar meter reading ILS SELEX — isi apa adanya sesuai pembacaan alat ukur.</p></div>
+                        <button class="btn btn-tambah" onclick="openMrModal('gp-25r')">+ Form Baru</button>
+                      </div>
+                      <div class="card">
+                        <div class="print-bar">
+                          <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariMrTanggal-gp-25r" onchange="renderMrList('gp-25r')"></div>
+                          <button class="btn ghost" onclick="resetCariMr('gp-25r')" data-t="resetCari">↺ Tampilkan Semua</button>
+                        </div>
+                        <div class="subtle-note" data-t="noteCariMr">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+                      </div>
+                      <div id="mrList-gp-25r"></div>
+                    </div>
+                    <div class="lvl-panel" id="mr-p-tdme-25r">
+                      <div class="section-head">
+                        <div><h2>Meter Reading TDME 25R</h2><p>Lembar meter reading ILS SELEX — isi apa adanya sesuai pembacaan alat ukur.</p></div>
+                        <button class="btn btn-tambah" onclick="openMrModal('tdme-25r')">+ Form Baru</button>
+                      </div>
+                      <div class="card">
+                        <div class="print-bar">
+                          <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariMrTanggal-tdme-25r" onchange="renderMrList('tdme-25r')"></div>
+                          <button class="btn ghost" onclick="resetCariMr('tdme-25r')" data-t="resetCari">↺ Tampilkan Semua</button>
+                        </div>
+                        <div class="subtle-note" data-t="noteCariMr">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+                      </div>
+                      <div id="mrList-tdme-25r"></div>
+                    </div>
+                    <div class="lvl-panel" id="mr-p-om-25r">
+                      <div class="section-head">
+                        <div><h2>Meter Reading OM 25R</h2><p>Lembar meter reading ILS SELEX — isi apa adanya sesuai pembacaan alat ukur.</p></div>
+                        <button class="btn btn-tambah" onclick="openMrModal('om-25r')">+ Form Baru</button>
+                      </div>
+                      <div class="card">
+                        <div class="print-bar">
+                          <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariMrTanggal-om-25r" onchange="renderMrList('om-25r')"></div>
+                          <button class="btn ghost" onclick="resetCariMr('om-25r')" data-t="resetCari">↺ Tampilkan Semua</button>
+                        </div>
+                        <div class="subtle-note" data-t="noteCariMr">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+                      </div>
+                      <div id="mrList-om-25r"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              </div>
+            </div>
+          </div>
+          <div class="lvl-panel" id="mr-dvor">
+            <div class="section-head">
+              <div><h2>Meter Reading DVOR / DME</h2><p>Formnya menyusul — CKG (DVOR + DME) dan DKI (DVOR + DME).</p></div>
+            </div>
+            <div class="card"><div class="subtle-note">Lembar DVOR/DME belum diaktifkan. Kirimkan sheet-nya dan formnya langsung dibangun seperti ILS.</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="subview" id="view-ml-paneldist">
+      <div class="section-head">
+        <div><h2 data-t="mlJudul_paneldist">Panel Distribusi</h2><p data-t="mlSub_paneldist">Pemeliharaan rutin — tegangan, arus, frekuensi, dan temperatur tiap panel.</p></div>
+        <button class="btn btn-tambah" data-t="tambahMl" onclick="openMlModal(&#39;paneldist&#39;)">+ Form Baru</button>
+      </div>
+      <div class="card">
+        <div class="print-bar">
+          <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariMlTanggal-paneldist" onchange="renderMlList(&#39;paneldist&#39;)"></div>
+          <button class="btn ghost" onclick="resetCariMl(&#39;paneldist&#39;)" data-t="resetCari">↺ Tampilkan Semua</button>
+        </div>
+        <div class="subtle-note" data-t="noteCariMl">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+      </div>
+      <div id="mlList-paneldist"></div>
+    </section>
+
+    <section class="subview" id="view-ml-sts">
+      <div class="section-head">
+        <div><h2 data-t="mlJudul_sts">STS</h2><p data-t="mlSub_sts">Pemeliharaan bulanan — sembilan lokasi × STS Line 1 / Line 2 / Output.</p></div>
+        <button class="btn btn-tambah" data-t="tambahMl" onclick="openMlModal(&#39;sts&#39;)">+ Form Baru</button>
+      </div>
+      <div class="card">
+        <div class="print-bar">
+          <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariMlTanggal-sts" onchange="renderMlList(&#39;sts&#39;)"></div>
+          <button class="btn ghost" onclick="resetCariMl(&#39;sts&#39;)" data-t="resetCari">↺ Tampilkan Semua</button>
+        </div>
+        <div class="subtle-note" data-t="noteCariMl">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+      </div>
+      <div id="mlList-sts"></div>
+    </section>
+
+    <section class="subview" id="view-ml-ups">
+      <div class="section-head">
+        <div><h2 data-t="mlJudul_ups">UPS</h2><p data-t="mlSub_ups">Pemeliharaan rutin — rectifier, inverter, baterai; ada tabel tambahan tegangan sel baterai.</p></div>
+        <button class="btn btn-tambah" data-t="tambahMl" onclick="openMlModal(&#39;ups&#39;)">+ Form Baru</button>
+      </div>
+      <div class="card">
+        <div class="print-bar">
+          <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariMlTanggal-ups" onchange="renderMlList(&#39;ups&#39;)"></div>
+          <button class="btn ghost" onclick="resetCariMl(&#39;ups&#39;)" data-t="resetCari">↺ Tampilkan Semua</button>
+        </div>
+        <div class="subtle-note" data-t="noteCariMl">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+      </div>
+      <div id="mlList-ups"></div>
+    </section>
+
+    <section class="subview" id="view-ml-chiller">
+      <div class="section-head">
+        <div><h2 data-t="mlJudul_chiller">Chiller</h2><p data-t="mlSub_chiller">Tiga chiller, empat pompa distribusi, dua pompa chiller.</p></div>
+        <button class="btn btn-tambah" data-t="tambahMl" onclick="openMlModal(&#39;chiller&#39;)">+ Form Baru</button>
+      </div>
+      <div class="card">
+        <div class="print-bar">
+          <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariMlTanggal-chiller" onchange="renderMlList(&#39;chiller&#39;)"></div>
+          <button class="btn ghost" onclick="resetCariMl(&#39;chiller&#39;)" data-t="resetCari">↺ Tampilkan Semua</button>
+        </div>
+        <div class="subtle-note" data-t="noteCariMl">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+      </div>
+      <div id="mlList-chiller"></div>
+    </section>
+
+    <section class="subview" id="view-ml-ahu">
+      <div class="section-head">
+        <div><h2 data-t="mlJudul_ahu">AHU</h2><p data-t="mlSub_ahu">Lima slot Air Handling Unit — ampere motor, tekanan & temperatur air, bearing.</p></div>
+        <button class="btn btn-tambah" data-t="tambahMl" onclick="openMlModal(&#39;ahu&#39;)">+ Form Baru</button>
+      </div>
+      <div class="card">
+        <div class="print-bar">
+          <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariMlTanggal-ahu" onchange="renderMlList(&#39;ahu&#39;)"></div>
+          <button class="btn ghost" onclick="resetCariMl(&#39;ahu&#39;)" data-t="resetCari">↺ Tampilkan Semua</button>
+        </div>
+        <div class="subtle-note" data-t="noteCariMl">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+      </div>
+      <div id="mlList-ahu"></div>
+    </section>
+
+    <section class="subview" id="view-ml-genset">
+      <div class="section-head">
+        <div><h2 data-t="mlJudul_genset">Genset</h2><p data-t="mlSub_genset">PLN, stabilizer, genset, tangki, battery, dan cadangan.</p></div>
+        <button class="btn btn-tambah" data-t="tambahMl" onclick="openMlModal(&#39;genset&#39;)">+ Form Baru</button>
+      </div>
+      <div class="card">
+        <div class="print-bar">
+          <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariMlTanggal-genset" onchange="renderMlList(&#39;genset&#39;)"></div>
+          <button class="btn ghost" onclick="resetCariMl(&#39;genset&#39;)" data-t="resetCari">↺ Tampilkan Semua</button>
+        </div>
+        <div class="subtle-note" data-t="noteCariMl">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+      </div>
+      <div id="mlList-genset"></div>
+    </section>
+
+    <section class="subview" id="view-ml-grounding">
+      <div class="section-head">
+        <div><h2 data-t="mlJudul_grounding">Grounding &amp; Petir</h2><p data-t="mlSub_grounding">Checklist visual penangkal petir plus pengukuran tahanan pembumian.</p></div>
+        <button class="btn btn-tambah" data-t="tambahMl" onclick="openMlModal(&#39;grounding&#39;)">+ Form Baru</button>
+      </div>
+      <div class="card">
+        <div class="print-bar">
+          <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariMlTanggal-grounding" onchange="renderMlList(&#39;grounding&#39;)"></div>
+          <button class="btn ghost" onclick="resetCariMl(&#39;grounding&#39;)" data-t="resetCari">↺ Tampilkan Semua</button>
+        </div>
+        <div class="subtle-note" data-t="noteCariMl">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+      </div>
+      <div id="mlList-grounding"></div>
     </section>
   </section>
 
@@ -1001,6 +1500,48 @@
   </div>
 </div>
 
+<!-- MODAL PEMELIHARAAN LISTRIK & MEKANIK
+     Satu jendela untuk ketujuh lembar (Panel Distribusi / STS / UPS / Chiller /
+     AHU / Genset / Grounding & Petir). Judul, isian kepala (#mlMetaWrap), dan
+     tabelnya diatur openMlModal(form) di js/17g-maint-listrik.js; tidak ada
+     pemilih lembar di sini karena sudah ditentukan sub-tab tempat tombolnya
+     ditekan — pola yang sama dengan modal Weekly Check di atas. -->
+<div class="modal-bg" id="mlModalBg">
+  <div class="modal" style="max-width:1180px;">
+    <h3 id="mlModalJudul">Pemeliharaan</h3>
+    <p id="mlModalSub" style="margin:-6px 0 12px;color:var(--muted);font-size:12.5px;"></p>
+    <div class="grid3">
+      <div class="field"><label data-t="hariTanggal">Hari / Tanggal</label><input type="date" id="mlTanggal"></div>
+      <!-- Isian kepala yang berbeda-beda per lembar (Lokasi / Waktu / Nama
+           Peralatan) digambar renderMlMeta() dari ML_FORMS[form].meta. -->
+      <div id="mlMetaWrap" style="display:contents;"></div>
+    </div>
+    <!-- Penanda sedang menyunting catatan lama. Tersembunyi sampai
+         mlEditingId disetel (openMlEdit di js/17g-maint-listrik.js). -->
+    <div id="mlEditingBanner" class="km-sumber-ket km-awas" style="display:none;margin-top:8px;">
+      <span data-t="mlSunting">Sunting lembar ini</span>
+      <button class="btn ghost" style="margin-left:8px;padding:5px 10px;" onclick="batalEditMl()" data-t="batalEdit">Batal Edit</button>
+    </div>
+    <div id="mlWrap" style="margin-top:8px;"></div>
+    <div class="grid2" style="margin-top:14px;">
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <label style="font-family:var(--font-mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);" data-t="namaTeknisiPelaksana">Nama Teknisi Pelaksana</label>
+          <button class="btn ghost" style="padding:5px 10px;" onclick="addMlTeknisi()" data-t="tambahNama">+ Nama</button>
+        </div>
+        <div id="mlTeknisiList" style="margin-top:8px;"></div>
+      </div>
+      <div class="field"><label data-t="ttdTeknisi">TTD Teknisi</label><div class="sig-wrap"><canvas id="sigMl"></canvas><div class="sig-toolbar"><span class="sig-hint" data-t="ttdHintTeknisi">tanda tangan teknisi</span><button class="sig-clear" onclick="clearSig(&#39;sigMl&#39;)" data-t="bersihkan">bersihkan</button></div></div></div>
+    </div>
+    <div class="field" style="margin-top:8px;"><label data-t="mengetahuiManager">Mengetahui — Manager Teknik</label><input type="text" id="mlManagerNama" list="pejabatDatalist" data-t-ph="phNamaManager" placeholder="Nama manager teknik"></div>
+    <div class="field" style="margin-top:6px;"><label data-t="kirimTtdKe">Kirim TTD ke akun</label><select id="mlManagerAkun"><option value="" data-t="kirimTtdOtomatis">Otomatis (dari nama di atas)</option></select></div>
+    <div class="modal-footer">
+      <button class="btn ghost" onclick="closeMlModal()" data-t="batal">Batal</button>
+      <button class="btn" id="mlSaveBtn" data-t="simpanMl" onclick="saveMl()">💾 Simpan Lembar Pemeliharaan</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL GROUND CHECK LLZ (unit Navigasi)
      Satu jendela untuk keempat ujung landas (07L / 07R / 25R / 25L). Judul,
      nilai default header, dan tabelnya diatur openLlzModal(form) di
@@ -1033,6 +1574,39 @@
     <div class="modal-footer">
       <button class="btn ghost" onclick="closeLlzModal()" data-t="batal">Batal</button>
       <button class="btn" id="llzSaveBtn" onclick="saveLlz()" data-t="simpanLlz">💾 Simpan Ground Check</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL METER READING ILS (unit Navigasi)
+     Satu jendela untuk ke-13 lembar ILS (LLZ/GP/TDME/OM × ujung landas). Judul,
+     baris kepala (equip/freq/channel/ident), dan seluruh seksi tabelnya dibangun
+     openMrModal(id) di js/17f-meter-reading.js dari skema per jenis. -->
+<div class="modal-bg" id="mrModalBg">
+  <div class="modal" style="max-width:1240px;">
+    <h3 id="mrModalJudul">Meter Reading</h3>
+    <div id="mrModalMeta" style="font-family:var(--font-mono);font-size:11.5px;color:var(--muted);margin:-4px 0 10px;letter-spacing:.03em;"></div>
+    <div class="grid2">
+      <div class="field"><label data-t="hariTanggal">Hari / Tanggal</label><input type="date" id="mrTanggal"></div>
+      <div class="field"><label>Jam (Time)</label><input type="time" id="mrJam"></div>
+    </div>
+    <div class="subtle-note" style="margin-top:6px;">Isi tiap sel apa adanya sesuai pembacaan alat ukur. Kolom yang tak terpakai boleh dibiarkan kosong.</div>
+    <div id="mrWrap" style="margin-top:10px;"></div>
+    <div class="grid2" style="margin-top:14px;">
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <label style="font-family:var(--font-mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);" data-t="namaTeknisiPelaksana">Nama Teknisi Pelaksana</label>
+          <button class="btn ghost" style="padding:5px 10px;" onclick="addMrTeknisi()" data-t="tambahNama">+ Nama</button>
+        </div>
+        <div id="mrTeknisiList" style="margin-top:8px;"></div>
+      </div>
+      <div class="field"><label data-t="ttdTeknisi">TTD Teknisi</label><div class="sig-wrap"><canvas id="sigMr"></canvas><div class="sig-toolbar"><span class="sig-hint" data-t="ttdHintTeknisi">tanda tangan teknisi</span><button class="sig-clear" onclick="clearSig('sigMr')" data-t="bersihkan">bersihkan</button></div></div></div>
+    </div>
+    <div class="field" style="margin-top:8px;"><label data-t="mengetahuiManager">Mengetahui — Manager Teknik</label><input type="text" id="mrManagerNama" list="pejabatDatalist" data-t-ph="phNamaManager" placeholder="Nama manager teknik"></div>
+    <div class="field" style="margin-top:6px;"><label data-t="kirimTtdKe">Kirim TTD ke akun</label><select id="mrManagerAkun"><option value="" data-t="kirimTtdOtomatis">Otomatis (dari nama di atas)</option></select></div>
+    <div class="modal-footer">
+      <button class="btn ghost" onclick="closeMrModal()" data-t="batal">Batal</button>
+      <button class="btn" id="mrSaveBtn" onclick="saveMr()">💾 Simpan Meter Reading</button>
     </div>
   </div>
 </div>
@@ -1326,6 +1900,16 @@
       </div>
     </div>
     <div class="subtle-note" data-t="ttdSayaCatatan">Tanda tangan ini milik akun Anda dan hanya bisa dibuat serta dihapus oleh Anda sendiri. Sekali tersimpan, tiap papan tanda tangan di formulir mendapat tombol “pakai TTD tersimpan”. Menyimpan yang baru menggantikan yang lama; tanda tangan yang sudah terlanjur dibubuhkan pada catatan tidak ikut berubah.</div>
+
+    <!-- NOTIFIKASI TELEGRAM — muncul hanya kalau server mengaktifkan bot.
+         Diisi & dikelola oleh js/28-telegram.js. -->
+    <div id="telegramPanel" class="telegram-panel" style="display:none;">
+      <h4 style="margin:0 0 6px;">🔔 Notifikasi Telegram</h4>
+      <div class="subtle-note" style="margin-bottom:8px;">Terima kabar di Telegram saat ada dokumen yang menunggu tanda tangan Anda, dan saat dokumen yang Anda kirim sudah ditandatangani.</div>
+      <div id="telegramStatus" class="telegram-status">Memeriksa status…</div>
+      <div id="telegramAksi" class="telegram-aksi"></div>
+    </div>
+
     <div class="modal-footer">
       <button class="btn ghost" onclick="closeTtdSayaModal()" data-t="tutup">Tutup</button>
       <button class="btn" id="ttdSayaSaveBtn" onclick="simpanTtdSaya()" data-t="ttdSayaSimpan">💾 Simpan TTD</button>
@@ -1462,6 +2046,8 @@
 <script src="js/12c-daily-check-navigasi.js"></script>
 <script src="js/12d-daily-check-amhs.js"></script>
 <script src="js/12e-daily-check-pengamatan.js"></script>
+<script src="js/12f-daily-check-fgk.js"></script>
+<script src="js/12g-daily-check-listrik.js"></script>
 <script src="js/13-daily-check-radkom.js"></script>
 <script src="js/14-daily-check-umum.js"></script>
 <script src="js/15-isu.js"></script>
@@ -1470,6 +2056,8 @@
 <script src="js/17c-radio.js"></script>
 <script src="js/17d-weekly-pengamatan.js"></script>
 <script src="js/17e-llz-navigasi.js"></script>
+<script src="js/17f-meter-reading.js"></script>
+<script src="js/17g-maint-listrik.js"></script>
 <script src="js/18-ltk.js"></script>
 <script src="js/18b-bapb.js"></script>
 <script src="js/19-berkala.js"></script>
@@ -1479,6 +2067,7 @@
 <script src="js/23-cetak-isu.js"></script>
 <script src="js/24-cetak-daily-check.js"></script>
 <script src="js/27-ttd-tersimpan.js"></script>
+<script src="js/28-telegram.js"></script>
 <script src="js/29-rekap.js"></script>
 <script src="js/25-login.js"></script>
 <script src="js/26-init.js"></script>

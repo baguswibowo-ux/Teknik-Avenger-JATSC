@@ -52,6 +52,30 @@ table.pgm td.name{text-align:left; font-family:var(--font-mono); font-size:10px;
                   white-space:nowrap; background:var(--zebra); padding:1px 6px;}
 table.pgm .status-btn{width:22px; height:18px; font-size:11px; border-radius:4px; padding:0;}
 
+/* Daily check Fasilitas Gedung & Keamanan (js/12f). Lembar "Toilet & Mushalla"
+   memakai .pgm-cols di atas apa adanya — satu kolom status, blok sempit. Lembar
+   "Harian JATSC" tabelnya lebar (empat lift / dua server) dan nama itemnya
+   kalimat penuh, jadi ditumpuk lebar penuh dan namanya boleh berganti baris. */
+.fgk-stack .pgm-blok{margin:0 0 12px;}
+.fgk-stack table.pgm td.name{white-space:normal; font-size:10.5px; width:40%;}
+/* Kotak isian + satuannya duduk sebaris; tanpa ini satuannya turun ke baris
+   kedua dan baris pengukuran jadi dua kali lebih tinggi dari baris status. */
+.fgk-sel{display:flex; align-items:center; gap:3px; justify-content:center;}
+.fgk-sat{font-size:9px; white-space:nowrap;}
+table.pgm input.fgk-isi{width:100%; min-width:54px; background:var(--panel-2);
+             border:1px solid var(--line); color:var(--text); border-radius:4px;
+             padding:2px 4px; font-size:11px; text-align:center;}
+table.pgm input.fgk-isi:focus{border-color:var(--accent); outline:none;}
+/* Keterangan per seksi — di lembar aslinya kolom memanjang di samping tabel.
+   Di layar dibuat sebentuk Remark (.field + textarea) supaya tidak terlihat
+   seperti kotak isian sempit yang nyempil; textarea-nya lebih pendek dari
+   Remark karena ini catatan satu seksi, bukan catatan seluruh dinas. */
+.fgk-ket{margin:8px 0 4px;}
+.fgk-ket textarea{min-height:44px;}
+.fgk-ket-baca{margin:6px 0 4px; font-size:12.5px; line-height:1.6;}
+.fgk-ket-baca b{font-family:var(--font-mono); font-size:10.5px; letter-spacing:.08em;
+             text-transform:uppercase; color:var(--muted); font-weight:400;}
+
 table.dc.mon{min-width:1000px;}
 table.dc.mon th{font-size:10px; white-space:nowrap;}
 table.dc.mon td{padding:2px 4px;}
@@ -164,6 +188,108 @@ table.rekap-matriks .rekap-sel.pilih{outline:2px solid var(--accent); outline-of
 .unit-chip b{color:var(--text); font-size:12.5px;}
 .unit-chip:hover{border-color:var(--accent); color:var(--text);}
 .unit-chip.warn{border-color:rgba(255,179,0,.4); color:var(--warn);}
+
+/* ---------- Meter Reading ILS (js/17f-meter-reading.js) ----------
+   Tiap lembar = deret seksi, tiap seksi satu tabel. Kepala baris-ganda
+   (INTEGRAL/STANDBY/NFM × M1/M2 dsb.) ditulis di skema; di sini cuma rupa. */
+.mr-seksi{margin-bottom:16px;}
+.mr-seksi-judul{font-family:var(--font-mono); font-size:11px; letter-spacing:.1em;
+                text-transform:uppercase; color:var(--accent); margin:14px 0 6px;}
+table.mr-tbl{border-collapse:collapse; width:100%; font-size:12px;}
+table.mr-tbl th, table.mr-tbl td{border:1px solid var(--line); padding:4px 6px; text-align:center;}
+table.mr-tbl thead th{background:var(--panel-2); font-family:var(--font-mono); font-size:9.5px;
+                      letter-spacing:.03em; color:var(--muted); text-transform:uppercase; white-space:nowrap;}
+table.mr-tbl td.mr-par{text-align:left; white-space:nowrap;}
+table.mr-tbl tr.mr-grp > td{background:var(--zebra); font-family:var(--font-mono); font-size:10.5px;
+                            letter-spacing:.05em; color:var(--text); padding:4px 8px;}
+
+/* ---------- Daily check Listrik & Mekanik (js/12g-daily-check-listrik.js) ----------
+   Bentuknya sekeluarga dengan Meter Reading di atas — tabel angka berkepala
+   baris-ganda — tapi kelasnya sendiri: yang ini duduk di dalam form daily check
+   (bukan modal preventive), kolomnya sampai enam belas, dan punya sel KONDISI
+   serta kolom KETERANGAN yang tak ada di sana.
+
+   SEMUA KOTAK ISIAN DIWARNAI DI SINI. <input> tanpa warna dipakaikan latar
+   putih bawaan peramban, dan di tema gelap satu tabel penuh kotak putih
+   terlihat seperti bercak — persis keluhan yang muncul di lembar Gedung &
+   Keamanan sebelum aturan serupa dipasang untuk .fgk-isi. */
+.lk-seksi{margin-bottom:18px;}
+.lk-seksi-judul{font-family:var(--font-mono); font-size:11px; letter-spacing:.1em;
+                text-transform:uppercase; color:var(--accent); margin:14px 0 6px;}
+/* Tabelnya lebar (MDS enam belas kolom) — digulir mendatar di dalam kotaknya
+   sendiri supaya halaman form tidak ikut melebar. */
+.lk-gulir{overflow-x:auto;}
+table.lk-tbl{border-collapse:collapse; width:100%; font-size:12px;}
+table.lk-tbl th, table.lk-tbl td{border:1px solid var(--line); padding:3px 5px; text-align:center;}
+table.lk-tbl thead th{background:var(--panel-2); font-family:var(--font-mono); font-size:9.5px;
+                      letter-spacing:.03em; color:var(--muted); text-transform:uppercase;
+                      white-space:normal; line-height:1.25;}
+table.lk-tbl td.lk-par{text-align:left; white-space:nowrap; font-size:11.5px;}
+/* Baris sub-judul = sel LOKASI yang di Excel-nya di-merge menurun. */
+table.lk-tbl tr.lk-grp > td{background:var(--zebra); font-family:var(--font-mono); font-size:10.5px;
+                            letter-spacing:.05em; color:var(--text); padding:4px 8px;}
+table.lk-tbl input.lk-isi{width:100%; min-width:52px; box-sizing:border-box;
+                          background:var(--panel-2); border:1px solid var(--line); color:var(--text);
+                          border-radius:4px; padding:3px 4px; font-size:11.5px; text-align:center;}
+table.lk-tbl input.lk-isi:focus{border-color:var(--accent); outline:none;}
+/* Kolom KETERANGAN memuat kalimat, bukan angka — lebih lebar dan rata kiri. */
+table.lk-tbl td.lk-ket input.lk-isi{min-width:130px; text-align:left;}
+.status-btn.lk-kondisi{width:auto; min-width:44px; padding:0 8px; font-size:10px;
+                       font-family:var(--font-mono); letter-spacing:.04em;}
+
+/* ---------- Preventive Maintenance Listrik & Mekanik (js/17g-maint-listrik.js) ----------
+   Sekeluarga dengan .lk-tbl di atas — tabel angka berkepala baris-ganda — tapi
+   kelasnya sendiri karena lembar ini punya dua hal yang tak ada di sana: kepala
+   kolom yang DIKETIK pemakai (Panel / UPS / Genset) dan tabel tambahan tegangan
+   sel baterai. Aturan warnanya sama: setiap <input> diwarnai di sini, jangan
+   ada yang jatuh ke latar putih bawaan peramban. */
+.ml-seksi{margin-bottom:18px;}
+.ml-seksi-kepala{display:flex; align-items:center; justify-content:space-between;
+                 gap:10px; margin:14px 0 6px; flex-wrap:wrap;}
+.ml-seksi-judul{font-family:var(--font-mono); font-size:11px; letter-spacing:.1em;
+                text-transform:uppercase; color:var(--accent);}
+.btn.ml-tambah{padding:5px 10px; font-size:11.5px;}
+.ml-gulir{overflow-x:auto;}
+table.ml-tbl{border-collapse:collapse; width:100%; font-size:12px;}
+table.ml-tbl th, table.ml-tbl td{border:1px solid var(--line); padding:3px 5px; text-align:center;}
+table.ml-tbl thead th{background:var(--panel-2); font-family:var(--font-mono); font-size:9.5px;
+                      letter-spacing:.03em; color:var(--muted); text-transform:uppercase;
+                      white-space:normal; line-height:1.25; vertical-align:middle;}
+table.ml-tbl td.ml-par{text-align:left; white-space:nowrap; font-size:11.5px;}
+table.ml-tbl tr.ml-grp > td{background:var(--zebra); font-family:var(--font-mono); font-size:10.5px;
+                            letter-spacing:.05em; color:var(--text); padding:4px 8px;}
+table.ml-tbl input.ml-isi{width:100%; min-width:52px; box-sizing:border-box;
+                          background:var(--panel-2); border:1px solid var(--line); color:var(--text);
+                          border-radius:4px; padding:3px 4px; font-size:11.5px; text-align:center;}
+table.ml-tbl input.ml-isi:focus{border-color:var(--accent); outline:none;}
+table.ml-tbl td.ml-ket input.ml-isi{min-width:130px; text-align:left;}
+.status-btn.ml-pilih{width:auto; min-width:52px; padding:0 8px; font-size:10px;
+                     font-family:var(--font-mono); letter-spacing:.04em;}
+
+/* Kepala kolom yang diketik pemakai: dua kotak bertumpuk (nama + sub) dan
+   tombol hapus kecil. Ditulis lebih kecil dari kotak isian di badan tabel
+   supaya tetap terbaca sebagai KEPALA, bukan baris data pertama. */
+table.ml-tbl thead th input.ml-kol{width:100%; box-sizing:border-box; margin:1px 0;
+                          background:var(--panel-2); border:1px solid var(--line); color:var(--text);
+                          border-radius:4px; padding:2px 4px; font-size:11px; text-align:center;
+                          font-family:var(--font-sans, inherit); text-transform:none; letter-spacing:0;}
+table.ml-tbl thead th input.ml-kol:focus{border-color:var(--accent); outline:none;}
+table.ml-tbl thead th input.ml-kol-sub{font-size:10px; color:var(--muted);}
+.icon-btn.ml-kol-x{margin-top:2px; padding:0 6px; font-size:10px;}
+
+/* Baris identitas (AHU / Merk / Type) & kepala blok baterai — sederet kotak
+   berlabel yang mengalir dalam satu baris selebar tabel. */
+.ml-ident, .ml-bat-kepala{display:flex; flex-wrap:wrap; gap:10px 16px; align-items:center;}
+.ml-ident-medan{display:flex; align-items:center; gap:6px; font-size:11.5px;}
+.ml-ident-medan b{font-family:var(--font-mono); font-size:10px; letter-spacing:.06em;
+                  text-transform:uppercase; color:var(--muted); font-weight:400; white-space:nowrap;}
+.ml-ident-medan input.ml-isi{background:var(--panel-2); border:1px solid var(--line); color:var(--text);
+                  border-radius:4px; padding:3px 6px; font-size:11.5px; max-width:190px;}
+.ml-ident-medan input.ml-isi:focus{border-color:var(--accent); outline:none;}
+.ml-bat-blok{margin:0 0 16px;}
+.ml-bat-kepala{margin:0 0 6px;}
+table.ml-tbl td.ml-bat-no{font-family:var(--font-mono); font-size:10px; color:var(--muted);
+                          background:var(--zebra); width:34px;}
 
 table.issues{width:100%; border-collapse:collapse; font-size:13px;}
 table.issues th, table.issues td{border:1px solid var(--line); padding:8px; text-align:left; vertical-align:top;}

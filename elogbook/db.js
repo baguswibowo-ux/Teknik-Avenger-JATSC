@@ -269,6 +269,14 @@ CREATE TABLE IF NOT EXISTS user_unit (
   unit     TEXT NOT NULL,
   PRIMARY KEY (user_id, unit)
 );
+
+CREATE TABLE IF NOT EXISTS telegram_akun (
+  username       TEXT PRIMARY KEY COLLATE NOCASE,
+  chat_id        TEXT NOT NULL DEFAULT '',
+  tautan_token   TEXT NOT NULL DEFAULT '',
+  ditautkan_pada TEXT NOT NULL DEFAULT '',
+  dibuat_pada    TEXT NOT NULL DEFAULT ''
+);
 `);
 
 /* ============== MIGRASI KOLOM ==============
@@ -649,9 +657,12 @@ export const UNIT = [
     pakaiFrek: false,
     labelUraian: 'Uraian Pekerjaan / Kejadian',
     labelPj: 'Manager Teknik',
-    // Formulir khusus unit ini menunggu form aslinya. Sampai itu ada, yang
-    // tersedia baru Logbook Fasilitas, Isu, dan LTK yang memang berlaku umum.
-    adaDailyCheck: false,
+    // Daily Check punya form-nya sendiri: empat lembar (STS, MDS No Break,
+    // Beban Listrik, dan UPS Beban Utama Operasional) yang dipilih lewat
+    // sub-tab — lihat js/12g-daily-check-listrik.js. Monitoring, DS Test, dan
+    // berkala belum berlaku di unit ini.
+    adaDailyCheck: true,
+    dcJudul: 'Daily Check Fasilitas Listrik & Mekanik — STS · MDS · Beban Listrik · UPS',
     adaMonitoring: false,
     adaDsTest: false,
     adaBerkala: false,
@@ -672,9 +683,13 @@ export const UNIT = [
     pakaiFrek: false,
     labelUraian: 'Uraian Pekerjaan / Kejadian',
     labelPj: 'Manager Teknik',
-    // Formulir khusus unit ini menunggu form aslinya. Sampai itu ada, yang
-    // tersedia baru Logbook Fasilitas, Isu, dan LTK yang memang berlaku umum.
-    adaDailyCheck: false,
+    // Daily Check punya form-nya sendiri: dua lembar (Toilet & Mushalla di New
+    // JATSC, dan Pengecekan Harian JATSC untuk lift / server CCTV / sistem
+    // pengendali jalan masuk) yang dipilih lewat sub-tab — lihat
+    // js/12f-daily-check-fgk.js. Monitoring, DS Test, dan berkala belum
+    // berlaku di unit ini.
+    adaDailyCheck: true,
+    dcJudul: 'Daily Check Fasilitas Gedung & Keamanan — New JATSC · JATSC',
     adaMonitoring: false,
     adaDsTest: false,
     adaBerkala: false,
@@ -2015,6 +2030,9 @@ const rowToDsTest = (r, extra = {}) => ({
   TeknisiNamaListJSON: parseJson(r.teknisi_nama_list, []),
   TeknisiTTD: r.teknisi_ttd,
   DiinputOleh: extra.diinputOleh ?? (r.dibuat_oleh || ''),
+  // Username pembuatnya dibawa apa adanya supaya tombol Sunting bisa
+  // muncul hanya untuk yang berhak — sama pola dengan logbook & daily check.
+  DibuatOlehUsername: r.dibuat_oleh || '',
   DibuatPada: r.dibuat_pada || '',
   TtdOleh: extra.ttdOleh ?? (r.ttd_oleh || ''), TtdPada: r.ttd_pada || '', TtdUntuk: r.ttd_untuk || ''
 });
@@ -2031,15 +2049,22 @@ export function listDsTest(unit = 'radtel', limit = 200) {
 
 export function insertDsTest(rec = {}, olehUsername = '', olehNama = '') {
   const namaList = Array.isArray(rec.teknisiNamaList) ? rec.teknisiNamaList : [];
-  // Maintenance Radio (state.__format === 'radio'), Weekly Check Pengamatan
-  // (state.__format === 'pgmweekly'), dan Ground Check LLZ (state.__format ===
-  // 'llzgc') menumpang tabel ini. Ketiganya tak punya entri DS_SITE — daftar
-  // item/lembarnya ada di peramban (17c/17d/17e) — jadi pemeriksaan site dilewati.
+  // Lima jenis lembar menumpang tabel ini, dibedakan lewat state.__format:
+  //   'radio'        Maintenance Radio            (17c)
+  //   'pgmweekly'    Weekly Check Pengamatan      (17d)
+  //   'llzgc'        Ground Check LLZ             (17e)
+  //   'mrreading'    Meter Reading ILS            (17f)
+  //   'maintlistrik' Pemeliharaan Listrik & Mekanik (17g)
+  // Kelimanya tak punya entri DS_SITE — daftar item/lembarnya ada di peramban
+  // — jadi pemeriksaan site dilewati.
   const fmt = rec.state && rec.state.__format;
-  const isKhusus = fmt === 'radio' || fmt === 'pgmweekly' || fmt === 'llzgc';
+  const isKhusus = fmt === 'radio' || fmt === 'pgmweekly' || fmt === 'llzgc' || fmt === 'mrreading' ||
+                   fmt === 'maintlistrik';
   const kategori = fmt === 'radio' ? 'radio'
                  : fmt === 'pgmweekly' ? 'pgmweekly'
                  : fmt === 'llzgc' ? 'llzgc'
+                 : fmt === 'mrreading' ? 'mrreading'
+                 : fmt === 'maintlistrik' ? 'maintlistrik'
                  : (kategoriDsSah(rec.kategori) ? rec.kategori : 'domestik');
   // Daftar site yang masih kosong berarti formnya belum bisa dipakai —
   // menyimpan lembar tanpa satu pun site hanya menghasilkan berkas kosong.
@@ -2066,6 +2091,55 @@ export function insertDsTest(rec = {}, olehUsername = '', olehNama = '') {
     .run(row.id, row.unit, row.kategori, row.tanggal, row.state_json, row.teknisi_nama, row.teknisi_nama_list,
          row.teknisi_ttd, row.manager_nama, row.manager_ttd, row.ttd_untuk, row.dibuat_pada, olehUsername);
   return rowToDsTest(row, { diinputOleh: olehNama || olehUsername });
+}
+
+/**
+ * Sunting lembar dstest yang sudah tersimpan (DS Test dan semua form preventive
+ * yang menumpang tabel ini). Aturannya sama dengan updateDailyCheck:
+ *   · sudah ditandatangani manager teknik → terkunci, tidak bisa disunting;
+ *   · selain administrator, hanya pembuat catatan yang boleh menyuntingnya.
+ * Yang boleh diubah: tanggal, isi lembar (state), daftar & TTD teknisi, nama
+ * manager, dan akun tujuan TTD. Unit dan kategori TIDAK diubah — jenis lembar
+ * itu identitas catatannya, bukan isian.
+ *
+ * TTD teknisi hanya diganti kalau kirimannya URL data baru; kosong berarti
+ * "tidak menyunting TTD", bukan "hapus TTD".
+ */
+export function updateDsTest(id, patch = {}, actor = {}) {
+  const row = db.prepare('SELECT * FROM dstest WHERE id = ?').get(String(id));
+  if (!row) throw new Error('Catatan tidak ditemukan — mungkin sudah dihapus.');
+  if (row.manager_ttd) throw new Error('Catatan ini sudah ditandatangani manager teknik — tidak bisa disunting lagi.');
+  if (!actor.admin && row.dibuat_oleh && row.dibuat_oleh !== actor.username) {
+    throw new Error('Hanya pembuat catatan ini yang bisa menyuntingnya.');
+  }
+
+  const tanggal = patch.tanggal !== undefined ? String(patch.tanggal || '') : row.tanggal;
+  if (!tanggal) throw new Error('Tanggal tidak boleh kosong.');
+  const managerNama = patch.managerNama !== undefined ? String(patch.managerNama || '') : row.manager_nama;
+  const teknisiNamaList = Array.isArray(patch.teknisiNamaList) ? patch.teknisiNamaList : null;
+  const teknisiNama = teknisiNamaList ? teknisiNamaList.join(', ') : row.teknisi_nama;
+  const teknisi_nama_list = teknisiNamaList ? JSON.stringify(teknisiNamaList) : row.teknisi_nama_list;
+
+  let teknisi_ttd = row.teknisi_ttd;
+  if (patch.teknisiTtd !== undefined && patch.teknisiTtd !== null && String(patch.teknisiTtd).startsWith('data:')) {
+    if (row.teknisi_ttd) removeSignatureFile(row.teknisi_ttd);
+    teknisi_ttd = saveSignature(patch.teknisiTtd, 'dstest_teknisi');
+  }
+  const state_json = patch.state !== undefined ? JSON.stringify(patch.state || {}) : row.state_json;
+  const ttd_untuk = patch.ttdUntuk !== undefined ? String(patch.ttdUntuk || '') : row.ttd_untuk;
+
+  db.prepare(`UPDATE dstest SET tanggal = ?, state_json = ?, teknisi_nama = ?, teknisi_nama_list = ?,
+                                teknisi_ttd = ?, manager_nama = ?, ttd_untuk = ?
+                          WHERE id = ?`)
+    .run(tanggal, state_json, teknisiNama, teknisi_nama_list, teknisi_ttd, managerNama, ttd_untuk, String(id));
+
+  const nama = petaNamaPengguna();
+  const rowBaru = { ...row, tanggal, state_json, teknisi_nama: teknisiNama, teknisi_nama_list,
+                    teknisi_ttd, manager_nama: managerNama, ttd_untuk };
+  return rowToDsTest(rowBaru, {
+    diinputOleh: namaTampil(nama, row.dibuat_oleh),
+    ttdOleh: namaTampil(nama, row.ttd_oleh)
+  });
 }
 
 export function removeDsTest(id) {
@@ -2441,7 +2515,9 @@ export function unitCatatan(jenis, id) {
 export function tandaTanganiCatatan(jenis, id, { nama, username, role, ttd }) {
   if (!jenisTtdSah(jenis)) throw new Error('Jenis catatan tidak dikenal: ' + jenis);
   const t = JENIS_TTD[jenis];
-  const row = db.prepare(`SELECT ${t.nama} AS nama, ${t.ttd} AS ttd, ttd_untuk FROM ${t.tabel} WHERE id = ?`)
+  const row = db.prepare(`SELECT ${t.nama} AS nama, ${t.ttd} AS ttd, ttd_untuk,
+                                 dibuat_oleh, ${t.tglKolom} AS tanggal
+                            FROM ${t.tabel} WHERE id = ?`)
     .get(String(id));
   if (!row) throw new Error('Catatan tidak ditemukan — mungkin sudah dihapus.');
   if (row.ttd) throw new Error('Catatan ini sudah ditandatangani.');
@@ -2461,7 +2537,10 @@ export function tandaTanganiCatatan(jenis, id, { nama, username, role, ttd }) {
     .run(namaTetap, path, String(username || ''), pada, String(id));
   return {
     jenis, id: String(id), nama: namaTetap, ttd: path,
-    ttdOleh: String(nama || username || ''), ttdPada: pada
+    ttdOleh: String(nama || username || ''), ttdPada: pada,
+    // Untuk notifikasi balik ke pembuat/pelaksana (lihat server.js): siapa yang
+    // membuat lembar ini, dan tanggalnya. Bukan bagian dari data formulir.
+    dibuatOleh: String(row.dibuat_oleh || ''), tanggal: String(row.tanggal || '')
   };
 }
 
@@ -2591,4 +2670,63 @@ export function getInboxTtd(username) {
   }
   hasil.sort((a, b) => (a.dibuatPada < b.dibuatPada ? 1 : -1));
   return hasil;
+}
+
+/* ============== TAUTAN TELEGRAM ==============
+ * Pemetaan akun E-Logbook ↔ chat Telegram, plus token taut sekali-pakai.
+ * Notifikasi dikirim ke chat_id, dan chat_id hanya bisa didapat setelah orang
+ * itu menekan Start di bot — jadi tiap akun menautkan dirinya sekali:
+ *   1. buatTautanTelegram → token acak yang ditaruh di tautan t.me/<bot>?start=…
+ *   2. orang membuka tautan, bot menerima /start <token>
+ *   3. tautkanTelegram(token, chatId) mengunci chat itu ke akun tersebut
+ * Cermin Postgres-nya ada di db-pg.js — kalau yang satu diubah, yang lain ikut. */
+
+export function buatTautanTelegram(username) {
+  const u = String(username || '').trim();
+  if (!u) throw new Error('Akun tidak dikenal.');
+  const token = crypto.randomBytes(24).toString('base64url');
+  const ada = db.prepare('SELECT username FROM telegram_akun WHERE username = ?').get(u);
+  if (ada) {
+    db.prepare('UPDATE telegram_akun SET tautan_token = ? WHERE username = ?').run(token, u);
+  } else {
+    db.prepare(`INSERT INTO telegram_akun (username, chat_id, tautan_token, ditautkan_pada, dibuat_pada)
+                VALUES (?, '', ?, '', ?)`).run(u, token, nowIso());
+  }
+  return token;
+}
+
+export function tautkanTelegram(token, chatId) {
+  const t = String(token || '').trim();
+  const c = String(chatId || '').trim();
+  if (!t || !c) return null;
+  const row = db.prepare(`SELECT username FROM telegram_akun
+                           WHERE tautan_token = ? AND tautan_token <> ''`).get(t);
+  if (!row) return null;
+  // Satu chat Telegram hanya boleh menempel ke satu akun: lepas tautan lama chat ini.
+  db.prepare("UPDATE telegram_akun SET chat_id = '' WHERE chat_id = ? AND username <> ?")
+    .run(c, row.username);
+  db.prepare(`UPDATE telegram_akun SET chat_id = ?, tautan_token = '', ditautkan_pada = ?
+               WHERE username = ?`).run(c, nowIso(), row.username);
+  const usr = db.prepare('SELECT nama FROM users WHERE username = ?').get(row.username);
+  return { username: row.username, nama: (usr && usr.nama) || row.username };
+}
+
+export function getChatIdTelegram(username) {
+  const u = String(username || '').trim();
+  if (!u) return '';
+  const row = db.prepare('SELECT chat_id FROM telegram_akun WHERE username = ?').get(u);
+  return (row && row.chat_id) || '';
+}
+
+export function putusTautanTelegram(username) {
+  const u = String(username || '').trim();
+  if (u) db.prepare("UPDATE telegram_akun SET chat_id = '', tautan_token = '' WHERE username = ?").run(u);
+  return { tertaut: false };
+}
+
+export function statusTautanTelegram(username) {
+  const u = String(username || '').trim();
+  if (!u) return { tertaut: false, ditautkanPada: '' };
+  const row = db.prepare('SELECT chat_id, ditautkan_pada FROM telegram_akun WHERE username = ?').get(u);
+  return { tertaut: !!(row && row.chat_id), ditautkanPada: (row && row.ditautkan_pada) || '' };
 }

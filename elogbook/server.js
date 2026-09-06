@@ -26,12 +26,27 @@
  *                            port sebelah dashboard — di Vercel, misalnya.
  *                            Kosong: tombolnya disembunyikan, bukan menunjuk
  *                            alamat yang salah.
+ *   TELEGRAM_BOT_TOKEN       token bot dari @BotFather. Kosong = fitur
+ *                            notifikasi Telegram mati total (aman).
+ *   TELEGRAM_BOT_USERNAME    username bot tanpa @ (untuk tautan t.me/…). Kalau
+ *                            kosong, diambil sekali dari getMe.
+ *   TELEGRAM_WEBHOOK_SECRET  string acak; dicocokkan dengan header webhook
+ *                            Telegram. WAJIB diisi di produksi.
+ *   TELEGRAM_POLLING         set 1 untuk mode polling (uji lokal tanpa webhook/
+ *                            tunnel). Hanya berlaku pada npm start, tidak di
+ *                            Vercel. Produksi biarkan kosong = pakai webhook.
  */
 
 import express from 'express';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import {
+  telegramAktif, telegramWebhookSecret, kirimPesan, botUsername,
+  pasangWebhook, infoWebhook, bacaUpdate,
+  telegramModePolling, mulaiPolling,
+  pesanPerluTtd, pesanSudahTtd, pesanTautBerhasil, pesanPerluTaut
+} from './telegram.js';
 
 /**
  * Lapisan data dipilih saat start:
@@ -55,7 +70,7 @@ const {
   tutupIsu, tambahBuktiTutupIsu,
   tambahLampiranIsu, hapusLampiranIsu,
   listMonitoring, insertMonitoring, removeMonitoring,
-  listDsTest, insertDsTest, removeDsTest, DS_SITE, KATEGORI_DS,
+  listDsTest, insertDsTest, removeDsTest, updateDsTest, DS_SITE, KATEGORI_DS,
   listBerkala, insertBerkala, removeBerkala, BERKALA_ITEM, JENIS_BERKALA,
   LOKASI,
   tambahLampiranLtk, hapusLampiranLtk, getLtk,
@@ -67,7 +82,8 @@ const {
   listUsers, setPassword, setAktif, setRole, setNama, setUsername, ROLE_VALID, SEMUA_UNIT, jumlahAdminAktif,
   UNIT, KODE_UNIT, unitSah, unitUntukUser, setUnitUser,
   createSession, getSessionUser, deleteSession, purgeExpiredSessions,
-  ambilBerkas
+  ambilBerkas,
+  buatTautanTelegram, tautkanTelegram, getChatIdTelegram, putusTautanTelegram, statusTautanTelegram
 } = await import(PAKAI_POSTGRES ? './db-pg.js' : './db.js');
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -245,6 +261,67 @@ async function ttdUntukSah(username) {
   if (!target || !target.aktif) return '';
   if (target.role !== 'pejabat' && target.role !== 'admin') return '';
   return target.username;
+}
+
+/* ============== NOTIFIKASI TELEGRAM ==============
+ * Dua kejadian yang diberi kabar, keduanya "kirim kalau bisa": gagalnya
+ * Telegram tidak boleh menjatuhkan penyimpanan formulir. Karena itu setiap
+ * pemanggil membungkusnya dengan .catch(() => {}) dan fungsi di sini pun sudah
+ * menelan galatnya sendiri.
+ *
+ * Sifat feature-flag dijaga di sini juga: telegramAktif() false → langsung
+ * pulang tanpa menyentuh database. */
+
+const NAMA_DOKUMEN = {
+  logbook: 'Logbook', dailycheck: 'Daily Check', monitoring: 'Monitoring',
+  dstest: 'DS Test', berkala: 'Pemeliharaan Berkala',
+  ltk: 'Laporan Kerusakan (LTK)', bapb: 'BAPB'
+};
+
+/** Nama unit yang enak dibaca dari kodenya ('radtel' → 'Radtel'). */
+function namaUnit(kode) {
+  const k = String(kode || '').trim();
+  if (!k) return '';
+  const u = (UNIT || []).find((x) => x.kode === k);
+  return (u && u.nama) || k;
+}
+
+/** Tanggal terbaik yang ada pada objek formulir, apa pun nama kolomnya. */
+function tanggalForm(form) {
+  return String(form?.tanggal || form?.tanggalLapor || form?.tanggal_lapor
+    || form?.tanggalReport || form?.tanggal_report || '').trim();
+}
+
+/** Kabari akun yang dituju bahwa ada dokumen menunggu tanda tangannya. */
+async function notifPerluTtd(jenis, ttdUntukUsername, form, pembuatNama) {
+  try {
+    if (!telegramAktif() || !ttdUntukUsername) return;
+    const chatId = await getChatIdTelegram(ttdUntukUsername);
+    if (!chatId) return;
+    await kirimPesan(chatId, pesanPerluTtd({
+      dokumen: NAMA_DOKUMEN[jenis] || 'Dokumen',
+      unit: namaUnit(form?.unit),
+      tanggal: tanggalForm(form),
+      pembuat: pembuatNama
+    }));
+  } catch (err) {
+    console.error('[telegram notifPerluTtd]', err?.message || err);
+  }
+}
+
+/** Kabari pembuat/pelaksana bahwa dokumennya sudah ditandatangani. */
+async function notifSudahTtd(jenis, dibuatOleh, { unit, tanggal, penanda }) {
+  try {
+    if (!telegramAktif() || !dibuatOleh) return;
+    const chatId = await getChatIdTelegram(dibuatOleh);
+    if (!chatId) return;
+    await kirimPesan(chatId, pesanSudahTtd({
+      dokumen: NAMA_DOKUMEN[jenis] || 'Dokumen',
+      unit: namaUnit(unit), tanggal, penanda
+    }));
+  } catch (err) {
+    console.error('[telegram notifSudahTtd]', err?.message || err);
+  }
 }
 
 /* ============== LOGIN ============== */
@@ -484,7 +561,7 @@ async function unitDanHakAkses(user, unit) {
 const API_TULIS = new Set([
   'addEntry', 'addDailyCheck', 'addIssue', 'addMonitoring', 'addLtk', 'addDsTest', 'addBerkala',
   'addBapb', 'updateBapb',
-  'updateEntry', 'updateDailyCheck', 'updateTtdRouting',
+  'updateEntry', 'updateDailyCheck', 'updateDsTest', 'updateTtdRouting',
   // Menutup isu dan menempel bukti penutup bukan admin-only: teknisi
   // yang menyelesaikan gangguan boleh menandai isunya selesai.
   'tutupIsu', 'addBuktiTutupIsu'
@@ -804,9 +881,13 @@ const API = {
     };
   },
 
-  addEntry: async (entry, user) => insertEntry(
-    { ...(entry || {}), unit: await unitDiminta(user, entry?.unit), ttdUntuk: await ttdUntukSah(entry?.ttdUntuk) },
-    user.username, user.nama),
+  addEntry: async (entry, user) => {
+    const unit = await unitDiminta(user, entry?.unit);
+    const ttdUntuk = await ttdUntukSah(entry?.ttdUntuk);
+    const rec = await insertEntry({ ...(entry || {}), unit, ttdUntuk }, user.username, user.nama);
+    notifPerluTtd('logbook', ttdUntuk, { unit, tanggal: entry?.tanggal }, user.nama || user.username);
+    return rec;
+  },
 
   /**
    * Sunting catatan logbook yang sudah tersimpan. Hanya pembuat aslinya atau
@@ -822,9 +903,13 @@ const API = {
     return updateEntry(String(id), patch || {}, { username: user.username, admin: isAdmin(user) });
   },
 
-  addDailyCheck: async (rec, user) => insertDailyCheck(
-    { ...(rec || {}), unit: await unitDiminta(user, rec?.unit), ttdUntuk: await ttdUntukSah(rec?.ttdUntuk) },
-    user.username, user.nama),
+  addDailyCheck: async (rec, user) => {
+    const unit = await unitDiminta(user, rec?.unit);
+    const ttdUntuk = await ttdUntukSah(rec?.ttdUntuk);
+    const hasil = await insertDailyCheck({ ...(rec || {}), unit, ttdUntuk }, user.username, user.nama);
+    notifPerluTtd('dailycheck', ttdUntuk, { unit, tanggal: rec?.tanggal }, user.nama || user.username);
+    return hasil;
+  },
 
   /** Sunting tanggal daily check yang sudah tersimpan — lihat updateEntry di atas. */
   updateDailyCheck: async (id, patch, user) => {
@@ -841,30 +926,72 @@ const API = {
   // Menentukan status isu sama saja dengan mengubahnya — itu hak administrator.
   // Isu dari teknisi selalu masuk berstatus Open, apa pun yang dikirim klien.
   // Lampiran fase closed pun ikut dibuang, karena isunya belum boleh ditutup.
-  addMonitoring: async (rec, user) => insertMonitoring(
-    { ...(rec || {}), unit: await unitDiminta(user, rec?.unit), ttdUntuk: await ttdUntukSah(rec?.ttdUntuk) },
-    user.username, user.nama),
+  addMonitoring: async (rec, user) => {
+    const unit = await unitDiminta(user, rec?.unit);
+    const ttdUntuk = await ttdUntukSah(rec?.ttdUntuk);
+    const hasil = await insertMonitoring({ ...(rec || {}), unit, ttdUntuk }, user.username, user.nama);
+    notifPerluTtd('monitoring', ttdUntuk, { unit, tanggal: rec?.tanggal }, user.nama || user.username);
+    return hasil;
+  },
 
-  addDsTest: async (rec, user) => insertDsTest(
-    { ...(rec || {}), unit: await unitDiminta(user, rec?.unit), ttdUntuk: await ttdUntukSah(rec?.ttdUntuk) },
-    user.username, user.nama),
+  addDsTest: async (rec, user) => {
+    const unit = await unitDiminta(user, rec?.unit);
+    const ttdUntuk = await ttdUntukSah(rec?.ttdUntuk);
+    const hasil = await insertDsTest({ ...(rec || {}), unit, ttdUntuk }, user.username, user.nama);
+    notifPerluTtd('dstest', ttdUntuk, { unit, tanggal: rec?.tanggal }, user.nama || user.username);
+    return hasil;
+  },
 
-  addBerkala: async (rec, user) => insertBerkala(
-    { ...(rec || {}), unit: await unitDiminta(user, rec?.unit), ttdUntuk: await ttdUntukSah(rec?.ttdUntuk) },
-    user.username, user.nama),
+  /**
+   * Sunting lembar dstest yang sudah tersimpan — pintu yang sama dipakai
+   * DS Test dan seluruh form preventive yang menumpang tabel itu. Aturan
+   * "sudah di-TTD manager berarti terkunci" dan "hanya pembuatnya" dijaga di
+   * db.js/db-pg.js; di sini cukup dipastikan penyuntingnya memang berhak atas
+   * unit catatan tersebut.
+   *
+   * TIDAK mengirim pemberitahuan "perlu TTD" — sama dengan updateDailyCheck.
+   * Menyunting lembar bisa berkali-kali dalam satu dinas; sekali kirim per
+   * suntingan berarti Manager Teknik dicolek berulang untuk catatan yang itu-itu
+   * juga. Catatannya tetap muncul di kotak masuk TTD-nya, karena kotak itu
+   * dibaca dari kolom ttd_untuk — pemberitahuan cuma pengingat, bukan jalurnya.
+   */
+  updateDsTest: async (id, patch, user) => {
+    const unit = await unitCatatan('dstest', String(id));
+    if (!unit) throw new Error('Catatan tidak ditemukan — mungkin sudah dihapus.');
+    await pastikanUnit(user, unit);
+    const ttdUntuk = await ttdUntukSah(patch?.ttdUntuk);
+    return updateDsTest(String(id), { ...(patch || {}), ttdUntuk },
+                        { username: user.username, admin: isAdmin(user) });
+  },
 
-  addLtk: async (rec, user) => insertLtk(
-    { ...(rec || {}), unit: await unitDiminta(user, rec?.unit), ttdUntuk: await ttdUntukSah(rec?.ttdUntuk) },
-    user.username, user.nama),
+  addBerkala: async (rec, user) => {
+    const unit = await unitDiminta(user, rec?.unit);
+    const ttdUntuk = await ttdUntukSah(rec?.ttdUntuk);
+    const hasil = await insertBerkala({ ...(rec || {}), unit, ttdUntuk }, user.username, user.nama);
+    notifPerluTtd('berkala', ttdUntuk, { unit, tanggal: rec?.tanggal }, user.nama || user.username);
+    return hasil;
+  },
+
+  addLtk: async (rec, user) => {
+    const unit = await unitDiminta(user, rec?.unit);
+    const ttdUntuk = await ttdUntukSah(rec?.ttdUntuk);
+    const hasil = await insertLtk({ ...(rec || {}), unit, ttdUntuk }, user.username, user.nama);
+    notifPerluTtd('ltk', ttdUntuk, { unit, tanggal: rec?.tanggalLapor || rec?.tanggal }, user.nama || user.username);
+    return hasil;
+  },
 
   /* BAPB merutekan SATU slot pihak-kedua ke akun — Manager Teknik — lewat
      ttd_untuk seperti form lain: begitu lembarnya disimpan, ia muncul di kotak
      masuk mantek yang ditunjuk untuk dibubuhkan susulan. Manager Pemakai tetap
      dibubuhkan di form saat mengisi (dan masih bisa disunting belakangan lewat
      updateBapb selama mantek belum tanda tangan). */
-  addBapb: async (rec, user) => insertBapb(
-    { ...(rec || {}), unit: await unitDiminta(user, rec?.unit), ttdUntuk: await ttdUntukSah(rec?.ttdUntuk) },
-    user.username, user.nama),
+  addBapb: async (rec, user) => {
+    const unit = await unitDiminta(user, rec?.unit);
+    const ttdUntuk = await ttdUntukSah(rec?.ttdUntuk);
+    const hasil = await insertBapb({ ...(rec || {}), unit, ttdUntuk }, user.username, user.nama);
+    notifPerluTtd('bapb', ttdUntuk, { unit, tanggal: rec?.tanggal }, user.nama || user.username);
+    return hasil;
+  },
 
   /** Sunting susulan panel Manager Pemakai — hanya pembuat lembar atau admin,
       dan hanya selama Manager Teknik belum menandatangani (dijaga updateBapb). */
@@ -898,12 +1025,45 @@ const API = {
     if (!unit) throw new Error('Catatan tidak ditemukan — mungkin sudah dihapus.');
     await pastikanUnit(user, unit);
 
-    return tandaTanganiCatatan(j, String(id), {
+    const hasil = await tandaTanganiCatatan(j, String(id), {
       nama: user.nama || user.username,
       username: user.username,
       role: user.role,
       ttd: String(ttd || '')
     });
+    // Kabari pembuat lembar bahwa dokumennya sudah ditandatangani. "Kirim kalau
+    // bisa": jangan menautkannya ke keberhasilan pembubuhan TTD.
+    notifSudahTtd(j, hasil.dibuatOleh, {
+      unit, tanggal: hasil.tanggal, penanda: user.nama || user.username
+    });
+    return hasil;
+  },
+
+  /* ---------- Notifikasi Telegram milik akun sendiri ----------
+     Semua peran boleh — ini tautan pribadi, bukan perubahan data logbook, jadi
+     tidak masuk API_TULIS yang menutup jalur bagi pejabat. Kalau fitur mati
+     (tanpa token bot), status dijawab apa adanya supaya UI bisa menyembunyikan
+     dirinya sendiri, bukan menampilkan tombol yang tidak akan berfungsi. */
+  telegramStatus: async (_payload, user) => {
+    const st = await statusTautanTelegram(user.username);
+    return { ...st, aktif: telegramAktif(), botUsername: telegramAktif() ? await botUsername() : '' };
+  },
+
+  telegramTaut: async (_payload, user) => {
+    if (!telegramAktif()) return { aktif: false };
+    const token = await buatTautanTelegram(user.username);
+    const bot = await botUsername();
+    return {
+      aktif: true,
+      botUsername: bot,
+      token,
+      tautan: bot ? `https://t.me/${bot}?start=${token}` : ''
+    };
+  },
+
+  telegramPutus: async (_payload, user) => {
+    await putusTautanTelegram(user.username);
+    return { tertaut: false };
   },
 
   /* ---------- Tanda tangan tersimpan milik akun sendiri ----------
@@ -1103,6 +1263,21 @@ async function pastikanAdminUnitBolehKelola(target, user) {
 const API_ADMIN = {
   deleteEntry: (id) => removeEntry(String(id)),
   deleteDcRecord: (id) => removeDailyCheck(String(id)),
+
+  /* Daftarkan webhook Telegram sekali dari sisi admin. baseUrl = alamat publik
+     aplikasi (mis. https://…vercel.app); "/telegram/webhook" ditambahkan di
+     sini. Di produksi Vercel ini cara termudah memasangnya tanpa curl manual. */
+  telegramPasangWebhook: async (baseUrl) => {
+    if (!telegramAktif()) return { ok: false, pesan: 'Token bot Telegram belum diatur di server.' };
+    const b = String(baseUrl || '').trim().replace(/\/+$/, '');
+    if (!/^https:\/\//i.test(b)) return { ok: false, pesan: 'Alamat harus diawali https://' };
+    return await pasangWebhook(b + '/telegram/webhook');
+  },
+
+  telegramInfoWebhook: async () => {
+    if (!telegramAktif()) return { aktif: false };
+    return { aktif: true, info: await infoWebhook() };
+  },
 
   updateIssueField: (id, headerField, value, user) =>
     updateIssue(String(id), String(headerField), value, user?.username || ''),
@@ -1321,6 +1496,43 @@ const API_ADMIN_UNTUK_ADMINUNIT = new Set([
   'listUsers', 'setUserAktif', 'setUserPassword', 'setUserNama', 'setUserUsername'
 ]);
 
+/* ============== WEBHOOK TELEGRAM ==============
+ * Titik masuk dari Telegram (bukan dari peramban): tidak lewat requireAuth.
+ * Keasliannya dijaga oleh secret token yang hanya diketahui server dan
+ * Telegram — dikirim Telegram lewat header di bawah, dicocokkan dengan
+ * TELEGRAM_WEBHOOK_SECRET. Tanpa secret yang diatur, route ini menerima apa
+ * adanya (cocok untuk uji lokal), jadi WAJIB mengisi secret di produksi.
+ *
+ * Satu-satunya perintah yang dilayani: /start <token> untuk menautkan akun.
+ * Selebihnya dibalas petunjuk. Balasan cepat 200 lebih dulu — Telegram
+ * mengulang kalau lama; pemrosesannya menyusul dan galatnya ditelan. */
+/* Pemrosesan satu update Telegram — dipakai DUA jalur: route webhook (produksi)
+   dan loop polling (dev lokal). Satu-satunya perintah yang dilayani: /start
+   <token> untuk menautkan akun; selebihnya dibalas petunjuk. */
+async function prosesUpdateTelegram(update) {
+  if (!telegramAktif()) return;
+  const info = bacaUpdate(update);
+  if (!info || !info.chatId) return;
+  if (info.token) {
+    const taut = await tautkanTelegram(info.token, info.chatId);
+    await kirimPesan(info.chatId, taut
+      ? pesanTautBerhasil(taut.nama || taut.username)
+      : '⚠️ Kode tidak dikenal atau sudah dipakai. Buka lagi menu Notifikasi Telegram di E-Logbook untuk kode baru.');
+  } else if (info.perintahStart) {
+    await kirimPesan(info.chatId, pesanPerluTaut());
+  }
+}
+
+app.post('/telegram/webhook', (req, res) => {
+  const rahasia = telegramWebhookSecret();
+  if (rahasia && req.get('X-Telegram-Bot-Api-Secret-Token') !== rahasia) {
+    return res.sendStatus(403);
+  }
+  // Balas cepat 200 — Telegram mengulang kalau lama; pemrosesan menyusul.
+  res.sendStatus(200);
+  prosesUpdateTelegram(req.body).catch((err) => console.error('[telegram webhook]', err?.message || err));
+});
+
 app.post('/api/:fn', requireAuth, async (req, res) => {
   const fn = req.params.fn;
   const adminOnly = Object.prototype.hasOwnProperty.call(API_ADMIN, fn);
@@ -1513,6 +1725,15 @@ if (DIJALANKAN_LANGSUNG) {
 
   await purgeExpiredSessions();
   setInterval(purgeExpiredSessions, 6 * 3600 * 1000).unref();
+
+  /* Mode polling Telegram HANYA di sini — proses yang hidup terus. Di Vercel
+     berkas ini diimpor sebagai handler (DIJALANKAN_LANGSUNG false), jadi loop
+     ini tidak pernah jalan di sana; produksi memakai webhook. */
+  if (telegramAktif() && telegramModePolling()) {
+    mulaiPolling(prosesUpdateTelegram).catch((err) =>
+      console.error('[telegram polling]', err?.message || err));
+  }
+
   app.listen(PORT, HOST, () => {
     // Sengaja tidak mencetak URL 3000 supaya pengguna tidak bingung: satu-satunya
     // pintu masuk yang benar adalah dashboard di /logbook/. Port ini murni internal.
