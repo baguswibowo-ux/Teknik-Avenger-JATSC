@@ -141,8 +141,21 @@ function bukaTabDariTautan(){
   // Tab yang tidak ada, atau yang disembunyikan karena unit ini memang tidak
   // punya formulirnya, dibiarkan saja — halaman tetap terbuka di tab biasanya,
   // dan itu lebih baik daripada memaksa masuk ke bagian yang kosong.
-  if(!btn || btn.style.display === 'none') return;
-  btn.click();
+  if(btn){
+    if(btn.style.display !== 'none') btn.click();
+    return;
+  }
+  /* Nama SUB-TAB (dstest, radio, bk-neptuno, wk-ckg3, gcheck, meter, ml-sts, …):
+     tautan dari kegiatan berkala dashboard menyebut lembar, bukan tab utama.
+     Tab induknya (.view yang mewadahinya) dibuka dulu, baru sub-tabnya —
+     dengan syarat yang sama: keduanya tidak sedang disembunyikan untuk unit ini. */
+  const sub = document.querySelector(`.subtab-btn[data-subtab="${tuju.tab}"]`);
+  if(!sub || sub.style.display === 'none') return;
+  const wadah = sub.closest('.view');
+  const induk = wadah && document.querySelector(`.tab-btn[data-tab="${wadah.id.replace(/^view-/, '')}"]`);
+  if(!induk || induk.style.display === 'none') return;
+  induk.click();
+  sub.click();
 }
 /**
  * Alamat Dashboard Fasilitas Teknik, untuk tombol pulang di kepala halaman.

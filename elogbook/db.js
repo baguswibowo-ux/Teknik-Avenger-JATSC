@@ -1545,6 +1545,17 @@ function lokasiDariStateJson(stateJson) {
 
 /** Ringkasan untuk daftar riwayat — state_json ikut dibaca cuma untuk memetik
     kolom Lokasi; isi state penuh tidak dikembalikan (masih besar). */
+/** Lembar mana di dalam satu unit yang dipakai baris ini — kunci sub-lembar yang
+    ditanam form di state: __pgmForm (Pengamatan), __fgkForm (Gedung & Keamanan),
+    __lkForm (Listrik & Mekanik), __sistem (AMHS). Kosong untuk unit yang lembarnya
+    tunggal. Dibaca dashboard Avenger untuk menyaring bukti kegiatan berkala per
+    lembar, sama perannya dengan kolom Lokasi bagi Radtel. */
+function formDariStateJson(stateJson) {
+  const s = parseJson(stateJson, {});
+  const v = s.__pgmForm || s.__fgkForm || s.__lkForm || s.__sistem || '';
+  return String(v).toLowerCase().slice(0, 40);
+}
+
 const rowToDcRingkas = (r, extra = {}) => ({
   ID: r.id, Tanggal: r.tanggal, Dinas: r.dinas, Suhu: r.suhu, Remark: r.remark,
   TeknisiNama: r.teknisi_nama, TeknisiTTD: r.teknisi_ttd,
@@ -1557,7 +1568,8 @@ const rowToDcRingkas = (r, extra = {}) => ({
   DibuatOlehUsername: r.dibuat_oleh || '',
   TtdOleh: extra.ttdOleh ?? (r.ttd_oleh || ''), TtdPada: r.ttd_pada || '', TtdUntuk: r.ttd_untuk || '',
   TanggalIso: r.tanggal_urut || '',
-  Lokasi: extra.lokasi ?? lokasiDariStateJson(r.state_json)
+  Lokasi: extra.lokasi ?? lokasiDariStateJson(r.state_json),
+  Form: formDariStateJson(r.state_json)
 });
 
 export function listDailyChecks(unit = 'radtel', limit = 200) {

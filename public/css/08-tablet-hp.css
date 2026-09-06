@@ -31,7 +31,7 @@
 
 @media (max-width:620px){
   .konsol-isi{padding:11px 14px;} main{padding:16px 14px 60px;}
-  .orbit{height:300px;} .jam .blok:first-child{display:none;}
+  .orbit{height:352px;}   /* 24px + 289px × 1,12 (jari minimum 210) */ .jam .blok:first-child{display:none;}
   .jam .nilai{font-size:15px;}
   /* Nama panjang tidak boleh melebarkan barisnya sampai tombolnya terdorong
      ke baris sendiri-sendiri. */

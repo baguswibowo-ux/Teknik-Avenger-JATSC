@@ -1001,8 +1001,8 @@ function kotakLanjut(baru, u){
         `<label><input type="checkbox" value="${esc(kode)}"${
           bolehTtd.includes(kode) ? ' checked' : ''}>${esc(T(id, en))}</label>`).join('')}</div>
       <div class="bantu">${T(
-        'Hanya berlaku untuk peran pejabat. Kosong = boleh menandatangani seluruh jenis (bawaan). Beri centang untuk membatasi akun pejabat ini ke jenis tertentu — mis. hanya Sparepart untuk officer Sparepart, hanya Jadwal Dinas untuk Manajer Teknik, hanya Sejarah Peralatan untuk officer Peralatan.',
-        'Applies to the officer role. Empty = may sign every document type (default). Tick to restrict this officer account to specific types — e.g. only Spare Parts for a Spare-Parts officer, only Duty Roster for the Technical Manager, only Equipment History for an Equipment officer.')}</div>
+        'Hanya berlaku untuk peran pejabat. Centang jenis dokumen yang boleh ditandatangani akun ini — mis. Sparepart untuk officer Sparepart, Jadwal Dinas untuk Manajer Teknik, Sejarah Peralatan untuk officer Peralatan. Tidak dicentang sama sekali = tidak boleh menandatangani jenis apa pun: akun ini tidak muncul di dropdown "Kirim untuk disetujui oleh" dan kotak masuk TTD-nya kosong.',
+        'Applies to the officer role. Tick the document types this account may sign — e.g. Spare Parts for a Spare-Parts officer, Duty Roster for the Technical Manager, Equipment History for an Equipment officer. Nothing ticked = may not sign any type: the account is left out of the "Send for approval by" dropdown and its signing inbox stays empty.')}</div>
     </div>`;
 }
 

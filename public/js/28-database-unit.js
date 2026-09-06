@@ -166,6 +166,7 @@ function ikonUnitPilih(unit, kotak){
       if(!r.ok) throw new Error(j.error || 'server menjawab ' + r.status);
       await unitdbMuat();
       gambarUnit();
+      gambarCincin();   // kartu orbit di beranda memakai gambar yang sama
       pesan(T('Gambar unit diganti.','Unit image changed.'));
     }catch(e){
       kotak.classList.remove('sibuk');
@@ -184,6 +185,7 @@ async function ikonUnitBuang(unit){
     if(!r.ok) throw new Error(j.error || 'server menjawab ' + r.status);
     await unitdbMuat();
     gambarUnit();
+    gambarCincin();
   }catch(e){
     pesan(T('Gagal menghapus gambar: ','Could not remove the image: ') + (e && e.message || e));
   }

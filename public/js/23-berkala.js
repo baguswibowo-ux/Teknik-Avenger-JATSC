@@ -110,7 +110,9 @@ const BKL = {
      paket  nama larik pada jawaban getAllData E-Logbook
      tab    tab E-Logbook untuk tautan #<tab>:<unit>, lihat kotakTautanForm()
      ada    penanda per unit di daftar unit E-Logbook — unit yang tidak punya
-            formulirnya tidak dipasangi tombol yang menuju tab tersembunyi
+            formulirnya tidak dipasangi tombol yang menuju tab tersembunyi.
+            Boleh juga FUNGSI (baris unit) => boolean, untuk lembar yang tidak
+            punya penanda di daftar unit — lihat blok LEMBAR UNIT LAIN
      saring boleh tidak ada. Dipakai kalau beberapa sumber berbagi satu larik
             dan dibedakan kolom di dalamnya — empat lembar pekerjaan berkala
             Radtel semuanya datang di larik berkala, dipisah kolom Jenis
@@ -173,7 +175,7 @@ const BERKALA_SUMBER = {
     label: ['Lembar Daily Check New JATSC (Garex 300)', 'E-Logbook Daily Check sheet — New JATSC (Garex 300)'],
     cip:   'DAILY CHECK · NEW JATSC',  judul: 'Daily Check (New JATSC)',
     sebut: ['lembar Daily Check New JATSC', 'the New JATSC Daily Check sheet'],
-    paket: 'dcHistory',  tab: 'dailycheck',  ada: 'adaDailyCheck',
+    paket: 'dcHistory',  tab: 'dailycheck',  ada: (u)=> u.kode === 'radtel' && !!u.adaDailyCheck,   // lembar Garex/Frequentis hanya Radtel
     /* Lokasi kosong dibaca sebagai New JATSC — lihat blok di atas. */
     saring:(x)=> !x.Lokasi || x.Lokasi === 'new-jatsc',
     tgl:   (x)=> isoTgl(x.TanggalIso) || isoTgl(x.Tanggal) || isoTgl(x.DibuatPada),
@@ -184,7 +186,7 @@ const BERKALA_SUMBER = {
     label: ['Lembar Daily Check JATSC (Frequentis 3020X)', 'E-Logbook Daily Check sheet — JATSC (Frequentis 3020X)'],
     cip:   'DAILY CHECK · JATSC',  judul: 'Daily Check (JATSC)',
     sebut: ['lembar Daily Check JATSC', 'the JATSC Daily Check sheet'],
-    paket: 'dcHistory',  tab: 'dailycheck',  ada: 'adaDailyCheck',
+    paket: 'dcHistory',  tab: 'dailycheck',  ada: (u)=> u.kode === 'radtel' && !!u.adaDailyCheck,   // lembar Garex/Frequentis hanya Radtel
     saring:(x)=> x.Lokasi === 'jatsc',
     tgl:   (x)=> isoTgl(x.TanggalIso) || isoTgl(x.Tanggal) || isoTgl(x.DibuatPada),
     nama:  (x)=> x.TeknisiNama || x.DiinputOleh,
@@ -259,6 +261,125 @@ const BERKALA_SUMBER = {
   }
 };
 
+/* =======================================================================
+   LEMBAR UNIT LAIN — dibangun dari daftar, bukan ditulis satu-satu
+
+   Sampai di sini registri hanya mengenal lembar Radtel. Unit lain sudah
+   punya lembarnya sendiri di E-Logbook — Daily Check per unit (beberapa unit
+   punya lebih dari satu lembar, dipilih lewat sub-tab) dan lembar Preventive
+   Maintenance yang menumpang tabel dstest — tapi kegiatan berkalanya tidak
+   pernah bisa menunjuk ke sana. Blok ini menyambungkannya untuk SEMUA unit
+   sekaligus, dengan dua pembangun:
+
+     bklSumberDc  satu lembar Daily Check. Baris riwayatnya (dcHistory) membawa
+                  kolom Form — kunci sub-lembar yang ditanam form di state:
+                  __pgmForm (Pengamatan), __fgkForm (Gedung & Keamanan),
+                  __lkForm (Listrik & Mekanik), __sistem (AMHS). Unit yang
+                  lembarnya tunggal (Radkom, Navigasi) tidak perlu disaring.
+     bklSumberPm  satu lembar Preventive yang menumpang dstest. Kategori-nya
+                  nama format (pgmweekly, llzgc, mrreading, maintlistrik,
+                  radio), dan lembar mana di dalam format itu dibaca dari
+                  kunci di dalam State (__wForm, __llzForm, __mrForm, __mlForm).
+
+   `ada` di sini FUNGSI dari baris unit E-Logbook, bukan nama penanda: lembar
+   Preventive unit-unit ini tidak punya penanda adaXxx di daftar unit (tabnya
+   dibuka 07-unit.js menurut kode unit), jadi yang bisa ditanya memang kode
+   unitnya. bklFormAda() menerima keduanya.
+
+   Tautannya menuju SUB-TAB (wk-ckg3, ml-sts, gcheck, …) — 26-init.js E-Logbook
+   membuka tab induknya lebih dulu. Daily Check menuju tab dailycheck; lembar
+   mana yang dipilih di sana urusan formnya sendiri.
+   ======================================================================= */
+
+const bklTglDc = (x)=> isoTgl(x.TanggalIso) || isoTgl(x.Tanggal) || isoTgl(x.DibuatPada);
+const bklTglDs = (x)=> isoTgl(x.Tanggal) || isoTgl(x.DibuatPada);
+const bklNamaBaris = (x)=> x.TeknisiNama || x.DiinputOleh;
+
+/** Satu lembar Daily Check. `unitKode` satu kode atau daftar; `form` nilai kolom
+    Form yang harus cocok (kosong = lembar tunggal); `sebutan` nama lembarnya. */
+function bklSumberDc(unitKode, form, sebutan){
+  const daftar = Array.isArray(unitKode) ? unitKode : [unitKode];
+  const lbl = sebutan ? ' ' + sebutan : '';
+  return {
+    label: ['Lembar Daily Check' + lbl + ' E-Logbook',
+            'E-Logbook Daily Check sheet' + (sebutan ? ' — ' + sebutan : '')],
+    cip:   'DAILY CHECK' + (sebutan ? ' · ' + sebutan.toUpperCase() : ''),
+    judul: 'Daily Check' + (sebutan ? ' (' + sebutan + ')' : ''),
+    sebut: ['lembar Daily Check' + lbl, 'the' + lbl + ' Daily Check sheet'],
+    paket: 'dcHistory',  tab: 'dailycheck',
+    ada:   (u)=> !!u.adaDailyCheck && daftar.includes(u.kode),
+    saring: form ? (x)=> x.Form === form : undefined,
+    tgl: bklTglDc, nama: bklNamaBaris, rinci: (x)=> x.Dinas || ''
+  };
+}
+
+/** Satu lembar Preventive Maintenance yang menumpang tabel dstest E-Logbook. */
+function bklSumberPm(unitKode, kategori, kunci, form, sebutan, cip, tab, ada){
+  return {
+    label: ['Lembar ' + sebutan + ' E-Logbook', 'E-Logbook ' + sebutan + ' sheet'],
+    cip:   cip || sebutan.toUpperCase(),  judul: sebutan,
+    sebut: ['lembar ' + sebutan, 'the ' + sebutan + ' sheet'],
+    paket: 'dstest',  tab: tab || 'preventive',
+    ada:   ada || ((u)=> u.kode === unitKode),
+    saring:(x)=> x.Kategori === kategori && (!form || ((x.State || {})[kunci] === form)),
+    tgl: bklTglDs, nama: bklNamaBaris, rinci: ()=> ''
+  };
+}
+
+/* Daftar lembar per unit. Kunci dan labelnya kembaran dengan yang di E-Logbook:
+   DC_PGM_LABEL (12e), DC_FGK_LABEL (12f), DC_LK_LABEL (12g), AMHS_SUB (12d),
+   WK_FORMS (17d), LLZ_FORMS (17e), MR_FORMS (17f), ML_URUT (17g). Kalau di sana
+   bertambah lembar, tambahkan di sini — dan satu baris di BERKALA_SUMBER
+   server.js supaya sumbernya boleh disimpan. */
+const BKL_LEMBAR_MR = [
+  ['llz-07l','LLZ 07L'], ['llz-07r','LLZ 07R'], ['llz-25l','LLZ 25L'], ['llz-25r','LLZ 25R'],
+  ['gp-07l','GP 07L'],   ['gp-07r','GP 07R'],   ['gp-25l','GP 25L'],   ['gp-25r','GP 25R'],
+  ['tdme-07l','TDME 07L'], ['tdme-07r','TDME 07R'], ['tdme-25l','TDME 25L'], ['tdme-25r','TDME 25R'],
+  ['om-25r','OM 25R']
+];
+const BKL_LEMBAR_ML = [
+  ['paneldist','Panel Distribusi'], ['sts','STS Tower'], ['ups','UPS'],
+  ['chiller','Chiller & Pompa'], ['ahu','AHU'], ['genset','Genset'], ['grounding','Grounding']
+];
+
+Object.assign(BERKALA_SUMBER, {
+  /* ---- Daily Check ---- */
+  dailycheck:      bklSumberDc(['radkom', 'ppabn'], '', ''),
+  'dc-pgm-ckg3':   bklSumberDc('pengamatan', 'ckg3', 'Radar CKG 3'),
+  'dc-pgm-mer':    bklSumberDc('pengamatan', 'mer',  'Fasilitas Pengamatan'),
+  'dc-fgk-toilet': bklSumberDc('gedungkeamanan', 'toilet', 'New JATSC'),
+  'dc-fgk-jatsc':  bklSumberDc('gedungkeamanan', 'jatsc',  'JATSC'),
+  'dc-lk-sts':     bklSumberDc('listrikmekanik', 'sts',   'STS'),
+  'dc-lk-mds':     bklSumberDc('listrikmekanik', 'mds',   'MDS'),
+  'dc-lk-beban':   bklSumberDc('listrikmekanik', 'beban', 'Beban Listrik'),
+  'dc-lk-ups':     bklSumberDc('listrikmekanik', 'ups',   'UPS'),
+  'dc-amhs-amhs':  bklSumberDc('amhsadps', 'amhs',   'AMHS'),
+  'dc-amhs-aadps': bklSumberDc('amhsadps', 'aadps',  'AADPS'),
+  'dc-amhs-datis': bklSumberDc('amhsadps', 'd-atis', 'D-ATIS'),
+
+  /* ---- Preventive Maintenance ---- */
+  'pm-radio': bklSumberPm('radtel', 'radio', '', '', 'Maintenance Radio', 'MAINTENANCE RADIO',
+                          'radio', (u)=> !!u.adaDsTest),
+  'wk-ckg3':  bklSumberPm('pengamatan', 'pgmweekly', '__wForm', 'ckg3',  'Weekly Check Radar CKG 3', 'WEEKLY CHECK · CKG 3', 'wk-ckg3'),
+  'wk-smrt1': bklSumberPm('pengamatan', 'pgmweekly', '__wForm', 'smrt1', 'Weekly Check SMR T1',      'WEEKLY CHECK · SMR T1', 'wk-smrt1'),
+  'wk-smrt3': bklSumberPm('pengamatan', 'pgmweekly', '__wForm', 'smrt3', 'Weekly Check SMR T3',      'WEEKLY CHECK · SMR T3', 'wk-smrt3'),
+  ...Object.fromEntries(['07l','07r','25r','25l'].map(k=>[
+    'gc-llz-' + k,
+    bklSumberPm('ppabn', 'llzgc', '__llzForm', k, 'Ground Check LLZ ' + k.toUpperCase(),
+                'GC LLZ ' + k.toUpperCase(), 'gcheck')
+  ])),
+  ...Object.fromEntries(BKL_LEMBAR_MR.map(([k, nama])=>[
+    'mr-' + k,
+    bklSumberPm('ppabn', 'mrreading', '__mrForm', k, 'Meter Reading ' + nama,
+                'METER READING · ' + nama, 'meter')
+  ])),
+  ...Object.fromEntries(BKL_LEMBAR_ML.map(([k, nama])=>[
+    'ml-' + k,
+    bklSumberPm('listrikmekanik', 'maintlistrik', '__mlForm', k, 'Pemeliharaan ' + nama,
+                'PEMELIHARAAN · ' + nama.toUpperCase(), 'ml-' + k)
+  ]))
+});
+
 /** Baris registri untuk satu kegiatan. Sumber yang tidak dikenal — kegiatan
     lama, atau berkas yang disunting tangan — dibaca sebagai tanda manual,
     bukan dijatuhkan. */
@@ -274,7 +395,11 @@ const bklDariElogbook = (k) => !!bklSumber(k).paket;
     lebih buruk daripada tidak ada tombol. */
 function bklFormAda(unit, k){
   const s = bklSumber(k);
-  return !!s.ada && !!(UNIT_FORM[unit] || {})[s.ada];
+  const u = UNIT_FORM[unit];
+  if(!s.ada || !u) return false;
+  // `ada` bisa nama penanda (adaDsTest) atau fungsi dari baris unitnya —
+  // lihat blok LEMBAR UNIT LAIN.
+  return typeof s.ada === 'function' ? !!s.ada(u) : !!u[s.ada];
 }
 
 /**

@@ -1481,8 +1481,9 @@ app.get('/hak-akun', async (req, res) => {
  *   - `ditunjuk[modul-ttd]` — pejabat yang di-whitelist untuk jenis itu
  *     (dari HAK[`dinas-ttd`|`sparepart-ttd`|`sejarah-ttd`].petugas)
  *   - `pejabatTtd[username]` — kalau akun itu punya bolehTtd non-kosong
- *     (batasan per-akun di layar Kelola Akun). Yang kosong tidak diikutkan
- *     — kosong berarti boleh semua jenis (bawaan), tidak perlu disebut.
+ *     (hak per-akun di layar Kelola Akun). Yang kosong tidak diikutkan —
+ *     dan karena aturannya ketat, pejabat yang tidak tercantum di sini
+ *     TIDAK boleh menandatangani jenis apa pun (klien menyaringnya habis).
  *
  * unitKhusus/bolehModul milik hak-akun sengaja tidak ikut — tidak relevan
  * untuk penyaringan dropdown pejabat.
@@ -1564,6 +1565,8 @@ app.get('/pic-cetak-dinas/:unit', async (req, res) => {
 app.get('/pejabat-hak-cetak', async (req, res) => {
   const user = await siapa(req);
   if (!user) return res.status(401).json({ error: 'Masuk dulu.' });
+  // Daftar ini berubah begitu admin menyunting hak — jangan disinggahkan peramban.
+  res.setHeader('Cache-Control', 'no-store');
   const hak = await bacaHak();
   const hakAkun = await bacaHakAkun();
   const petugas = {};
@@ -1849,7 +1852,52 @@ const BERKALA_SUMBER = new Map([
   ['bk-neptuno',  'lembar Cek Inspection Neptuno'],
   ['bk-gatevox',  'lembar Change Over CPU Gatevox'],
   ['bk-cleaning', 'lembar Cleaning CWP'],
-  ['bk-restart',  'lembar Restart CWP']
+  ['bk-restart',  'lembar Restart CWP'],
+  /* Lembar unit lain — Daily Check per lembar (kolom Form pada riwayat daily
+     check E-Logbook) dan Preventive Maintenance yang menumpang tabel dstest
+     (kolom Kategori + kunci lembar di dalam State). Registri lengkapnya —
+     larik mana yang dibaca, saringannya, sub-tab tujuannya — ada di
+     public/js/23-berkala.js, blok LEMBAR UNIT LAIN. Daftar di sini harus
+     memuat kunci yang sama; yang tertinggal tidak bisa disimpan. */
+  ['pm-radio',        'lembar Maintenance Radio'],
+  ['dc-pgm-ckg3',     'lembar Daily Check Radar CKG 3'],
+  ['dc-pgm-mer',      'lembar Daily Check Fasilitas Pengamatan'],
+  ['dc-fgk-toilet',   'lembar Daily Check New JATSC (Gedung & Keamanan)'],
+  ['dc-fgk-jatsc',    'lembar Daily Check JATSC (Gedung & Keamanan)'],
+  ['dc-lk-sts',       'lembar Daily Check STS'],
+  ['dc-lk-mds',       'lembar Daily Check MDS'],
+  ['dc-lk-beban',     'lembar Daily Check Beban Listrik'],
+  ['dc-lk-ups',       'lembar Daily Check UPS'],
+  ['dc-amhs-amhs',    'lembar Daily Check AMHS'],
+  ['dc-amhs-aadps',   'lembar Daily Check AADPS'],
+  ['dc-amhs-datis',   'lembar Daily Check D-ATIS'],
+  ['wk-ckg3',         'lembar Weekly Check Radar CKG 3'],
+  ['wk-smrt1',        'lembar Weekly Check SMR T1'],
+  ['wk-smrt3',        'lembar Weekly Check SMR T3'],
+  ['gc-llz-07l',      'lembar Ground Check LLZ 07L'],
+  ['gc-llz-07r',      'lembar Ground Check LLZ 07R'],
+  ['gc-llz-25r',      'lembar Ground Check LLZ 25R'],
+  ['gc-llz-25l',      'lembar Ground Check LLZ 25L'],
+  ['mr-llz-07l',      'lembar Meter Reading LLZ 07L'],
+  ['mr-llz-07r',      'lembar Meter Reading LLZ 07R'],
+  ['mr-llz-25l',      'lembar Meter Reading LLZ 25L'],
+  ['mr-llz-25r',      'lembar Meter Reading LLZ 25R'],
+  ['mr-gp-07l',       'lembar Meter Reading GP 07L'],
+  ['mr-gp-07r',       'lembar Meter Reading GP 07R'],
+  ['mr-gp-25l',       'lembar Meter Reading GP 25L'],
+  ['mr-gp-25r',       'lembar Meter Reading GP 25R'],
+  ['mr-tdme-07l',     'lembar Meter Reading TDME 07L'],
+  ['mr-tdme-07r',     'lembar Meter Reading TDME 07R'],
+  ['mr-tdme-25l',     'lembar Meter Reading TDME 25L'],
+  ['mr-tdme-25r',     'lembar Meter Reading TDME 25R'],
+  ['mr-om-25r',       'lembar Meter Reading OM 25R'],
+  ['ml-paneldist',    'lembar Pemeliharaan Panel Distribusi'],
+  ['ml-sts',          'lembar Pemeliharaan STS Tower'],
+  ['ml-ups',          'lembar Pemeliharaan UPS'],
+  ['ml-chiller',      'lembar Pemeliharaan Chiller & Pompa'],
+  ['ml-ahu',          'lembar Pemeliharaan AHU'],
+  ['ml-genset',       'lembar Pemeliharaan Genset'],
+  ['ml-grounding',    'lembar Pemeliharaan Grounding']
 ]);
 
 /* Berapa bulan panjang satu putaran, untuk jenis yang lebih panjang dari
@@ -3661,8 +3709,14 @@ const CETAK_BATAS_SIMPAN = 500;  // baris tersimpan; yang lama dibuang
                     berarti pagar unit mengikuti peran (biasa). Berguna
                     untuk pejabat yang hanya membaca subset unit.
      bolehTtd     — jenis dokumen yang boleh disetujui/di-TTD akun ini
-                    (untuk peran pejabat). Kosong = seluruh jenis. Dipakai
-                    filter kotak masuk antrian cetak.
+                    (untuk peran pejabat). ATURAN KETAT: hanya jenis yang
+                    tercantum yang boleh; kosong / tidak ada baris = tidak
+                    boleh menandatangani jenis apa pun. Dipakai dropdown
+                    "Kirim untuk disetujui oleh", kotak masuk antrian cetak,
+                    dan pemeriksaan saat menyetujui/meneruskan.
+                    (Dulu kosong = seluruh jenis; dibalik 6 Sep 2026 karena
+                    kotak centang dibaca admin sebagai pemberi izin, bukan
+                    pembatas.)
      bolehModul   — {[modul]: bolean} — kunci modul spesifik untuk akun
                     ini. Nilai false = akun ini tidak boleh menyunting
                     modul itu meskipun perannya mengizinkan. Belum
@@ -3698,6 +3752,17 @@ function rapikanHakLanjut(x) {
   return { unitKhusus, bolehTtd, bolehModul };
 }
 const usernameKunci = (u) => String(u || '').trim().toLowerCase();
+
+/** Aturan ketat bolehTtd: pejabat boleh menandatangani `jenis` hanya kalau
+    jenis itu dicentang di Kelola Akun. Tidak ada baris / kosong = tidak boleh. */
+async function pejabatBolehJenis(username, jenis) {
+  const hak = (await bacaHakAkun())[usernameKunci(username)] || {};
+  return Array.isArray(hak.bolehTtd) && hak.bolehTtd.includes(jenis);
+}
+const NAMA_JENIS_CETAK = { sparepart: 'Sparepart', dinas: 'Jadwal Dinas', peralatan: 'Sejarah Peralatan' };
+const pesanTanpaHakTtd = (siapa, jenis) =>
+  `${siapa} belum diberi hak menandatangani ${NAMA_JENIS_CETAK[jenis] || jenis}. `
+  + 'Administrator mencentangnya di Kelola Akun → akun pejabat → "Boleh menandatangani dokumen jenis".';
 
 const badanCetak = express.json({ limit: '8mb' });
 
@@ -3762,6 +3827,14 @@ app.post('/cetak-antrian', badanCetak, async (req, res) => {
     }
   }
 
+  /* Aturan ketat bolehTtd: pejabat tujuan harus dicentang untuk jenis ini.
+     Dropdown klien sudah menyaring, tapi permintaan bisa dirangkai lewat
+     curl — dan pejabat yang tidak berhak toh akan ditolak saat menyetujui,
+     lebih baik ditolak di sini sebelum masuk kotak masuk siapa pun. */
+  if (!(await pejabatBolehJenis(pejabatUser, jenis))) {
+    return res.status(403).json({ error: pesanTanpaHakTtd('Pejabat ini', jenis) });
+  }
+
   /* Jadwal Dinas: hak menekan tombol Cetak PUM/Teknik dijaga modul
      `dinas-cetak`. Client sudah menyembunyikan tombolnya, tapi tanpa
      penjagaan di sini seseorang bisa merangkai POST /cetak-antrian
@@ -3814,9 +3887,10 @@ app.get('/cetak-antrian', async (req, res) => {
   const saya = String(user.username || '').toLowerCase();
   const superAtauAdmin = user.role === 'admin' || user.superadmin === true;
 
-  /* Kalau akun ini adalah pejabat dengan bolehTtd tersaring, sembunyikan
-     permintaan yang jenisnya bukan haknya. Kalau bolehTtd kosong
-     (bawaan), semua jenis boleh dia setujui — perilaku lama.
+  /* Aturan ketat bolehTtd: pejabat hanya melihat permintaan yang jenisnya
+     dicentang untuknya di Kelola Akun. Tidak dicentang apa pun = kotak
+     masuk TTD-nya kosong. Admin/super-admin tidak disaring — mereka bukan
+     penanda tangan yang dituju, dan toh melihat `semua`.
 
      'peralatan' punya dua lapis pagar: modul HAK 'sejarah-ttd' menyaring
      pejabat mana yang berhak sama sekali (dicek di POST /cetak-antrian),
@@ -3824,7 +3898,7 @@ app.get('/cetak-antrian', async (req, res) => {
      jenis tertentu saja. Keduanya harus lolos. */
   const hakAkun = (await bacaHakAkun())[saya] || {};
   const bolehTtd = Array.isArray(hakAkun.bolehTtd) ? hakAkun.bolehTtd : [];
-  const jenisLolos = (b) => !bolehTtd.length || bolehTtd.includes(b.jenis);
+  const jenisLolos = (b) => superAtauAdmin || bolehTtd.includes(b.jenis);
 
   /* Kotak masuk Anda berisi:
        · permintaan yang menanti tanda tangan MT (pejabatUser=saya, status='menunggu')
@@ -3944,16 +4018,12 @@ app.post('/cetak-antrian/:id/setujui', badanCetak, async (req, res) => {
     });
   }
 
-  /* Kalau pejabat ini punya batasan jenis, dan jenis permintaan bukan
-     salah satunya, tolak. Admin/super-admin lewat pemeriksaan ini.
+  /* Aturan ketat bolehTtd: pejabat (MT maupun Deputy) hanya boleh
+     menyetujui jenis yang dicentang untuknya. Admin/super-admin lewat.
      Untuk 'peralatan', modul HAK 'sejarah-ttd' sudah menjaga di POST
      /cetak-antrian; bolehTtd di sini adalah lapis kedua per-akun. */
-  if (!superAtauAdmin) {
-    const hak = (await bacaHakAkun())[saya] || {};
-    const bolehTtd = Array.isArray(hak.bolehTtd) ? hak.bolehTtd : [];
-    if (bolehTtd.length && !bolehTtd.includes(b.jenis)) {
-      return res.status(403).json({ error: `Anda tidak berwenang menandatangani dokumen jenis "${b.jenis}".` });
-    }
+  if (!superAtauAdmin && !(await pejabatBolehJenis(saya, b.jenis))) {
+    return res.status(403).json({ error: pesanTanpaHakTtd('Anda', b.jenis) });
   }
 
   const kini = new Date().toISOString();
@@ -4031,6 +4101,9 @@ app.post('/cetak-antrian/:id/teruskan', badanCetak, async (req, res) => {
   }
   if (deputyUser === b.pembuatUser) {
     return res.status(400).json({ error: 'Deputy MT tidak boleh pembuat permintaan sendiri.' });
+  }
+  if (!(await pejabatBolehJenis(deputyUser, b.jenis))) {
+    return res.status(403).json({ error: pesanTanpaHakTtd('Deputy MT ini', b.jenis) });
   }
 
   // TTD Manager Teknik dibekukan di sini — sama dengan setujui biasa.

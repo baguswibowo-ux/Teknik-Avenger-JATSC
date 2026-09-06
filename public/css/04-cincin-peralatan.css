@@ -1,8 +1,10 @@
 /* =====================================================================
    3. CINCIN PERALATAN 3D — berputar sendiri
    ===================================================================== */
-.orbit{position:relative;height:340px;margin:6px -22px 0;overflow-x:clip;
-  perspective:1150px;perspective-origin:50% 44%;
+/* Tinggi panggung = 24px (top .cincin) + tinggi kartu (±289px) × 1,18 (pembesaran kartu depan,
+   lihat aturCincin di 17-cincin-peralatan.js) ≈ 365px, dibulatkan ke atas. */
+.orbit{position:relative;height:376px;margin:6px -22px 0;overflow-x:clip;
+  perspective:2000px;perspective-origin:50% 44%;
   -webkit-mask-image:linear-gradient(90deg,transparent,#000 13%,#000 87%,transparent);
           mask-image:linear-gradient(90deg,transparent,#000 13%,#000 87%,transparent);}
 .cincin{position:absolute;left:50%;top:24px;width:0;height:0;transform-style:preserve-3d;
@@ -27,8 +29,12 @@
 .kartu-orbit:hover{border-color:var(--accent);}
 .kartu-orbit.terkunci{cursor:not-allowed;}
 
-.bingkai{position:relative;height:132px;overflow:hidden;border-bottom:1px solid var(--line);}
+/* Bingkai 4:3 (230×172) untuk SEMUA kartu — foto unit dari kamera/HP umumnya 4:3, jadi muat utuh. */
+.bingkai{position:relative;height:172px;overflow:hidden;border-bottom:1px solid var(--line);}
 .bingkai .adegan{display:block;width:100%;height:100%;}
+/* Foto pengenal unit menutup ilustrasi di bawahnya (ilustrasi tetap ada sebagai cadangan kalau
+   berkas fotonya gagal dimuat); lampu dan gembok (z-index 2) tetap di atas. */
+.bingkai .foto-unit{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;}
 .bingkai .lampu{position:absolute;right:9px;top:9px;width:9px;height:9px;border-radius:50%;z-index:2;}
 .lampu.hijau{background:var(--ok);box-shadow:0 0 12px var(--ok);}
 .lampu.kuning{background:var(--warn);box-shadow:0 0 12px var(--warn);animation:denyut 2s infinite;}
