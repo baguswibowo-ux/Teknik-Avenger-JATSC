@@ -68,6 +68,24 @@ const GALERI = process.env.GALERI_MATI !== '1' && BISA_TULIS_BINER;
 const app = express();
 app.disable('x-powered-by');
 
+/* Di balik proxy (Cloudflare Tunnel di komputer yang sama, nginx, dsb.) alamat
+   yang dilihat socket adalah alamat proxynya; alamat klien yang sebenarnya ada
+   di X-Forwarded-For. Express hanya membaca kepala itu kalau diberi tahu proxy
+   mana yang boleh dipercaya — tanpa itu, semua pengunjung lewat tunnel tampak
+   datang dari 127.0.0.1, dan penahan login E-Logbook (yang dikunci per IP)
+   jadi satu jatah untuk semua orang.
+
+   PROXY_TEPERCAYA=loopback  cloudflared/nginx di komputer ini (yang lazim)
+   PROXY_TEPERCAYA=1         percaya semua hop (hanya kalau server tidak
+                             bisa dicapai langsung dari luar sama sekali)
+   Nilai lain diteruskan apa adanya ke Express: 'uniquelocal', '10.0.0.0/8', 2.
+   Kosong: tidak ada proxy yang dipercaya — akses langsung di LAN kantor. */
+const PROXY_TEPERCAYA = (process.env.PROXY_TEPERCAYA || '').trim();
+if (PROXY_TEPERCAYA) {
+  app.set('trust proxy', PROXY_TEPERCAYA === '1' ? true
+    : /^\d+$/.test(PROXY_TEPERCAYA) ? Number(PROXY_TEPERCAYA) : PROXY_TEPERCAYA);
+}
+
 /* =====================================================================
    PENERUSAN KE E-LOGBOOK
 
@@ -125,12 +143,28 @@ const JALUR_TERUS = ['/api', '/uploads'];
    ===================================================================== */
 const JALUR_LOGBOOK = '/logbook';
 
-/** Kepala yang tidak boleh ikut diteruskan: hop-by-hop, atau diisi ulang oleh fetch. */
+/** Kepala yang tidak boleh ikut diteruskan: hop-by-hop, diisi ulang oleh fetch,
+    atau kepala jejak proxy yang dipasang ulang sendiri oleh kepalaJejakProxy(). */
 const KEPALA_DIBUANG = new Set([
   'host', 'connection', 'keep-alive', 'transfer-encoding', 'upgrade',
   'proxy-authorization', 'proxy-connection', 'te', 'trailer',
-  'content-length', 'accept-encoding'
+  'content-length', 'accept-encoding',
+  'x-forwarded-for', 'x-forwarded-proto', 'x-forwarded-host', 'x-real-ip'
 ]);
+
+/* Jejak proxy yang dikirim ke E-Logbook: alamat klien seperti yang SUDAH
+   diputuskan Express di sini (req.ip menghormati PROXY_TEPERCAYA), bukan
+   X-Forwarded-For mentah dari luar. Kepala mentah itu bisa diketik siapa saja;
+   kalau diteruskan apa adanya, orang bisa mengganti-ganti "alamatnya" dan
+   penahan login E-Logbook tidak pernah kena. E-Logbook lalu mempercayai kepala
+   ini karena datangnya dari loopback — dan hanya dari loopback. */
+function kepalaJejakProxy(req) {
+  return {
+    'x-forwarded-for': req.ip || req.socket?.remoteAddress || '',
+    'x-forwarded-proto': req.protocol || 'http',
+    'x-forwarded-host': req.get('host') || ''
+  };
+}
 
 /* Penanda bahwa permintaan ini datang lewat penerusan, bukan langsung dari
    peramban. E-Logbook memakainya untuk memutuskan boleh tidaknya ia
@@ -160,6 +194,7 @@ async function teruskan(req, res, potong = '') {
     kepala[nama] = nilai;
   }
   kepala[KEPALA_TERUSAN] = '1';
+  Object.assign(kepala, kepalaJejakProxy(req));
 
   /* Jalur tujuan, bukan req.url: yang dipakai Express sesudah app.use sudah
      terpotong mount-nya, tapi query stringnya ikut hilang pada sebagian jalur.
@@ -283,21 +318,18 @@ const DIR_TTD_AKUN = path.join(ROOT, 'data', 'ttd-akun');
    `..` dan karakter path lainnya sekalian. */
 const usernameSah = (u) => /^[A-Za-z0-9_.-]{1,64}$/.test(String(u || ''));
 
-const KEPALA_DIBUANG_TTD = new Set([
-  'host', 'connection', 'keep-alive', 'transfer-encoding', 'upgrade',
-  'proxy-authorization', 'proxy-connection', 'te', 'trailer',
-  'content-length', 'accept-encoding'
-]);
 /** Kepala permintaan yang aman diteruskan ke E-Logbook — terutama cookie
-    sesinya, supaya getTtdMilik lolos requireAuth di sana. */
+    sesinya, supaya getTtdMilik lolos requireAuth di sana. Daftar buangnya
+    sama dengan penerusan biasa, termasuk jejak proxy yang dipasang ulang. */
 function kepalaKeELogbook(req) {
   const kepala = {};
   for (const [nama, nilai] of Object.entries(req.headers)) {
     const n = nama.toLowerCase();
-    if (KEPALA_DIBUANG_TTD.has(n) || n === KEPALA_TERUSAN) continue;
+    if (KEPALA_DIBUANG.has(n) || n === KEPALA_TERUSAN) continue;
     kepala[nama] = nilai;
   }
   kepala[KEPALA_TERUSAN] = '1';
+  Object.assign(kepala, kepalaJejakProxy(req));
   return kepala;
 }
 

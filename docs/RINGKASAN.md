@@ -246,13 +246,21 @@ Sorotan yang paling banyak berubah belakangan:
 - **Cetak — dua jalur**: langsung, atau lewat **antrian persetujuan**
   (`cetak-antrian`: ajukan → setujui/teruskan/tolak) untuk dokumen yang perlu
   tanda tangan berjenjang.
+- **Umur trouble sampai menit** (6 Sep 2026 sore) — "32 hr 10 jam 5 mnt" di
+  tabel, "32 hari 10 jam 5 menit" di pita beranda, dihitung dari Tgl & Jam
+  Report isu (UTC) dan ditulis ulang tiap menit tanpa menggambar ulang tabel
+  (`segarkanUmurTrouble` di `08-bantu.js`). Urutan, warna batang, dan ubin
+  "Lewat 14 Hari" ikut memakai menit. Lihat Bagian 13.
 
 ## 7. Fitur per tab — E-Logbook
 
 Urutan muat `elogbook/public/js/`: tema, bahasa, waktu (jam server sebagai
 satu-satunya acuan), toast/tab, jembatan server (`gsRun`), keadaan bersama,
 unit, tanda tangan, peran, lampiran, **Logbook Fasilitas** (`11-`), **Daily
-Check per unit** (`12`–`14`, lihat Bagian 8), **Isu** (`15-`), **Monitoring
+Check per unit** (`12`–`14`, lihat Bagian 8), **Isu** (`15-`; tombol ⚠ di kartu
+dan detail catatan logbook membuka form isu yang sudah terisi dari catatan itu —
+jenis, keterangan, lokasi, tanggal-jam, plus lampirannya disalin sebagai bukti
+saat kejadian; menutup isu tetap manual), **Monitoring
 Frekuensi** (`16-`, khusus Radkom), **DS Test** (`17-`, + tegangan
 standby/pakai), varian preventive (`17c`–`17f`, baru), **LTK** (`18-`, +
 BAPB `18b-`), **Kegiatan Berkala** (`19-`), **TTD susulan pejabat** (`20-`) —
@@ -297,6 +305,11 @@ ditambahkan lewat commit-commit terbaru dan sebagian belum ter-commit:
   Lembarnya bisa DISUNTING lewat tombol ✎ selama belum di-TTD Manager
   Teknik — jalurnya `updateDsTest` yang baru (db.js + db-pg.js + server.js),
   dan berlaku untuk seluruh form yang menumpang tabel `dstest`.
+- `17h-meter-radkom.js` *(baru, belum tercatat git)* — Preventive Maintenance
+  unit Radkom dari "METER READING.xlsx": Mingguan & Bulanan (bertingkat: Radio
+  710 / 720 / MER / TER), Radio R&S TX, Radio R&S RX, Battery, TX VHF, Antena
+  VHF. Format `mrradkom`, menumpang `dstest`; frekuensi/merk/awalan IP terisi
+  dari sheet tapi bisa ditimpa teknisi. Sub-tab `rk-*` hanya untuk unit radkom.
 
 ## 8b. Daftar cek setiap menambah form / modal baru di E-Logbook
 
@@ -347,7 +360,7 @@ di seluruh tugas") — masih relevan untuk pekerjaan berikutnya:
 - **Banyak perubahan belum di-commit**: `server.js`, `elogbook/server.js`,
   `elogbook/db.js`/`db-pg.js`, sejumlah `public/js`/`css` di kedua aplikasi,
   plus berkas baru yang belum `git add` (`12f-daily-check-fgk.js`,
-  `12g-daily-check-listrik.js`, `17g-maint-listrik.js`,
+  `12g-daily-check-listrik.js`, `17g-maint-listrik.js`, `17h-meter-radkom.js`,
   `17f-meter-reading.js`, `28-telegram.js`, `telegram.js`,
   dua logo ATSEP baru).
 - 20 commit terakhir seluruhnya soal: checklist preventive per unit (LLZ,
@@ -397,3 +410,187 @@ Berdasarkan pola `12d`/`12e`/`12f` yang sudah ada:
 8. Kalau unit ini juga perlu tampil di Daftar Peralatan/Sparepart Avenger,
    pastikan `data/peralatan.json`/`sparepart.json` sudah punya baris berkunci
    kode unit yang sama.
+
+## 13. Sesi 6 September 2026 (sore) — Buat Isu dari logbook & umur trouble
+
+Dua permintaan, keduanya selesai di sisi peramban saja — **tidak ada
+perubahan server, skema, maupun API**, jadi tidak perlu restart `npm start`
+dan tidak menyentuh `db.js`/`db-pg.js`. Belum di-commit, belum ke Vercel.
+
+### 13a. E-Logbook: "Buat Isu" dari catatan Logbook Fasilitas
+
+Masalahnya: gangguan hampir selalu sudah ditulis di logbook, lalu diketik
+ulang di form Isu. Sekarang catatannya tinggal diteruskan.
+
+**Di mana tombolnya**
+
+- Tombol ⚠ di setiap kartu catatan (sebelah ✎ Sunting), dan tombol
+  "⚠ Buat Isu" di jendela Detail Catatan. Keduanya berkelas `hanya-tulis`,
+  jadi pejabat (yang memang tidak boleh menulis isu) tidak melihatnya.
+
+**Apa yang terisi otomatis** (`openIssueDariLogbook` di `15-isu.js`)
+
+| Kolom isu | Sumber |
+|---|---|
+| Jenis Issue | baris pertama uraian yang berisi, dipotong di batas kata bila > 90 huruf (`jenisDariUraian`) |
+| Keterangan | uraian lengkap + baris "Sumber: Logbook Fasilitas \<tanggal\> \<jam mulai–selesai\> UTC · Dinas · Lokasi · Frek" + "Teknisi Pelaksana: A, B" (`keteranganDariLogbook`) |
+| Lokasi | lokasi catatan |
+| Tanggal & Jam Report | tanggal dan jam mulai catatan |
+| Dilaporkan Oleh | tetap akun yang login (tidak berubah) |
+| Foto/Dokumen Saat Kejadian | seluruh lampiran catatan, maksimal 6 |
+
+Sebelum mengisi, layar pindah ke tab Isu, lalu `openIssueModal()` dipanggil
+seperti biasa — jadi seluruh bawaan form yang lama tetap berlaku, baru
+ditimpa isi catatan. Catatan kecil di atas form (`#isDariLogbook`)
+menyebutkan catatan asalnya dan mengingatkan bahwa isinya masih bisa
+disunting. **Menutup isu tetap manual** seperti sebelumnya.
+
+**Lampiran disalin, bukan dirujuk** (`salinLampiranLogbookKeIsu`)
+
+Tiap lampiran diambil ulang dari `/uploads/...` (di balik login, sesi yang
+sama), diubah ke data-URL, dan dimasukkan ke kotak `isLampiranOpen` seolah
+dipilih dari pemilih berkas — lalu dikirim lewat `addIssue` yang sudah ada.
+Akibatnya:
+
+- jalurnya sama di SQLite (folder `uploads/`) maupun Postgres (Supabase
+  Storage), tanpa API baru;
+- menghapus lampiran di satu sisi tidak mematikan sisi lainnya (masing-masing
+  punya berkasnya sendiri);
+- gambar tidak dikecilkan lagi — yang tersimpan sudah dikecilkan saat diunggah.
+
+Selama pengambilan, tombol Simpan dikunci dan hint kotak lampiran menghitung
+"(n/total)". Kalau jendela ditutup atau berganti catatan di tengah jalan,
+pengambilan berhenti sendiri (`isuSumberLogbook` dicocokkan tiap langkah).
+Berkas yang gagal diambil dihitung dan disebut di hint supaya dilampirkan
+ulang secara manual.
+
+**Berkas yang disentuh**
+
+- `elogbook/public/index.html` — tombol di footer Detail Catatan, catatan
+  info di modal Tambah Isu.
+- `elogbook/public/js/11-logbook.js` — tombol ⚠ di kartu, pengait tombol detail.
+- `elogbook/public/js/15-isu.js` — `openIssueDariLogbook`, `jenisDariUraian`,
+  `keteranganDariLogbook`, `salinLampiranLogbookKeIsu`; `openIssueModal` dan
+  `closeIssueModal` ikut melepas kaitan ke catatan.
+- `elogbook/public/js/02-bahasa.js` — 9 kunci baru di **ketiga** kamus
+  (id/en/es): `buatIsuBtn`, `buatIsuDariCatatan`, `isuDariLogbookKet`,
+  `isuDariLogbookSunting`, `sumberLogbook`, `takBolehBuatIsu`,
+  `mengambilLampiranLogbook`, `lampiranDariLogbook`, `lampiranLogbookGagal`.
+- `elogbook/PETA-BERKAS.md` — baris `15-isu.js` diperbarui.
+
+### 13b. Dashboard Avenger: umur trouble sampai jam dan menit
+
+Sebelumnya kolom Umur hanya "32 hr", dihitung dari tanggal ke tanggal
+(`umurHari`, berbasis `HARI_INI` tengah malam lokal). Sekarang:
+
+- `13-unitdb-server.js` — baris `TROUBLE` membawa `waktu`: Tgl Report
+  lengkap ("YYYY-MM-DDTHH:MM", UTC) bila ada jamnya; kalau hanya tanggal,
+  jatuh ke `DibuatPada` (stempel server, ber-"Z"); kalau itu pun kosong,
+  tengah malam UTC tanggalnya.
+- `08-bantu.js` — pembantu baru: `waktuMs` (membaca teks tanpa zona sebagai
+  UTC, bukan waktu lokal peramban), `umurMenit`, `umurTeks(iso, pendek)`
+  → "32 hari 10 jam 5 menit" / "32 hr 10 jam 5 mnt" (nol di depan tidak
+  ditulis, menit selalu ada), `waktuRingkas` → "5 Agu 2026 · 09:37 UTC",
+  dan `segarkanUmurTrouble()` yang menulis ulang setiap elemen
+  `[data-umur]` dari jam sekarang.
+- `18-ubin-tabel.js` — tabel Daftar Trouble dan pita beranda memakai
+  `umurTeks`; warna, panjang batang, urutan, dan ubin "Lewat 14 Hari"
+  memakai menit; `setInterval(segarkanUmurTrouble, 60000)` supaya halaman
+  yang dibiarkan terbuka tetap benar menitnya tanpa menyentak animasi pita.
+- `28-database-unit.js` — urutan trouble per unit ikut per menit.
+
+`umurHari` dan `HARI_INI` tetap ada (dipakai tempat lain), tidak dihapus.
+
+### 13c. Verifikasi yang dilakukan & yang belum
+
+- Sintaks semua berkas JS yang diubah lolos (`new Function(...)`).
+- Fungsi murni diuji dengan node: judul/keterangan otomatis, dan pemformatan
+  umur untuk 32 hr 10 jam 5 mnt, 3 jam 12 menit, 7 menit, tanggal tanpa jam,
+  dan stempel ber-Z.
+- Server lokal (E-Logbook 3000, dashboard 3100) sudah menyajikan kode baru
+  dari disk; halaman `/logbook/` memuat tanpa galat JavaScript.
+- **Belum**: uji klik penuh dengan akun login (butuh sandi — tidak dilakukan
+  Claude). Uji sendiri: buka catatan yang punya lampiran → ⚠ → periksa isi
+  form → Simpan; lalu lihat kolom Umur di beranda. Aset di-cache (E-Logbook
+  1 jam, dashboard 5 menit) — **Ctrl+F5** kalau masih tampil versi lama.
+
+### 13d. Jebakan yang ditemukan hari ini (sudah dicatat di memori Claude)
+
+- **Akhir baris tidak seragam**: `elogbook/public/index.html`, `db.js`,
+  `db-pg.js`, `02-bahasa.js` ber-CRLF; `15-isu.js`, `docs/RINGKASAN.md`,
+  dan seluruh `public/js/` dashboard ber-LF. Skrip tambal harus mendeteksi
+  per berkas; `git checkout --` menulis ulang berkas menjadi CRLF (autocrlf),
+  dan `grep -c $'\r'` di Git Bash tidak bisa dipercaya.
+- Skrip node panjang jangan lewat heredoc/`node -e` di Bash (backslash
+  `\r\n` hilang) — tulis berkasnya, lalu `node skrip.js`.
+
+### 13e. Langkah berikutnya
+
+1. Uji klik seperti 13c, lalu `git add -A` (kecuali `Claude outputs/`) dan
+   commit satu pesan, mis. "Buat Isu dari catatan logbook + umur trouble
+   sampai menit".
+2. `npx vercel --prod` — tidak ada rute baru, jadi `vercel.json` tidak perlu
+   disentuh (rewrite `/logbook/*` dan `/uploads/*` yang ada sudah cukup).
+3. Kalau kelak ingin isu **tahu** catatan asalnya secara terstruktur (bukan
+   hanya baris "Sumber:" di keterangan), perlu kolom `entry_id` di tabel
+   `issues` — dua berkas db, satu perubahan (Bagian 4).
+
+## 14. Sesi 6 September 2026 (malam) — pindah ke PC sendiri, tahap kode
+
+Keputusan: kedua aplikasi pindah dari Vercel ke PC sendiri di rumah, diekspos
+lewat Cloudflare Tunnel di domain `avengers-teknik.com` (dibeli 7 Sep 2026).
+Vercel tetap hidup sampai server sendiri stabil beberapa hari.
+
+**Data sudah ditarik** dengan `tools/tarik-supabase.js`: 15 tabel E-Logbook
+→ `elogbook/data/elogbook.db`, 13 dokumen avenger_state → `data/*.json`,
+830 berkas Storage → `elogbook/uploads/` + `public/foto/`. Supabase tidak
+diubah; skrip aman diulang. Kredensialnya: `DATABASE_URL` di `elogbook/.env`
+(masih valid sejak Agustus) dan `SUPABASE_SERVICE_KEY` di `.env` akar.
+
+**Alamat klien di balik proxy** (`PROXY_TEPERCAYA`, dibaca dashboard dan
+E-Logbook): dashboard membuang `X-Forwarded-*` yang datang dari luar dan
+mengisinya ulang dari `req.ip`-nya sendiri (`kepalaJejakProxy` di
+`server.js`), E-Logbook mempercayai loopback saat dijalankan sendiri. Tanpa
+ini semua pengunjung lewat tunnel tampak dari 127.0.0.1 dan penahan login
+8 gagal/5 menit jadi jatah bersama. Diuji: 9 gagal dari satu XFF → 429,
+XFF lain → 401.
+
+**Cadangan harian** `tools/cadangkan.js`: `VACUUM INTO` untuk SQLite (aman
+saat server menulis), `data/` disalin per hari, `uploads/` dan `public/foto/`
+dicerminkan (yang sama dilewati, yang terhapus di sumber tidak ikut dihapus).
+Folder harian lebih tua dari `CADANGAN_SIMPAN_HARI` (14) dibuang. Sudah
+diarahkan ke `E:\2026\Cadangkan` lewat `CADANGAN_DIR` di `.env`: di luar
+folder proyek supaya tidak ikut hilang saat folder itu dihapus atau di-clone
+ulang, tapi sebelah folder aplikasi supaya semua urusan 2026 terkumpul di
+satu tempat. Sedrive dengan aplikasi, jadi ia tidak menolong kalau disk E mati;
+yang menutup itu salinan manual ke komputer lain.
+
+**Jadwal Windows** `tools/pasang-jadwal.cmd` (jalankan sebagai administrator):
+tiga tugas Task Scheduler — `Avenger\Server` saat boot (`tools/server.cmd`,
+log ke `server.log`), `Avenger\Server (jaga)` tiap 10 menit menyalakan ulang
+kalau port dashboard kosong (`tools/jaga-server.cmd`), `Avenger\Cadangan
+harian` pukul 02.00. Dipilih Task Scheduler, bukan NSSM, karena tidak perlu
+mengunduh apa pun. `pasang-jadwal.cmd lepas` menghapus ketiganya.
+
+**Belum:** `ELOGBOOK_SECURE_COOKIE=1` baru dinyalakan begitu diakses lewat
+HTTPS; Cloudflare Tunnel (Quick Tunnel dulu untuk bukti, lalu tunnel
+bernama) menunggu domain; Telegram di server sendiri pakai `TELEGRAM_POLLING=1`
+atau webhook ke domain baru; matikan Vercel setelah stabil.
+
+**Ketiga tugas terbukti jalan (7 Sep 2026 pagi) DI LAPTOP.** Mesin yang dipakai
+selama sesi 6-7 Sep adalah laptop tempat ngoprek, bukan PC rumah yang akan jadi
+server; pemasangan jadwal, penarikan data Supabase, dan isi `.env` harus
+diulang di PC saat migrasi sungguhan. Ketiga tugas dibuat lewat
+`tools/pasang-jadwal.cmd` dari Command Prompt administrator. `Avenger\Server`
+dijalankan tangan dengan `schtasks /Run` dan servernya hidup sebagai SYSTEM —
+`server.log` mencatat penyalaannya, port 3000 dan 3100 mendengarkan, `/_info`
+menjawab 200. Dua bug ditemukan dan diperbaiki saat menguji: `VACUUM INTO`
+menolak menimpa, jadi cadangan yang jalan dua kali dalam menit yang sama gagal
+(sekarang salinan lama untuk stempel yang sama dibuang lebih dulu); dan jalur
+`node` di definisi tugas kini ditulis lengkap, supaya pemasangan di komputer
+lain tidak bergantung pada isi PATH milik SYSTEM. Di komputer ini nodejs
+memang sudah ada di PATH mesin, jadi yang kedua bersifat pengerasan, bukan
+perbaikan atas kegagalan yang sungguh terjadi.
+Tugas cadangan juga diuji dengan `schtasks /Run`: ia menulis ke
+`E:\2026\Cadangkan` sebagai `NT AUTHORITY\SYSTEM` dan salinannya lolos
+`integrity_check`, jadi jadwal 02.00 tidak menunggu bukti lagi.

@@ -28,3 +28,17 @@ public/foto/daftar.json
 *.png
 !public/**/*.png
 !elogbook/public/**/*.png
+
+# Salinan aset statis E-Logbook, dibuat tools/salin-statis-logbook.js saat build Vercel
+public/logbook/
+
+# Cadangan data lokal yang dibuat tools/tarik-supabase.js sebelum menimpa
+_cadangan-lokal-*/
+
+# Cadangan harian buatan tools/cadangkan.js (bawaan CADANGAN_DIR) dan log
+# server dari tools/server.cmd
+cadangan/
+server.log
+
+# Salinan dokumen yang dibuat alat bantu, bukan bagian proyek
+Claude outputs/

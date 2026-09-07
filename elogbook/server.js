@@ -160,6 +160,26 @@ const COOKIE_SECURE = (process.env.ELOGBOOK_SECURE_COOKIE || '').trim() === '1';
 const app = express();
 app.disable('x-powered-by');
 
+/* Alamat klien untuk penahan login (bolehCoba/catatGagal dikunci per req.ip).
+
+   Waktu dijalankan sendiri, hampir semua permintaan datang dari dashboard
+   Avenger di komputer yang sama: socketnya selalu 127.0.0.1, dan alamat klien
+   yang sebenarnya ada di X-Forwarded-For yang diisi dashboard dari req.ip-nya
+   sendiri. Tanpa mempercayai loopback, semua orang berbagi satu jatah 8 gagal
+   per 5 menit — bug yang pernah ada di commit 7547039. Hanya loopback yang
+   dipercaya: klien di LAN yang menembak port ini langsung dengan kepala
+   X-Forwarded-For karangan tetap tercatat dengan alamat socketnya sendiri.
+
+   PROXY_TEPERCAYA (bersama dashboard, lihat .env.example) menimpanya kalau
+   ada proxy lain di depan; di Vercel tidak ada yang diubah. */
+const PROXY_TEPERCAYA = (process.env.PROXY_TEPERCAYA || '').trim();
+if (PROXY_TEPERCAYA) {
+  app.set('trust proxy', PROXY_TEPERCAYA === '1' ? true
+    : /^\d+$/.test(PROXY_TEPERCAYA) ? Number(PROXY_TEPERCAYA) : PROXY_TEPERCAYA);
+} else if (DIJALANKAN_LANGSUNG) {
+  app.set('trust proxy', 'loopback');
+}
+
 // Tanda tangan, StateJSON daily check, dan lampiran hasil scan berukuran besar —
 // batas bawaan 100kb jauh dari cukup. Lampiran dikirim sebagai base64 di dalam
 // payload, jadi batasnya harus di atas 6 x 8 MB ditambah pemuaian base64.
