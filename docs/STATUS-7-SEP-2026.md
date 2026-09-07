@@ -24,7 +24,7 @@ Telegram.
 | Supabase | beku sejak 14:43. **Jangan dihapus** — salinan gratis |
 | Aplikasi | Task Scheduler saat boot + penjaga tiap 10 menit |
 | Tunnel | layanan Windows `Cloudflared`, Automatic |
-| Cadangan | 02.00 dan 14.00, ke `D:`, ke `E:`, lalu Drive menyusul |
+| Cadangan | 02.00 dan 14.00, ke `D:`, ke `C:`, lalu Drive menyusul |
 | Git | `feature/avengers-login-visual`, terdorong ke GitHub |
 
 ## Yang harus diingat sekarang
@@ -87,9 +87,10 @@ disunting. Retensi 14 hari, di kedua salinan lokal.
 Tiga tujuan, masing-masing menjaga dari hal yang berbeda:
 
 - `D:\Airnav\2026\Cadangkan` — dari salah hapus dan salah ubah.
-- `E:\Airnav\Cadangan Avenger` — dari disk D: rusak. E: (Seagate) disk
-  fisik yang berbeda dari WD tempat D: berada, dan itulah satu-satunya syarat
-  yang penting. Terbukti: 1343 berkas, 182,3 MB.
+- `C:\Airnav\Cadangan Avenger` — dari disk D: rusak. Aplikasinya DAN
+  cadangan utamanya sama-sama di D:, jadi tanpa salinan ini keduanya hilang
+  bersamaan kalau disknya mati. C: (ADATA NVMe) disk yang berbeda, dan itulah
+  satu-satunya syarat yang penting. Terbukti: 1395 berkas, 199,4 MB.
 - Google Drive — dari PC-nya sendiri hilang, terbakar, atau kena ransomware.
   **Bukan lewat huruf drive.** Di setelan Google Drive for Desktop, menu
   "Folders from your computer", folder `D:\Airnav\2026\Cadangkan`
@@ -100,8 +101,11 @@ kali) dan cermin (lampiran, TTD, foto — hanya menambah yang baru). Sekitar
 550 MB di keadaan mapan dengan retensi 14 hari.
 
 **Jangan pernah mengarahkan cadangan ke F:.** Di komputer ini D: dan F:
-kelihatan dua drive padahal satu disk fisik (WD 2TB), jadi sisanya yang 540 GB
-sama sekali tidak menolong. Yang benar-benar terpisah cuma C: dan E:.
+kelihatan dua drive padahal satu disk fisik (WD 2TB) yang dibagi dua, jadi
+sisanya yang 540 GB sama sekali tidak menolong — rusak bareng. Yang
+benar-benar terpisah dari D: cuma C: dan E:. E: dipakai arsip pribadi dan
+sisanya tinggal 13,7 GB, jadi dipilih C:. Kalau ragu lagi drive mana serumah
+dengan mana, buka `diskmgmt.msc` — partisi digambar berjajar per disk fisik.
 
 Kalau `CADANGAN_LUAR` tidak terjangkau, `cadangkan.js` gagal dengan kode keluar
 1 — sengaja berisik. Cadangan luar yang berhenti diam-diam adalah cadangan yang
@@ -197,7 +201,7 @@ mengubah apa pun. Kalau terulang, coba lagi saja.
 - Aplikasi: `D:\Airnav\2026\Teknik JATSC Avenger`, Node v24.19.0, port 3100
   (E-Logbook internal 3000, sengaja tidak diekspos)
 - Cadangan lokal: `D:\Airnav\2026\Cadangkan`
-- Cadangan luar: `E:\Airnav\Cadangan Avenger` (disk fisik lain)
+- Cadangan luar: `C:\Airnav\Cadangan Avenger` (disk fisik lain)
 - Tunnel: `avenger`, `e96f595a-5062-4aea-ba38-287a7b7ef241`
 - Kredensial tunnel: `%USERPROFILE%\.cloudflared\<uuid>.json` — **berkas itulah
   tunnelnya**, memindahkannya ke server lain berarti memindahkan tunnel yang
