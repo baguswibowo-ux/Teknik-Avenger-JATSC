@@ -174,16 +174,39 @@ seperti semula, dan tidak seorang pun perlu mengganti alamat.
 
 ## 7. Jadikan layanan Windows
 
+Dari Command Prompt atau PowerShell yang dibuka **Run as administrator**:
+
 ```
-cloudflared service install
+tools\pasang-cloudflared.cmd
 ```
 
-Perhatikan satu jebakan: layanan berjalan sebagai SYSTEM, dan ia membaca
-konfigurasi dari folder profil SYSTEM, bukan dari folder profilmu. Kalau
-layanannya hidup tapi situsnya tidak terbuka, salin `config.yml` beserta berkas
-`.json` kredensialnya ke
-`C:\Windows\System32\config\systemprofile\.cloudflared\`, lalu jalankan ulang
-layanannya lewat services.msc.
+Skrip itu mengurus dua jebakan sekaligus. Keduanya kena waktu pemasangan
+pertama 7 Sep 2026, dan dua-duanya bergejala sama: layanannya kelihatan
+wajar, situsnya tidak terbuka, dan tidak ada pesan galat yang menyebut
+sebabnya.
+
+**Jebakan pertama, profil SYSTEM.** Layanan berjalan sebagai SYSTEM, dan
+cloudflared mencari `config.yml` di profil pengguna yang menjalankannya —
+yaitu profil SYSTEM, bukan profilmu. Skrip menyalin `config.yml`, berkas
+kredensial `.json`, dan `cert.pem` ke `C:\Windows\System32\config\systemprofile\.cloudflared\` lebih dulu.
+
+**Jebakan kedua, layanan tanpa argumen.** `cloudflared service install`
+mendaftarkan layanan dengan `BINARY_PATH_NAME` berisi `cloudflared.exe` saja,
+tanpa satu argumen pun. Bentuk itu ditujukan untuk tunnel yang dikelola lewat
+token dari dashboard. Kalau tunnelnya dikelola `config.yml` seperti di sini,
+Windows menjalankan exe polos — yang cuma mencetak bantuan lalu keluar, jadi
+layanannya gagal start. Skrip menulis ulang jalurnya menjadi lengkap dengan
+`--config` dan `tunnel run avenger`.
+
+Periksa hasilnya:
+
+```
+sc qc Cloudflared
+Get-Service Cloudflared
+```
+
+`BINARY_PATH_NAME` harus memuat `--config` dan `tunnel run`, dan statusnya
+`Running`. Copot lagi dengan `tools\pasang-cloudflared.cmd lepas`.
 
 ## 8. Nyalakan cookie aman
 
