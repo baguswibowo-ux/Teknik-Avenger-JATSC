@@ -7,27 +7,43 @@ ini. Berkas inilah konteksnya.
 
 ## Ringkas
 
-Avenger dan E-Logbook pindah dari Vercel ke PC sendiri, dibuka lewat Cloudflare
-Tunnel. Keduanya satu aplikasi Node, bukan frontend dan backend terpisah.
+**Pemindahan selesai.** Sejak 7 Sep 2026 sore, `teknik-avengers.com` dilayani
+PC sendiri lewat Cloudflare Tunnel. Supabase tidak menerima tulisan baru lagi;
+Vercel menganggur.
 
-Pemindahan datanya **selesai dan terverifikasi**, termasuk dari HP lewat data
-seluler. Domain sudah dibeli dan melayani. Tunnel dan aplikasi sudah bangun
-sendiri setelah PC di-restart — **PC ini sudah jadi server**.
-
-Yang tersisa: pindahkan apex dari Vercel ke tunnel, lalu matikan Vercel
-seminggu kemudian. Ditambah satu pekerjaan yang belum pernah disentuh:
-notifikasi Telegram.
+Yang tersisa cuma dua: matikan Vercel akhir pekan ini, dan kerjakan notifikasi
+Telegram.
 
 ## Keadaan sekarang
 
 | Bagian | Keadaan |
 |---|---|
-| `teknik-avengers.com` | masih Vercel, melayani teknisi |
-| `pc.teknik-avengers.com` | PC ini lewat tunnel, ruang uji |
-| Aplikasi | dijalankan Task Scheduler saat boot, terbukti |
-| Tunnel | layanan Windows `Cloudflared`, Automatic, Running |
-| Cadangan | skrip terbukti; tugas harian 02.00 terpasang |
-| Git | cabang `feature/avengers-login-visual`, terdorong ke GitHub |
+| `teknik-avengers.com` | **PC ini**, lewat tunnel — dipakai teknisi |
+| `pc.teknik-avengers.com` | PC ini juga, pintu diagnosis. Jangan dibagikan |
+| Vercel | menganggur, dimatikan Sabtu/Minggu 12–13 Sep |
+| Supabase | beku sejak 14:43. **Jangan dihapus** — salinan gratis |
+| Aplikasi | Task Scheduler saat boot + penjaga tiap 10 menit |
+| Tunnel | layanan Windows `Cloudflared`, Automatic |
+| Cadangan | 02.00 dan 14.00, ke `D:` dan ke Google Drive |
+| Git | `feature/avengers-login-visual`, terdorong ke GitHub |
+
+## Yang harus diingat sekarang
+
+**Jalan pulang ke Vercel sudah tidak gratis lagi.** Sejak apex pindah, catatan
+teknisi hanya masuk ke SQLite di PC. Mengembalikan CNAME ke Vercel berarti
+mereka melihat data yang beku sejak 7 Sep 14:43 — catatan sesudah itu tidak
+akan terlihat, dan **tidak ada skrip yang mendorongnya balik ke Supabase**
+(`tarik-supabase.js` satu arah, semua kuerinya `SELECT`). Kalau ada masalah,
+jalannya diperbaiki di tempat, bukan mundur.
+
+**Tidak ada failover otomatis, dan itu disengaja.** Kalau DNS berpindah sendiri
+ke Vercel saat PC mati, teknisi akan dilayani data beku tanpa tanda apa pun,
+lalu menulis ke Supabase — data terbelah di dua tempat tanpa ada yang sadar.
+Itu jauh lebih sulit dibereskan daripada aplikasi yang mati beberapa jam dan
+semua orang tahu.
+
+**Belum ada yang memberitahumu kalau rusak.** Penjaganya bekerja diam-diam,
+berhasil maupun gagal. Itu lubang yang ditutup notifikasi Telegram.
 
 ## Uji restart — lulus
 
@@ -42,62 +58,77 @@ PC di-restart 7 Sep 2026 tanpa menyalakan apa pun dengan tangan.
 | 12:29:04 | port 3000 dan 3100 terisi |
 | 12:29:20 | HP membuka, jalan, sudah masuk sebagai Administrator |
 
-502 selama sekitar 50 detik itu **bukan kerusakan**: cloudflared menyala lebih
-dulu karena dia layanan Windows, sementara aplikasi menunggu giliran Task
-Scheduler. Hanya terjadi saat boot.
+502 selama sekitar 50 detik itu bukan kerusakan: cloudflared menyala lebih dulu
+karena dia layanan Windows, aplikasi menunggu giliran Task Scheduler. Hanya
+terjadi saat boot.
 
 Catatan cara memeriksa: tugas berakun SYSTEM **tidak terlihat** oleh
 `schtasks /Query` maupun `Get-ScheduledTask` tanpa admin — jawabannya "tidak
-ada", padahal ada. Jangan tertipu seperti sesi ini sempat tertipu. Bukti yang
-sah: telusuri induk prosesnya (`svchost` yang menghosting layanan `Schedule`),
-atau baca baris `server.cmd menyalakan jalankan-semua.js` di `server.log`.
+ada", padahal ada. Sesi ini sempat tertipu. Bukti yang sah: telusuri induk
+prosesnya (`svchost` yang menghosting layanan `Schedule`), atau baca baris
+`server.cmd menyalakan jalankan-semua.js` di `server.log`.
 
-## Data yang sudah terverifikasi
+## Data
 
-318 entri logbook (6 Agu sampai 6 Sep; radtel 315, ppabn 3), 87 daily check,
-4 isu, 32 akun. Lampiran 84 di entri ditambah 7 di isu, total 91 berkas,
-semuanya ada dan **ukurannya cocok sampai byte terakhir** dengan yang tercatat
-di database. Tanda tangan tersimpan: 16 akun, 20 berkas PNG, semuanya ada.
-Galeri foto 7 berkas (6 tercatat di `daftar.json`, 1 yatim — sudah begitu sejak
-di laptop).
+Ditarik ulang tepat sebelum apex dipindah, jadi tidak ada yang tertinggal di
+Supabase. 15 tabel cocok persis: 319 entri, 84 lampiran, 32 akun, 87 daily
+check, 4 isu. Storage 840 berkas. Tanda tangan tersimpan 16 akun, 20 berkas
+PNG. Galeri foto 11 berkas.
 
 Sudah dicek langsung di layar HP lewat data seluler: catatan logbook, foto, dan
 TTD Saya semuanya tampil.
 
-## Sisa langkah, berurutan
+## Cadangan
 
-1. **Restart aplikasi** supaya dua perubahan terbaru terbaca:
-   `ELOGBOOK_SECURE_COOKIE=1` di `.env`, dan perbaikan handler Telegram.
-   Dari PowerShell admin:
-   `schtasks /End /TN "Avenger\Server"` lalu `schtasks /Run /TN "Avenger\Server"`
-2. **Pindahkan apex.** Hapus catatan `CNAME` ke `cname.vercel-dns.com` di
-   Cloudflare, lalu `cloudflared tunnel route dns avenger teknik-avengers.com`.
-   Kali ini awan oranye, dan itu diatur sendiri oleh perintahnya.
-3. **Seminggu kemudian, matikan Vercel.**
-4. **Notifikasi Telegram.** Belum pernah disentuh. Kodenya lengkap, tinggal
-   token bot dari BotFather. Inilah yang menutup lubang "tidak ada yang
-   memberitahu kalau rusak saat sedang di luar" — penjaganya menyalakan ulang
-   diam-diam, dan kalau gagal pun tetap diam.
+Dua kali sehari, **02.00 dan 14.00**, satu tugas `HOURLY /MO 12` — bukan dua
+tugas terpisah, karena dua tugas gampang berbeda diam-diam waktu salah satunya
+disunting. Retensi 14 hari, di kedua tempat.
+
+Dua tujuan, menjaga dari hal yang berbeda:
+
+- `D:\Airnav\2026\Cadangkan` — dari salah hapus dan salah ubah.
+- `G:\My Drive\Cadangan Avenger` — dari disk rusak, PC hilang atau terbakar,
+  dan ransomware yang mengenkripsi semua drive lokal. Disinkronkan Google Drive
+  for Desktop. Terbukti: 1083 berkas, 96,6 MB.
+
+**Jangan pernah mengarahkan cadangan ke F:.** Di komputer ini D: dan F:
+kelihatan dua drive padahal satu disk fisik (WD 2TB), jadi sisanya yang 540 GB
+sama sekali tidak menolong. Yang benar-benar terpisah cuma C: dan E:.
+
+Kalau `CADANGAN_LUAR` tidak terjangkau, `cadangkan.js` gagal dengan kode keluar
+1 — sengaja berisik. Cadangan luar yang berhenti diam-diam adalah cadangan yang
+tidak ada, dan baru ketahuan persis di hari kamu membutuhkannya.
+
+## Sisa langkah
+
+1. **Sabtu/Minggu 12–13 Sep: matikan Vercel.** Supabase tetap dibiarkan.
+2. **Notifikasi Telegram.** Kodenya lengkap dan bug-nya sudah diperbaiki,
+   tinggal token bot dari BotFather.
+3. Nanti kalau mau: `sc.exe failure Cloudflared reset= 86400 actions= restart/20000/restart/60000/restart/120000`
+   supaya kegagalan kedua dan seterusnya juga dinyalakan ulang, bukan cuma yang
+   pertama.
 
 ## Keputusan dan alasannya
 
-**Domain diarahkan ke Vercel dulu, bukan langsung ke PC.** Alasannya bukan
-alamat, melainkan jalan pulang: teknisi cukup sekali berganti alamat, dan kalau
-PC bermasalah, satu catatan DNS dikembalikan tanpa perlu mengumumkan alamat
-cadangan ke siapa pun.
+**Domain diarahkan ke Vercel dulu, baru dipindah ke PC.** Teknisi cukup sekali
+berganti alamat, dan selama masa uji, satu catatan DNS bisa dikembalikan tanpa
+mengumumkan alamat cadangan ke siapa pun.
 
-**Beli domain di Cloudflare, bukan Domainesia.** Domainesia Rp 155.289 lawan
-Cloudflare Rp 184.418 di tahun pertama. Dipilih yang lebih mahal karena
-nameserver-nya sudah di Cloudflare sejak menit pertama — langkah ganti
-nameserver hilang total — dan Registrar menjual seharga modal, jadi
-perpanjangannya tidak naik.
+**Beli domain di Cloudflare, bukan Domainesia.** Rp 184.418 lawan Rp 155.289 di
+tahun pertama. Yang lebih mahal dipilih karena nameserver-nya sudah di
+Cloudflare sejak menit pertama — langkah ganti nameserver hilang total — dan
+Registrar menjual seharga modal, jadi perpanjangannya tidak naik.
 
 **Subdomain `pc.` sebagai ruang uji.** Panduan aslinya menyuruh menguji tunnel
 sebelum menyentuh DNS, padahal tanpa catatan DNS tidak ada alamat yang bisa
-dibuka. `pc.` memecahkan itu, dan sengaja dibiarkan hidup setelah apex pindah
-sebagai pintu diagnosis langsung ke PC. Jangan dibagikan ke teknisi — bukan
-karena rahasia, tapi supaya tetap ada satu alamat yang pasti bersih untuk
-melacak masalah.
+dibuka. Dibiarkan hidup setelah apex pindah sebagai pintu diagnosis langsung ke
+PC. Jangan dibagikan ke teknisi — bukan karena rahasia, tapi supaya tetap ada
+satu alamat yang pasti bersih untuk melacak masalah.
+
+**Cadangan dua kali sehari, bukan sekali.** Yang menentukan bukan besar
+berkasnya — cadangan kedua hampir gratis karena cermin cuma menyalin yang baru
+— melainkan berapa banyak pekerjaan teknisi yang rela hilang kalau disk mati
+tepat sebelum cadangan berikutnya.
 
 ## Jebakan yang sudah ketemu
 
@@ -105,24 +136,31 @@ melacak masalah.
 membaca `config.yml` dari profil SYSTEM, bukan profilmu. Dan
 `cloudflared service install` versi 2026.8.3 mendaftarkan layanan dengan
 `BINARY_PATH_NAME` **tanpa satu argumen pun** — bentuk untuk tunnel yang
-dikelola lewat token dashboard, bukan `config.yml`. Windows menjalankan exe
-polos, yang mencetak bantuan lalu keluar. Keduanya bergejala sama dan sama-sama
-bisu. `tools\pasang-cloudflared.cmd` sekarang mengurus keduanya.
+dikelola lewat token dashboard. Windows menjalankan exe polos, yang mencetak
+bantuan lalu keluar. Keduanya bergejala sama dan sama-sama bisu.
+`tools\pasang-cloudflared.cmd` mengurus keduanya.
+
+**Cloudflare tidak memaksa HTTPS sendiri.** Vercel dulu menjawab 308 untuk
+`http://`. Cloudflare menjawab 200 apa adanya. Digabung dengan
+`ELOGBOOK_SECURE_COOKIE=1`, siapa pun yang membuka lewat `http://` tidak akan
+bisa login — sandinya benar, halamannya menerima, tapi mereka tetap di halaman
+masuk tanpa pesan galat. Ditutup dengan **Always Use HTTPS** di SSL/TLS → Edge
+Certificates. Sekarang `http://` menjawab 301.
 
 **Cache Cloudflare tidak pernah dibersihkan sendiri.** `s-maxage=31536000`
 ditulis untuk Vercel, yang purge otomatis tiap deploy. Di server sendiri tidak
 ada deploy, jadi aset lama disajikan setahun penuh walau berkasnya sudah
-diubah. Sudah diturunkan ke 300 detik, cache lama di-purge sekali dengan
-tangan, dan Browser Cache TTL diubah ke Respect Existing Headers.
+diubah. Diturunkan ke 300 detik, cache lama di-purge sekali, dan Browser Cache
+TTL diubah ke Respect Existing Headers.
 
 **Tiga handler Telegram bertanda tangan salah.** `telegramStatus`,
 `telegramTaut`, `telegramPutus` ditulis `(_payload, user)`, padahal dispatcher
 memanggil `handler(...args, req.user)` — identitas ditempel sebagai argumen
 TERAKHIR. Klien memanggil ketiganya tanpa argumen, jadi user jatuh ke parameter
-pertama dan `user.username` melempar TypeError. Lolos lama karena klien
-menelan galat 500-nya dan UI menyembunyikan dirinya sendiri, yang kebetulan
-benar selama fitur mati. **Baru akan menggigit persis saat token bot
-dipasang.** Sudah diperbaiki.
+pertama dan `user.username` melempar TypeError. Lolos lama karena klien menelan
+galat 500-nya dan UI menyembunyikan dirinya sendiri, yang kebetulan benar
+selama fitur mati. Baru akan menggigit persis saat token bot dipasang. Sudah
+diperbaiki.
 
 **Ada dua salinan proyek di PC ini.** Yang dipakai `D:\Airnav\2026\Teknik JATSC
 Avenger`; ada juga `D:\Airnav\2026\file dari Drive E laptop\test\...` yang
@@ -135,23 +173,27 @@ membetulkan apa pun saat kamu di luar. Yang menjaga adalah Task Scheduler dan
 layanan Windows.
 
 **Git sempat gagal push berulang** padahal curl, `Invoke-WebRequest`, dan TCP
-ke github.com semuanya sukses. Berhasil di percobaan keempat tanpa mengubah apa
-pun. Kalau terulang, coba lagi saja.
+ke github.com semuanya sukses. Berhasil setelah beberapa kali coba tanpa
+mengubah apa pun. Kalau terulang, coba lagi saja.
 
 ## Angka dan jalur penting
 
 - Aplikasi: `D:\Airnav\2026\Teknik JATSC Avenger`, Node v24.19.0, port 3100
   (E-Logbook internal 3000, sengaja tidak diekspos)
-- Cadangan: `D:\Airnav\2026\Cadangkan` — **satu drive dengan aplikasi**, jadi
-  belum aman dari disk rusak. Salin `cermin\` ke drive lain atau cloud.
+- Cadangan lokal: `D:\Airnav\2026\Cadangkan`
+- Cadangan luar: `G:\My Drive\Cadangan Avenger` (Google Drive for Desktop)
 - Tunnel: `avenger`, `e96f595a-5062-4aea-ba38-287a7b7ef241`
 - Kredensial tunnel: `%USERPROFILE%\.cloudflared\<uuid>.json` — **berkas itulah
   tunnelnya**, memindahkannya ke server lain berarti memindahkan tunnel yang
   sama tanpa mengubah DNS
 - Salinan konfigurasi layanan:
   `C:\Windows\System32\config\systemprofile\.cloudflared\`
+- Tugas: `Avenger\Server` (saat boot), `Avenger\Server (jaga)` (tiap 10 menit),
+  `Avenger\Cadangan` (tiap 12 jam dari 02.00)
 - Domain: dibeli 7 Sep 2026 di Cloudflare Registrar, 10,46 dolar per tahun,
   perpanjangan otomatis. Nameserver `ainsley` dan `morgan.ns.cloudflare.com`.
+- Disk: D: dan F: satu disk fisik (WD 2TB). C: NVMe, E: Seagate — ini yang
+  benar-benar terpisah.
 - Proyek Vercel: `teknik-avenger-jatsc`
 - Repo: `github.com/baguswibowo-ux/Teknik-Avenger-JATSC`, cabang
   `feature/avengers-login-visual` (utama = `utama`)
