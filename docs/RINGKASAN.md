@@ -538,7 +538,10 @@ Sebelumnya kolom Umur hanya "32 hr", dihitung dari tanggal ke tanggal
 ## 14. Sesi 6 September 2026 (malam) — pindah ke PC sendiri, tahap kode
 
 Keputusan: kedua aplikasi pindah dari Vercel ke PC sendiri di rumah, diekspos
-lewat Cloudflare Tunnel di domain `avengers-teknik.com` (dibeli 7 Sep 2026).
+lewat Cloudflare Tunnel di domain `teknik-avengers.com` (dibeli 7 Sep 2026 di
+Cloudflare Registrar, $10,46/tahun). Dipilih di atas Domainesia yang Rp 155.289
+karena nameserver-nya sudah di Cloudflare sejak awal — satu langkah hilang — dan
+harga perpanjangannya tidak naik.
 Vercel tetap hidup sampai server sendiri stabil beberapa hari.
 
 **Data sudah ditarik** dengan `tools/tarik-supabase.js`: 15 tabel E-Logbook

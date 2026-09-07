@@ -89,17 +89,19 @@ keluar dari rumah tanpa membuka port router sama sekali.
 Hentikan dengan Ctrl+C. Alamat acak itu hilang setiap kali dijalankan, jadi
 memang cuma untuk pembuktian.
 
-## 5. Domain: nameserver ke Cloudflare, lalu arahkan ke Vercel dulu
+## 5. Domain: arahkan ke Vercel dulu
 
-Di dash.cloudflare.com, tambahkan `avengers-teknik.com`, pilih paket gratis.
-Cloudflare memberi dua nameserver. Masukkan keduanya di panel Domainesia,
-menggantikan nameserver bawaan. Tunggu sampai Cloudflare menandai domainnya
-aktif.
+`teknik-avengers.com` dibeli langsung di Cloudflare Registrar (7 Sep 2026,
+$10,46 setahun, perpanjangan otomatis di harga yang sama — Registrar menjual
+seharga modal, jadi tidak ada lonjakan di tahun kedua). Karena dibeli di sana,
+domainnya memakai nameserver Cloudflare sejak menit pertama: **tidak ada
+langkah ganti nameserver dan tidak ada masa tunggu propagasi.** Domainnya
+langsung muncul siap pakai di dash.cloudflare.com.
 
 **Arahkan dulu ke Vercel, bukan langsung ke PC.** Terdengar memutar, tapi
 inilah yang membuat perpindahannya mulus dan bisa dibatalkan:
 
-- Teknisi mulai memakai `avengers-teknik.com` sejak hari ini, selagi Vercel
+- Teknisi mulai memakai `teknik-avengers.com` sejak hari ini, selagi Vercel
   masih melayani. Mereka cuma sekali berganti alamat, sekarang, bukan nanti.
 - Saat PC siap, yang berubah hanya satu catatan DNS. Bagi pemakai, tidak ada
   yang terjadi sama sekali.
@@ -107,7 +109,7 @@ inilah yang membuat perpindahannya mulus dan bisa dibatalkan:
   hitungan detik, dan tidak ada yang perlu diberi tahu alamat cadangan. Tanpa
   ini, jalan pulangnya berarti mengumumkan alamat lain ke semua orang.
 
-Caranya: di Cloudflare buat catatan `CNAME` untuk `avengers-teknik.com` menuju
+Caranya: di Cloudflare buat catatan `CNAME` untuk `teknik-avengers.com` menuju
 `cname.vercel-dns.com`, lalu tambahkan domainnya di setelan proyek Vercel.
 
 Satu setelan yang gampang salah: catatan menuju Vercel harus **DNS only**, awan
@@ -138,7 +140,7 @@ tunnel: avenger
 credentials-file: C:\Users\<NAMA>\.cloudflared\<UUID>.json
 
 ingress:
-  - hostname: avengers-teknik.com
+  - hostname: teknik-avengers.com
     service: http://localhost:3100
   - service: http_status:404
 ```
@@ -158,7 +160,7 @@ Kalau sudah yakin, barulah pindahkan alamatnya. Hapus catatan `CNAME` ke
 `cname.vercel-dns.com` yang dibuat di langkah 5, lalu:
 
 ```
-cloudflared tunnel route dns avenger avengers-teknik.com
+cloudflared tunnel route dns avenger teknik-avengers.com
 ```
 
 Perintah itu membuat catatan menuju tunnel, dan kali ini memang harus
