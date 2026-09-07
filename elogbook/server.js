@@ -1693,17 +1693,25 @@ if (PINTU) {
    index.html memanggil ~45 di antaranya — membangunkan fungsi lagi tiap muat
    halaman, walau jawabannya cuma 304. Itu penyebab utama Fluid Active CPU.
 
-   s-maxage besar membuat Edge Network Vercel menyimpan aset di tepi, jadi
-   kunjungan berikutnya tidak menyentuh fungsi sama sekali. Aman soal
-   pembaruan: Vercel membersihkan cache CDN otomatis setiap deploy baru, jadi
-   berkas yang berubah langsung terpakai. max-age browser sengaja pendek (1 jam)
-   sebagai penjaga kalau ada yang tidak lewat Vercel. Hanya berlaku untuk aset,
-   bukan HTML/JSON dinamis — dipilih lewat ekstensi. */
+   s-maxage membuat CDN menyimpan aset di tepi, jadi kunjungan berikutnya tidak
+   menyentuh fungsi sama sekali. Hanya berlaku untuk aset, bukan HTML/JSON
+   dinamis — dipilih lewat ekstensi.
+
+   Angkanya dulu 31536000 (setahun), aman karena Vercel membersihkan cache CDN
+   otomatis setiap deploy baru. Di server sendiri di balik Cloudflare, TIDAK
+   ADA yang membersihkannya: tidak ada deploy yang memicu purge, jadi aset yang
+   sudah tersimpan di tepi akan disajikan setahun penuh walau berkasnya di disk
+   sudah diubah. Gejalanya menyesatkan — kelihatan seperti kode tidak jalan
+   padahal servernya benar. Karena itu 300 detik: tetap meringankan beban,
+   tapi perubahan terpakai dalam lima menit, bukan setahun.
+
+   max-age browser tetap 1 jam. Kalau sedang mengoprek tampilan, pakai
+   localhost:3100 yang melewati Cloudflare sepenuhnya, atau muat ulang keras. */
 app.use(express.static(path.join(ROOT, 'public'), {
   extensions: ['html'],
   setHeaders: (res, filePath) => {
     if (/\.(css|js|mjs|png|jpg|jpeg|gif|svg|webp|ico|woff2?|ttf|eot)$/i.test(filePath)) {
-      res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=31536000');
+      res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=300');
     }
   }
 }));
