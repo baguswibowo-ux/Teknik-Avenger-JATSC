@@ -89,14 +89,31 @@ keluar dari rumah tanpa membuka port router sama sekali.
 Hentikan dengan Ctrl+C. Alamat acak itu hilang setiap kali dijalankan, jadi
 memang cuma untuk pembuktian.
 
-## 5. Domain: pindahkan nameserver ke Cloudflare
+## 5. Domain: nameserver ke Cloudflare, lalu arahkan ke Vercel dulu
 
 Di dash.cloudflare.com, tambahkan `avengers-teknik.com`, pilih paket gratis.
 Cloudflare memberi dua nameserver. Masukkan keduanya di panel Domainesia,
-menggantikan nameserver bawaan.
+menggantikan nameserver bawaan. Tunggu sampai Cloudflare menandai domainnya
+aktif.
 
-Setelah itu tunggu sampai Cloudflare menandai domainnya aktif. Langkah 6 belum
-bisa dikerjakan sebelum itu.
+**Arahkan dulu ke Vercel, bukan langsung ke PC.** Terdengar memutar, tapi
+inilah yang membuat perpindahannya mulus dan bisa dibatalkan:
+
+- Teknisi mulai memakai `avengers-teknik.com` sejak hari ini, selagi Vercel
+  masih melayani. Mereka cuma sekali berganti alamat, sekarang, bukan nanti.
+- Saat PC siap, yang berubah hanya satu catatan DNS. Bagi pemakai, tidak ada
+  yang terjadi sama sekali.
+- Kalau PC bermasalah di hari pertama, catatan itu dikembalikan ke Vercel dalam
+  hitungan detik, dan tidak ada yang perlu diberi tahu alamat cadangan. Tanpa
+  ini, jalan pulangnya berarti mengumumkan alamat lain ke semua orang.
+
+Caranya: di Cloudflare buat catatan `CNAME` untuk `avengers-teknik.com` menuju
+`cname.vercel-dns.com`, lalu tambahkan domainnya di setelan proyek Vercel.
+
+Satu setelan yang gampang salah: catatan menuju Vercel harus **DNS only**, awan
+abu-abu, bukan awan oranye. Kalau diproksikan Cloudflare, Vercel gagal
+menerbitkan sertifikatnya dan situsnya menjawab galat SSL. Nanti kebalikannya
+yang berlaku untuk tunnel, dan itu diurus sendiri oleh perintah di langkah 6.
 
 ## 6. Tunnel bernama
 
@@ -130,17 +147,28 @@ Ganti `<NAMA>` dan `<UUID>` sesuai berkas yang tadi dibuat. Hanya port 3100 yang
 dipetakan; E-Logbook di port 3000 memang tidak boleh terbuka sendiri, sebab
 seluruh aksesnya lewat Avenger di `/logbook/`.
 
-Arahkan DNS-nya:
+Uji di depan mata dulu, **sebelum** menyentuh DNS. Selama catatan DNS-nya masih
+menunjuk ke Vercel, situs yang dipakai orang tetap aman:
+
+```
+cloudflared tunnel run avenger
+```
+
+Kalau sudah yakin, barulah pindahkan alamatnya. Hapus catatan `CNAME` ke
+`cname.vercel-dns.com` yang dibuat di langkah 5, lalu:
 
 ```
 cloudflared tunnel route dns avenger avengers-teknik.com
 ```
 
-Uji di depan mata dulu sebelum dijadikan layanan:
+Perintah itu membuat catatan menuju tunnel, dan kali ini memang harus
+diproksikan Cloudflare, awan oranye. Itu diaturnya sendiri, tidak perlu
+disentuh. Perubahannya berlaku dalam hitungan detik, bukan jam, karena
+nameserver-nya sudah di Cloudflare.
 
-```
-cloudflared tunnel run avenger
-```
+**Jalan pulang.** Kalau PC bermasalah, hapus catatan tunnel dan kembalikan
+`CNAME` ke `cname.vercel-dns.com` dengan awan abu-abu. Vercel melayani lagi
+seperti semula, dan tidak seorang pun perlu mengganti alamat.
 
 ## 7. Jadikan layanan Windows
 
@@ -190,9 +218,12 @@ Periksa `CADANGAN_DIR` di `.env` menunjuk ke folder yang benar di PC.
 
 ## 10. Matikan Vercel, tapi jangan buru-buru
 
-Biarkan Vercel hidup beberapa hari sesudah PC melayani semua orang. Kalau ada
-yang terlewat, jalan kembalinya masih terbuka. Sesudah yakin, hapus domain
-kustomnya di Vercel supaya tidak ada dua tempat yang menjawab.
+Biarkan Vercel hidup beberapa hari sesudah PC melayani semua orang. Selama
+domainnya masih terdaftar di sana, mengembalikan satu catatan DNS sudah cukup
+untuk memulihkan layanan, dan itu jaring pengaman yang murah.
+
+Sesudah benar-benar yakin, barulah hapus domainnya dari setelan proyek Vercel
+supaya tidak ada dua tempat yang mengaku berhak atas alamat yang sama.
 
 ---
 
