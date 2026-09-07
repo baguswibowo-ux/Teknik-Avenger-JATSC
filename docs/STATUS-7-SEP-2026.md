@@ -113,10 +113,16 @@ tidak ada, dan baru ketahuan persis di hari kamu membutuhkannya.
 
 ## Sisa langkah
 
-1. **Sabtu/Minggu 12–13 Sep: matikan Vercel.** Supabase tetap dibiarkan.
-2. **Notifikasi Telegram.** Kodenya lengkap dan bug-nya sudah diperbaiki,
+1. **Tunggu unggahan pertama Google Drive selesai.** Folder sudah terdaftar
+   di Drive akun `bagus.wibowo@airnavindonesia.co.id` (dibuat 7 Sep 17:55),
+   tapi isinya masih kosong waktu dicek. 203 MB dalam 1400-an berkas kecil
+   memang lambat — yang memakan waktu jumlahnya, bukan besarnya. Kalau
+   sampai lama masih kosong, klik ikon Drive di taskbar dan pastikan dia
+   tidak berstatus Paused. Cocokkan jumlah berkasnya dengan yang di PC.
+2. **Sabtu/Minggu 12–13 Sep: matikan Vercel.** Supabase tetap dibiarkan.
+3. **Notifikasi Telegram.** Kodenya lengkap dan bug-nya sudah diperbaiki,
    tinggal token bot dari BotFather.
-3. Nanti kalau mau: `sc.exe failure Cloudflared reset= 86400 actions= restart/20000/restart/60000/restart/120000`
+4. Nanti kalau mau: `sc.exe failure Cloudflared reset= 86400 actions= restart/20000/restart/60000/restart/120000`
    supaya kegagalan kedua dan seterusnya juga dinyalakan ulang, bukan cuma yang
    pertama.
 
