@@ -2061,22 +2061,24 @@ export function listDsTest(unit = 'radtel', limit = 200) {
 
 export function insertDsTest(rec = {}, olehUsername = '', olehNama = '') {
   const namaList = Array.isArray(rec.teknisiNamaList) ? rec.teknisiNamaList : [];
-  // Lima jenis lembar menumpang tabel ini, dibedakan lewat state.__format:
+  // Enam jenis lembar menumpang tabel ini, dibedakan lewat state.__format:
   //   'radio'        Maintenance Radio            (17c)
   //   'pgmweekly'    Weekly Check Pengamatan      (17d)
   //   'llzgc'        Ground Check LLZ             (17e)
   //   'mrreading'    Meter Reading ILS            (17f)
   //   'maintlistrik' Pemeliharaan Listrik & Mekanik (17g)
-  // Kelimanya tak punya entri DS_SITE — daftar item/lembarnya ada di peramban
+  //   'mrradkom'     Meter Reading Radkom         (17h)
+  // Keenamnya tak punya entri DS_SITE — daftar item/lembarnya ada di peramban
   // — jadi pemeriksaan site dilewati.
   const fmt = rec.state && rec.state.__format;
   const isKhusus = fmt === 'radio' || fmt === 'pgmweekly' || fmt === 'llzgc' || fmt === 'mrreading' ||
-                   fmt === 'maintlistrik';
+                   fmt === 'maintlistrik' || fmt === 'mrradkom';
   const kategori = fmt === 'radio' ? 'radio'
                  : fmt === 'pgmweekly' ? 'pgmweekly'
                  : fmt === 'llzgc' ? 'llzgc'
                  : fmt === 'mrreading' ? 'mrreading'
                  : fmt === 'maintlistrik' ? 'maintlistrik'
+                 : fmt === 'mrradkom' ? 'mrradkom'
                  : (kategoriDsSah(rec.kategori) ? rec.kategori : 'domestik');
   // Daftar site yang masih kosong berarti formnya belum bisa dipakai —
   // menyimpan lembar tanpa satu pun site hanya menghasilkan berkas kosong.

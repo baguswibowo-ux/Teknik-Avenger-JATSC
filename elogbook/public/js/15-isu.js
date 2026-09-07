@@ -20,9 +20,125 @@ function openIssueModal(){
   resetLampiran('isLampiranOpen');
   resetLampiran('isLampiranClosed');
   toggleLampiranClosed();
+  // Form kosong biasa: lepaskan kaitan ke catatan logbook (kalau sebelumnya ada).
+  isuSumberLogbook = null;
+  const info = document.getElementById('isDariLogbook');
+  if(info){ info.style.display = 'none'; info.textContent = ''; }
   document.getElementById('issueModalBg').classList.add('show');
 }
-function closeIssueModal(){ document.getElementById('issueModalBg').classList.remove('show'); }
+function closeIssueModal(){
+  document.getElementById('issueModalBg').classList.remove('show');
+  // Pengambilan lampiran dari logbook yang masih berjalan melihat ini dan berhenti.
+  isuSumberLogbook = null;
+}
+
+/* ---------- Buat isu dari catatan Logbook Fasilitas ----------
+   Gangguan hampir selalu sudah ditulis dulu di logbook. Daripada mengetik
+   ulang di form isu, catatannya dipanggil: jenis, keterangan, lokasi,
+   tanggal-jam, dan lampirannya diisi otomatis; teknisi tinggal memeriksa,
+   membetulkan seperlunya, lalu menyimpan. Lampirannya DISALIN (diambil
+   ulang dari server lalu dikirim lagi sebagai bukti "saat kejadian"), bukan
+   dirujuk — jadi menghapus salah satunya tidak mematikan yang lain, dan
+   jalurnya sama di SQLite maupun Postgres tanpa API baru.
+   Menutup isunya tetap manual seperti biasa. */
+let isuSumberLogbook = null;   // id catatan logbook yang sedang diteruskan
+
+/** Judul isu dari uraian: baris pertama yang berisi, dipotong di batas kata. */
+function jenisDariUraian(uraian){
+  const baris = String(uraian || '').split(/\r?\n/).map(x=>x.trim()).find(Boolean) || '';
+  const maks = 90;
+  if(baris.length <= maks) return baris;
+  const potong = baris.slice(0, maks);
+  const spasi = potong.lastIndexOf(' ');
+  return (spasi > 40 ? potong.slice(0, spasi) : potong) + '…';
+}
+
+/** Keterangan isu: uraian lengkap ditambah baris sumber supaya jejak ke
+    logbook-nya tetap terbaca di tabel isu maupun di cetakan. */
+function keteranganDariLogbook(e){
+  const jam = (typeof jamTeks === 'function') ? jamTeks(e) : (e.jam || '-');
+  const meta = [
+    `${e.tanggal || '-'} ${jam} UTC`,
+    e.dinas  ? T('dinasSingkat') + ' ' + e.dinas : '',
+    e.lokasi || '',
+    e.frek   ? T('frek') + ' ' + e.frek : ''
+  ].filter(Boolean).join(' · ');
+  const teknisi = (typeof teknisiListOf === 'function') ? teknisiListOf(e) : [];
+  const bagian = [String(e.uraian || '').trim(), '', T('sumberLogbook') + ' ' + meta];
+  if(teknisi.length) bagian.push(T('teknisiPelaksana') + ': ' + teknisi.join(', '));
+  return bagian.join('\n');
+}
+
+function openIssueDariLogbook(entryId){
+  const e = (typeof entries !== 'undefined' ? entries : []).find(x=>x.id===entryId);
+  if(!e){ toast('Catatan tidak ditemukan.'); return; }
+  if(typeof bolehMenulis === 'function' && !bolehMenulis()){ toast(T('takBolehBuatIsu')); return; }
+
+  // Pindah ke tab Isu dulu, supaya begitu tersimpan isunya langsung terlihat
+  // di tabel — bukan tersembunyi di balik tab Logbook.
+  const tabIsu = document.querySelector('.tab-btn[data-tab="issues"]');
+  if(tabIsu && !tabIsu.classList.contains('active')) tabIsu.click();
+
+  openIssueModal();               // form bersih dengan bawaan yang biasa
+  isuSumberLogbook = e.id;        // lalu ditimpa isi catatan
+  document.getElementById('isJenis').value = jenisDariUraian(e.uraian);
+  document.getElementById('isKeterangan').value = keteranganDariLogbook(e);
+  document.getElementById('isLokasi').value = e.lokasi || '';
+  if(e.tanggal) document.getElementById('isTanggalReport').value = String(e.tanggal).slice(0,10);
+  if(e.jam)     document.getElementById('isJamReport').value = String(e.jam).slice(0,5);
+
+  const info = document.getElementById('isDariLogbook');
+  if(info){
+    info.textContent = `${T('isuDariLogbookKet')} ${e.tanggal || '-'} ${e.jam || ''} UTC. ${T('isuDariLogbookSunting')}`;
+    info.style.display = '';
+  }
+  salinLampiranLogbookKeIsu(e);
+  setTimeout(()=>document.getElementById('isJenis').focus(), 50);
+}
+
+/**
+ * Ambil ulang tiap lampiran catatan dari server (di balik login, sesi yang
+ * sama) dan masukkan ke kotak bukti "saat kejadian" seolah dipilih dari
+ * pemilih berkas. Gambar yang tersimpan sudah dikecilkan saat diunggah dulu,
+ * jadi tidak perlu diproses lagi. Tombol Simpan dikunci selama pengambilan
+ * supaya isu tidak tersimpan dengan bukti separuh.
+ */
+async function salinLampiranLogbookKeIsu(e){
+  const kotak = 'isLampiranOpen';
+  const daftar = (e.lampiran || []).slice(0, LAMPIRAN_MAKS_JUMLAH);
+  if(!daftar.length) return;
+  const hint = document.getElementById(kotak + 'Hint');
+  const btn = document.getElementById('isSaveBtn');
+  const pesan = t => { if(hint) hint.textContent = t; };
+  const masihSama = () => isuSumberLogbook === e.id;
+  btn.disabled = true;
+  let gagal = 0, selesai = 0;
+  pesan(`${T('mengambilLampiranLogbook')} (0/${daftar.length})`);
+  try{
+    for(const l of daftar){
+      if(!masihSama()) return;   // jendela ditutup atau berganti catatan
+      try{
+        const r = await fetch(l.Path, { credentials:'same-origin' });
+        if(!r.ok) throw new Error('HTTP ' + r.status);
+        const mentah = await r.blob();
+        const mime = LAMPIRAN_JENIS.includes(l.Mime) ? l.Mime : mentah.type;
+        if(!LAMPIRAN_JENIS.includes(mime)) throw new Error('jenis ' + mime);
+        const blob = new Blob([mentah], { type: mime });
+        const data = await bacaSebagaiDataUrl(blob);
+        if(!masihSama()) return;
+        kotakLampiran(kotak).push({ nama: l.Nama || 'lampiran', data, ukuran: blob.size });
+        renderLampiranPilihan(kotak);
+      }catch(err){ gagal++; }
+      selesai++;
+      pesan(`${T('mengambilLampiranLogbook')} (${selesai}/${daftar.length})`);
+    }
+    if(!masihSama()) return;
+    const sukses = daftar.length - gagal;
+    pesan(`${sukses} ${T('lampiranDariLogbook')}. ` + (gagal ? `${gagal} ${T('lampiranLogbookGagal')} ` : '') + PESAN_LAMPIRAN);
+  }finally{
+    btn.disabled = false;
+  }
+}
 
 /** Bukti "saat selesai" hanya masuk akal kalau isunya memang ditutup. */
 function toggleLampiranClosed(){

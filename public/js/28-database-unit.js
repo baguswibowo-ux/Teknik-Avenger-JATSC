@@ -205,7 +205,7 @@ function gambarUnit(){
   }
   const u = infoUnit(unitDibuka);
   const alat = PERALATAN[unitDibuka] || [];
-  const trouble = TROUBLE.filter(t=>t.unit === unitDibuka).sort((a,b)=>umurHari(b.tgl)-umurHari(a.tgl));
+  const trouble = TROUBLE.filter(t=>t.unit === unitDibuka).sort((a,b)=>umurMenit(b.waktu || b.tgl)-umurMenit(a.waktu || a.tgl));
   const part = PART.filter(p=>p.unit === unitDibuka);
   // Saat tersambung, unit yang memang belum punya catatan harus terlihat
   // kosong — bukan diisi cuplikan contoh yang menyamar jadi data nyata.

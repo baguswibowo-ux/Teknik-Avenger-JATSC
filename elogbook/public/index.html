@@ -120,12 +120,11 @@
   <!-- Kategori FORM. Dulu berisi hanya LTK sebagai tab tingkat-atas
        tersendiri; sekarang jadi wadah — sub-tab LTK dan BAPB duduk
        berdampingan sebagai keluarga formulir resmi (laporan kerusakan
-       dan berita acara pemasangan). Kalau menambah formulir resmi
-       lain kelak, ia mendarat di sini juga, bukan jadi tab baru di
-       bilah utama. -->
+       dan berita acara pemasangan), disusul Monitoring Frekuensi
+       (unit Radkom). Kalau menambah formulir resmi lain kelak, ia
+       mendarat di sini juga, bukan jadi tab baru di bilah utama. -->
   <button class="tab-btn" data-tab="form" data-t="tabForm">📄 FORM</button>
   <button class="tab-btn" data-tab="issues" data-t="tabIsu">⚠ ISU / UPDATE ISSUE</button>
-  <button class="tab-btn" data-tab="monitoring" data-t="tabMonitoring">📶 MONITORING FREKUENSI</button>
   <button class="tab-btn" data-tab="rekap" data-t="tabRekap">📊 REKAP &amp; MATRIK</button>
   <!-- KELOLA AKUN sudah tidak di sini. Pengelolaan akun diurus dari Dashboard
        Fasilitas Teknik (Avenger, port 3100), tab "Kelola Akun". Satu pintu, bukan
@@ -405,22 +404,6 @@
     </div>
   </section>
 
-  <!-- ===== TAB: MONITORING FREKUENSI ===== -->
-  <section class="view" id="view-monitoring">
-    <div class="section-head">
-      <div><h2 data-t="monJudul">Form Monitoring Frekuensi</h2><p data-t="monSub">Hasil pengamatan frekuensi bersama personil operasi.</p></div>
-      <button class="btn btn-tambah" onclick="openMonModal()" data-t="tambahMon">+ Form Baru</button>
-    </div>
-    <div class="card">
-      <div class="print-bar">
-        <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariMonTanggal" onchange="renderMonList()"></div>
-        <button class="btn ghost" onclick="resetCariMon()" data-t="resetCari">↺ Tampilkan Semua</button>
-      </div>
-      <div class="subtle-note" data-t="noteCariMon">Isi tanggal untuk menampilkan form monitoring pada hari itu saja.</div>
-    </div>
-    <div id="monList"></div>
-  </section>
-
   <!-- ===== TAB: PREVENTIVE MAINTENANCE (wadah lima lembar) =====
        Wadah untuk DS TEST + empat pekerjaan berkala. Kelima anak di
        dalamnya dulu berdiri sebagai tab tingkat-atas sendiri-sendiri;
@@ -464,6 +447,17 @@
       <button class="subtab-btn" data-subtab="ml-ahu" data-t="tabMlAhu">🌀 AHU</button>
       <button class="subtab-btn" data-subtab="ml-genset" data-t="tabMlGenset">🛢 GENSET</button>
       <button class="subtab-btn" data-subtab="ml-grounding" data-t="tabMlGrounding">⚡ GROUNDING &amp; PETIR</button>
+      <!-- Meter Reading unit Radkom: Mingguan & Bulanan bertingkat (Radio 710 /
+           720 / MER / TER), lalu Radio R&S TX, Radio R&S RX, Battery, TX VHF,
+           Antena VHF — satu sub-tab per jadwal. 07-unit.js menampilkannya
+           hanya untuk unit radkom. Lihat js/17h-meter-radkom.js. -->
+      <button class="subtab-btn" data-subtab="rk-ming" data-t="tabRkMing">📻 MINGGUAN</button>
+      <button class="subtab-btn" data-subtab="rk-bul" data-t="tabRkBul">📻 BULANAN</button>
+      <button class="subtab-btn" data-subtab="rk-rstx" data-t="tabRkRstx">📡 RADIO R&amp;S TX</button>
+      <button class="subtab-btn" data-subtab="rk-rsrx" data-t="tabRkRsrx">📡 RADIO R&amp;S RX</button>
+      <button class="subtab-btn" data-subtab="rk-battery" data-t="tabRkBattery">🔋 BATTERY</button>
+      <button class="subtab-btn" data-subtab="rk-txvhf" data-t="tabRkTxvhf">📶 TX VHF</button>
+      <button class="subtab-btn" data-subtab="rk-antvhf" data-t="tabRkAntvhf">🗼 ANTENA VHF</button>
     </nav>
 
     <!-- ===== SUB-TAB: DS TEST ===== -->
@@ -1135,6 +1129,217 @@
       </div>
       <div id="mlList-grounding"></div>
     </section>
+
+    <!-- ===== SUB-TAB METER READING RADKOM (js/17h-meter-radkom.js) =====
+         Mingguan & Bulanan bertingkat (.lvl): empat lembar per sub-tab, satu
+         per gedung/ruang radio. Lima sub-tab lain berlembar tunggal. Tombol
+         "+ Form Baru" langsung menentukan lembarnya (openRkModal(id)). -->
+    <section class="subview" id="view-rk-ming">
+      <div class="lvl">
+        <div class="lvl-tabs">
+          <button class="lvl-btn active" data-target="rk-p-ming-710">Radio 710</button>
+          <button class="lvl-btn" data-target="rk-p-ming-720">Radio 720</button>
+          <button class="lvl-btn" data-target="rk-p-ming-mer">Radio MER</button>
+          <button class="lvl-btn" data-target="rk-p-ming-ter">Radio TER</button>
+        </div>
+        <div class="lvl-body">
+          <div class="lvl-panel active" id="rk-p-ming-710">
+            <div class="section-head">
+              <div><h2>Radio 710 <span style="color:var(--muted);font-weight:400;">· Gedung 710</span></h2><p data-t="rkSub_ming">Meter Reading Radio VHF A/G — isi apa adanya sesuai pembacaan alat ukur.</p></div>
+              <button class="btn btn-tambah" data-t="tambahRk" onclick="openRkModal('ming-710')">+ Form Baru</button>
+            </div>
+            <div class="card">
+              <div class="print-bar">
+                <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariRkTanggal-ming-710" onchange="renderRkList('ming-710')"></div>
+                <button class="btn ghost" onclick="resetCariRk('ming-710')" data-t="resetCari">↺ Tampilkan Semua</button>
+              </div>
+              <div class="subtle-note" data-t="noteCariRk">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+            </div>
+            <div id="rkList-ming-710"></div>
+          </div>
+          <div class="lvl-panel" id="rk-p-ming-720">
+            <div class="section-head">
+              <div><h2>Radio 720 <span style="color:var(--muted);font-weight:400;">· Gedung 720</span></h2><p data-t="rkSub_ming">Meter Reading Radio VHF A/G — isi apa adanya sesuai pembacaan alat ukur.</p></div>
+              <button class="btn btn-tambah" data-t="tambahRk" onclick="openRkModal('ming-720')">+ Form Baru</button>
+            </div>
+            <div class="card">
+              <div class="print-bar">
+                <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariRkTanggal-ming-720" onchange="renderRkList('ming-720')"></div>
+                <button class="btn ghost" onclick="resetCariRk('ming-720')" data-t="resetCari">↺ Tampilkan Semua</button>
+              </div>
+              <div class="subtle-note" data-t="noteCariRk">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+            </div>
+            <div id="rkList-ming-720"></div>
+          </div>
+          <div class="lvl-panel" id="rk-p-ming-mer">
+            <div class="section-head">
+              <div><h2>Radio MER <span style="color:var(--muted);font-weight:400;">· MER</span></h2><p data-t="rkSub_ming">Meter Reading Radio VHF A/G — isi apa adanya sesuai pembacaan alat ukur.</p></div>
+              <button class="btn btn-tambah" data-t="tambahRk" onclick="openRkModal('ming-mer')">+ Form Baru</button>
+            </div>
+            <div class="card">
+              <div class="print-bar">
+                <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariRkTanggal-ming-mer" onchange="renderRkList('ming-mer')"></div>
+                <button class="btn ghost" onclick="resetCariRk('ming-mer')" data-t="resetCari">↺ Tampilkan Semua</button>
+              </div>
+              <div class="subtle-note" data-t="noteCariRk">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+            </div>
+            <div id="rkList-ming-mer"></div>
+          </div>
+          <div class="lvl-panel" id="rk-p-ming-ter">
+            <div class="section-head">
+              <div><h2>Radio TER <span style="color:var(--muted);font-weight:400;">· TER</span></h2><p data-t="rkSub_ming">Meter Reading Radio VHF A/G — isi apa adanya sesuai pembacaan alat ukur.</p></div>
+              <button class="btn btn-tambah" data-t="tambahRk" onclick="openRkModal('ming-ter')">+ Form Baru</button>
+            </div>
+            <div class="card">
+              <div class="print-bar">
+                <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariRkTanggal-ming-ter" onchange="renderRkList('ming-ter')"></div>
+                <button class="btn ghost" onclick="resetCariRk('ming-ter')" data-t="resetCari">↺ Tampilkan Semua</button>
+              </div>
+              <div class="subtle-note" data-t="noteCariRk">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+            </div>
+            <div id="rkList-ming-ter"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="subview" id="view-rk-bul">
+      <div class="lvl">
+        <div class="lvl-tabs">
+          <button class="lvl-btn active" data-target="rk-p-bul-710">Radio 710</button>
+          <button class="lvl-btn" data-target="rk-p-bul-720">Radio 720</button>
+          <button class="lvl-btn" data-target="rk-p-bul-mer">Radio MER</button>
+          <button class="lvl-btn" data-target="rk-p-bul-ter">Radio TER</button>
+        </div>
+        <div class="lvl-body">
+          <div class="lvl-panel active" id="rk-p-bul-710">
+            <div class="section-head">
+              <div><h2>Radio 710 <span style="color:var(--muted);font-weight:400;">· Gedung 710</span></h2><p data-t="rkSub_bul">Meter Reading Radio VHF A/G — isi apa adanya sesuai pembacaan alat ukur.</p></div>
+              <button class="btn btn-tambah" data-t="tambahRk" onclick="openRkModal('bul-710')">+ Form Baru</button>
+            </div>
+            <div class="card">
+              <div class="print-bar">
+                <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariRkTanggal-bul-710" onchange="renderRkList('bul-710')"></div>
+                <button class="btn ghost" onclick="resetCariRk('bul-710')" data-t="resetCari">↺ Tampilkan Semua</button>
+              </div>
+              <div class="subtle-note" data-t="noteCariRk">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+            </div>
+            <div id="rkList-bul-710"></div>
+          </div>
+          <div class="lvl-panel" id="rk-p-bul-720">
+            <div class="section-head">
+              <div><h2>Radio 720 <span style="color:var(--muted);font-weight:400;">· Gedung 720</span></h2><p data-t="rkSub_bul">Meter Reading Radio VHF A/G — isi apa adanya sesuai pembacaan alat ukur.</p></div>
+              <button class="btn btn-tambah" data-t="tambahRk" onclick="openRkModal('bul-720')">+ Form Baru</button>
+            </div>
+            <div class="card">
+              <div class="print-bar">
+                <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariRkTanggal-bul-720" onchange="renderRkList('bul-720')"></div>
+                <button class="btn ghost" onclick="resetCariRk('bul-720')" data-t="resetCari">↺ Tampilkan Semua</button>
+              </div>
+              <div class="subtle-note" data-t="noteCariRk">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+            </div>
+            <div id="rkList-bul-720"></div>
+          </div>
+          <div class="lvl-panel" id="rk-p-bul-mer">
+            <div class="section-head">
+              <div><h2>Radio MER <span style="color:var(--muted);font-weight:400;">· MER</span></h2><p data-t="rkSub_bul">Meter Reading Radio VHF A/G — isi apa adanya sesuai pembacaan alat ukur.</p></div>
+              <button class="btn btn-tambah" data-t="tambahRk" onclick="openRkModal('bul-mer')">+ Form Baru</button>
+            </div>
+            <div class="card">
+              <div class="print-bar">
+                <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariRkTanggal-bul-mer" onchange="renderRkList('bul-mer')"></div>
+                <button class="btn ghost" onclick="resetCariRk('bul-mer')" data-t="resetCari">↺ Tampilkan Semua</button>
+              </div>
+              <div class="subtle-note" data-t="noteCariRk">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+            </div>
+            <div id="rkList-bul-mer"></div>
+          </div>
+          <div class="lvl-panel" id="rk-p-bul-ter">
+            <div class="section-head">
+              <div><h2>Radio TER <span style="color:var(--muted);font-weight:400;">· TER</span></h2><p data-t="rkSub_bul">Meter Reading Radio VHF A/G — isi apa adanya sesuai pembacaan alat ukur.</p></div>
+              <button class="btn btn-tambah" data-t="tambahRk" onclick="openRkModal('bul-ter')">+ Form Baru</button>
+            </div>
+            <div class="card">
+              <div class="print-bar">
+                <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariRkTanggal-bul-ter" onchange="renderRkList('bul-ter')"></div>
+                <button class="btn ghost" onclick="resetCariRk('bul-ter')" data-t="resetCari">↺ Tampilkan Semua</button>
+              </div>
+              <div class="subtle-note" data-t="noteCariRk">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+            </div>
+            <div id="rkList-bul-ter"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="subview" id="view-rk-rstx">
+      <div class="section-head">
+        <div><h2 data-t="rkJudul_rstx">rstx</h2><p data-t="rkSub_rstx">Meter Reading Radio VHF A/G — isi apa adanya sesuai pembacaan alat ukur.</p></div>
+        <button class="btn btn-tambah" data-t="tambahRk" onclick="openRkModal('rstx')">+ Form Baru</button>
+      </div>
+      <div class="card">
+        <div class="print-bar">
+          <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariRkTanggal-rstx" onchange="renderRkList('rstx')"></div>
+          <button class="btn ghost" onclick="resetCariRk('rstx')" data-t="resetCari">↺ Tampilkan Semua</button>
+        </div>
+        <div class="subtle-note" data-t="noteCariRk">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+      </div>
+      <div id="rkList-rstx"></div>
+    </section>
+    <section class="subview" id="view-rk-rsrx">
+      <div class="section-head">
+        <div><h2 data-t="rkJudul_rsrx">rsrx</h2><p data-t="rkSub_rsrx">Meter Reading Radio VHF A/G — isi apa adanya sesuai pembacaan alat ukur.</p></div>
+        <button class="btn btn-tambah" data-t="tambahRk" onclick="openRkModal('rsrx')">+ Form Baru</button>
+      </div>
+      <div class="card">
+        <div class="print-bar">
+          <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariRkTanggal-rsrx" onchange="renderRkList('rsrx')"></div>
+          <button class="btn ghost" onclick="resetCariRk('rsrx')" data-t="resetCari">↺ Tampilkan Semua</button>
+        </div>
+        <div class="subtle-note" data-t="noteCariRk">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+      </div>
+      <div id="rkList-rsrx"></div>
+    </section>
+    <section class="subview" id="view-rk-battery">
+      <div class="section-head">
+        <div><h2 data-t="rkJudul_battery">battery</h2><p data-t="rkSub_battery">Meter Reading Radio VHF A/G — isi apa adanya sesuai pembacaan alat ukur.</p></div>
+        <button class="btn btn-tambah" data-t="tambahRk" onclick="openRkModal('battery')">+ Form Baru</button>
+      </div>
+      <div class="card">
+        <div class="print-bar">
+          <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariRkTanggal-battery" onchange="renderRkList('battery')"></div>
+          <button class="btn ghost" onclick="resetCariRk('battery')" data-t="resetCari">↺ Tampilkan Semua</button>
+        </div>
+        <div class="subtle-note" data-t="noteCariRk">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+      </div>
+      <div id="rkList-battery"></div>
+    </section>
+    <section class="subview" id="view-rk-txvhf">
+      <div class="section-head">
+        <div><h2 data-t="rkJudul_txvhf">txvhf</h2><p data-t="rkSub_txvhf">Meter Reading Radio VHF A/G — isi apa adanya sesuai pembacaan alat ukur.</p></div>
+        <button class="btn btn-tambah" data-t="tambahRk" onclick="openRkModal('txvhf')">+ Form Baru</button>
+      </div>
+      <div class="card">
+        <div class="print-bar">
+          <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariRkTanggal-txvhf" onchange="renderRkList('txvhf')"></div>
+          <button class="btn ghost" onclick="resetCariRk('txvhf')" data-t="resetCari">↺ Tampilkan Semua</button>
+        </div>
+        <div class="subtle-note" data-t="noteCariRk">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+      </div>
+      <div id="rkList-txvhf"></div>
+    </section>
+    <section class="subview" id="view-rk-antvhf">
+      <div class="section-head">
+        <div><h2 data-t="rkJudul_antvhf">antvhf</h2><p data-t="rkSub_antvhf">Meter Reading Radio VHF A/G — isi apa adanya sesuai pembacaan alat ukur.</p></div>
+        <button class="btn btn-tambah" data-t="tambahRk" onclick="openRkModal('antvhf')">+ Form Baru</button>
+      </div>
+      <div class="card">
+        <div class="print-bar">
+          <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariRkTanggal-antvhf" onchange="renderRkList('antvhf')"></div>
+          <button class="btn ghost" onclick="resetCariRk('antvhf')" data-t="resetCari">↺ Tampilkan Semua</button>
+        </div>
+        <div class="subtle-note" data-t="noteCariRk">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+      </div>
+      <div id="rkList-antvhf"></div>
+    </section>
   </section>
 
   <!-- ===== TAB: FORM (wadah LTK + BAPB) =====
@@ -1146,6 +1351,10 @@
     <nav class="subtabs">
       <button class="subtab-btn active" data-subtab="ltk" data-t="tabLtk">🛠 LTK</button>
       <button class="subtab-btn" data-subtab="bapb" data-t="tabBapb">📦 BAPB</button>
+      <!-- Monitoring Frekuensi (unit Radkom) dulu tab tingkat-atas sendiri;
+           sekarang sub-tab di sini — permintaan Radkom, 6 Sep 2026. 07-unit.js
+           menampilkannya hanya untuk unit ber-adaMonitoring. -->
+      <button class="subtab-btn" data-subtab="monitoring" data-t="tabMonitoring">📶 MONITORING FREKUENSI</button>
     </nav>
 
     <!-- ===== SUB-TAB: LTK ===== -->
@@ -1190,6 +1399,25 @@
       <div class="subtle-note" data-t="noteRiwayat7">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
     </div>
     <div id="bapbList"></div>
+    </section>
+
+    <!-- ===== SUB-TAB: MONITORING FREKUENSI (unit Radkom) =====
+         Isinya utuh seperti waktu masih tab tingkat-atas; hanya kelasnya
+         yang berubah jadi .subview dan induknya wadah FORM. Kotak masuk TTD
+         mencapainya lewat INBOX_SUBTAB (20-ttd-pejabat.js). -->
+    <section class="subview" id="view-monitoring">
+    <div class="section-head">
+      <div><h2 data-t="monJudul">Form Monitoring Frekuensi</h2><p data-t="monSub">Hasil pengamatan frekuensi bersama personil operasi.</p></div>
+      <button class="btn btn-tambah" onclick="openMonModal()" data-t="tambahMon">+ Form Baru</button>
+    </div>
+    <div class="card">
+      <div class="print-bar">
+        <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariMonTanggal" onchange="renderMonList()"></div>
+        <button class="btn ghost" onclick="resetCariMon()" data-t="resetCari">↺ Tampilkan Semua</button>
+      </div>
+      <div class="subtle-note" data-t="noteCariMon">Isi tanggal untuk menampilkan form monitoring pada hari itu saja.</div>
+    </div>
+    <div id="monList"></div>
     </section>
   </section>
 
@@ -1264,6 +1492,8 @@
 <div class="modal-bg" id="issueModalBg">
   <div class="modal" style="max-width:560px;">
     <h3 data-t="modalIsu">Tambah Isu</h3>
+    <!-- Muncul hanya kalau form ini dibuka dari catatan Logbook Fasilitas (isinya diisi JS). -->
+    <div class="subtle-note" id="isDariLogbook" style="display:none;"></div>
     <div class="field"><label data-t="jenisIssue">Jenis Issue</label><input type="text" id="isJenis" data-t-ph="phJenisIsu" placeholder="cth. VR 3 partial failure of element"></div>
     <div class="field"><label data-t="keterangan">Keterangan</label><textarea id="isKeterangan" data-t-ph="phKeteranganIsu" placeholder="cth. Masih dalam penanganan remote expert Madrid, menunggu penggantian modul."></textarea></div>
     <div class="grid2">
@@ -1538,6 +1768,45 @@
     <div class="modal-footer">
       <button class="btn ghost" onclick="closeMlModal()" data-t="batal">Batal</button>
       <button class="btn" id="mlSaveBtn" data-t="simpanMl" onclick="saveMl()">💾 Simpan Lembar Pemeliharaan</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL METER READING RADKOM
+     Satu jendela untuk ketiga belas lembar Radkom (Mingguan/Bulanan × 4 lokasi,
+     R&S TX/RX, Battery, TX VHF, Antena VHF). Judul, isian kepala (#rkMetaWrap),
+     dan gridnya diatur openRkModal(form) di js/17h-meter-radkom.js — pola yang
+     sama dengan modal Pemeliharaan Listrik di atas. -->
+<div class="modal-bg" id="rkModalBg">
+  <div class="modal" style="max-width:1280px;">
+    <h3 id="rkModalJudul">Meter Reading</h3>
+    <p id="rkModalSub" style="margin:-6px 0 12px;color:var(--muted);font-size:12.5px;"></p>
+    <div class="grid3">
+      <div class="field"><label data-t="hariTanggal">Hari / Tanggal</label><input type="date" id="rkTanggal"></div>
+      <!-- Lokasi tetap (dari sheet) + isian kepala per lembar (suhu ruangan /
+           lokasi bebas) digambar renderRkMeta() dari RK_FORMS[form]. -->
+      <div id="rkMetaWrap" style="display:contents;"></div>
+    </div>
+    <div id="rkEditingBanner" class="km-sumber-ket km-awas" style="display:none;margin-top:8px;">
+      <span data-t="rkSunting">Sunting lembar ini</span>
+      <button class="btn ghost" style="margin-left:8px;padding:5px 10px;" onclick="batalEditRk()" data-t="batalEdit">Batal Edit</button>
+    </div>
+    <div id="rkWrap" style="margin-top:8px;"></div>
+    <div class="grid2" style="margin-top:14px;">
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <label style="font-family:var(--font-mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);" data-t="namaTeknisiPelaksana">Nama Teknisi Pelaksana</label>
+          <button class="btn ghost" style="padding:5px 10px;" onclick="addRkTeknisi()" data-t="tambahNama">+ Nama</button>
+        </div>
+        <div id="rkTeknisiList" style="margin-top:8px;"></div>
+      </div>
+      <div class="field"><label data-t="ttdTeknisi">TTD Teknisi</label><div class="sig-wrap"><canvas id="sigRk"></canvas><div class="sig-toolbar"><span class="sig-hint" data-t="ttdHintTeknisi">tanda tangan teknisi</span><button class="sig-clear" onclick="clearSig('sigRk')" data-t="bersihkan">bersihkan</button></div></div></div>
+    </div>
+    <div class="field" style="margin-top:8px;"><label data-t="mengetahuiManager">Mengetahui — Manager Teknik</label><input type="text" id="rkManagerNama" list="pejabatDatalist" data-t-ph="phNamaManager" placeholder="Nama manager teknik"></div>
+    <div class="field" style="margin-top:6px;"><label data-t="kirimTtdKe">Kirim TTD ke akun</label><select id="rkManagerAkun"><option value="" data-t="kirimTtdOtomatis">Otomatis (dari nama di atas)</option></select></div>
+    <div class="modal-footer">
+      <button class="btn ghost" onclick="closeRkModal()" data-t="batal">Batal</button>
+      <button class="btn" id="rkSaveBtn" data-t="simpanRk" onclick="saveRk()">💾 Simpan Meter Reading</button>
     </div>
   </div>
 </div>
@@ -1990,6 +2259,9 @@
     <div class="modal-footer">
       <button class="btn ghost" onclick="closeEntryDetail()" data-t="tutup">Tutup</button>
       <button class="btn ghost hanya-tulis" id="entryDetailEditBtn" data-t="suntingBtn">✎ Sunting</button>
+      <!-- Meneruskan catatan ini ke tab Isu: jenis, keterangan, lokasi, tanggal-jam, dan
+           lampirannya terisi otomatis supaya tidak diketik dua kali (lihat openIssueDariLogbook). -->
+      <button class="btn ghost hanya-tulis" id="entryDetailIsuBtn" data-t="buatIsuBtn">⚠ Buat Isu</button>
       <!-- Tombol Cetak per catatan dihilangkan. Cetakan hanya lewat "Cetak Logbook" di bilah
            atas dan wajib menunggu seluruh TTD selesai; teknisi diberitahu lewat lonceng dashboard. -->
     </div>
@@ -2058,6 +2330,7 @@
 <script src="js/17e-llz-navigasi.js"></script>
 <script src="js/17f-meter-reading.js"></script>
 <script src="js/17g-maint-listrik.js"></script>
+<script src="js/17h-meter-radkom.js"></script>
 <script src="js/18-ltk.js"></script>
 <script src="js/18b-bapb.js"></script>
 <script src="js/19-berkala.js"></script>

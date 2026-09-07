@@ -171,6 +171,11 @@ function srvPasang(unitSaya, paket, unitSemua){
         lokasi:i.Lokasi || '—',
         status,
         tgl:   isoTgl(i.TanggalReport) || isoTgl(i.DibuatPada) || isoHariIni(),
+        // Waktu lengkap (tanggal + jam UTC) untuk umur sampai menit. Tgl Report
+        // yang tersimpan hanya tanggal jatuh ke stempel pembuatan; kalau itu pun
+        // tidak ada, dihitung dari tengah malam tanggalnya.
+        waktu: (String(i.TanggalReport || '').length >= 16 ? i.TanggalReport : '')
+               || i.DibuatPada || isoTgl(i.TanggalReport) || isoHariIni(),
         pic:   i.DilaporkanOleh || i.DiinputOleh || '—'
       });
     });

@@ -127,13 +127,14 @@ const dsFormatBaru = (state) => !!(state && state.__format === 'sampling');
    pembuka detail & pencetaknya sendiri. openDsDetail/printDs (dan lewat
    keduanya: kotak masuk TTD serta buka-ulang setelah TTD) mendelegasikan ke
    sini menurut state.__format. Nama fungsinya diambil saat dipanggil, bukan
-   saat berkas ini dimuat, karena modul-modul itu (17c–17g) dimuat SESUDAH ini. */
+   saat berkas ini dimuat, karena modul-modul itu (17c–17h) dimuat SESUDAH ini. */
 const DS_PENUMPANG = {
   radio:        { detail:'openRadioDetail', cetak:'printRadio' },
   pgmweekly:    { detail:'openWkDetail',    cetak:'printWk' },
   llzgc:        { detail:'openLlzDetail',   cetak:'printLlz' },
   mrreading:    { detail:'openMrDetail',    cetak:'printMr' },
-  maintlistrik: { detail:'openMlDetail',    cetak:'printMl' }
+  maintlistrik: { detail:'openMlDetail',    cetak:'printMl' },
+  mrradkom:     { detail:'openRkDetail',    cetak:'printRk' }
 };
 function dsPenumpang(state, peran){
   const p = state && DS_PENUMPANG[state.__format];

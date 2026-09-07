@@ -283,7 +283,7 @@ function closeTtdModal(){
     yang tidak ada di halaman (unit lain) cukup dilewati. */
 function segarkanSemuaDaftarDstest(){
   ['renderDsList','renderRadioList','renderSemuaWkList','renderSemuaLlzList',
-   'renderSemuaMrList','renderSemuaMlList'].forEach(nama=>{
+   'renderSemuaMrList','renderSemuaMlList','renderSemuaRkList'].forEach(nama=>{
     if(typeof window[nama] === 'function') window[nama]();
   });
 }
@@ -401,7 +401,7 @@ function tutupSemuaDetail(){
 /* Daftar ini HARUS ditambah setiap kali ada modal baru ber-<select> akun —
    kalau terlewat, pilihannya cuma "Otomatis" dan nama pejabat tidak muncul
    (itu yang terjadi pada mlManagerAkun sebelum masuk daftar ini). */
-const AKUN_TTD_SELECT_ID = ['fePjAkun','dcManagerAkun','dcAmhsAkun_amhs','dcAmhsAkun_aadps','dcAmhsAkun_datis','monOpsAkun','dsManagerAkun','radioManagerAkun','wkManagerAkun','llzManagerAkun','mrManagerAkun','mlManagerAkun','bkManagerAkun','ltkManagerAkun','bapbTeknikAkun'];
+const AKUN_TTD_SELECT_ID = ['fePjAkun','dcManagerAkun','dcAmhsAkun_amhs','dcAmhsAkun_aadps','dcAmhsAkun_datis','monOpsAkun','dsManagerAkun','radioManagerAkun','wkManagerAkun','llzManagerAkun','mrManagerAkun','mlManagerAkun','rkManagerAkun','bkManagerAkun','ltkManagerAkun','bapbTeknikAkun'];
 
 /** Isi <datalist> saran nama akun dan tiap <select> pilihan akun eksplisit —
     dipanggil sekali saat data dimuat. */
@@ -467,14 +467,14 @@ function tabInbox(jenis, id){
   return BK_TAB[b ? b.jenis : 'neptuno'] || 'bk-neptuno';
 }
 
-/* LTK dan BAPB duduk sebagai sub-tab di dalam satu tab wadah "FORM".
+/* LTK, BAPB, dan Monitoring Frekuensi duduk sebagai sub-tab di dalam satu tab wadah "FORM".
    pilihTab hanya mengenal tab tingkat-atas, jadi keduanya butuh dua langkah:
    buka tab wadahnya dulu, baru klik sub-tabnya. */
 /* DS Test & berkala pun sub-tab — di dalam wadah "PREVENTIVE MAINTENANCE".
    Dulu keduanya diserahkan ke pilihTab dengan nama sub-tabnya dan tidak ada
    tombol tingkat-atas yang cocok, jadi kotak masuk membuka detailnya di atas
    tab yang kebetulan sedang aktif. */
-const INBOX_SUBTAB = { ltk:'form', bapb:'form', dstest:'preventive', berkala:'preventive' };
+const INBOX_SUBTAB = { ltk:'form', bapb:'form', monitoring:'form', dstest:'preventive', berkala:'preventive' };
 
 /* Lembar-lembar yang menumpang kind 'dstest' masing-masing punya sub-tabnya
    sendiri; yang berlembar banyak (weekly check, pemeliharaan listrik) juga
@@ -488,6 +488,7 @@ function subtabDstest(id){
     case 'llzgc':        return 'gcheck';
     case 'mrreading':    return 'meter';
     case 'maintlistrik': return 'ml-' + (st.__mlForm || 'paneldist');
+    case 'mrradkom':     return 'rk-' + (typeof rkGrupForm === 'function' ? rkGrupForm(st.__rkForm) : 'ming');
     default:             return 'dstest';
   }
 }

@@ -64,9 +64,15 @@ Mencari sesuatu: **warna** → `01`. **Sesuatu yang salah di HP** → `08`.
 | `12-daily-check-radtel.js` | Daily check Garex 300 — daftar item dan tabelnya |
 | `13-daily-check-radkom.js` | Daily check Radkom — VHF A/G, ACC, CWP FIC & ATMCP |
 | `14-daily-check-umum.js` | Daftar teknisi, pemilihan bentuk per unit, simpan, riwayat, detail |
-| `15-isu.js` | Isu / Update Issue, dengan bukti saat dibuka dan saat ditutup |
+| `15-isu.js` | Isu / Update Issue, dengan bukti saat dibuka dan saat ditutup; termasuk "Buat Isu" dari catatan logbook (`openIssueDariLogbook`) yang mengisi jenis, keterangan, lokasi, tanggal-jam, dan menyalin lampirannya |
 | `16-monitoring.js` | Form Monitoring Frekuensi |
 | `17-ds-test.js` | DS Test: site domestik/internasional, incoming & outgoing |
+| `17c-radio.js` | Maintenance Radio (Radtel) — sampling 7 sesi |
+| `17d-weekly-pengamatan.js` | Weekly Check unit Pengamatan (CKG 3, SMR T1, SMR T3) |
+| `17e-llz-navigasi.js` | Ground Check LLZ unit Navigasi |
+| `17f-meter-reading.js` | Meter Reading ILS SELEX unit Navigasi |
+| `17g-maint-listrik.js` | Tujuh lembar pemeliharaan unit Listrik & Mekanik |
+| `17h-meter-radkom.js` | Meter Reading unit Radkom: Mingguan & Bulanan (Radio 710/720/MER/TER), R&S TX/RX, Battery, TX VHF, Antena VHF |
 | `18-ltk.js` | LTK — Laporan Kerusakan, pencarian, dan lampirannya |
 | `19-kelola-akun.js` | Kelola Akun (administrator saja), dengan saringan per unit |
 | `29-rekap.js` | Rekap & Matrik: kejadian yang sudah pernah dialami — jenis × periode, pelaksana × jenis, catatan di balik tiap sel, plus cetaknya |

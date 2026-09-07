@@ -213,6 +213,7 @@ function renderEntries(){
         <div style="display:flex;gap:4px;align-items:center;">
           <button class="btn ghost" style="padding:5px 9px;font-size:12px;" onclick="openEntryDetail('${e.id}')">${T('detail')}</button>
           ${(!e.pjTtd && bolehSuntingCatatan(e.dibuatOlehUsername)) ? `<button class="icon-btn" title="${T('suntingCatatanIni')}" onclick="openEntryEditModal('${e.id}')">✎</button>` : ''}
+          <button class="icon-btn hanya-tulis" title="${T('buatIsuDariCatatan')}" onclick="openIssueDariLogbook('${e.id}')">⚠</button>
           <!-- Tombol cetak per baris sudah dihilangkan. Cetakan hanya lewat "Cetak Logbook"
                di bilah atas, dan itu pun menolak selama ada catatan yang TTD-nya belum
                lengkap — teknisi yang bernama di baris itu dapat peringatan lewat lonceng
@@ -265,6 +266,9 @@ function openEntryDetail(id){
   // Sudah disetujui penanggung jawab, atau bukan pembuat aslinya (dan bukan
   // admin) — kedua kasus itu tidak boleh menyunting.
   editBtn.style.display = (!e.pjTtd && bolehSuntingCatatan(e.dibuatOlehUsername)) ? '' : 'none';
+  // Teruskan ke tab Isu dengan isi yang sudah terisi dari catatan ini.
+  const isuBtn = document.getElementById('entryDetailIsuBtn');
+  if(isuBtn) isuBtn.onclick = ()=>{ closeEntryDetail(); openIssueDariLogbook(id); };
   document.getElementById('entryDetailBg').classList.add('show');
 }
 

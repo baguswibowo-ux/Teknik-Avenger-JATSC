@@ -69,12 +69,6 @@ function terapkanUnit(){
     tabDc.textContent = u.kode === 'radkom' ? T('tabDcRadkom') : T('tabDailyCheck');
   }
 
-  // Monitoring Frekuensi hanya dipakai unit yang memang punya formnya.
-  const tabMon = document.querySelector('.tab-btn[data-tab="monitoring"]');
-  if(tabMon){
-    tabMon.style.display = u.adaMonitoring ? '' : 'none';
-    if(!u.adaMonitoring && tabMon.classList.contains('active')) pilihTab('logbook');
-  }
   // Tab wadah Preventive Maintenance dan sub-tabnya. Wadahnya muncul selama
   // unit ini punya minimal salah satu isi (DS Test atau salah satu lembar
   // berkala). Di dalamnya, sub-tab DS Test hanya untuk unit yang memakainya;
@@ -87,8 +81,10 @@ function terapkanUnit(){
   // (js/17e-llz-navigasi.js) — juga tanpa DS Test / berkala.
   // Unit Listrik & Mekanik memakainya untuk tujuh lembar pemeliharaan
   // (js/17g-maint-listrik.js) — juga tanpa DS Test / berkala.
+  // Unit Radkom memakainya untuk Meter Reading (js/17h-meter-radkom.js):
+  // Mingguan, Bulanan, R&S TX/RX, Battery, TX VHF, Antena VHF.
   const adaPm = !!(u.adaDsTest || u.adaBerkala || u.kode === 'pengamatan' ||
-                   u.kode === 'ppabn' || u.kode === 'listrikmekanik');
+                   u.kode === 'ppabn' || u.kode === 'listrikmekanik' || u.kode === 'radkom');
   if(tabPm){
     tabPm.style.display = adaPm ? '' : 'none';
     if(!adaPm && tabPm.classList.contains('active')) pilihTab('logbook');
@@ -128,6 +124,14 @@ function terapkanUnit(){
     if(s) s.style.display = adaMl ? '' : 'none';
   });
   if(adaMl && typeof renderSemuaMlList === 'function') renderSemuaMlList();
+  // Tujuh sub-tab Meter Reading unit Radkom — Mingguan & Bulanan bertingkat
+  // (Radio 710/720/MER/TER, lewat handler .lvl generik), lima lainnya tunggal.
+  const adaRk = u.kode === 'radkom';
+  ['rk-ming','rk-bul','rk-rstx','rk-rsrx','rk-battery','rk-txvhf','rk-antvhf'].forEach(nama=>{
+    const s = document.querySelector(`.subtab-btn[data-subtab="${nama}"]`);
+    if(s) s.style.display = adaRk ? '' : 'none';
+  });
+  if(adaRk && typeof renderSemuaRkList === 'function') renderSemuaRkList();
   // Kalau sub-tab yang lagi aktif ternyata tidak dipakai unit ini, pindah
   // ke sub-tab pertama yang masih terlihat — kalau tidak, wadahnya terbuka
   // di ruang kosong dan seolah tidak ada isinya.
@@ -140,19 +144,22 @@ function terapkanUnit(){
       if(gantinya) gantinya.click();
     }
   }
-  // Tab wadah FORM (LTK + BAPB). LTK ada untuk sebagian unit; BAPB
-  // dianggap ada untuk semua unit (berita acara pemasangan barang
-  // berlaku umum). Wadahnya muncul selama minimal salah satunya
-  // dipakai — praktisnya selalu terlihat karena BAPB selalu ada.
+  // Tab wadah FORM (LTK + BAPB + Monitoring Frekuensi). LTK ada untuk
+  // sebagian unit; BAPB dianggap ada untuk semua unit (berita acara
+  // pemasangan barang berlaku umum); Monitoring Frekuensi hanya unit yang
+  // memang punya formnya (Radkom). Wadahnya muncul selama minimal salah
+  // satunya dipakai — praktisnya selalu terlihat karena BAPB selalu ada.
   const tabForm = document.querySelector('.tab-btn[data-tab="form"]');
   const adaBapb = true;
-  const adaForm = !!(u.adaLtk || adaBapb);
+  const adaForm = !!(u.adaLtk || adaBapb || u.adaMonitoring);
   if(tabForm){
     tabForm.style.display = adaForm ? '' : 'none';
     if(!adaForm && tabForm.classList.contains('active')) pilihTab('logbook');
   }
   const subLtk = document.querySelector('.subtab-btn[data-subtab="ltk"]');
   if(subLtk) subLtk.style.display = u.adaLtk ? '' : 'none';
+  const subMon = document.querySelector('.subtab-btn[data-subtab="monitoring"]');
+  if(subMon) subMon.style.display = u.adaMonitoring ? '' : 'none';
   const wadahForm = document.getElementById('view-form');
   if(wadahForm){
     const aktifSub = wadahForm.querySelector('.subtab-btn.active');

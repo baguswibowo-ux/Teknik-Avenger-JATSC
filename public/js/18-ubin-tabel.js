@@ -7,7 +7,7 @@ const ubin = (w,label,angka,sub)=>`<div class="ubin ${w}">
 function gambarUbin(){
   const open = TROUBLE.filter(t=>t.status === 'Open').length;
   const proses = TROUBLE.filter(t=>t.status === 'Proses').length;
-  const tua = TROUBLE.filter(t=>umurHari(t.tgl) > 14).length;
+  const tua = TROUBLE.filter(t=>umurMenit(t.waktu || t.tgl) > 14*1440).length;
   const minim = PART.filter(p=>p.stok < p.min).length;
   const orang = UNIT.reduce((n,u)=>n + dinasUnit(u.kode).reduce((m,x)=>m+x.o.length,0), 0);
   const berkala = bklJatuhTempo().filter(x=>x.sisa <= 0).length;
@@ -35,7 +35,9 @@ function gambarUbin(){
 }
 
 function barisTrouble(t, tanpaUnit){
-  const h = umurHari(t.tgl);
+  // Hari pecahan dari menit — warna dan panjang batang mengikuti umur sebenarnya.
+  const waktu = t.waktu || t.tgl;
+  const h = umurMenit(waktu) / 1440;
   const warna = h>14 ? 'var(--fail)' : h>7 ? 'var(--warn)' : 'var(--accent)';
   return `<tr>
     ${tanpaUnit ? '' : `<td><span class="mono" style="color:var(--accent)">${esc(namaUnit(t.unit))}</span><br>
@@ -43,8 +45,8 @@ function barisTrouble(t, tanpaUnit){
     <td>${esc(t.ket)}<br><span class="mono" style="color:var(--muted);font-size:10.5px">${esc(t.lokasi)} · ${esc(t.pic)}</span></td>
     <td><span class="tag ${t.status.toLowerCase()}">${esc(t.status)}</span></td>
     <td><div class="umur"><span class="batang"><i style="width:${Math.min(100,h/21*100)}%;background:${warna}"></i></span>
-        <span class="mono" style="color:${warna}">${h} ${T('hr','d')}</span></div>
-        <span class="mono" style="color:var(--muted);font-size:10px">${tglRingkas(t.tgl)}</span></td>
+        <span class="mono" style="color:${warna};white-space:nowrap" data-umur="${esc(waktu)}" data-pendek="1">${umurTeks(waktu, true)}</span></div>
+        <span class="mono" style="color:var(--muted);font-size:10px">${waktuRingkas(waktu)}</span></td>
   </tr>`;
 }
 /* Dulu kolom Unit dipotong dengan .replace() pada teks kepalanya. Begitu
@@ -55,7 +57,7 @@ const kepalaTrouble = (tanpaUnit) => `<thead><tr>${
   <th>${T('Uraian','Description')}</th><th>${T('Status','Status')}</th><th>${T('Umur','Age')}</th></tr></thead>`;
 
 function gambarTrouble(){
-  const urut = [...TROUBLE].sort((a,b)=>umurHari(b.tgl)-umurHari(a.tgl));
+  const urut = [...TROUBLE].sort((a,b)=>umurMenit(b.waktu || b.tgl)-umurMenit(a.waktu || a.tgl));
   el('tblTrouble').innerHTML = kepalaTrouble() + `<tbody>${urut.map(t=>barisTrouble(t)).join('')}</tbody>`;
 
   // Versi beranda bukan tabel melainkan pita berjalan. Tabel tidak bisa
@@ -63,7 +65,8 @@ function gambarTrouble(){
   // dan tinggi barisnya ikut menyesuaikan isi kolom, jadi titik sambungnya
   // tidak pernah pas. Daftar kartu bisa.
   const kartu = urut.map(t=>{
-    const h = umurHari(t.tgl);
+    const waktu = t.waktu || t.tgl;
+    const h = umurMenit(waktu) / 1440;
     const w = h>14 ? 'var(--fail)' : h>7 ? 'var(--warn)' : 'var(--accent)';
     return `<article class="trouble-baris ${t.status.toLowerCase()}" data-unit="${t.unit}"
               title="${T('Buka database unit','Open the unit database for')} ${esc(namaUnit(t.unit))}">
@@ -74,14 +77,19 @@ function gambarTrouble(){
       </div>
       <div class="ket-isi">${esc(t.ket)}</div>
       <div class="bawah">
-        <span class="jejak">${esc(t.lokasi)} · ${esc(t.pic)} · ${T('sejak','since')} ${tglRingkas(t.tgl)}</span>
-        <span class="lencana-umur" style="color:${w}">${h} ${T('hari','days')}</span>
+        <span class="jejak">${esc(t.lokasi)} · ${esc(t.pic)} · ${T('sejak','since')} ${waktuRingkas(waktu)}</span>
+        <span class="lencana-umur" style="color:${w}" data-umur="${esc(waktu)}">${umurTeks(waktu)}</span>
       </div>
     </article>`;
   }).join('');
 
   isiTiker('tikerTrouble', kartu, urut.length * 2.7);
 }
+
+/* Umur yang tertulis di layar ikut berjalan tanpa menunggu data berikutnya —
+   halaman yang dibiarkan terbuka di ruang kontrol tetap menunjukkan menit
+   yang benar. Cukup teksnya yang diganti; lihat segarkanUmurTrouble. */
+setInterval(segarkanUmurTrouble, 60000);
 
 /* Pendengar dipasang sekali di sini, bukan di dalam gambarTrouble. Kotak
    pitanya tidak ikut diganti saat isinya digambar ulang, jadi memasangnya di
