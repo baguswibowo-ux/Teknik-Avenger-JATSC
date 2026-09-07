@@ -1,4 +1,4 @@
-# Status 7 September 2026 — Avenger & E-Logbook pindah ke PC sendiri
+# Status 7 September 2026 — Avenger & E-Logbook di PC sendiri
 
 Catatan serah terima sesi di PC (`D:\Airnav\2026\Teknik JATSC Avenger`).
 Ditulis supaya bisa dirujuk di chat baru: sesi Claude terikat ke jalur folder,
@@ -9,68 +9,75 @@ ini. Berkas inilah konteksnya.
 
 Avenger dan E-Logbook pindah dari Vercel ke PC sendiri, dibuka lewat Cloudflare
 Tunnel. Keduanya satu aplikasi Node, bukan frontend dan backend terpisah.
-Vercel tetap dipertahankan seminggu sebagai jalan pulang.
 
-Hari ini pemindahan datanya selesai dan terverifikasi, domain dibeli dan sudah
-melayani, tunnel sudah jadi layanan Windows. Yang tersisa: jadwal Windows untuk
-aplikasi dan cadangan, uji restart, lalu pemindahan apex dari Vercel ke tunnel.
+Pemindahan datanya **selesai dan terverifikasi**, termasuk dari HP lewat data
+seluler. Domain sudah dibeli dan melayani. Tunnel dan aplikasi sudah bangun
+sendiri setelah PC di-restart — **PC ini sudah jadi server**.
+
+Yang tersisa: pindahkan apex dari Vercel ke tunnel, lalu matikan Vercel
+seminggu kemudian. Ditambah satu pekerjaan yang belum pernah disentuh:
+notifikasi Telegram.
 
 ## Keadaan sekarang
 
 | Bagian | Keadaan |
 |---|---|
-| `teknik-avengers.com` | Vercel, melayani teknisi |
+| `teknik-avengers.com` | masih Vercel, melayani teknisi |
 | `pc.teknik-avengers.com` | PC ini lewat tunnel, ruang uji |
-| Aplikasi (port 3100) | jalan, tapi **belum** dijadwalkan — mati kalau PC restart |
+| Aplikasi | dijalankan Task Scheduler saat boot, terbukti |
 | Tunnel | layanan Windows `Cloudflared`, Automatic, Running |
-| Cadangan | skrip jalan dan terbukti, **jadwalnya belum dipasang** |
+| Cadangan | skrip terbukti; tugas harian 02.00 terpasang |
 | Git | cabang `feature/avengers-login-visual`, terdorong ke GitHub |
 
-## Yang sudah selesai dan terbukti hari ini
+## Uji restart — lulus
 
-**Data lengkap di PC.** 318 entri logbook (6 Agu–6 Sep, radtel 315, ppabn 3),
-87 daily check, 4 isu, 32 akun. Lampiran 84 di entri + 7 di isu = 91 berkas,
-semuanya ada di disk dan **ukurannya cocok sampai byte terakhir** dengan yang
-tercatat di database. Tanda tangan tersimpan: 16 akun, 20 berkas PNG, semuanya
-ada. Galeri foto 7 berkas (6 tercatat di `daftar.json`, 1 yatim — sudah begitu
-sejak di laptop).
+PC di-restart 7 Sep 2026 tanpa menyalakan apa pun dengan tangan.
 
-**Domain.** `teknik-avengers.com` dibeli 7 Sep 2026 di Cloudflare Registrar,
-$10,46/tahun, perpanjangan otomatis di harga sama. Nameserver `ainsley` dan
-`morgan.ns.cloudflare.com`. Apex `CNAME` ke `cname.vercel-dns.com`, DNS only.
-HTTPS aktif, sertifikat sah, `http://` dialihkan 308.
+| Jam | Kejadian |
+|---|---|
+| 12:28:12 | Windows menyala |
+| 12:28:23 | Task Scheduler menjalankan `tools\server.cmd` |
+| 12:28:39 | HP membuka, dapat **502** — aplikasi belum sempat mendengar |
+| 12:28:55 | `server.cmd` mulai (tercatat di `server.log`) |
+| 12:29:04 | port 3000 dan 3100 terisi |
+| 12:29:20 | HP membuka, jalan, sudah masuk sebagai Administrator |
 
-**Tunnel.** Tunnel bernama `avenger`, ID `e96f595a-5062-4aea-ba38-287a7b7ef241`.
-Dua hostname di ingress: `pc.` untuk ruang uji, apex disiapkan untuk nanti.
-Hanya port 3100 yang dipetakan; E-Logbook di 3000 sengaja tidak diekspos.
-Sudah jadi layanan Windows lewat `tools\pasang-cloudflared.cmd`.
+502 selama sekitar 50 detik itu **bukan kerusakan**: cloudflared menyala lebih
+dulu karena dia layanan Windows, sementara aplikasi menunggu giliran Task
+Scheduler. Hanya terjadi saat boot.
 
-**Cadangan.** `CADANGAN_DIR` diperbaiki dari `E:\2026\Cadangkan` (warisan
-laptop) menjadi `D:\Airnav\2026\Cadangkan`. Cadangan pertama dibuat: 65 MB,
-dan potret DB-nya sudah dibuka untuk memastikan bukan berkas rusak — 318 entri,
-84 lampiran, 32 akun, sama persis dengan yang hidup.
+Catatan cara memeriksa: tugas berakun SYSTEM **tidak terlihat** oleh
+`schtasks /Query` maupun `Get-ScheduledTask` tanpa admin — jawabannya "tidak
+ada", padahal ada. Jangan tertipu seperti sesi ini sempat tertipu. Bukti yang
+sah: telusuri induk prosesnya (`svchost` yang menghosting layanan `Schedule`),
+atau baca baris `server.cmd menyalakan jalankan-semua.js` di `server.log`.
 
-**Cache.** `s-maxage` aset statis diturunkan dari 31536000 (setahun) jadi 300
-detik. Browser Cache TTL di Cloudflare diubah ke Respect Existing Headers.
-Cache lama sudah di-purge sekali dengan tangan.
+## Data yang sudah terverifikasi
+
+318 entri logbook (6 Agu sampai 6 Sep; radtel 315, ppabn 3), 87 daily check,
+4 isu, 32 akun. Lampiran 84 di entri ditambah 7 di isu, total 91 berkas,
+semuanya ada dan **ukurannya cocok sampai byte terakhir** dengan yang tercatat
+di database. Tanda tangan tersimpan: 16 akun, 20 berkas PNG, semuanya ada.
+Galeri foto 7 berkas (6 tercatat di `daftar.json`, 1 yatim — sudah begitu sejak
+di laptop).
+
+Sudah dicek langsung di layar HP lewat data seluler: catatan logbook, foto, dan
+TTD Saya semuanya tampil.
 
 ## Sisa langkah, berurutan
 
-1. `tools\pasang-jadwal.cmd` dari Command Prompt admin — tiga tugas SYSTEM:
-   server saat Windows menyala, penjaga tiap 10 menit, cadangan harian 02.00.
-   **Tutup dulu `npm start` yang sedang jalan**, kalau tidak bentrok port.
-2. **Restart PC** dan jangan nyalakan apa pun dengan tangan. Ini uji yang
-   sebenarnya. Sekarang saat paling aman untuk gagal, karena teknisi masih
-   dilayani Vercel.
-3. Nyalakan `ELOGBOOK_SECURE_COOKIE=1` di `.env`.
-4. Pindahkan apex: hapus `CNAME` ke `cname.vercel-dns.com`, lalu
-   `cloudflared tunnel route dns avenger teknik-avengers.com`. Kali ini awan
-   oranye, dan itu diatur sendiri oleh perintahnya.
-5. Seminggu kemudian, matikan Vercel.
-
-Belum tersentuh sama sekali: notifikasi Telegram. Kodenya lengkap, tinggal
-token bot dari BotFather. Inilah yang menutup lubang "tidak ada yang
-memberitahu kalau rusak saat sedang di luar".
+1. **Restart aplikasi** supaya dua perubahan terbaru terbaca:
+   `ELOGBOOK_SECURE_COOKIE=1` di `.env`, dan perbaikan handler Telegram.
+   Dari PowerShell admin:
+   `schtasks /End /TN "Avenger\Server"` lalu `schtasks /Run /TN "Avenger\Server"`
+2. **Pindahkan apex.** Hapus catatan `CNAME` ke `cname.vercel-dns.com` di
+   Cloudflare, lalu `cloudflared tunnel route dns avenger teknik-avengers.com`.
+   Kali ini awan oranye, dan itu diatur sendiri oleh perintahnya.
+3. **Seminggu kemudian, matikan Vercel.**
+4. **Notifikasi Telegram.** Belum pernah disentuh. Kodenya lengkap, tinggal
+   token bot dari BotFather. Inilah yang menutup lubang "tidak ada yang
+   memberitahu kalau rusak saat sedang di luar" — penjaganya menyalakan ulang
+   diam-diam, dan kalau gagal pun tetap diam.
 
 ## Keputusan dan alasannya
 
@@ -79,7 +86,7 @@ alamat, melainkan jalan pulang: teknisi cukup sekali berganti alamat, dan kalau
 PC bermasalah, satu catatan DNS dikembalikan tanpa perlu mengumumkan alamat
 cadangan ke siapa pun.
 
-**Beli domain di Cloudflare, bukan Domainesia.** Domainesia Rp 155.289 vs
+**Beli domain di Cloudflare, bukan Domainesia.** Domainesia Rp 155.289 lawan
 Cloudflare Rp 184.418 di tahun pertama. Dipilih yang lebih mahal karena
 nameserver-nya sudah di Cloudflare sejak menit pertama — langkah ganti
 nameserver hilang total — dan Registrar menjual seharga modal, jadi
@@ -94,8 +101,8 @@ melacak masalah.
 
 ## Jebakan yang sudah ketemu
 
-**Layanan cloudflared, dua jebakan sekaligus.** Layanannya berjalan sebagai
-SYSTEM dan membaca `config.yml` dari profil SYSTEM, bukan profilmu. Dan
+**Layanan cloudflared, dua sekaligus.** Layanannya berjalan sebagai SYSTEM dan
+membaca `config.yml` dari profil SYSTEM, bukan profilmu. Dan
 `cloudflared service install` versi 2026.8.3 mendaftarkan layanan dengan
 `BINARY_PATH_NAME` **tanpa satu argumen pun** — bentuk untuk tunnel yang
 dikelola lewat token dashboard, bukan `config.yml`. Windows menjalankan exe
@@ -105,27 +112,36 @@ bisu. `tools\pasang-cloudflared.cmd` sekarang mengurus keduanya.
 **Cache Cloudflare tidak pernah dibersihkan sendiri.** `s-maxage=31536000`
 ditulis untuk Vercel, yang purge otomatis tiap deploy. Di server sendiri tidak
 ada deploy, jadi aset lama disajikan setahun penuh walau berkasnya sudah
-diubah. Gejalanya menyesatkan: kelihatan seperti kode tidak jalan.
+diubah. Sudah diturunkan ke 300 detik, cache lama di-purge sekali dengan
+tangan, dan Browser Cache TTL diubah ke Respect Existing Headers.
+
+**Tiga handler Telegram bertanda tangan salah.** `telegramStatus`,
+`telegramTaut`, `telegramPutus` ditulis `(_payload, user)`, padahal dispatcher
+memanggil `handler(...args, req.user)` — identitas ditempel sebagai argumen
+TERAKHIR. Klien memanggil ketiganya tanpa argumen, jadi user jatuh ke parameter
+pertama dan `user.username` melempar TypeError. Lolos lama karena klien
+menelan galat 500-nya dan UI menyembunyikan dirinya sendiri, yang kebetulan
+benar selama fitur mati. **Baru akan menggigit persis saat token bot
+dipasang.** Sudah diperbaiki.
 
 **Ada dua salinan proyek di PC ini.** Yang dipakai `D:\Airnav\2026\Teknik JATSC
 Avenger`; ada juga `D:\Airnav\2026\file dari Drive E laptop\test\...` yang
-tidak dipakai. Waktu ragu server menunjuk yang mana, caranya: minta berkas yang
-hanya ada di salinan benar, lalu bandingkan ukurannya. Atau buka `/_info` —
-PC menjawab `simpanan: berkas`, Vercel menjawab `simpanan: tabel`.
+tidak dipakai. Waktu ragu server menunjuk yang mana: buka `/_info` — PC
+menjawab `simpanan: berkas`, Vercel menjawab `simpanan: tabel`.
 
-**Proses yang dinyalakan sesi Claude tidak bisa di-`taskkill`.** Harus lewat
-Task Manager. Dan jangan mengandalkannya: itu hidup selama sesi Claude hidup,
-bukan selama PC hidup. Claude tidak berjaga dan tidak akan membetulkan apa pun
-saat kamu di luar — yang menjaga adalah Task Scheduler dan layanan Windows.
+**Proses yang dinyalakan sesi Claude tidak bisa di-`taskkill`,** harus lewat
+Task Manager. Dan jangan mengandalkannya: Claude tidak berjaga dan tidak akan
+membetulkan apa pun saat kamu di luar. Yang menjaga adalah Task Scheduler dan
+layanan Windows.
 
 **Git sempat gagal push berulang** padahal curl, `Invoke-WebRequest`, dan TCP
-ke github.com semuanya sukses. Berhasil di percobaan keempat tanpa mengubah
-apa pun. Kalau terulang, coba lagi saja.
+ke github.com semuanya sukses. Berhasil di percobaan keempat tanpa mengubah apa
+pun. Kalau terulang, coba lagi saja.
 
 ## Angka dan jalur penting
 
 - Aplikasi: `D:\Airnav\2026\Teknik JATSC Avenger`, Node v24.19.0, port 3100
-  (E-Logbook internal 3000)
+  (E-Logbook internal 3000, sengaja tidak diekspos)
 - Cadangan: `D:\Airnav\2026\Cadangkan` — **satu drive dengan aplikasi**, jadi
   belum aman dari disk rusak. Salin `cermin\` ke drive lain atau cloud.
 - Tunnel: `avenger`, `e96f595a-5062-4aea-ba38-287a7b7ef241`
@@ -134,6 +150,8 @@ apa pun. Kalau terulang, coba lagi saja.
   sama tanpa mengubah DNS
 - Salinan konfigurasi layanan:
   `C:\Windows\System32\config\systemprofile\.cloudflared\`
+- Domain: dibeli 7 Sep 2026 di Cloudflare Registrar, 10,46 dolar per tahun,
+  perpanjangan otomatis. Nameserver `ainsley` dan `morgan.ns.cloudflare.com`.
 - Proyek Vercel: `teknik-avenger-jatsc`
 - Repo: `github.com/baguswibowo-ux/Teknik-Avenger-JATSC`, cabang
   `feature/avengers-login-visual` (utama = `utama`)
