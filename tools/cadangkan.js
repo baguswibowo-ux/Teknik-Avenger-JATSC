@@ -238,7 +238,7 @@ function cadangkanLuar() {
   // tapi kalau induknya pun tidak ada berarti drive-nya memang tidak terpasang.
   const induk = path.dirname(luar);
   if (!fs.existsSync(induk)) {
-    gagal(`salinan luar dilewati: ${induk} tidak ada. Google Drive belum login, atau drive-nya belum terpasang saat tugas ini jalan.`);
+    gagal(`salinan luar dilewati: ${induk} tidak ada. Drive-nya tidak terpasang, atau induknya memang belum dibuat. Folder tujuan boleh dibuat sendiri oleh skrip ini, induknya TIDAK — supaya tidak diam-diam menaruh cadangan di drive yang salah waktu drive yang benar sedang lepas.`);
     return;
   }
 
