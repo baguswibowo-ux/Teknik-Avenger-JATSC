@@ -1059,17 +1059,30 @@ const API = {
     return hasil;
   },
 
+  /* Ketiganya bertanda tangan (user), BUKAN (_payload, user). Dispatcher
+     memanggil handler(...args, req.user) — identitas selalu ditempel sebagai
+     argumen TERAKHIR, bukan pada posisi tetap. Klien memanggil ketiganya tanpa
+     argumen sama sekali (gsRun('telegramStatus')), jadi args kosong dan user
+     jatuh ke parameter pertama. Bertanda tangan (_payload, user) membuat user
+     undefined dan user.username melempar TypeError.
+
+     Pernah kejadian dan lolos lama karena klien menulis
+     `await gsRun('telegramStatus') || { aktif:false }` — galat 500-nya
+     tertelan dan UI menyembunyikan dirinya, yang kebetulan benar selama fitur
+     mati. Bug ini baru terasa begitu token bot dipasang: statusnya tetap
+     melempar, dan fiturnya tidak pernah muncul. */
+
   /* ---------- Notifikasi Telegram milik akun sendiri ----------
      Semua peran boleh — ini tautan pribadi, bukan perubahan data logbook, jadi
      tidak masuk API_TULIS yang menutup jalur bagi pejabat. Kalau fitur mati
      (tanpa token bot), status dijawab apa adanya supaya UI bisa menyembunyikan
      dirinya sendiri, bukan menampilkan tombol yang tidak akan berfungsi. */
-  telegramStatus: async (_payload, user) => {
+  telegramStatus: async (user) => {
     const st = await statusTautanTelegram(user.username);
     return { ...st, aktif: telegramAktif(), botUsername: telegramAktif() ? await botUsername() : '' };
   },
 
-  telegramTaut: async (_payload, user) => {
+  telegramTaut: async (user) => {
     if (!telegramAktif()) return { aktif: false };
     const token = await buatTautanTelegram(user.username);
     const bot = await botUsername();
@@ -1081,7 +1094,7 @@ const API = {
     };
   },
 
-  telegramPutus: async (_payload, user) => {
+  telegramPutus: async (user) => {
     await putusTautanTelegram(user.username);
     return { tertaut: false };
   },
