@@ -9,7 +9,7 @@ rem menolak membuat tugas berakun SYSTEM tanpa itu.
 rem
 rem Dua tugas yang dipasang (keduanya di folder "Avenger" di Task Scheduler):
 rem   Avenger\Server            saat Windows menyala  → tools\server.cmd
-rem   Avenger\Cadangan harian   tiap hari 02.00       → node tools\cadangkan.js
+rem   Avenger\Cadangan          02.00 dan 14.00       → node tools\cadangkan.js
 rem
 rem Dipakai Task Scheduler, bukan NSSM: bawaan Windows, tidak perlu mengunduh
 rem apa pun di jaringan kantor yang tertutup, dan hasilnya bisa dilihat/diubah
@@ -43,6 +43,12 @@ echo Node yang dipakai tugas: %NODE%
 
 if /i "%~1"=="lepas" goto lepas
 
+rem Tugas cadangan pernah bernama "Cadangan harian" waktu masih sekali sehari.
+rem Kalau tidak dihapus, dua tugas berjalan berdampingan dan yang lama tetap
+rem memakai jadwal lamanya — tidak merusak apa pun, tapi membingungkan waktu
+rem membaca Task Scheduler dan mencari kenapa cadangannya jalan tiga kali.
+schtasks /Delete /F /TN "Avenger\Cadangan harian" >nul 2>&1
+
 echo Memasang tugas untuk %AKAR% ...
 schtasks /Create /F /RU SYSTEM /RL HIGHEST /SC ONSTART /TN "Avenger\Server" ^
   /TR "\"%AKAR%\tools\server.cmd\"" || goto gagal
@@ -50,7 +56,16 @@ schtasks /Create /F /RU SYSTEM /RL HIGHEST /SC ONSTART /TN "Avenger\Server" ^
 schtasks /Create /F /RU SYSTEM /RL HIGHEST /SC MINUTE /MO 10 /TN "Avenger\Server (jaga)" ^
   /TR "\"%AKAR%\tools\jaga-server.cmd\"" || goto gagal
 
-schtasks /Create /F /RU SYSTEM /RL HIGHEST /SC DAILY /ST 02:00 /TN "Avenger\Cadangan harian" ^
+rem Tiap 12 jam mulai 02.00, jadi jatuh di 02.00 dan 14.00. Dipakai HOURLY /MO 12
+rem dan bukan dua tugas terpisah supaya jadwalnya cuma ada di satu tempat —
+rem dua tugas gampang berbeda diam-diam waktu salah satunya disunting.
+rem
+rem Dua kali sehari, bukan sekali, karena yang menentukan bukan besar berkasnya
+rem (cadangan kedua hampir gratis: harian kecil, cermin cuma menyalin yang baru)
+rem melainkan berapa banyak pekerjaan teknisi yang rela hilang kalau disknya
+rem mati tepat sebelum cadangan berikutnya. Sekali sehari berarti sampai 24 jam
+rem catatan; dua kali memotongnya jadi 12.
+schtasks /Create /F /RU SYSTEM /RL HIGHEST /SC HOURLY /MO 12 /ST 02:00 /TN "Avenger\Cadangan" ^
   /TR "\"%NODE%\" \"%AKAR%\tools\cadangkan.js\"" || goto gagal
 
 echo.
@@ -58,13 +73,15 @@ echo Terpasang. Cek di Task Scheduler ^> Task Scheduler Library ^> Avenger.
 echo Nyalakan servernya sekarang tanpa menunggu restart:
 echo   schtasks /Run /TN "Avenger\Server"
 echo Uji cadangannya sekarang:
-echo   schtasks /Run /TN "Avenger\Cadangan harian"
+echo   schtasks /Run /TN "Avenger\Cadangan"
 goto :eof
 
 :lepas
 schtasks /Delete /F /TN "Avenger\Server"
 schtasks /Delete /F /TN "Avenger\Server (jaga)"
-schtasks /Delete /F /TN "Avenger\Cadangan harian"
+schtasks /Delete /F /TN "Avenger\Cadangan"
+rem Nama lama dari versi sebelumnya, kalau masih tertinggal di komputer ini.
+schtasks /Delete /F /TN "Avenger\Cadangan harian" 2>nul
 echo Tugas dilepas. Proses server yang sedang jalan tidak dimatikan.
 goto :eof
 

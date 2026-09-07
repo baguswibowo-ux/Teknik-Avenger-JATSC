@@ -40,6 +40,9 @@
  *                         cloud — cadangan yang ikut mati bersama disknya
  *                         bukan cadangan.
  *   CADANGAN_SIMPAN_HARI  bawaan 14.
+ *   CADANGAN_LUAR         salinan kedua ke folder yang tidak ikut mati bersama
+ *                         PC ini: Google Drive for Desktop, OneDrive, atau
+ *                         disk fisik lain. Kosong = fitur mati.
  *
  * Kode keluar 0 kalau semua beres, 1 kalau ada bagian yang gagal (bagian lain
  * tetap dikerjakan, jadi satu berkas yang macet tidak membatalkan cadangan DB).
@@ -56,6 +59,7 @@ try { process.loadEnvFile(path.join(ROOT, '.env')); } catch { /* tidak ada: paka
 
 const CADANGAN_DIR = path.resolve(ROOT, (process.env.CADANGAN_DIR || '').trim() || 'cadangan');
 const SIMPAN_HARI = Math.max(1, Number(process.env.CADANGAN_SIMPAN_HARI) || 14);
+const CADANGAN_LUAR = (process.env.CADANGAN_LUAR || '').trim();
 
 const SUMBER_DB = path.join(ROOT, 'elogbook', 'data', 'elogbook.db');
 const SUMBER_DATA = path.join(ROOT, 'data');
@@ -182,8 +186,8 @@ function cadangkanCermin() {
 
 /* ---------- 4. buang harian yang tua ---------- */
 
-function buangYangTua() {
-  const dirHarian = path.join(CADANGAN_DIR, 'harian');
+function buangYangTua(base = CADANGAN_DIR) {
+  const dirHarian = path.join(base, 'harian');
   if (!fs.existsSync(dirHarian)) return;
   const batas = Date.now() - SIMPAN_HARI * 86400_000;
   let dibuang = 0;
@@ -199,6 +203,56 @@ function buangYangTua() {
     catch (e) { gagal(`hapus ${p}: ${e?.message || e}`); }
   }
   if (dibuang) log(`${HANYA_CEK ? '  akan:' : '✓'} ${dibuang} cadangan harian lebih tua dari ${SIMPAN_HARI} hari dibuang`);
+}
+
+/* ---------- 5. salinan ke luar (Google Drive, OneDrive, atau disk lain) ----------
+
+   CADANGAN_DIR ada di drive yang sama dengan aplikasinya. Itu menjaga dari
+   salah hapus dan salah ubah — dua hal yang jauh lebih sering terjadi — tapi
+   TIDAK dari disk yang rusak, PC yang hilang atau terbakar, maupun ransomware
+   yang mengenkripsi semua drive lokal sekaligus.
+
+   CADANGAN_LUAR menyalin hasilnya sekali lagi ke tempat yang tidak ikut mati
+   bersama komputer ini. Isi yang cocok: folder Google Drive for Desktop,
+   OneDrive, atau — kalau tidak ada internet — setidaknya disk FISIK yang lain.
+   Perhatikan kata fisik: di komputer ini D: dan F: kelihatan dua drive padahal
+   satu disk, jadi F: sama sekali tidak menolong.
+
+   Kalau CADANGAN_LUAR diisi tapi tujuannya tidak terjangkau, itu dilaporkan
+   sebagai KEGAGALAN, bukan dilewati diam-diam. Folder Drive gampang menghilang
+   sendiri — aplikasinya belum login, drive-nya belum sempat terpasang saat
+   tugas jalan, atau kuotanya penuh. Dan cadangan luar yang berhenti diam-diam
+   adalah cadangan yang tidak ada: baru ketahuan persis pada hari kamu
+   membutuhkannya. */
+
+function cadangkanLuar() {
+  if (!CADANGAN_LUAR) return;
+
+  const luar = path.resolve(CADANGAN_LUAR);
+  if (luar.toLowerCase().startsWith(path.resolve(CADANGAN_DIR).toLowerCase() + path.sep)) {
+    gagal('CADANGAN_LUAR ada di dalam CADANGAN_DIR — itu akan menyalin dirinya sendiri tanpa henti. Arahkan ke luar.');
+    return;
+  }
+
+  // Induknya yang dicek, bukan foldernya: folder tujuan boleh belum dibuat,
+  // tapi kalau induknya pun tidak ada berarti drive-nya memang tidak terpasang.
+  const induk = path.dirname(luar);
+  if (!fs.existsSync(induk)) {
+    gagal(`salinan luar dilewati: ${induk} tidak ada. Google Drive belum login, atau drive-nya belum terpasang saat tugas ini jalan.`);
+    return;
+  }
+
+  if (!HANYA_CEK) {
+    try { fs.mkdirSync(luar, { recursive: true }); }
+    catch (e) { gagal(`buat ${luar}: ${e?.message || e}`); return; }
+  }
+
+  const r = cerminkan(CADANGAN_DIR, luar);
+  log(`${HANYA_CEK ? '  akan:' : '✓'} salinan luar → ${luar}: ${r.disalin} baru (${mb(r.byteDisalin)}), ${r.dilewati} sudah sama`);
+
+  // Retensi yang sama diterapkan di luar. Tanpa ini folder harian menumpuk
+  // selamanya di Drive dan kuotanya habis pelan-pelan tanpa ada yang sadar.
+  buangYangTua(luar);
 }
 
 /* ---------- jalan ---------- */
@@ -217,6 +271,7 @@ cadangkanDb(tujuanHarian);
 cadangkanData(tujuanHarian);
 cadangkanCermin();
 buangYangTua();
+cadangkanLuar();
 
 const detik = ((Date.now() - mulai) / 1000).toFixed(1);
 log(`${adaGagal ? '✗ selesai DENGAN KEGAGALAN' : '✓ selesai'} dalam ${detik} dtk`);
