@@ -24,7 +24,7 @@ Telegram.
 | Supabase | beku sejak 14:43. **Jangan dihapus** — salinan gratis |
 | Aplikasi | Task Scheduler saat boot + penjaga tiap 10 menit |
 | Tunnel | layanan Windows `Cloudflared`, Automatic |
-| Cadangan | 02.00 dan 14.00, ke `D:` dan ke Google Drive |
+| Cadangan | 02.00 dan 14.00, ke `D:`, ke `E:`, lalu Drive menyusul |
 | Git | `feature/avengers-login-visual`, terdorong ke GitHub |
 
 ## Yang harus diingat sekarang
@@ -82,14 +82,22 @@ TTD Saya semuanya tampil.
 
 Dua kali sehari, **02.00 dan 14.00**, satu tugas `HOURLY /MO 12` — bukan dua
 tugas terpisah, karena dua tugas gampang berbeda diam-diam waktu salah satunya
-disunting. Retensi 14 hari, di kedua tempat.
+disunting. Retensi 14 hari, di kedua salinan lokal.
 
-Dua tujuan, menjaga dari hal yang berbeda:
+Tiga tujuan, masing-masing menjaga dari hal yang berbeda:
 
 - `D:\Airnav\2026\Cadangkan` — dari salah hapus dan salah ubah.
-- `G:\My Drive\Cadangan Avenger` — dari disk rusak, PC hilang atau terbakar,
-  dan ransomware yang mengenkripsi semua drive lokal. Disinkronkan Google Drive
-  for Desktop. Terbukti: 1083 berkas, 96,6 MB.
+- `E:\Airnav\Cadangan Avenger` — dari disk D: rusak. E: (Seagate) disk
+  fisik yang berbeda dari WD tempat D: berada, dan itulah satu-satunya syarat
+  yang penting. Terbukti: 1343 berkas, 182,3 MB.
+- Google Drive — dari PC-nya sendiri hilang, terbakar, atau kena ransomware.
+  **Bukan lewat huruf drive.** Di setelan Google Drive for Desktop, menu
+  "Folders from your computer", folder `D:\Airnav\2026\Cadangkan`
+  ditambahkan untuk disinkronkan. Drive mengunggahnya sebagai penggunamu.
+
+Isinya: potret harian (`elogbook.db` 1,2 MB + `data/` 17 MB, dibuat baru tiap
+kali) dan cermin (lampiran, TTD, foto — hanya menambah yang baru). Sekitar
+550 MB di keadaan mapan dengan retensi 14 hari.
 
 **Jangan pernah mengarahkan cadangan ke F:.** Di komputer ini D: dan F:
 kelihatan dua drive padahal satu disk fisik (WD 2TB), jadi sisanya yang 540 GB
@@ -162,6 +170,14 @@ galat 500-nya dan UI menyembunyikan dirinya sendiri, yang kebetulan benar
 selama fitur mati. Baru akan menggigit persis saat token bot dipasang. Sudah
 diperbaiki.
 
+**Huruf drive Google Drive tidak terlihat oleh SYSTEM.** Cadangan sempat
+diarahkan ke `G:\My Drive\...`. Dijalankan dengan tangan berhasil — 1083
+berkas naik. Dijalankan Task Scheduler sebagai SYSTEM selalu gagal, karena
+huruf drive yang dipasang Google Drive for Desktop cuma hidup di sesi login
+penggunanya. Obatnya bukan memaksa SYSTEM melihat G:, tapi membalik arahnya:
+skrip menulis ke disk biasa, dan Drive yang menyusul lewat "Folders from your
+computer". Ketahuan hanya karena skripnya sengaja gagal dengan berisik.
+
 **Ada dua salinan proyek di PC ini.** Yang dipakai `D:\Airnav\2026\Teknik JATSC
 Avenger`; ada juga `D:\Airnav\2026\file dari Drive E laptop\test\...` yang
 tidak dipakai. Waktu ragu server menunjuk yang mana: buka `/_info` — PC
@@ -181,7 +197,7 @@ mengubah apa pun. Kalau terulang, coba lagi saja.
 - Aplikasi: `D:\Airnav\2026\Teknik JATSC Avenger`, Node v24.19.0, port 3100
   (E-Logbook internal 3000, sengaja tidak diekspos)
 - Cadangan lokal: `D:\Airnav\2026\Cadangkan`
-- Cadangan luar: `G:\My Drive\Cadangan Avenger` (Google Drive for Desktop)
+- Cadangan luar: `E:\Airnav\Cadangan Avenger` (disk fisik lain)
 - Tunnel: `avenger`, `e96f595a-5062-4aea-ba38-287a7b7ef241`
 - Kredensial tunnel: `%USERPROFILE%\.cloudflared\<uuid>.json` — **berkas itulah
   tunnelnya**, memindahkannya ke server lain berarti memindahkan tunnel yang
@@ -192,8 +208,8 @@ mengubah apa pun. Kalau terulang, coba lagi saja.
   `Avenger\Cadangan` (tiap 12 jam dari 02.00)
 - Domain: dibeli 7 Sep 2026 di Cloudflare Registrar, 10,46 dolar per tahun,
   perpanjangan otomatis. Nameserver `ainsley` dan `morgan.ns.cloudflare.com`.
-- Disk: D: dan F: satu disk fisik (WD 2TB). C: NVMe, E: Seagate — ini yang
-  benar-benar terpisah.
+- Disk: D: dan F: satu disk fisik (WD 2TB). C: NVMe (drive sistem, sengaja
+  dibiarkan lega), E: Seagate — dua ini yang benar-benar terpisah dari D:.
 - Proyek Vercel: `teknik-avenger-jatsc`
 - Repo: `github.com/baguswibowo-ux/Teknik-Avenger-JATSC`, cabang
   `feature/avengers-login-visual` (utama = `utama`)
