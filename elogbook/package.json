@@ -12,7 +12,8 @@
     "user": "node tools/user.js",
     "import": "node tools/import-sheet.js",
     "backup": "node tools/backup.js",
-    "migrasi": "node tools/migrasi-supabase.js"
+    "migrasi": "node tools/migrasi-supabase.js",
+    "telegram": "node tools/telegram-webhook.js"
   },
   "dependencies": {
     "express": "^5.1.0",

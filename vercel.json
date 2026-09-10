@@ -130,6 +130,10 @@
       "destination": "/api/index"
     },
     {
+      "source": "/telegram/(.*)",
+      "destination": "/api/index"
+    },
+    {
       "source": "/_info",
       "destination": "/api/index"
     }

@@ -72,6 +72,16 @@ export async function botUsername() {
   return botUsernameCache;
 }
 
+/** Tanya Telegram langsung apakah token ini masih diterima — selalu getMe,
+    tidak pernah dari TELEGRAM_BOT_USERNAME. botUsername() tidak bisa dipakai
+    untuk ini: selama username tertulis di env ia pulang tanpa menyentuh
+    jaringan, jadi token yang sudah dicabut pun tetap tampak "sah". '' kalau
+    ditolak atau tidak terjangkau. */
+export async function cekToken() {
+  const me = await panggil('getMe', {});
+  return String(me?.username || '');
+}
+
 /** Daftarkan webhook ke Telegram. url = alamat publik penuh /telegram/webhook. */
 export async function pasangWebhook(url) {
   if (!TOKEN) return { ok: false, pesan: 'Token bot belum diatur.' };

@@ -99,8 +99,19 @@ if (PROXY_TEPERCAYA) {
    ===================================================================== */
 
 /* Jalur yang diteruskan APA ADANYA: prefiksnya memang milik E-Logbook juga,
-   jadi tidak ada yang perlu dipotong sebelum dikirim ke sana. */
-const JALUR_TERUS = ['/api', '/uploads'];
+   jadi tidak ada yang perlu dipotong sebelum dikirim ke sana.
+
+   '/telegram' ikut di sini karena yang mengetuk pintunya BUKAN peramban
+   melainkan server Telegram: alamat webhook didaftarkan sekali ke Bot API, dan
+   sesudah itu tidak ada yang bisa membelokkannya lewat /logbook/. Tanpa baris
+   ini POST /telegram/webhook berhenti di 404 dashboard — dan gagalnya tidak
+   terlihat di mana pun, Telegram cuma diam dan penautan akun tidak pernah
+   terjadi. Kepala rahasianya (X-Telegram-Bot-Api-Secret-Token) ikut terusan
+   apa adanya, jadi pemeriksaan keaslian tetap terjadi di E-Logbook.
+
+   Selama TELEGRAM_POLLING=1 jalur ini menganggur — polling menarik update
+   sendiri. Ia baru dipakai kalau webhook diarahkan ke https://teknik-avengers.com. */
+const JALUR_TERUS = ['/api', '/uploads', '/telegram'];
 
 /* =====================================================================
    /logbook — PINTU E-LOGBOOK DI DALAM ASAL INI
