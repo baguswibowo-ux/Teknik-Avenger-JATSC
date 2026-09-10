@@ -263,7 +263,7 @@ async function saveDailyCheck(){
   const meta = nav
     ? { __lokasi:'navigasi', __tempat:'navigasi' }
     : jatsc
-      ? { __lokasi:'jatsc', __tempat: tempatDipilih }
+      ? { __lokasi:'jatsc', __tempat: tempatDipilih, __jatscVersi: JATSC_VERSI }
       : { __lokasi:'new-jatsc', __tempat: tempatDipilih };
   // Pengamatan, Gedung & Keamanan, dan Listrik & Mekanik menumpang tabel
   // dailychecks yang sama (pola AMHS): lembar mana yang dipakai ditandai
@@ -686,7 +686,8 @@ async function openDcEditModal(id){
     renderDcNavTable();
   }else if(isJatsc){
     initDcJState();
-    Object.entries(state).forEach(([k, v])=>{
+    // Catatan lama dipetakan dulu ke posisi yang berlaku sekarang.
+    Object.entries(jatscStateBaca(state)).forEach(([k, v])=>{
       if(k.startsWith('__')) return;
       dcJState[k] = v;
     });

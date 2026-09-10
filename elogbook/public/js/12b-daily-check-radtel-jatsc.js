@@ -52,7 +52,7 @@ const DC_JATSC = [
   { kode:'C', judul:'C. DIRECT SPEECH', blok:[
     { judul:'', kolom:['STATUS'], baris:['LINK DOMESTIK'] },
     { judul:'LINK INTERNATIONAL', kolom:['STATUS'], baris:[
-      'SMC LAUT','VSAT','VPN','CRV'
+      'VSAT','VPN','CRV'
     ]}
   ]},
   { kode:'D', judul:'D. MASTER CLOCK (BODET)', blok:[
@@ -87,6 +87,55 @@ const DC_JATSC = [
  * blok (mis. "Modul PSU" muncul di banyak MUX) akan menimpa satu sama lain.
  */
 function jatscKunci(sk, bi, ri, kk){ return `${sk}|${bi}|${ri}|${kk}`; }
+
+/**
+ * Versi tata letak lembar ini. Dinaikkan setiap kali baris ditambah atau
+ * dibuang dari DC_JATSC, karena kunci di atas memakai POSISI dan bukan nama:
+ * satu baris yang hilang menggeser naik semua baris di bawahnya, dan catatan
+ * lama akan terbaca di baris yang salah — status milik baris yang dibuang
+ * muncul di baris penggantinya. Bukan sekadar salah tampil: yang dibaca orang
+ * jadi alat yang berbeda dari yang benar-benar diperiksa malam itu.
+ *
+ * 1 → 2 (10 September 2026): 'SMC LAUT' dibuang dari blok LINK INTERNATIONAL
+ * (seksi C, blok 1).
+ */
+const JATSC_VERSI = 2;
+
+/**
+ * Catatan lama dibaca lewat sini supaya posisinya cocok dengan tata letak yang
+ * berlaku sekarang. Yang penandanya sudah terbaru dikembalikan apa adanya.
+ *
+ * Catatan sebelum 10 September 2026 tidak berpenanda sama sekali, jadi yang
+ * menentukan bukti di kuncinya sendiri: 'C|1|6' cuma bisa ada kalau blok itu
+ * masih berisi empat baris. Dipakai bersama supaya keadaan tanpa penanda yang
+ * BUKAN catatan lama — lembar yang sedang diisi, misalnya — tidak ikut
+ * tergeser hanya karena penandanya belum sempat ditempel.
+ *
+ * Status milik 'SMC LAUT' sendiri memang hilang dari tabel; barisnya sudah
+ * tidak ada, jadi tidak ada tempat menampilkannya. Riwayatnya selamat di
+ * daftar temuan (fails_json/warns_json), yang menyimpan namanya sebagai teks
+ * — "C · SMC LAUT (STATUS)" — bukan sebagai posisi.
+ */
+function jatscStateBaca(state){
+  const asal = state || {};
+  const versi = Number(asal.__jatscVersi || 0);
+  if(versi >= JATSC_VERSI) return asal;
+  const adaBarisHilang = Object.keys(asal).some(k => /^C\|1\|[67]\|/.test(k));
+  if(!versi && !adaBarisHilang) return asal;
+
+  const hasil = {};
+  Object.entries(asal).forEach(([k, v])=>{
+    const m = k.match(/^C\|1\|(\d+)\|(.+)$/);
+    if(!m){ hasil[k] = v; return; }
+    // Kunci baris memakai ri*2+si, jadi satu baris yang dibuang bernilai dua
+    // langkah — dan dua langkah teratas tidak punya rumah lagi.
+    const n = Number(m[1]);
+    if(n < 2) return;
+    hasil['C|1|' + (n - 2) + '|' + m[2]] = v;
+  });
+  hasil.__jatscVersi = JATSC_VERSI;
+  return hasil;
+}
 
 /* ---------- Daftar channel DS — sampling 9 sesi (95 channel) ----------
    DIPAKAI OLEH TAB "DS TEST" (js/17-ds-test.js), bukan lagi oleh Daily Check
@@ -251,6 +300,7 @@ function renderDcJatscTable(){
 /** Baca-saja untuk modal detail dan halaman cetak — sel bertombol jadi span,
  *  dan ukuran hurufnya lebih kecil ketika cetak supaya muat di lembar A4. */
 function dcJatscTabelBaca(state, cetak){
+  state = jatscStateBaca(state);
   const sel = s => cetak
     ? `<td style="text-align:center;"><span class="${s==='ok'?'p-ok':(s==='warn'?'p-warn':'p-fail')}">${jatscSimbol(s)}</span></td>`
     : `<td><span class="status-btn ${s}" style="cursor:default;">${jatscSimbol(s)}</span></td>`;
