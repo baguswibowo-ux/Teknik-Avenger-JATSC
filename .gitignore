@@ -42,3 +42,6 @@ server.log
 
 # Salinan dokumen yang dibuat alat bantu, bukan bagian proyek
 Claude outputs/
+
+# Permintaan restart untuk tools/jaga-server.cmd — sekali pakai, dihapus penjaganya.
+restart.minta
