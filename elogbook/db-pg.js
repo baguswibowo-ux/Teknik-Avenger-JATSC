@@ -250,7 +250,10 @@ const KOLOM_SUSULAN = [
   // Isu tertutup: siapa yang menutup, dan keterangan penutupannya. Terpisah
   // dari dibuat_oleh — pelapor/penginput bisa teknisi, penutup selalu admin.
   ['issues', 'ditutup_oleh', "TEXT NOT NULL DEFAULT ''"],
-  ['issues', 'keterangan_closed', "TEXT NOT NULL DEFAULT ''"]
+  ['issues', 'keterangan_closed', "TEXT NOT NULL DEFAULT ''"],
+  // Kapan pengingat "belum ditandatangani" dikirim ke pembuat logbook — lihat
+  // logbookPerluPengingatTtd. Kosong = belum pernah; diisi sekali saja.
+  ['entries', 'pengingat_ttd_pada', "TEXT NOT NULL DEFAULT ''"]
 ];
 try {
   const sudahAda = new Set(
@@ -2543,4 +2546,20 @@ export async function statusTautanTelegram(username) {
   if (!u) return { tertaut: false, ditautkanPada: '' };
   const row = await q1('SELECT chat_id, ditautkan_pada FROM telegram_akun WHERE username = $1', [u]);
   return { tertaut: !!(row && row.chat_id), ditautkanPada: (row && row.ditautkan_pada) || '' };
+}
+
+/* ============== PENGINGAT TTD LOGBOOK ==============
+ * Sepadan dengan logbookPerluPengingatTtd / tandaiPengingatTtd di db.js —
+ * lihat catatan di sana. */
+export async function logbookPerluPengingatTtd(sejakIso) {
+  return await q(`SELECT id, tanggal, dinas, unit, pj_nama, ttd_untuk, dibuat_oleh, dibuat_pada
+                    FROM entries
+                   WHERE ttd_untuk <> '' AND (pj_ttd = '' OR pj_ttd IS NULL)
+                     AND pengingat_ttd_pada = '' AND dibuat_oleh <> ''
+                     AND dibuat_pada >= $1`, [String(sejakIso)]);
+}
+
+/** Tandai sebuah logbook sudah diingatkan — sekali saja per catatan. */
+export async function tandaiPengingatTtd(id, waktuIso) {
+  await jalankan('UPDATE entries SET pengingat_ttd_pada = $1 WHERE id = $2', [String(waktuIso), String(id)]);
 }

@@ -200,6 +200,16 @@ export function pesanSudahTtd({ dokumen, unit, tanggal, penanda }) {
   return baris.join('\n');
 }
 
+/** Pengingat ke pembuat logbook: dinasnya sudah lewat, tanda tangan belum ada. */
+export function pesanBelumTtd({ dokumen, unit, tanggal, dinas, menunggu, menit }) {
+  const baris = ['⏰ <b>Dokumen Anda belum ditandatangani</b>', '', `Dokumen: <b>${esc(dokumen)}</b>`];
+  if (unit) baris.push(`Unit: ${esc(unit)}`);
+  if (tanggal) baris.push(`Tanggal: ${esc(tanggal)}${dinas ? ' · Dinas ' + esc(dinas) : ''}`);
+  if (menunggu) baris.push(`Menunggu tanda tangan: <b>${esc(menunggu)}</b>`);
+  baris.push('', `Dinasnya sudah berakhir lebih dari ${esc(menit)} menit. Silakan ingatkan penanda tangannya.`);
+  return baris.join('\n');
+}
+
 /** Balasan saat akun berhasil ditautkan dari dalam Telegram. */
 export function pesanTautBerhasil(nama) {
   return `✅ Akun E-Logbook <b>${esc(nama)}</b> berhasil terhubung.\n\n`

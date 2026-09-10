@@ -45,7 +45,7 @@ import {
   telegramAktif, telegramWebhookSecret, kirimPesan, botUsername,
   pasangWebhook, infoWebhook, bacaUpdate,
   telegramModePolling, mulaiPolling,
-  pesanPerluTtd, pesanSudahTtd, pesanTautBerhasil, pesanPerluTaut
+  pesanPerluTtd, pesanSudahTtd, pesanBelumTtd, pesanTautBerhasil, pesanPerluTaut
 } from './telegram.js';
 
 /**
@@ -83,7 +83,8 @@ const {
   UNIT, KODE_UNIT, unitSah, unitUntukUser, setUnitUser,
   createSession, getSessionUser, deleteSession, purgeExpiredSessions,
   ambilBerkas,
-  buatTautanTelegram, tautkanTelegram, getChatIdTelegram, putusTautanTelegram, statusTautanTelegram
+  buatTautanTelegram, tautkanTelegram, getChatIdTelegram, putusTautanTelegram, statusTautanTelegram,
+  logbookPerluPengingatTtd, tandaiPengingatTtd
 } = await import(PAKAI_POSTGRES ? './db-pg.js' : './db.js');
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -341,6 +342,77 @@ async function notifSudahTtd(jenis, dibuatOleh, { unit, tanggal, penanda }) {
     }));
   } catch (err) {
     console.error('[telegram notifSudahTtd]', err?.message || err);
+  }
+}
+
+/* ============== PENGINGAT TTD LOGBOOK ==============
+ * Kalau sebuah logbook yang ditujukan ke pejabat belum ditandatangani 30 menit
+ * setelah dinasnya berakhir, pembuatnya diberi tahu SEKALI lewat Telegram —
+ * supaya dia yang menagih, bukan dokumennya yang diam-diam menumpuk.
+ *
+ * Jam akhir dinas dalam UTC, cermin SHIFT di public/js/02-kode-dinas.js milik
+ * dashboard (sumber aslinya). Tanggal logbook juga UTC — tanggalHariIni() di
+ * klien memakai toISOString — jadi keduanya bertemu tanpa konversi. Dalam WIB:
+ * Pagi 14:00, Siang 20:00, PS 19:00, Malam 07:00 esok harinya. Malam berakhir
+ * pukul 24 UTC walaupun hari itu dipecah P/S (aturan `geser` hanya memundurkan
+ * MULAInya), dan Date.UTC menggulirkan jam 24 ke tanggal berikutnya sendiri.
+ *
+ * Pangkalnya yang terakhir dari akhir dinas dan waktu dibuat: catatan yang
+ * disusulkan setelah dinas selesai tetap diberi 30 menit, bukan langsung
+ * ditegur begitu tersimpan. Label dinas yang tidak dikenal jatuh ke waktu
+ * dibuat saja.
+ *
+ * JENDELA mencegah banjir. Tanpanya, pemeriksaan pertama setelah fitur ini
+ * dipasang akan mengingatkan setiap logbook lama yang tak pernah ditandatangani
+ * (ada puluhan, sejak Agustus). Yang jatuh temponya lewat lebih dari 6 jam
+ * dilewati selamanya; 6 jam cukup lebar untuk server yang sempat mati sejenak.
+ *
+ * Pembuat yang belum menautkan Telegram dilewati tanpa ditandai — kalau ia
+ * menautkan masih di dalam jendela, pengingatnya tetap sampai.
+ * PENGINGAT_TTD_MENIT di .env mengganti 30 menit, khusus untuk menguji. */
+const AKHIR_DINAS_UTC = { p: 7, pagi: 7, s: 13, siang: 13, ps: 12, m: 24, malam: 24 };
+const PENGINGAT_TTD_MENIT = Math.max(1, Number(process.env.PENGINGAT_TTD_MENIT) || 30);
+const PENGINGAT_JENDELA_MS = 6 * 3600 * 1000;
+
+/** Akhir dinas sebagai milidetik epoch, atau NaN kalau tanggal/dinas tak dikenal. */
+function akhirDinas(tanggal, dinas) {
+  const m = String(tanggal || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const jam = AKHIR_DINAS_UTC[String(dinas || '').trim().toLowerCase()];
+  if (!m || jam === undefined) return NaN;
+  return Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), jam);
+}
+
+/** Kapan pengingat sebuah catatan jatuh tempo (ms epoch), atau NaN. */
+function jatuhTempoPengingat(row) {
+  const kandidat = [akhirDinas(row.tanggal, row.dinas), Date.parse(row.dibuat_pada)].filter(Number.isFinite);
+  return kandidat.length ? Math.max(...kandidat) + PENGINGAT_TTD_MENIT * 60000 : NaN;
+}
+
+let pengingatBerjalan = false;
+
+async function periksaPengingatTtd() {
+  if (!telegramAktif() || pengingatBerjalan) return;
+  pengingatBerjalan = true;
+  try {
+    const kini = Date.now();
+    const calon = await logbookPerluPengingatTtd(new Date(kini - 3 * 86400000).toISOString());
+    for (const r of calon) {
+      const jatuh = jatuhTempoPengingat(r);
+      if (!Number.isFinite(jatuh) || kini < jatuh || kini - jatuh > PENGINGAT_JENDELA_MS) continue;
+      const chatId = await getChatIdTelegram(r.dibuat_oleh);
+      if (!chatId) continue;
+      const terkirim = await kirimPesan(chatId, pesanBelumTtd({
+        dokumen: NAMA_DOKUMEN.logbook, unit: namaUnit(r.unit), tanggal: r.tanggal,
+        dinas: r.dinas, menunggu: r.pj_nama || r.ttd_untuk, menit: PENGINGAT_TTD_MENIT
+      }));
+      // Ditandai hanya kalau benar-benar terkirim: Telegram yang sedang tak
+      // terjangkau dicoba lagi pada putaran berikutnya, masih di dalam jendela.
+      if (terkirim) await tandaiPengingatTtd(r.id, new Date().toISOString());
+    }
+  } catch (err) {
+    console.error('[telegram pengingat]', err?.message || err);
+  } finally {
+    pengingatBerjalan = false;
   }
 }
 
@@ -1773,6 +1845,14 @@ if (DIJALANKAN_LANGSUNG) {
   if (telegramAktif() && telegramModePolling()) {
     mulaiPolling(prosesUpdateTelegram).catch((err) =>
       console.error('[telegram polling]', err?.message || err));
+  }
+
+  /* Pengingat TTD hanya di proses yang hidup terus, sama seperti polling —
+     serverless tidak punya jam yang berdetak di antara permintaan. Putaran
+     pertama semenit setelah menyala, sesudahnya tiap 5 menit. */
+  if (telegramAktif()) {
+    setTimeout(periksaPengingatTtd, 60 * 1000).unref();
+    setInterval(periksaPengingatTtd, 5 * 60 * 1000).unref();
   }
 
   app.listen(PORT, HOST, () => {

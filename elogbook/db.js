@@ -320,6 +320,11 @@ tambahKolom('monitoring', 'teknisi_nama_list', "TEXT NOT NULL DEFAULT '[]'");
    dengan mengarang isi buku catatan. */
 tambahKolom('entries', 'lokasi', "TEXT NOT NULL DEFAULT ''");
 
+/* Kapan pengingat "belum ditandatangani" dikirim ke pembuat catatan. Kosong =
+   belum pernah. Diisi sekali saja — pengingatnya memang sekali per catatan.
+   Lihat periksaPengingatTtd di server.js. */
+tambahKolom('entries', 'pengingat_ttd_pada', "TEXT NOT NULL DEFAULT ''");
+
 /* Siapa yang membubuhkan tanda tangan susulan, dan kapan. Terpisah dari nama
    pada formulir — nama itu milik teknisi yang mengisi, ini sekadar keterangan
    status yang tidak pernah ikut tercetak.
@@ -2743,4 +2748,24 @@ export function statusTautanTelegram(username) {
   if (!u) return { tertaut: false, ditautkanPada: '' };
   const row = db.prepare('SELECT chat_id, ditautkan_pada FROM telegram_akun WHERE username = ?').get(u);
   return { tertaut: !!(row && row.chat_id), ditautkanPada: (row && row.ditautkan_pada) || '' };
+}
+
+/* ============== PENGINGAT TTD LOGBOOK ==============
+ * Calon pengingat "dokumen Anda belum ditandatangani" — dipakai
+ * periksaPengingatTtd di server.js. Saringan di sini kasar saja: ditujukan ke
+ * sebuah akun, pihak kedua belum membubuhkan (definisinya sama dengan
+ * getInboxTtd), belum pernah diingatkan, dan dibuat sejak `sejakIso`. Kapan
+ * tepatnya jatuh tempo — akhir dinas + 30 menit — dihitung di server.js,
+ * karena itu butuh tabel jam dinas yang bukan urusan lapisan data. */
+export function logbookPerluPengingatTtd(sejakIso) {
+  return db.prepare(`SELECT id, tanggal, dinas, unit, pj_nama, ttd_untuk, dibuat_oleh, dibuat_pada
+                       FROM entries
+                      WHERE ttd_untuk <> '' AND (pj_ttd = '' OR pj_ttd IS NULL)
+                        AND pengingat_ttd_pada = '' AND dibuat_oleh <> ''
+                        AND dibuat_pada >= ?`).all(String(sejakIso));
+}
+
+/** Tandai sebuah logbook sudah diingatkan — sekali saja per catatan. */
+export function tandaiPengingatTtd(id, waktuIso) {
+  db.prepare('UPDATE entries SET pengingat_ttd_pada = ? WHERE id = ?').run(String(waktuIso), String(id));
 }
