@@ -363,6 +363,11 @@ tambahKolom('users', 'ttd_aktif', "INTEGER NOT NULL DEFAULT 0");
    diisi atau dikosongkan. */
 tambahKolom('users', 'superadmin', "INTEGER NOT NULL DEFAULT 0");
 
+/* PH (pelaksana harian): siapa yang mewakili pejabat ini dan sampai tanggal
+   berapa (YYYY-MM-DD, UTC). Kosong = tidak ada PH. Lihat getPh. */
+tambahKolom('users', 'ph_username', "TEXT NOT NULL DEFAULT ''");
+tambahKolom('users', 'ph_sampai', "TEXT NOT NULL DEFAULT ''");
+
 // DS Test: kategori daftar site, plus penandatangan Manager Teknik.
 tambahKolom('dstest', 'kategori', "TEXT NOT NULL DEFAULT 'domestik'");
 tambahKolom('dstest', 'manager_nama', "TEXT NOT NULL DEFAULT ''");
@@ -2689,6 +2694,38 @@ export function getInboxTtd(username) {
   }
   hasil.sort((a, b) => (a.dibuatPada < b.dibuatPada ? 1 : -1));
   return hasil;
+}
+
+/* ============== PH (PELAKSANA HARIAN) ==============
+ * Pejabat menunjuk sendiri siapa yang mewakilinya dan sampai tanggal berapa
+ * (ph_username, ph_sampai di tabel users). Selama berlaku, dokumen yang
+ * ditujukan ke pejabat itu ikut muncul di Kotak Masuk TTD milik PH, dan PH ikut
+ * menerima notifikasi "perlu tanda tangan". Pejabat aslinya tetap menerima
+ * juga. Kapan "berlaku" dihitung di server.js (phAktifUntuk) — di sini hanya
+ * simpan dan baca. Tidak berantai: PH dari PH tidak ikut diwakili.
+ * Cermin Postgres-nya di db-pg.js. */
+export function getPh(username) {
+  const row = db.prepare(`SELECT u.ph_username, u.ph_sampai, p.nama AS ph_nama, p.aktif AS ph_aktif
+                            FROM users u LEFT JOIN users p ON p.username = u.ph_username
+                           WHERE u.username = ?`).get(String(username || '').trim());
+  return {
+    phUsername: row?.ph_username || '', phNama: row?.ph_nama || '',
+    sampai: row?.ph_sampai || '', phAktifAkun: !!Number(row?.ph_aktif ?? 0)
+  };
+}
+
+export function setPh(username, phUsername, sampai) {
+  db.prepare('UPDATE users SET ph_username = ?, ph_sampai = ? WHERE username = ?')
+    .run(String(phUsername || ''), String(sampai || ''), String(username || '').trim());
+}
+
+/** Pejabat aktif yang sedang diwakili akun ini, pengalihannya belum lewat hariIni. */
+export function listDiwakiliOleh(phUsername, hariIni) {
+  const u = String(phUsername || '').trim();
+  if (!u) return [];
+  return db.prepare(`SELECT username, nama FROM users
+                      WHERE aktif = 1 AND ph_username = ? COLLATE NOCASE AND ph_sampai >= ?
+                      ORDER BY nama COLLATE NOCASE`).all(u, String(hariIni));
 }
 
 /* ============== TAUTAN TELEGRAM ==============

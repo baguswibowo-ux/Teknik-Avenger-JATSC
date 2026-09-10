@@ -520,6 +520,7 @@ function renderInboxBody(){
     <div class="dc-history-item" style="cursor:pointer;" onclick="bukaInboxItem('${it.jenis}','${it.unit}','${it.id}')">
       <div><b>${escapeHtml(it.label)}</b> &middot; ${escapeHtml(it.tanggal)||'-'}</div>
       <div style="font-size:11.5px;color:var(--muted);">${escapeHtml(it.nama)||'-'}</div>
+      ${it.atasNama ? `<div style="font-size:11.5px;color:var(--muted);">Sebagai PH untuk <b>${escapeHtml(it.atasNama)}</b></div>` : ''}
     </div>`).join('');
 }
 

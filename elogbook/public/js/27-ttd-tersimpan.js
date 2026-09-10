@@ -165,6 +165,8 @@ function openTtdSayaModal(){
   // Segarkan panel Notifikasi Telegram (js/28-telegram.js) — menyembunyikan
   // dirinya sendiri kalau server belum menyalakan bot.
   if(typeof muatStatusTelegram === 'function') muatStatusTelegram();
+  // Panel PH (js/28b-ph.js) — menyembunyikan dirinya untuk selain pejabat/admin.
+  if(typeof muatPh === 'function') muatPh();
 }
 
 function closeTtdSayaModal(){

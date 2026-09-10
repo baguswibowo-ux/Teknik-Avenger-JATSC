@@ -2170,6 +2170,15 @@
     </div>
     <div class="subtle-note" data-t="ttdSayaCatatan">Tanda tangan ini milik akun Anda dan hanya bisa dibuat serta dihapus oleh Anda sendiri. Sekali tersimpan, tiap papan tanda tangan di formulir mendapat tombol “pakai TTD tersimpan”. Menyimpan yang baru menggantikan yang lama; tanda tangan yang sudah terlanjur dibubuhkan pada catatan tidak ikut berubah.</div>
 
+    <!-- PH (PELAKSANA HARIAN) — hanya untuk pejabat/admin, tersembunyi untuk
+         peran lain. Diisi & dikelola oleh js/28b-ph.js. -->
+    <div id="phPanel" class="telegram-panel" style="display:none;">
+      <h4 style="margin:0 0 6px;">🧑‍💼 PH (Pelaksana Harian)</h4>
+      <div class="subtle-note" style="margin-bottom:8px;">Selama Anda tidak di tempat, dokumen yang ditujukan ke Anda juga muncul di Kotak Masuk TTD milik PH, dan PH ikut menerima notifikasi Telegram-nya. Anda tetap menerimanya juga. Berhenti sendiri setelah tanggal selesai.</div>
+      <div id="phStatus" class="telegram-status">Memeriksa…</div>
+      <div id="phAksi" class="telegram-aksi"></div>
+    </div>
+
     <!-- NOTIFIKASI TELEGRAM — muncul hanya kalau server mengaktifkan bot.
          Diisi & dikelola oleh js/28-telegram.js. -->
     <div id="telegramPanel" class="telegram-panel" style="display:none;">
@@ -2341,6 +2350,7 @@
 <script src="js/24-cetak-daily-check.js"></script>
 <script src="js/27-ttd-tersimpan.js"></script>
 <script src="js/28-telegram.js"></script>
+<script src="js/28b-ph.js"></script>
 <script src="js/29-rekap.js"></script>
 <script src="js/25-login.js"></script>
 <script src="js/26-init.js"></script>

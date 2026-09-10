@@ -182,11 +182,12 @@ const esc = (s) => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 /** Notifikasi ke akun yang dituju: ada dokumen menunggu tanda tangannya. */
-export function pesanPerluTtd({ dokumen, unit, tanggal, pembuat }) {
+export function pesanPerluTtd({ dokumen, unit, tanggal, pembuat, atasNama }) {
   const baris = ['🔔 <b>Perlu tanda tangan Anda</b>', '', `Dokumen: <b>${esc(dokumen)}</b>`];
   if (unit) baris.push(`Unit: ${esc(unit)}`);
   if (tanggal) baris.push(`Tanggal: ${esc(tanggal)}`);
   if (pembuat) baris.push(`Dikirim oleh: ${esc(pembuat)}`);
+  if (atasNama) baris.push(`Sebagai PH untuk: <b>${esc(atasNama)}</b>`);
   baris.push('', 'Buka E-Logbook → <b>Kotak Masuk TTD</b> untuk menandatangani.');
   return baris.join('\n');
 }

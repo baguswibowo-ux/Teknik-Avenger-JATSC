@@ -84,7 +84,8 @@ const {
   createSession, getSessionUser, deleteSession, purgeExpiredSessions,
   ambilBerkas,
   buatTautanTelegram, tautkanTelegram, getChatIdTelegram, putusTautanTelegram, statusTautanTelegram,
-  logbookPerluPengingatTtd, tandaiPengingatTtd
+  logbookPerluPengingatTtd, tandaiPengingatTtd,
+  getPh, setPh, listDiwakiliOleh
 } = await import(PAKAI_POSTGRES ? './db-pg.js' : './db.js');
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -313,18 +314,61 @@ function tanggalForm(form) {
     || form?.tanggalReport || form?.tanggal_report || '').trim();
 }
 
+/* ============== PH (PELAKSANA HARIAN) ==============
+ * Pejabat menunjuk PH-nya sendiri lewat menu TTD Saya (phAtur di bawah).
+ * Pengalihan berlaku sampai AKHIR tanggal ph_sampai — tanggal UTC, sepadan
+ * dengan tanggal di formulir (tanggalHariIni di klien memakai toISOString) —
+ * lalu mati sendiri tanpa perlu dimatikan. Hanya berlaku kalau akun PH-nya
+ * masih aktif. Tidak berantai: kalau PH juga menunjuk PH, dokumen pejabat
+ * pertama tidak ikut mengalir ke orang ketiga. */
+
+/** Tanggal hari ini (UTC), bentuk YYYY-MM-DD — sama dengan tanggal formulir. */
+const hariIniUtc = () => new Date().toISOString().slice(0, 10);
+
+/** PH yang sedang mewakili seorang pejabat: { username, nama } atau null. */
+async function phAktifUntuk(username) {
+  const ph = await getPh(username);
+  if (!ph.phUsername || !ph.phAktifAkun || !ph.sampai || ph.sampai < hariIniUtc()) return null;
+  return { username: ph.phUsername, nama: ph.phNama || ph.phUsername };
+}
+
+/** Kotak masuk TTD milik akun ini, ditambah milik pejabat yang sedang ia wakili
+    sebagai PH. Butir titipan diberi atasNama supaya jelas di layar milik siapa. */
+async function inboxTtdDenganPh(user) {
+  const milikSendiri = await getInboxTtd(user.username);
+  const diwakili = await listDiwakiliOleh(user.username, hariIniUtc());
+  const titipan = [];
+  for (const p of diwakili) {
+    if (sameUser(p.username, user.username)) continue;
+    for (const it of await getInboxTtd(p.username)) titipan.push({ ...it, atasNama: p.nama || p.username });
+  }
+  return [...milikSendiri, ...titipan].sort((a, b) => (a.dibuatPada < b.dibuatPada ? 1 : -1));
+}
+
 /** Kabari akun yang dituju bahwa ada dokumen menunggu tanda tangannya. */
 async function notifPerluTtd(jenis, ttdUntukUsername, form, pembuatNama) {
   try {
     if (!telegramAktif() || !ttdUntukUsername) return;
-    const chatId = await getChatIdTelegram(ttdUntukUsername);
-    if (!chatId) return;
-    await kirimPesan(chatId, pesanPerluTtd({
+    const isi = {
       dokumen: NAMA_DOKUMEN[jenis] || 'Dokumen',
       unit: namaUnit(form?.unit),
       tanggal: tanggalForm(form),
       pembuat: pembuatNama
-    }));
+    };
+    const chatId = await getChatIdTelegram(ttdUntukUsername);
+    if (chatId) await kirimPesan(chatId, pesanPerluTtd(isi));
+    /* PH ikut dikabari selama pengalihannya berlaku (phAktifUntuk). Pejabat
+       aslinya tetap menerima juga — siapa pun yang sempat duluan boleh
+       menandatangani. Satu orang yang kebetulan PH untuk dirinya sendiri, atau
+       yang chat-nya sama, tidak dikirimi dua kali. */
+    const ph = await phAktifUntuk(ttdUntukUsername);
+    if (ph) {
+      const chatPh = await getChatIdTelegram(ph.username);
+      if (chatPh && chatPh !== chatId) {
+        const asli = await getUserByUsername(ttdUntukUsername);
+        await kirimPesan(chatPh, pesanPerluTtd({ ...isi, atasNama: asli?.nama || ttdUntukUsername }));
+      }
+    }
   } catch (err) {
     console.error('[telegram notifPerluTtd]', err?.message || err);
   }
@@ -916,7 +960,8 @@ const API = {
       // teknisi kedua dst. Baris pertama tetap otomatis nama pengisi dokumen.
       listTeknisiUnit(u),
       // Kotak masuk TTD hanya berarti untuk peran yang memang bisa menandatangani.
-      bolehTtdSusulan(user) ? getInboxTtd(user.username) : [],
+      // Ditambah dokumen pejabat yang sedang ia wakili sebagai PH.
+      bolehTtdSusulan(user) ? inboxTtdDenganPh(user) : [],
       // Tanda tangan tersimpan milik akun yang sedang masuk — miliknya sendiri
       // saja, tidak pernah milik orang lain.
       getTtdTersimpan(user.username)
@@ -1169,6 +1214,46 @@ const API = {
   telegramPutus: async (user) => {
     await putusTautanTelegram(user.username);
     return { tertaut: false };
+  },
+
+  /* ---------- PH (pelaksana harian) milik pejabat sendiri ----------
+     Pejabat menunjuk sendiri siapa yang mewakilinya dan sampai kapan. Tidak
+     masuk API_TULIS — itu justru menutup jalur bagi pejabat; pagar perannya
+     di sini: hanya yang bisa menandatangani (bolehTtdSusulan) yang punya PH.
+     phStatus dan phHapus dipanggil tanpa argumen, jadi bertanda tangan (user)
+     — lihat catatan di atas telegramStatus soal posisi argumen user. */
+  phStatus: async (user) => {
+    if (!bolehTtdSusulan(user)) return { boleh: false };
+    const ph = await getPh(user.username);
+    const aktif = !!(ph.phUsername && ph.phAktifAkun && ph.sampai && ph.sampai >= hariIniUtc());
+    const mewakili = (await listDiwakiliOleh(user.username, hariIniUtc()))
+      .filter((p) => !sameUser(p.username, user.username))
+      .map((p) => ({ nama: p.nama || p.username }));
+    return { boleh: true, aktif, phUsername: ph.phUsername, phNama: ph.phNama, sampai: ph.sampai, mewakili };
+  },
+
+  phAtur: async (payload, user) => {
+    if (!bolehTtdSusulan(user)) throw new Error('Hanya pejabat yang bisa menunjuk PH.');
+    const target = await getUserByUsername(String(payload?.phUsername || '').trim());
+    if (!target || !target.aktif || target.role !== 'pejabat') throw new Error('PH harus akun pejabat yang aktif.');
+    if (sameUser(target.username, user.username)) throw new Error('PH tidak bisa diri sendiri.');
+    const sampai = String(payload?.sampai || '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(sampai) || isNaN(Date.parse(sampai + 'T00:00:00Z'))) {
+      throw new Error('Tanggal selesai tidak sah.');
+    }
+    if (sampai < hariIniUtc()) throw new Error('Tanggal selesai sudah lewat.');
+    // Batas atas supaya pengalihan tidak tertinggal hidup berbulan-bulan hanya
+    // karena salah ketik tahun.
+    const batas = new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10);
+    if (sampai > batas) throw new Error('PH paling lama 90 hari ke depan.');
+    await setPh(user.username, target.username, sampai);
+    return API.phStatus(user);
+  },
+
+  phHapus: async (user) => {
+    if (!bolehTtdSusulan(user)) return { boleh: false };
+    await setPh(user.username, '', '');
+    return API.phStatus(user);
   },
 
   /* ---------- Tanda tangan tersimpan milik akun sendiri ----------

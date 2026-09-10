@@ -253,7 +253,10 @@ const KOLOM_SUSULAN = [
   ['issues', 'keterangan_closed', "TEXT NOT NULL DEFAULT ''"],
   // Kapan pengingat "belum ditandatangani" dikirim ke pembuat logbook — lihat
   // logbookPerluPengingatTtd. Kosong = belum pernah; diisi sekali saja.
-  ['entries', 'pengingat_ttd_pada', "TEXT NOT NULL DEFAULT ''"]
+  ['entries', 'pengingat_ttd_pada', "TEXT NOT NULL DEFAULT ''"],
+  // PH (pelaksana harian) — lihat getPh di db.js.
+  ['users', 'ph_username', "TEXT NOT NULL DEFAULT ''"],
+  ['users', 'ph_sampai', "TEXT NOT NULL DEFAULT ''"]
 ];
 try {
   const sudahAda = new Set(
@@ -2488,6 +2491,34 @@ export async function getInboxTtd(username) {
     jenis: r.jenis, id: r.id, unit: r.unit || '', nama: r.nama || '',
     tanggal: r.tanggal || '', label: JENIS_TTD[r.jenis].label, dibuatPada: r.dibuat_pada
   }));
+}
+
+/* ============== PH (PELAKSANA HARIAN) ==============
+ * Cermin Postgres dari fungsi senama di db.js — lihat catatan di sana.
+ * Username dibandingkan lewat lower() karena TEXT Postgres peka huruf besar
+ * kecil, sedangkan SQLite memakai COLLATE NOCASE. aktif::int menerima kolom
+ * INTEGER maupun BOOLEAN. */
+export async function getPh(username) {
+  const row = await q1(`SELECT u.ph_username, u.ph_sampai, p.nama AS ph_nama, p.aktif AS ph_aktif
+                          FROM users u LEFT JOIN users p ON lower(p.username) = lower(u.ph_username)
+                         WHERE lower(u.username) = lower($1)`, [String(username || '').trim()]);
+  return {
+    phUsername: row?.ph_username || '', phNama: row?.ph_nama || '',
+    sampai: row?.ph_sampai || '', phAktifAkun: !!Number(row?.ph_aktif ?? 0)
+  };
+}
+
+export async function setPh(username, phUsername, sampai) {
+  await jalankan('UPDATE users SET ph_username = $1, ph_sampai = $2 WHERE lower(username) = lower($3)',
+    [String(phUsername || ''), String(sampai || ''), String(username || '').trim()]);
+}
+
+export async function listDiwakiliOleh(phUsername, hariIni) {
+  const u = String(phUsername || '').trim();
+  if (!u) return [];
+  return await q(`SELECT username, nama FROM users
+                   WHERE aktif::int = 1 AND lower(ph_username) = lower($1) AND ph_sampai >= $2
+                   ORDER BY lower(nama)`, [u, String(hariIni)]);
 }
 
 /* ============== TAUTAN TELEGRAM ==============
