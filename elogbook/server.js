@@ -37,6 +37,7 @@
  *                            Vercel. Produksi biarkan kosong = pakai webhook.
  */
 
+import { ringkasDokumen, NAMA_DOKUMEN } from './ringkas-dokumen.js';
 import express from 'express';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -85,7 +86,7 @@ const {
   ambilBerkas,
   buatTautanTelegram, tautkanTelegram, getChatIdTelegram, putusTautanTelegram, statusTautanTelegram,
   logbookPerluPengingatTtd, tandaiPengingatTtd,
-  getPh, setPh, listDiwakiliOleh, listCalonPh
+  getPh, setPh, listDiwakiliOleh, listCalonPh, ringkasCatatan
 } = await import(PAKAI_POSTGRES ? './db-pg.js' : './db.js');
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -294,11 +295,8 @@ async function ttdUntukSah(username) {
  * Sifat feature-flag dijaga di sini juga: telegramAktif() false → langsung
  * pulang tanpa menyentuh database. */
 
-const NAMA_DOKUMEN = {
-  logbook: 'Logbook', dailycheck: 'Daily Check', monitoring: 'Monitoring',
-  dstest: 'DS Test', berkala: 'Pemeliharaan Berkala',
-  ltk: 'Laporan Kerusakan (LTK)', bapb: 'BAPB'
-};
+/* NAMA_DOKUMEN sekarang tinggal di ringkas-dokumen.js, bersama judul lembar
+   yang lebih rinci dan cuplikan perihalnya — lihat ringkasUntukNotif. */
 
 /** Nama unit yang enak dibaca dari kodenya ('radtel' → 'Radtel'). */
 function namaUnit(kode) {
@@ -355,15 +353,30 @@ async function sedangJadiPh(user) {
     .some((p) => !sameUser(p.username, user.username));
 }
 
+/** Judul lembar yang sebenarnya dan cuplikan perihalnya untuk pesan Telegram —
+    lihat ringkas-dokumen.js. Gagal membaca tidak menggagalkan notifikasi: pesan
+    tetap terkirim dengan nama jenis dokumennya saja. */
+async function ringkasUntukNotif(jenis, id) {
+  try {
+    const row = id ? await ringkasCatatan(jenis, String(id)) : null;
+    if (row) return ringkasDokumen(jenis, row);
+  } catch (err) {
+    console.error('[telegram ringkas]', err?.message || err);
+  }
+  return { judul: NAMA_DOKUMEN[jenis] || 'Dokumen', cuplikan: '' };
+}
+
 /** Kabari akun yang dituju bahwa ada dokumen menunggu tanda tangannya. */
-async function notifPerluTtd(jenis, ttdUntukUsername, form, pembuatNama) {
+async function notifPerluTtd(jenis, ttdUntukUsername, form, pembuatNama, id) {
   try {
     if (!telegramAktif() || !ttdUntukUsername) return;
+    const rk = await ringkasUntukNotif(jenis, id);
     const isi = {
-      dokumen: NAMA_DOKUMEN[jenis] || 'Dokumen',
+      dokumen: rk.judul,
       unit: namaUnit(form?.unit),
       tanggal: tanggalForm(form),
-      pembuat: pembuatNama
+      pembuat: pembuatNama,
+      cuplikan: rk.cuplikan
     };
     const chatId = await getChatIdTelegram(ttdUntukUsername);
     if (chatId) await kirimPesan(chatId, pesanPerluTtd(isi));
@@ -385,13 +398,14 @@ async function notifPerluTtd(jenis, ttdUntukUsername, form, pembuatNama) {
 }
 
 /** Kabari pembuat/pelaksana bahwa dokumennya sudah ditandatangani. */
-async function notifSudahTtd(jenis, dibuatOleh, { unit, tanggal, penanda }) {
+async function notifSudahTtd(jenis, dibuatOleh, { unit, tanggal, penanda, id }) {
   try {
     if (!telegramAktif() || !dibuatOleh) return;
     const chatId = await getChatIdTelegram(dibuatOleh);
     if (!chatId) return;
+    const rk = await ringkasUntukNotif(jenis, id);
     await kirimPesan(chatId, pesanSudahTtd({
-      dokumen: NAMA_DOKUMEN[jenis] || 'Dokumen',
+      dokumen: rk.judul, cuplikan: rk.cuplikan,
       unit: namaUnit(unit), tanggal, penanda
     }));
   } catch (err) {
@@ -457,7 +471,8 @@ async function periksaPengingatTtd() {
       if (!chatId) continue;
       const terkirim = await kirimPesan(chatId, pesanBelumTtd({
         dokumen: NAMA_DOKUMEN.logbook, unit: namaUnit(r.unit), tanggal: r.tanggal,
-        dinas: r.dinas, menunggu: r.pj_nama || r.ttd_untuk, menit: PENGINGAT_TTD_MENIT
+        dinas: r.dinas, menunggu: r.pj_nama || r.ttd_untuk, menit: PENGINGAT_TTD_MENIT,
+        cuplikan: ringkasDokumen('logbook', r).cuplikan
       }));
       // Ditandai hanya kalau benar-benar terkirim: Telegram yang sedang tak
       // terjangkau dicoba lagi pada putaran berikutnya, masih di dalam jendela.
@@ -1032,7 +1047,7 @@ const API = {
     const unit = await unitDiminta(user, entry?.unit);
     const ttdUntuk = await ttdUntukSah(entry?.ttdUntuk);
     const rec = await insertEntry({ ...(entry || {}), unit, ttdUntuk }, user.username, user.nama);
-    notifPerluTtd('logbook', ttdUntuk, { unit, tanggal: entry?.tanggal }, user.nama || user.username);
+    notifPerluTtd('logbook', ttdUntuk, { unit, tanggal: entry?.tanggal }, user.nama || user.username, rec?.ID);
     return rec;
   },
 
@@ -1054,7 +1069,7 @@ const API = {
     const unit = await unitDiminta(user, rec?.unit);
     const ttdUntuk = await ttdUntukSah(rec?.ttdUntuk);
     const hasil = await insertDailyCheck({ ...(rec || {}), unit, ttdUntuk }, user.username, user.nama);
-    notifPerluTtd('dailycheck', ttdUntuk, { unit, tanggal: rec?.tanggal }, user.nama || user.username);
+    notifPerluTtd('dailycheck', ttdUntuk, { unit, tanggal: rec?.tanggal }, user.nama || user.username, hasil?.ID);
     return hasil;
   },
 
@@ -1077,7 +1092,7 @@ const API = {
     const unit = await unitDiminta(user, rec?.unit);
     const ttdUntuk = await ttdUntukSah(rec?.ttdUntuk);
     const hasil = await insertMonitoring({ ...(rec || {}), unit, ttdUntuk }, user.username, user.nama);
-    notifPerluTtd('monitoring', ttdUntuk, { unit, tanggal: rec?.tanggal }, user.nama || user.username);
+    notifPerluTtd('monitoring', ttdUntuk, { unit, tanggal: rec?.tanggal }, user.nama || user.username, hasil?.ID);
     return hasil;
   },
 
@@ -1085,7 +1100,7 @@ const API = {
     const unit = await unitDiminta(user, rec?.unit);
     const ttdUntuk = await ttdUntukSah(rec?.ttdUntuk);
     const hasil = await insertDsTest({ ...(rec || {}), unit, ttdUntuk }, user.username, user.nama);
-    notifPerluTtd('dstest', ttdUntuk, { unit, tanggal: rec?.tanggal }, user.nama || user.username);
+    notifPerluTtd('dstest', ttdUntuk, { unit, tanggal: rec?.tanggal }, user.nama || user.username, hasil?.ID);
     return hasil;
   },
 
@@ -1115,7 +1130,7 @@ const API = {
     const unit = await unitDiminta(user, rec?.unit);
     const ttdUntuk = await ttdUntukSah(rec?.ttdUntuk);
     const hasil = await insertBerkala({ ...(rec || {}), unit, ttdUntuk }, user.username, user.nama);
-    notifPerluTtd('berkala', ttdUntuk, { unit, tanggal: rec?.tanggal }, user.nama || user.username);
+    notifPerluTtd('berkala', ttdUntuk, { unit, tanggal: rec?.tanggal }, user.nama || user.username, hasil?.ID);
     return hasil;
   },
 
@@ -1123,7 +1138,7 @@ const API = {
     const unit = await unitDiminta(user, rec?.unit);
     const ttdUntuk = await ttdUntukSah(rec?.ttdUntuk);
     const hasil = await insertLtk({ ...(rec || {}), unit, ttdUntuk }, user.username, user.nama);
-    notifPerluTtd('ltk', ttdUntuk, { unit, tanggal: rec?.tanggalLapor || rec?.tanggal }, user.nama || user.username);
+    notifPerluTtd('ltk', ttdUntuk, { unit, tanggal: rec?.tanggalLapor || rec?.tanggal }, user.nama || user.username, hasil?.ID);
     return hasil;
   },
 
@@ -1136,7 +1151,7 @@ const API = {
     const unit = await unitDiminta(user, rec?.unit);
     const ttdUntuk = await ttdUntukSah(rec?.ttdUntuk);
     const hasil = await insertBapb({ ...(rec || {}), unit, ttdUntuk }, user.username, user.nama);
-    notifPerluTtd('bapb', ttdUntuk, { unit, tanggal: rec?.tanggal }, user.nama || user.username);
+    notifPerluTtd('bapb', ttdUntuk, { unit, tanggal: rec?.tanggal }, user.nama || user.username, hasil?.ID);
     return hasil;
   },
 
@@ -1192,7 +1207,7 @@ const API = {
     // penandanya disebut lengkap dengan keterangan PH-nya, sama dengan yang
     // tercetak.
     notifSudahTtd(j, hasil.dibuatOleh, {
-      unit, tanggal: hasil.tanggal, penanda: hasil.sebagaiPh ? hasil.nama : (user.nama || user.username)
+      unit, tanggal: hasil.tanggal, penanda: hasil.sebagaiPh ? hasil.nama : (user.nama || user.username), id: String(id)
     });
     return hasil;
   },

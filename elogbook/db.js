@@ -7,6 +7,7 @@
  * Backup = menyalin berkas itu beserta folder uploads/.
  */
 
+import { KOLOM_RINGKAS } from './ringkas-dokumen.js';
 import { hakTtd, namaCetakPh } from './ttd-hak.js';
 import { DatabaseSync } from 'node:sqlite';
 import crypto from 'node:crypto';
@@ -2811,7 +2812,7 @@ export function statusTautanTelegram(username) {
  * tepatnya jatuh tempo — akhir dinas + 30 menit — dihitung di server.js,
  * karena itu butuh tabel jam dinas yang bukan urusan lapisan data. */
 export function logbookPerluPengingatTtd(sejakIso) {
-  return db.prepare(`SELECT id, tanggal, dinas, unit, pj_nama, ttd_untuk, dibuat_oleh, dibuat_pada
+  return db.prepare(`SELECT id, tanggal, dinas, unit, pj_nama, ttd_untuk, dibuat_oleh, dibuat_pada, uraian, lokasi
                        FROM entries
                       WHERE ttd_untuk <> '' AND (pj_ttd = '' OR pj_ttd IS NULL)
                         AND pengingat_ttd_pada = '' AND dibuat_oleh <> ''
@@ -2821,4 +2822,16 @@ export function logbookPerluPengingatTtd(sejakIso) {
 /** Tandai sebuah logbook sudah diingatkan — sekali saja per catatan. */
 export function tandaiPengingatTtd(id, waktuIso) {
   db.prepare('UPDATE entries SET pengingat_ttd_pada = ? WHERE id = ?').run(String(waktuIso), String(id));
+}
+
+/* ============== RINGKASAN UNTUK NOTIFIKASI ==============
+ * Kolom perihal satu catatan, apa adanya (snake_case), untuk disusun jadi
+ * judul dan cuplikan pesan Telegram oleh ringkas-dokumen.js. Kolom yang dibaca
+ * per jenis juga ditentukan di sana (KOLOM_RINGKAS), berdampingan dengan kode
+ * yang memakainya. Cermin Postgres-nya di db-pg.js. */
+export function ringkasCatatan(jenis, id) {
+  const t = JENIS_TTD[jenis];
+  const kolom = KOLOM_RINGKAS[jenis];
+  if (!t || !kolom) return null;
+  return db.prepare(`SELECT ${kolom} FROM ${t.tabel} WHERE id = ?`).get(String(id)) || null;
 }

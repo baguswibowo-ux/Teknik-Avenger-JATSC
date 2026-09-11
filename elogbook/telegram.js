@@ -182,8 +182,9 @@ const esc = (s) => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 /** Notifikasi ke akun yang dituju: ada dokumen menunggu tanda tangannya. */
-export function pesanPerluTtd({ dokumen, unit, tanggal, pembuat, atasNama }) {
+export function pesanPerluTtd({ dokumen, unit, tanggal, pembuat, atasNama, cuplikan }) {
   const baris = ['🔔 <b>Perlu tanda tangan Anda</b>', '', `Dokumen: <b>${esc(dokumen)}</b>`];
+  if (cuplikan) baris.push(`Perihal: <i>${esc(cuplikan)}</i>`);
   if (unit) baris.push(`Unit: ${esc(unit)}`);
   if (tanggal) baris.push(`Tanggal: ${esc(tanggal)}`);
   if (pembuat) baris.push(`Dikirim oleh: ${esc(pembuat)}`);
@@ -193,8 +194,9 @@ export function pesanPerluTtd({ dokumen, unit, tanggal, pembuat, atasNama }) {
 }
 
 /** Notifikasi balik ke pembuat/pelaksana: dokumennya sudah ditandatangani. */
-export function pesanSudahTtd({ dokumen, unit, tanggal, penanda }) {
+export function pesanSudahTtd({ dokumen, unit, tanggal, penanda, cuplikan }) {
   const baris = ['✅ <b>Dokumen Anda sudah ditandatangani</b>', '', `Dokumen: <b>${esc(dokumen)}</b>`];
+  if (cuplikan) baris.push(`Perihal: <i>${esc(cuplikan)}</i>`);
   if (unit) baris.push(`Unit: ${esc(unit)}`);
   if (tanggal) baris.push(`Tanggal: ${esc(tanggal)}`);
   if (penanda) baris.push(`Ditandatangani oleh: <b>${esc(penanda)}</b>`);
@@ -202,8 +204,9 @@ export function pesanSudahTtd({ dokumen, unit, tanggal, penanda }) {
 }
 
 /** Pengingat ke pembuat logbook: dinasnya sudah lewat, tanda tangan belum ada. */
-export function pesanBelumTtd({ dokumen, unit, tanggal, dinas, menunggu, menit }) {
+export function pesanBelumTtd({ dokumen, unit, tanggal, dinas, menunggu, menit, cuplikan }) {
   const baris = ['⏰ <b>Dokumen Anda belum ditandatangani</b>', '', `Dokumen: <b>${esc(dokumen)}</b>`];
+  if (cuplikan) baris.push(`Perihal: <i>${esc(cuplikan)}</i>`);
   if (unit) baris.push(`Unit: ${esc(unit)}`);
   if (tanggal) baris.push(`Tanggal: ${esc(tanggal)}${dinas ? ' · Dinas ' + esc(dinas) : ''}`);
   if (menunggu) baris.push(`Menunggu tanda tangan: <b>${esc(menunggu)}</b>`);

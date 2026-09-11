@@ -18,6 +18,7 @@
  *   ELOGBOOK_BUCKET        nama bucket storage (default: elogbook)
  */
 
+import { KOLOM_RINGKAS } from './ringkas-dokumen.js';
 import { hakTtd, namaCetakPh } from './ttd-hak.js';
 import crypto from 'node:crypto';
 import pg from 'pg';
@@ -2596,7 +2597,7 @@ export async function statusTautanTelegram(username) {
  * Sepadan dengan logbookPerluPengingatTtd / tandaiPengingatTtd di db.js —
  * lihat catatan di sana. */
 export async function logbookPerluPengingatTtd(sejakIso) {
-  return await q(`SELECT id, tanggal, dinas, unit, pj_nama, ttd_untuk, dibuat_oleh, dibuat_pada
+  return await q(`SELECT id, tanggal, dinas, unit, pj_nama, ttd_untuk, dibuat_oleh, dibuat_pada, uraian, lokasi
                     FROM entries
                    WHERE ttd_untuk <> '' AND (pj_ttd = '' OR pj_ttd IS NULL)
                      AND pengingat_ttd_pada = '' AND dibuat_oleh <> ''
@@ -2606,4 +2607,13 @@ export async function logbookPerluPengingatTtd(sejakIso) {
 /** Tandai sebuah logbook sudah diingatkan — sekali saja per catatan. */
 export async function tandaiPengingatTtd(id, waktuIso) {
   await jalankan('UPDATE entries SET pengingat_ttd_pada = $1 WHERE id = $2', [String(waktuIso), String(id)]);
+}
+
+/* ============== RINGKASAN UNTUK NOTIFIKASI ==============
+ * Cermin Postgres dari ringkasCatatan di db.js — lihat catatan di sana. */
+export async function ringkasCatatan(jenis, id) {
+  const t = JENIS_TTD[jenis];
+  const kolom = KOLOM_RINGKAS[jenis];
+  if (!t || !kolom) return null;
+  return (await q1(`SELECT ${kolom} FROM ${t.tabel} WHERE id = $1`, [String(id)])) || null;
 }
