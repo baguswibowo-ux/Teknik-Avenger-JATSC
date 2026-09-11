@@ -6,10 +6,12 @@ Catatan serah terima untuk chat baru. Sesi Claude terikat ke folder
 
 ## Ringkas
 
-Bot Telegram **@Teknik_Avengers_bot** (nama tampilan "Teknik-Avengers") hidup
-di server PC ini (mode polling) dan mengirim empat macam notifikasi E-Logbook.
-Bot ini menggantikan @Avengers_Teknik_JATSC_bot sejak 11 Sep sore, sebelum
-pengumuman ke teknisi — siapa pun yang tertaut ke bot lama harus "Hubungkan" ulang. Pejabat bisa menunjuk
+Bot Telegram **@Avengers_Teknik_JATSC_bot** hidup di server PC ini (mode
+polling) dan mengirim empat macam notifikasi E-Logbook. **Akan diganti** ke
+**@Teknik_Avengers_bot** (nama tampilan "Teknik-Avengers") sebelum pengumuman ke
+teknisi — tinggal token baru di `.env` + restart, menunggu Bagus di depan PC.
+Yang sudah tertaut ke bot lama harus "Hubungkan" ulang. Sekaligus menunggu uji:
+branch `feature/telegram-searah` (tombol Putuskan dihapus → "Ganti akun Telegram"). Pejabat bisa menunjuk
 **PH** yang menandatangani dari akunnya sendiri. Server bisa **di-restart tanpa
 admin** lewat berkas `restart.minta`. Semua sudah di-commit di branch
 `feature/avengers-login-visual` — **8 commit di depan origin, belum di-push**.
