@@ -3097,6 +3097,7 @@ app.get('/dokumen/:unit/:id', async (req, res) => {
   try {
     const berkas = await bacaBiner(path.join(DOK_DIR, unit, baris.berkas));
     if (!berkas) return res.status(404).json({ error: 'Berkasnya tidak ada lagi di server.' });
+    await catatLihatDokumen(user, unit, baris);
     res.setHeader('Content-Disposition', `inline; filename="${dokNamaAman(baris.nama)}"`);
     res.type(berkas.mime).send(berkas.buf);
   } catch (e) {
@@ -3106,6 +3107,51 @@ app.get('/dokumen/:unit/:id', async (req, res) => {
     console.error('[dokumen] gagal mengambil:', e);
     res.status(502).json({ error: 'Simpanan dokumen tidak terjawab. Coba lagi sebentar lagi.' });
   }
+});
+
+/* Dokumen yang DIBUKA ikut dicatat di log aktivitas — siapa membaca SOP atau
+   manual apa. Ini satu-satunya "melihat" yang dicatat; modul lain hanya
+   mencatat perubahan.
+
+   Sekali per orang per dokumen per DOK_LIHAT_JEDA: penampil PDF di peramban
+   meminta berkas yang sama berkali-kali (range request), dan membuka ulang
+   dokumen yang sama beberapa menit kemudian bukan kejadian baru. Ingatannya
+   di memori proses saja — sesudah restart paling jauh satu baris ganda. */
+const DOK_LIHAT_JEDA = 10 * 60 * 1000;
+const dokLihatTerakhir = new Map();
+
+async function catatLihatDokumen(user, unit, baris) {
+  const kini = Date.now();
+  const kunci = `${String(user.username || '').toLowerCase()}|${unit}|${baris.id}`;
+  if (kini - (dokLihatTerakhir.get(kunci) || 0) < DOK_LIHAT_JEDA) return;
+  dokLihatTerakhir.set(kunci, kini);
+  if (dokLihatTerakhir.size > 5000) {
+    for (const [k, t] of dokLihatTerakhir) if (kini - t >= DOK_LIHAT_JEDA) dokLihatTerakhir.delete(k);
+  }
+  await catat(user, {
+    modul: 'dokumen', aksi: 'lihat', unit,
+    rincian: baris.nama + (baris.tautan && !baris.berkas ? ' (tautan)' : '')
+  });
+}
+
+/* Baris tautan dibuka langsung ke alamat luarnya dan tidak pernah lewat
+   GET di atas, jadi layar melaporkannya ke sini (sendBeacon) saat tombol
+   Buka diklik. Hanya menerima baris tautan — berkas sudah tercatat oleh
+   GET-nya sendiri, dan menerima keduanya di sini membuat satu pembukaan
+   bisa tercatat dua kali. */
+app.post('/dokumen/:unit/:id/lihat', async (req, res) => {
+  const unit = String(req.params.unit || '').toLowerCase();
+  if (!unitSah(unit) || !dokIdSah(req.params.id)) {
+    return res.status(400).json({ error: 'Permintaan tidak sah.' });
+  }
+  const user = await siapa(req);
+  if (!user) return res.status(401).json({ error: 'Masuk dengan akun E-Logbook Anda dulu.' });
+  const daftar = await bacaJson(DOK_JSON, {});
+  const baris = (daftar[unit] || []).find((b) => b.id === req.params.id);
+  if (!baris) return res.status(404).json({ error: 'Dokumen tidak ada dalam daftar.' });
+  if (!(baris.tautan && !baris.berkas)) return res.status(204).end();
+  await catatLihatDokumen(user, unit, baris);
+  res.status(204).end();
 });
 
 /**

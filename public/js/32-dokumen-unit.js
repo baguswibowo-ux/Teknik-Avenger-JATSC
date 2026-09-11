@@ -515,7 +515,8 @@ function gambarBerkas(){
       <td><span class="mono" style="color:var(--muted)">${jam} · ${esc(b.olehNama || b.oleh)}</span></td>
       <td><div style="display:flex;gap:6px;justify-content:flex-end">
         <a class="btn garis kecil" href="${esc(taut || b.url)}" target="_blank"
-          rel="noopener noreferrer">${T('Buka','Open')}</a>
+          rel="noopener noreferrer"${taut
+            ? ` data-lihat-tautan="${esc(b.id)}" data-lihat-unit="${esc(unitDibuka)}"` : ''}>${T('Buka','Open')}</a>
         ${BOLEH_HAPUS.dokumen
           ? `<button class="brk-buang" data-buang="${b.id}">${T('Keluarkan','Remove')}</button>`
           : ''}
@@ -634,4 +635,20 @@ function brkPasang(){
    menahannya: di luar kotak jatuh, berkas yang dilepas tidak terjadi apa-apa. */
 window.addEventListener('dragover', e => e.preventDefault());
 window.addEventListener('drop',     e => e.preventDefault());
+
+/* Tautan dibuka langsung ke alamat luarnya, jadi server tidak tahu ada yang
+   membukanya. Tombol Buka baris tautan membawa data-lihat-tautan; kliknya
+   dilaporkan ke server untuk log aktivitas. sendBeacon: tidak menahan tab
+   baru, dan tetap terkirim walau halaman ini langsung ditinggal. Gagal
+   melapor tidak menghalangi apa pun. */
+document.addEventListener('click', e => {
+  const a = e.target.closest && e.target.closest('a[data-lihat-tautan]');
+  if(!a) return;
+  const url = `/dokumen/${encodeURIComponent(a.dataset.lihatUnit || '')}/${encodeURIComponent(a.dataset.lihatTautan)}/lihat`;
+  try{
+    if(!(navigator.sendBeacon && navigator.sendBeacon(url))){
+      fetch(url, { method:'POST', credentials:'same-origin', keepalive:true }).catch(()=>{});
+    }
+  }catch(_){ /* log boleh gagal senyap */ }
+});
 

@@ -81,6 +81,7 @@ const AKT_AKSI_NAMA = {
   rename:            ['username diganti','username changed'],
   tulis:             ['ditulis','written'],
   tautan:            ['tautan ditambahkan','link added'],
+  lihat:             ['dibuka','opened'],
   baris:             ['baris nama alat diganti','equipment line replaced'],
   'baris-kosong':    ['baris nama alat dikosongkan','equipment line cleared'],
   'hapus-berkas':    ['berkasnya dihapus','file deleted'],
