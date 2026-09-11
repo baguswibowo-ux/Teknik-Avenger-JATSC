@@ -3444,11 +3444,29 @@ app.patch('/dokumen/:unit/:id', badanGaleri, async (req, res) => {
     const baris = (daftar[unit] || []).find((b) => b.id === req.params.id);
     if (!baris) return res.status(404).json({ error: 'Dokumen tidak ada dalam daftar.' });
 
+    const lamaKategori = String(baris.kategori || '');
+    const lamaAlat     = String(baris.alat || '');
     if (req.body?.kategori !== undefined) baris.kategori = String(req.body.kategori).slice(0, 40);
     if (req.body?.alat !== undefined)     baris.alat     = String(req.body.alat).slice(0, 40);
-    await tulisJson(DOK_JSON, daftar);
 
-    await catat(user, { modul: 'dokumen', aksi: 'ubah', unit, rincian: baris.nama });
+    /* Kotak pilihan kategori di layar menyimpan begitu tersentuh — di HP itu
+       cukup tersenggol saat menggulir. Tanpa pemeriksaan ini, orang yang cuma
+       MELIHAT daftar dokumen tercatat "mengubah" dokumen di log aktivitas.
+       Yang tidak berganti tidak ditulis, dan tidak dicatat. */
+    const berganti = [];
+    if (String(baris.kategori || '') !== lamaKategori) {
+      berganti.push(`kategori ${lamaKategori || '—'} → ${baris.kategori || '—'}`);
+    }
+    if (String(baris.alat || '') !== lamaAlat) {
+      berganti.push(`alat ${lamaAlat || '—'} → ${baris.alat || '—'}`);
+    }
+    if (!berganti.length) return res.json({ ok: true, baris: dokBaris(baris) });
+
+    await tulisJson(DOK_JSON, daftar);
+    await catat(user, {
+      modul: 'dokumen', aksi: 'ubah', unit,
+      rincian: `${baris.nama} · ${berganti.join(' · ')}`
+    });
     res.json({ ok: true, baris: dokBaris(baris) });
   } catch (e) {
     console.error('[dokumen] gagal mengubah:', e);

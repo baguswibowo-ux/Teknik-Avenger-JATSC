@@ -442,7 +442,8 @@ function gambarUnit(){
     <div class="subisi ${subtabAktif==='logbook'?'aktif':''}" id="s-logbook">
       <div class="panel"><div class="kepala"><h3>${T('Cuplikan Logbook','Logbook Extract')} — ${esc(u.nama)}</h3>
         <span class="ket">${log.length
-          ? log.length + T(' baris terakhir',' most recent rows')
+          ? log.length + T(' catatan · 2 hari dinas terakhir',' entries · last 2 duty days')
+            + ' (' + [...new Set(log.map(r=>r.tgl))].map(tglRingkas).join(', ') + ')'
           : T('belum ada catatan','no records yet')}</span></div>
         ${log.length ? '' : `<div class="badan" style="color:var(--muted);font-size:12.5px">
           ${T('Belum ada catatan logbook untuk unit ini di server.',

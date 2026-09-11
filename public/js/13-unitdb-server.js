@@ -179,7 +179,7 @@ function srvPasang(unitSaya, paket, unitSemua){
         pic:   i.DilaporkanOleh || i.DiinputOleh || '—'
       });
     });
-    LOGBOOK[kode] = (d.entries || []).slice(0, 6).map(e=>{
+    const semuaLog = (d.entries || []).map(e=>{
       // Nama teknisi bisa lebih dari satu (rombongan dinas). Kalau daftarnya
       // dikirim, dipakai; kalau tidak, jatuh ke satu nama TeknisiNama.
       const namaTek = Array.isArray(e.TeknisiNamaListJSON) && e.TeknisiNamaListJSON.length
@@ -196,6 +196,13 @@ function srvPasang(unitSaya, paket, unitSemua){
         pj:      e.PJNama || '—'
       };
     });
+    /* Dua hari dinas terakhir, bukan N baris terakhir. Enam baris dulu
+       kadang cuma separuh satu dinas — dinas yang ramai menggeser dinas
+       sebelumnya keluar layar. Yang diambil dua TANGGAL terbaru yang memang
+       berisi catatan, jadi berlaku sama untuk pola P/S/M maupun PS/M, dan
+       tetap berisi walau hari ini belum ada yang menulis. */
+    const duaTanggal = [...new Set(semuaLog.map(r=>r.tgl))].sort().reverse().slice(0, 2);
+    LOGBOOK[kode] = semuaLog.filter(r=>duaTanggal.includes(r.tgl));
 
     /* Formulir yang jamnya sudah lewat namun TTD-nya belum dibubuhkan. Enam
        jenis lembar diperiksa dengan aturan yang sama: yang bertanggal sebelum
