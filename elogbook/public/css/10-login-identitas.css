@@ -66,4 +66,38 @@
 .pengaturan-chip a#tautanDashboard:not([href^="http"]){display:none;}
 #tombolTema{font-size:13px;}
 
+/* HP tegak: deretan pengaturan (… lonceng) dan identitas (… TTD Saya, Keluar)
+   lebih panjang daripada layarnya, dan yang terpotong justru yang paling
+   kanan — lonceng dan Keluar. Tombolnya disusun ulang (permintaan Bagus),
+   ukuran dan rupanya tetap:
+
+     1. masuk sebagai … · peran
+     2. TTD Saya · Keluar · lonceng · bahasa · tema
+     3. ← Dashboard · orientasi cetak
+
+   Tombol akun berkumpul tepat di bawah nama; tiap baris muat di 360px.
+   Kedua pembungkus dijadikan display:contents supaya isinya bisa diurutkan
+   bersama di satu baris lentur — gaya tombolnya tetap datang dari
+   .pengaturan-chip / .user-chip karena pewarisan mengikuti pohon DOM.
+   .user-chip yang disembunyikan (style="display:none", belum masuk) tetap
+   tersembunyi: gaya sebaris menang atas aturan ini.
+
+   Tinggal di berkas ini, bukan di 08-layar-kecil.css: berkas itu dimuat lebih
+   dulu, dan aturan dasar di atas (kekhususan sama) akan menimpanya. */
+@media (max-width:600px){
+  .pojok-kanan{margin-left:0; width:100%; flex-direction:row; flex-wrap:wrap;
+               align-items:center; gap:6px;}
+  .pengaturan-chip, .user-chip{display:contents;}
+  .user-chip > span{order:1; flex-basis:100%;}
+  .user-chip button[onclick="openTtdSayaModal()"]{order:2;}
+  .user-chip button[onclick="doLogout()"]{order:3;}
+  #inboxBtn{order:4;}
+  #tombolBahasa{order:5;}
+  #tombolTema{order:6;}
+  .pengaturan-chip a#tautanDashboard{order:7;}
+  #pilihOrientasi{order:8;}
+  /* Garis pemisah tak kasatmata: baris 3 selalu mulai di baris baru. */
+  .pojok-kanan::after{content:""; order:6; flex-basis:100%; height:0;}
+}
+
 @media print{ #pintuTutup, .user-chip, .pengaturan-chip{display:none !important;} }
