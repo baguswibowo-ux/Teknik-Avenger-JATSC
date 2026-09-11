@@ -71,8 +71,12 @@ function tolakCetakBilaBelumTtd(rec, kind){
 function bolehTtdSusulan(ttdUntuk){
   if(!userSaatIni) return false;
   if(userSaatIni.role === 'admin') return true;
-  if(userSaatIni.role !== 'pejabat') return false;
-  return !ttdUntuk || userSaatIni.username === ttdUntuk;
+  const untuk = String(ttdUntuk || '').toLowerCase();
+  if(userSaatIni.role === 'pejabat' && (!untuk || String(userSaatIni.username).toLowerCase() === untuk)) return true;
+  // PH: catatan yang ditujukan ke pejabat yang sedang diwakili akun ini. Siapa
+  // saja mereka terbaca dari titipan di kotak masuk (atasUsername, dari
+  // server). Server tetap memeriksa ulang lewat ttd-hak.js — ini soal tombol.
+  return !!untuk && inboxTtd.some(it => it.atasUsername && String(it.atasUsername).toLowerCase() === untuk);
 }
 
 /** "2026-08-07T09:12:33.000Z" → "2026-08-07 09:12 UTC". Sesuai aturan seluruh
@@ -257,6 +261,17 @@ function openTtdModal(jenis, id){
   document.getElementById('ttdSbgNama').classList.toggle('kosong', !namaForm);
   document.getElementById('ttdCatatanNama').textContent =
     namaForm ? T('ttdNamaTetap') : T('ttdNamaKosong');
+  // Lewat PH: yang tercetak nama akun ini berikut keterangan PH-nya, bukan nama
+  // pejabat di formulir — lihat namaCetakPh di ttd-hak.js. Tampilkan persis itu
+  // supaya tidak ada kejutan di dokumen.
+  const titipan = inboxTtd.find(it => it.jenis === jenis && it.id === id && it.atasNama);
+  if(titipan){
+    const namaSaya = (userSaatIni && (userSaatIni.nama || userSaatIni.username)) || '';
+    document.getElementById('ttdSbgNama').textContent = `${namaSaya} (PH ${titipan.label})`;
+    document.getElementById('ttdSbgNama').classList.remove('kosong');
+    document.getElementById('ttdCatatanNama').textContent =
+      `Anda menandatangani sebagai PH untuk ${titipan.atasNama}. Nama di atas yang tercetak pada dokumen.`;
+  }
   document.getElementById('ttdSbgAkun').textContent =
     (userSaatIni && (userSaatIni.nama || userSaatIni.username)) || '-';
   // Papan tanda tangan disiapkan init(); kalau jendela ini sempat dibuka lebih

@@ -18,6 +18,7 @@
  *   ELOGBOOK_BUCKET        nama bucket storage (default: elogbook)
  */
 
+import { hakTtd, namaCetakPh } from './ttd-hak.js';
 import crypto from 'node:crypto';
 import pg from 'pg';
 import { isoDariTanggalPanjang } from './tanggal-lama.js';
@@ -2360,7 +2361,7 @@ export async function unitCatatan(jenis, id) {
  * keterangan status. Hanya kalau nama pada formulir memang masih kosong, nama
  * akun penandatangan dipakai supaya petaknya tidak tercetak tanpa nama.
  */
-export async function tandaTanganiCatatan(jenis, id, { nama, username, role, ttd }) {
+export async function tandaTanganiCatatan(jenis, id, { nama, username, role, ttd, wakilDari }) {
   if (!jenisTtdSah(jenis)) throw new Error('Jenis catatan tidak dikenal: ' + jenis);
   const t = JENIS_TTD[jenis];
   const row = await q1(
@@ -2370,17 +2371,21 @@ export async function tandaTanganiCatatan(jenis, id, { nama, username, role, ttd
   );
   if (!row) throw new Error('Catatan tidak ditemukan — mungkin sudah dihapus.');
   if (row.ttd) throw new Error('Catatan ini sudah ditandatangani.');
-  // Kalau catatan ditunjuk ke akun tertentu, hanya akun itu atau admin yang
-  // boleh membubuhkan — nama pada formulir bisa sekadar sebutan jabatan
-  // ("PH", dsb.), jadi kecocokan nama tidak dipakai untuk menentukan hak ini.
-  if (row.ttd_untuk && role !== 'admin' && String(username || '').toLowerCase() !== String(row.ttd_untuk).toLowerCase()) {
-    throw new Error('Catatan ini ditujukan untuk akun lain — hanya akun yang ditunjuk atau admin yang dapat menandatangani.');
-  }
+  // Siapa yang boleh membubuhkan — satu aturan untuk SQLite dan Postgres, di
+  // ttd-hak.js. wakilDari: pejabat yang sedang diwakili penanda sebagai PH.
+  const { sebagaiPh } = hakTtd({
+    role, username, ttdUntuk: row.ttd_untuk, dibuatOleh: row.dibuat_oleh, wakilDari
+  });
 
   const path = await saveSignature(ttd, t.prefix);
   if (!path) throw new Error('Tanda tangannya kosong.');
 
-  const namaTetap = String(row.nama || '').trim() ? row.nama : String(nama || '');
+  // Lewat PH, yang tercetak nama PH sendiri berikut keterangannya — bukan nama
+  // pejabat yang diketik teknisi di formulir. TTD si PH di atas nama orang
+  // lain sama saja dengan memalsu arsip.
+  const namaTetap = sebagaiPh
+    ? namaCetakPh(nama || username, t.label)
+    : (String(row.nama || '').trim() ? row.nama : String(nama || ''));
   const pada = nowIso();
   await jalankan(
     `UPDATE ${t.tabel} SET ${t.nama} = $1, ${t.ttd} = $2, ttd_oleh = $3, ttd_pada = $4 WHERE id = $5`,
@@ -2390,7 +2395,9 @@ export async function tandaTanganiCatatan(jenis, id, { nama, username, role, ttd
     jenis, id: String(id), nama: namaTetap, ttd: path,
     ttdOleh: String(nama || username || ''), ttdPada: pada,
     // Untuk notifikasi balik ke pembuat/pelaksana — lihat server.js.
-    dibuatOleh: String(row.dibuat_oleh || ''), tanggal: String(row.tanggal || '')
+    dibuatOleh: String(row.dibuat_oleh || ''), tanggal: String(row.tanggal || ''),
+    // Lewat PH? Dipakai server.js untuk menyebut penanda di notifikasi.
+    sebagaiPh
   };
 }
 
@@ -2519,6 +2526,12 @@ export async function listDiwakiliOleh(phUsername, hariIni) {
   return await q(`SELECT username, nama FROM users
                    WHERE aktif::int = 1 AND lower(ph_username) = lower($1) AND ph_sampai >= $2
                    ORDER BY lower(nama)`, [u, String(hariIni)]);
+}
+
+export async function listCalonPh() {
+  return await q(`SELECT username, nama, role FROM users
+                   WHERE aktif = true AND role IN ('teknisi', 'adminunit', 'pejabat')
+                   ORDER BY lower(nama)`);
 }
 
 /* ============== TAUTAN TELEGRAM ==============

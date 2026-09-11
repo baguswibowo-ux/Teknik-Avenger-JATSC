@@ -95,6 +95,8 @@ async function init(){
     teknisiUnitList = data.teknisiUnitList || [];
     isiPilihanTeknisiUnit();
     inboxTtd = data.inboxTtd || [];
+    // Teknisi yang sedang jadi PH: tampilkan tombol kotak masuk (06-peran-lampiran.css).
+    document.body.classList.toggle('sedang-ph', inboxTtd.some(it => it.atasNama));
     renderInboxBadge();
   }catch(e){ /* kotak masuk TTD sekadar kemudahan — kegagalannya tidak boleh menghentikan pemuatan */ }
   // Rekap diminta terpisah ke server; yang tersimpan milik unit sebelumnya.

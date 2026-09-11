@@ -12,6 +12,9 @@ body.peran-admin .hanya-admin{display:revert;}
 body.peran-teknisi .hanya-teknisi{display:revert;}
 /* Kotak masuk TTD: sama seperti tombol bubuhkan TTD susulan, admin dan pejabat. */
 body.peran-admin .hanya-ttd-susulan, body.peran-pejabat .hanya-ttd-susulan{display:revert;}
+/* Teknisi yang sedang jadi PH: kotak masuknya berisi titipan pejabat yang ia
+   wakili. Kelasnya dipasang js/26-init.js. */
+body.sedang-ph .hanya-ttd-susulan{display:revert;}
 /* Peran yang boleh menulis: admin dan teknisi, bukan pejabat. Dipakai tombol
    sunting catatan — sama syaratnya dengan menambah, jadi kelasnya sama juga. */
 body:not(.tanpa-tulis) .hanya-tulis{display:revert;}

@@ -85,7 +85,7 @@ const {
   ambilBerkas,
   buatTautanTelegram, tautkanTelegram, getChatIdTelegram, putusTautanTelegram, statusTautanTelegram,
   logbookPerluPengingatTtd, tandaiPengingatTtd,
-  getPh, setPh, listDiwakiliOleh
+  getPh, setPh, listDiwakiliOleh, listCalonPh
 } = await import(PAKAI_POSTGRES ? './db-pg.js' : './db.js');
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -335,14 +335,24 @@ async function phAktifUntuk(username) {
 /** Kotak masuk TTD milik akun ini, ditambah milik pejabat yang sedang ia wakili
     sebagai PH. Butir titipan diberi atasNama supaya jelas di layar milik siapa. */
 async function inboxTtdDenganPh(user) {
-  const milikSendiri = await getInboxTtd(user.username);
+  // Yang bukan penanda tangan tidak punya kotak masuk sendiri — hanya titipan.
+  const milikSendiri = bolehTtdSusulan(user) ? await getInboxTtd(user.username) : [];
   const diwakili = await listDiwakiliOleh(user.username, hariIniUtc());
   const titipan = [];
   for (const p of diwakili) {
     if (sameUser(p.username, user.username)) continue;
-    for (const it of await getInboxTtd(p.username)) titipan.push({ ...it, atasNama: p.nama || p.username });
+    for (const it of await getInboxTtd(p.username)) titipan.push({ ...it, atasNama: p.nama || p.username, atasUsername: p.username });
   }
   return [...milikSendiri, ...titipan].sort((a, b) => (a.dibuatPada < b.dibuatPada ? 1 : -1));
+}
+
+/** Benar kalau akun ini sedang menjadi PH bagi setidaknya satu pejabat —
+    dipakai gerbang API_TTD supaya teknisi yang sedang mewakili bisa sampai ke
+    tandaTangani. Hak per catatannya tetap diperiksa di sana (ttd-hak.js). */
+async function sedangJadiPh(user) {
+  if (!user?.username) return false;
+  return (await listDiwakiliOleh(user.username, hariIniUtc()))
+    .some((p) => !sameUser(p.username, user.username));
 }
 
 /** Kabari akun yang dituju bahwa ada dokumen menunggu tanda tangannya. */
@@ -959,9 +969,9 @@ const API = {
       // Daftar akun yang boleh masuk ke unit ini — jadi saran nama pada baris
       // teknisi kedua dst. Baris pertama tetap otomatis nama pengisi dokumen.
       listTeknisiUnit(u),
-      // Kotak masuk TTD hanya berarti untuk peran yang memang bisa menandatangani.
-      // Ditambah dokumen pejabat yang sedang ia wakili sebagai PH.
-      bolehTtdSusulan(user) ? inboxTtdDenganPh(user) : [],
+      // Kotak masuk TTD: milik sendiri (peran penanda tangan saja) ditambah
+      // titipan pejabat yang sedang ia wakili sebagai PH — lihat inboxTtdDenganPh.
+      inboxTtdDenganPh(user),
       // Tanda tangan tersimpan milik akun yang sedang masuk — miliknya sendiri
       // saja, tidak pernah milik orang lain.
       getTtdTersimpan(user.username)
@@ -1160,18 +1170,29 @@ const API = {
     // seluruh unit — supaya aturan tetap benar kalau kelak ada peran lain.
     const unit = await unitCatatan(j, String(id));
     if (!unit) throw new Error('Catatan tidak ditemukan — mungkin sudah dihapus.');
-    await pastikanUnit(user, unit);
+    // PH yang bukan pejabat (teknisi yang sedang mewakili) tidak diperiksa
+    // unitnya di sini: haknya bukan dari unitnya sendiri, melainkan dipinjam
+    // dari pejabat yang ia wakili — dan pejabat memegang seluruh unit.
+    // tandaTanganiCatatan (lewat ttd-hak.js) memastikan catatan ini memang
+    // ditujukan ke pejabat itu, jadi tidak ada catatan lain yang tersentuh.
+    if (bolehTtdSusulan(user)) await pastikanUnit(user, unit);
+    const wakilDari = (await listDiwakiliOleh(user.username, hariIniUtc()))
+      .map((p) => p.username)
+      .filter((u) => !sameUser(u, user.username));
 
     const hasil = await tandaTanganiCatatan(j, String(id), {
       nama: user.nama || user.username,
       username: user.username,
       role: user.role,
-      ttd: String(ttd || '')
+      ttd: String(ttd || ''),
+      wakilDari
     });
     // Kabari pembuat lembar bahwa dokumennya sudah ditandatangani. "Kirim kalau
-    // bisa": jangan menautkannya ke keberhasilan pembubuhan TTD.
+    // bisa": jangan menautkannya ke keberhasilan pembubuhan TTD. Lewat PH,
+    // penandanya disebut lengkap dengan keterangan PH-nya, sama dengan yang
+    // tercetak.
     notifSudahTtd(j, hasil.dibuatOleh, {
-      unit, tanggal: hasil.tanggal, penanda: user.nama || user.username
+      unit, tanggal: hasil.tanggal, penanda: hasil.sebagaiPh ? hasil.nama : (user.nama || user.username)
     });
     return hasil;
   },
@@ -1217,25 +1238,35 @@ const API = {
   },
 
   /* ---------- PH (pelaksana harian) milik pejabat sendiri ----------
-     Pejabat menunjuk sendiri siapa yang mewakilinya dan sampai kapan. Tidak
-     masuk API_TULIS — itu justru menutup jalur bagi pejabat; pagar perannya
-     di sini: hanya yang bisa menandatangani (bolehTtdSusulan) yang punya PH.
+     Pejabat menunjuk sendiri siapa yang mewakilinya dan sampai kapan — boleh
+     teknisi, admin unit, atau pejabat lain (listCalonPh). Tidak masuk
+     API_TULIS — itu justru menutup jalur bagi pejabat; pagar perannya di sini:
+     hanya yang bisa menandatangani (bolehTtdSusulan) yang bisa menunjuk PH.
      phStatus dan phHapus dipanggil tanpa argumen, jadi bertanda tangan (user)
      — lihat catatan di atas telegramStatus soal posisi argumen user. */
   phStatus: async (user) => {
-    if (!bolehTtdSusulan(user)) return { boleh: false };
-    const ph = await getPh(user.username);
-    const aktif = !!(ph.phUsername && ph.phAktifAkun && ph.sampai && ph.sampai >= hariIniUtc());
-    const mewakili = (await listDiwakiliOleh(user.username, hariIniUtc()))
+    const hari = hariIniUtc();
+    const mewakili = (await listDiwakiliOleh(user.username, hari))
       .filter((p) => !sameUser(p.username, user.username))
       .map((p) => ({ nama: p.nama || p.username }));
-    return { boleh: true, aktif, phUsername: ph.phUsername, phNama: ph.phNama, sampai: ph.sampai, mewakili };
+    // Yang tidak bisa menandatangani tidak bisa menunjuk PH, tapi tetap perlu
+    // tahu kalau dirinya sedang menjadi PH bagi seseorang.
+    if (!bolehTtdSusulan(user)) return { boleh: false, mewakili };
+    const ph = await getPh(user.username);
+    const aktif = !!(ph.phUsername && ph.phAktifAkun && ph.sampai && ph.sampai >= hari);
+    const calon = (await listCalonPh())
+      .filter((c) => !sameUser(c.username, user.username))
+      .map((c) => ({ username: c.username, nama: c.nama || c.username, role: c.role }));
+    return { boleh: true, aktif, phUsername: ph.phUsername, phNama: ph.phNama, sampai: ph.sampai, mewakili, calon };
   },
 
   phAtur: async (payload, user) => {
     if (!bolehTtdSusulan(user)) throw new Error('Hanya pejabat yang bisa menunjuk PH.');
-    const target = await getUserByUsername(String(payload?.phUsername || '').trim());
-    if (!target || !target.aktif || target.role !== 'pejabat') throw new Error('PH harus akun pejabat yang aktif.');
+    const diminta = String(payload?.phUsername || '').trim();
+    // Calon yang sah diambil dari sumber yang sama dengan daftar di layar —
+    // satu tempat yang menentukan peran mana yang boleh jadi PH.
+    const target = (await listCalonPh()).find((c) => sameUser(c.username, diminta));
+    if (!target) throw new Error('PH harus akun teknisi, admin unit, atau pejabat yang aktif.');
     if (sameUser(target.username, user.username)) throw new Error('PH tidak bisa diri sendiri.');
     const sampai = String(payload?.sampai || '').trim();
     if (!/^\d{4}-\d{2}-\d{2}$/.test(sampai) || isNaN(Date.parse(sampai + 'T00:00:00Z'))) {
@@ -1743,8 +1774,10 @@ app.post('/api/:fn', requireAuth, async (req, res) => {
   if (API_TULIS.has(fn) && !bolehMenulis(req.user)) {
     return res.status(403).json({ error: 'Peran Anda hanya dapat melihat, tidak menambah data.' });
   }
-  if (API_TTD.has(fn) && !bolehTtdSusulan(req.user)) {
-    return res.status(403).json({ error: 'Hanya pejabat dan administrator yang dapat membubuhkan tanda tangan.' });
+  // PH yang bukan pejabat ikut lolos di sini; hak per catatannya diperiksa
+  // tandaTangani lewat ttd-hak.js.
+  if (API_TTD.has(fn) && !bolehTtdSusulan(req.user) && !(await sedangJadiPh(req.user))) {
+    return res.status(403).json({ error: 'Hanya pejabat, administrator, atau PH yang sedang bertugas yang dapat membubuhkan tanda tangan.' });
   }
 
   const args = Array.isArray(req.body?.args) ? req.body.args : [];

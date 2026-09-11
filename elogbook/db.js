@@ -7,6 +7,7 @@
  * Backup = menyalin berkas itu beserta folder uploads/.
  */
 
+import { hakTtd, namaCetakPh } from './ttd-hak.js';
 import { DatabaseSync } from 'node:sqlite';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
@@ -2536,7 +2537,7 @@ export function unitCatatan(jenis, id) {
  * Satu-satunya kalau nama pada formulir memang masih kosong, barulah nama akun
  * penandatangan dipakai supaya petaknya tidak tercetak tanpa nama sama sekali.
  */
-export function tandaTanganiCatatan(jenis, id, { nama, username, role, ttd }) {
+export function tandaTanganiCatatan(jenis, id, { nama, username, role, ttd, wakilDari }) {
   if (!jenisTtdSah(jenis)) throw new Error('Jenis catatan tidak dikenal: ' + jenis);
   const t = JENIS_TTD[jenis];
   const row = db.prepare(`SELECT ${t.nama} AS nama, ${t.ttd} AS ttd, ttd_untuk,
@@ -2545,17 +2546,21 @@ export function tandaTanganiCatatan(jenis, id, { nama, username, role, ttd }) {
     .get(String(id));
   if (!row) throw new Error('Catatan tidak ditemukan — mungkin sudah dihapus.');
   if (row.ttd) throw new Error('Catatan ini sudah ditandatangani.');
-  // Kalau catatan ditunjuk ke akun tertentu, hanya akun itu atau admin yang
-  // boleh membubuhkan — nama pada formulir bisa sekadar sebutan jabatan
-  // ("PH", dsb.), jadi kecocokan nama tidak dipakai untuk menentukan hak ini.
-  if (row.ttd_untuk && role !== 'admin' && String(username || '').toLowerCase() !== String(row.ttd_untuk).toLowerCase()) {
-    throw new Error('Catatan ini ditujukan untuk akun lain — hanya akun yang ditunjuk atau admin yang dapat menandatangani.');
-  }
+  // Siapa yang boleh membubuhkan — satu aturan untuk SQLite dan Postgres, di
+  // ttd-hak.js. wakilDari: pejabat yang sedang diwakili penanda sebagai PH.
+  const { sebagaiPh } = hakTtd({
+    role, username, ttdUntuk: row.ttd_untuk, dibuatOleh: row.dibuat_oleh, wakilDari
+  });
 
   const path = saveSignature(ttd, t.prefix);
   if (!path) throw new Error('Tanda tangannya kosong.');
 
-  const namaTetap = String(row.nama || '').trim() ? row.nama : String(nama || '');
+  // Lewat PH, yang tercetak nama PH sendiri berikut keterangannya — bukan nama
+  // pejabat yang diketik teknisi di formulir. TTD si PH di atas nama orang
+  // lain sama saja dengan memalsu arsip.
+  const namaTetap = sebagaiPh
+    ? namaCetakPh(nama || username, t.label)
+    : (String(row.nama || '').trim() ? row.nama : String(nama || ''));
   const pada = nowIso();
   db.prepare(`UPDATE ${t.tabel} SET ${t.nama} = ?, ${t.ttd} = ?, ttd_oleh = ?, ttd_pada = ? WHERE id = ?`)
     .run(namaTetap, path, String(username || ''), pada, String(id));
@@ -2564,7 +2569,9 @@ export function tandaTanganiCatatan(jenis, id, { nama, username, role, ttd }) {
     ttdOleh: String(nama || username || ''), ttdPada: pada,
     // Untuk notifikasi balik ke pembuat/pelaksana (lihat server.js): siapa yang
     // membuat lembar ini, dan tanggalnya. Bukan bagian dari data formulir.
-    dibuatOleh: String(row.dibuat_oleh || ''), tanggal: String(row.tanggal || '')
+    dibuatOleh: String(row.dibuat_oleh || ''), tanggal: String(row.tanggal || ''),
+    // Lewat PH? Dipakai server.js untuk menyebut penanda di notifikasi.
+    sebagaiPh
   };
 }
 
@@ -2726,6 +2733,15 @@ export function listDiwakiliOleh(phUsername, hariIni) {
   return db.prepare(`SELECT username, nama FROM users
                       WHERE aktif = 1 AND ph_username = ? COLLATE NOCASE AND ph_sampai >= ?
                       ORDER BY nama COLLATE NOCASE`).all(u, String(hariIni));
+}
+
+/** Akun yang boleh ditunjuk jadi PH: aktif, berperan teknisi, admin unit, atau
+    pejabat. Satu-satunya tempat daftar peran ini ditulis — phAtur di server.js
+    memeriksa pilihan terhadap daftar ini juga. */
+export function listCalonPh() {
+  return db.prepare(`SELECT username, nama, role FROM users
+                      WHERE aktif = 1 AND role IN ('teknisi', 'adminunit', 'pejabat')
+                      ORDER BY nama COLLATE NOCASE`).all();
 }
 
 /* ============== TAUTAN TELEGRAM ==============
