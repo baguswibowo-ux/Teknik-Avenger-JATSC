@@ -185,8 +185,13 @@ function srvPasang(unitSaya, paket, unitSemua){
       const namaTek = Array.isArray(e.TeknisiNamaListJSON) && e.TeknisiNamaListJSON.length
         ? e.TeknisiNamaListJSON.join(', ')
         : (e.TeknisiNama || '');
+      const tglLembar = isoTgl(e.Tanggal);
+      // Label dinas yang tidak dikenal jatuh ke waktu catatannya dibuat —
+      // aturan yang sama dengan pengingat TTD di E-Logbook.
+      const akhir = akhirDinasLogbook(tglLembar, e.Dinas);
       return {
-        tgl:     isoTgl(e.Tanggal) || isoTgl(e.DibuatPada) || isoHariIni(),
+        akhir:   Number.isFinite(akhir) ? akhir : Date.parse(e.DibuatPada),
+        tgl:     tglLembar || isoTgl(e.DibuatPada) || isoHariIni(),
         jam:     e.Jam || '—',
         selesai: e.JamSelesai || '',
         frek:    e.Frek || '',
@@ -196,13 +201,11 @@ function srvPasang(unitSaya, paket, unitSemua){
         pj:      e.PJNama || '—'
       };
     });
-    /* Dua hari dinas terakhir, bukan N baris terakhir. Enam baris dulu
-       kadang cuma separuh satu dinas — dinas yang ramai menggeser dinas
-       sebelumnya keluar layar. Yang diambil dua TANGGAL terbaru yang memang
-       berisi catatan, jadi berlaku sama untuk pola P/S/M maupun PS/M, dan
-       tetap berisi walau hari ini belum ada yang menulis. */
-    const duaTanggal = [...new Set(semuaLog.map(r=>r.tgl))].sort().reverse().slice(0, 2);
-    LOGBOOK[kode] = semuaLog.filter(r=>duaTanggal.includes(r.tgl));
+    /* Seluruh catatan yang dikirim (paling banyak MAX_ROWS di E-Logbook),
+       masing-masing dengan akhir dinasnya. Enam baris terakhir dulu kadang
+       cuma separuh satu dinas. Saringan "dua hari dinas" dikerjakan layar
+       Database Unit waktu menggambar — lihat AKHIR DINAS di 02-kode-dinas.js. */
+    LOGBOOK[kode] = semuaLog;
 
     /* Formulir yang jamnya sudah lewat namun TTD-nya belum dibubuhkan. Enam
        jenis lembar diperiksa dengan aturan yang sama: yang bertanggal sebelum

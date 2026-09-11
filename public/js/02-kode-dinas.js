@@ -132,6 +132,38 @@ const labelUtc = (j) => `${jamPad(j.mulai)}–${jamPad(j.sampai)} UTC`;
 /** "07:00–19:00 WIB" — untuk yang membaca sambil melihat jam dinding. */
 const labelWib = (j) => `${jamWib(j.mulai)}–${jamWib(j.sampai)} WIB`;
 
+/* =======================================================================
+   AKHIR DINAS — untuk cuplikan logbook E-Logbook
+
+   Labelnya label lembar E-Logbook (Pagi / Siang / PS / Malam), bukan kode
+   jadwal di atas. Jamnya UTC dan WAJIB sama dengan AKHIR_DINAS_UTC di
+   elogbook/server.js (pengingat TTD) — kalau keduanya berselisih, "dinas
+   sudah selesai" berarti dua hal yang berbeda di dua layar.
+
+     Pagi 07 UTC (14 WIB) · Siang 13 UTC (20 WIB) · PS 12 UTC (19 WIB)
+     Malam 24 UTC (07 WIB esok harinya)
+
+   Cuplikan menampilkan dinas yang SUDAH SELESAI dalam 48 jam terakhir — dua
+   hari dinas. Dinas yang sedang berjalan belum ikut; begitu selesai ia masuk,
+   dan dinas yang sama dua hari sebelumnya keluar. Karena yang dihitung jam
+   selesai tiap dinas, aturannya sama untuk hari berpola P/S/M maupun PS/M,
+   tanpa perlu tahu pola hari itu.
+   ======================================================================= */
+const AKHIR_DINAS_LOGBOOK_UTC = { p:7, pagi:7, s:13, siang:13, ps:12, m:24, malam:24 };
+const DUA_HARI_DINAS_MS = 48 * 3600 * 1000;
+
+/** Akhir dinas satu catatan logbook, ms epoch; NaN kalau tanggal/dinas tak dikenal. */
+function akhirDinasLogbook(tgl, dinas){
+  const m = String(tgl || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const jam = AKHIR_DINAS_LOGBOOK_UTC[String(dinas || '').trim().toLowerCase()];
+  if(!m || jam === undefined) return NaN;
+  return Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), jam);
+}
+
+/** Masuk cuplikan dua hari dinas? Dinasnya sudah selesai, paling lama 48 jam lalu. */
+const dalamDuaHariDinas = (akhir, kini = Date.now()) =>
+  Number.isFinite(akhir) && akhir <= kini && akhir > kini - DUA_HARI_DINAS_MS;
+
 /* Daftar sparepart. Kosong di sini, dan itu disengaja: isinya datang dari
    /unitdb pada server dashboard ini. Sebelum ada yang masuk, yang benar
    memang belum ada apa-apa. */

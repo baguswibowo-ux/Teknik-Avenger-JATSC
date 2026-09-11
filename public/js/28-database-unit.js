@@ -209,7 +209,13 @@ function gambarUnit(){
   const part = PART.filter(p=>p.unit === unitDibuka);
   // Saat tersambung, unit yang memang belum punya catatan harus terlihat
   // kosong — bukan diisi cuplikan contoh yang menyamar jadi data nyata.
-  const log = LOGBOOK[unitDibuka] || [];
+  // Dua hari dinas yang sudah selesai (lihat AKHIR DINAS di 02-kode-dinas.js).
+  // Disaring waktu menggambar, bukan waktu memuat: layar yang dibiarkan
+  // terbuka melewati pergantian dinas ikut bergeser saat digambar ulang.
+  // Urut dari dinas yang paling baru selesai; di dalam satu dinas, urutan
+  // dari server (jam terbaru dulu) dipertahankan.
+  const logSemua = LOGBOOK[unitDibuka] || [];
+  const log = logSemua.filter(r=>dalamDuaHariDinas(r.akhir)).sort((a,b)=>b.akhir - a.akhir);
   const radkom = unitDibuka === 'radkom';
   const foto = FOTO[unitDibuka] || [];
 
@@ -441,13 +447,18 @@ function gambarUnit(){
     <!-- LOGBOOK -->
     <div class="subisi ${subtabAktif==='logbook'?'aktif':''}" id="s-logbook">
       <div class="panel"><div class="kepala"><h3>${T('Cuplikan Logbook','Logbook Extract')} — ${esc(u.nama)}</h3>
-        <span class="ket">${log.length
+        <span class="ket" title="${esc(T('Dinas yang sudah selesai dalam 48 jam terakhir. Catatan dinas yang sedang berjalan tampil begitu dinasnya selesai.',
+            'Duties that ended in the last 48 hours. Records of the running duty appear once it ends.'))}">${log.length
           ? log.length + T(' catatan · 2 hari dinas terakhir',' entries · last 2 duty days')
-            + ' (' + [...new Set(log.map(r=>r.tgl))].map(tglRingkas).join(', ') + ')'
+            + ` (${tglRingkas(log[log.length-1].tgl)} ${esc(log[log.length-1].dinas)} – ${
+                 tglRingkas(log[0].tgl)} ${esc(log[0].dinas)})`
           : T('belum ada catatan','no records yet')}</span></div>
         ${log.length ? '' : `<div class="badan" style="color:var(--muted);font-size:12.5px">
-          ${T('Belum ada catatan logbook untuk unit ini di server.',
-              'No logbook records for this unit on the server yet.')}</div>`}
+          ${logSemua.length
+            ? T('Belum ada catatan dari dinas yang selesai dalam 2 hari terakhir. Catatan dinas yang sedang berjalan tampil begitu dinasnya selesai.',
+                'No records from duties that ended in the last 2 days. Records of the running duty appear once it ends.')
+            : T('Belum ada catatan logbook untuk unit ini di server.',
+                'No logbook records for this unit on the server yet.')}</div>`}
         <table${log.length?'':' hidden'}><thead><tr><th>${T('Tanggal','Date')}</th><th>${T('Jam','Time')}</th>${
           radkom?`<th>${T('Selesai','Finished')}</th><th>${T('Frek','Freq')}</th>`:''}
           <th>${T('Dinas','Shift')}</th><th>${radkom
