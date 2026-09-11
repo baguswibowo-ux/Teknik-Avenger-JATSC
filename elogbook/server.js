@@ -1755,11 +1755,14 @@ const API_ADMIN_UNTUK_ADMINUNIT = new Set([
 ]);
 
 /* ============== LOG AKTIVITAS ==============
- * Setiap fungsi /api yang menambah, mengubah, atau menghapus data dicatat ke
- * tabel aktivitas — begitu fungsinya BERHASIL, tidak sebelumnya. Dulu tidak
- * ada satu pun: catatan yang dihapus hilang tanpa jejak siapa yang
- * menghapusnya, dan peran akun bisa berubah tanpa ada yang tahu dari apa ke
- * apa.
+ * Setiap fungsi /api yang MENGUBAH atau MENGHAPUS data dicatat ke tabel
+ * aktivitas — begitu fungsinya BERHASIL, tidak sebelumnya. Dulu tidak ada
+ * satu pun: catatan yang dihapus hilang tanpa jejak siapa yang menghapusnya,
+ * dan peran akun bisa berubah tanpa ada yang tahu dari apa ke apa.
+ *
+ * Dokumen BARU sengaja tidak dicatat: puluhan per hari, dan siapa yang
+ * mengisinya sudah tercatat di dokumennya sendiri (dibuat_oleh). Log ini
+ * untuk perubahan, bukan untuk input harian. Membaca tidak pernah dicatat.
  *
  * Tiap pencatat punya dua bagian:
  *   sebelum(args)                     dibaca SEBELUM handler jalan — satu-
@@ -1780,32 +1783,26 @@ const API_ADMIN_UNTUK_ADMINUNIT = new Set([
  */
 const namaUnitKode = (k) => UNIT.find((u) => u.kode === k)?.nama || k;
 
-/** Jenis dokumen & aksi per fungsi. `idDari` = di mana id dokumennya pada
-    argumen; fungsi tambah memakai ID hasilnya. `tambahan` = keterangan
-    pendek yang hanya diketahui dari argumennya. */
+/** Jenis dokumen & aksi per fungsi — hanya yang mengubah dokumen yang sudah
+    ada (id-nya argumen pertama). addEntry, addLtk, dan kerabatnya sengaja
+    tidak ada: lihat catatan dokumen baru di atas. Lampiran yang ditempel ke
+    dokumen lama tetap dicatat — itu mengubah dokumennya. `tambahan` =
+    keterangan pendek yang hanya diketahui dari argumennya. */
 const DOKUMEN_FN = {
-  addEntry:            { jenis: 'logbook',    aksi: 'tambah' },
   updateEntry:         { jenis: 'logbook',    aksi: 'ubah' },
   deleteEntry:         { jenis: 'logbook',    aksi: 'hapus' },
-  addDailyCheck:       { jenis: 'dailycheck', aksi: 'tambah' },
   updateDailyCheck:    { jenis: 'dailycheck', aksi: 'ubah' },
   deleteDcRecord:      { jenis: 'dailycheck', aksi: 'hapus' },
-  addMonitoring:       { jenis: 'monitoring', aksi: 'tambah' },
   deleteMonitoring:    { jenis: 'monitoring', aksi: 'hapus' },
-  addDsTest:           { jenis: 'dstest',     aksi: 'tambah' },
   updateDsTest:        { jenis: 'dstest',     aksi: 'ubah' },
   deleteDsTest:        { jenis: 'dstest',     aksi: 'hapus' },
-  addBerkala:          { jenis: 'berkala',    aksi: 'tambah' },
   deleteBerkala:       { jenis: 'berkala',    aksi: 'hapus' },
-  addLtk:              { jenis: 'ltk',        aksi: 'tambah' },
   deleteLtk:           { jenis: 'ltk',        aksi: 'hapus' },
   addLtkLampiran:      { jenis: 'ltk',        aksi: 'lampiran-tambah',
                          tambahan: (a) => `${(a[1] || []).length} berkas` },
   deleteLtkLampiran:   { jenis: 'ltk',        aksi: 'lampiran-hapus' },
-  addBapb:             { jenis: 'bapb',       aksi: 'tambah' },
   updateBapb:          { jenis: 'bapb',       aksi: 'ubah' },
   deleteBapb:          { jenis: 'bapb',       aksi: 'hapus' },
-  addIssue:            { jenis: 'isu',        aksi: 'tambah' },
   updateIssueField:    { jenis: 'isu',        aksi: 'ubah',
                          tambahan: (a) => `${String(a[1] || '')}: ${potong(String(a[2] ?? ''), 60) || '(kosong)'}` },
   deleteIssue:         { jenis: 'isu',        aksi: 'hapus' },
@@ -1823,7 +1820,7 @@ function pencatatDokumen({ jenis, aksi, tambahan }) {
   return {
     sebelum: hapus ? (args) => infoCatatan(jenis, String(args[0] ?? '')) : null,
     tulis: async (args, hasil, sebelum, user) => {
-      const id = aksi === 'tambah' ? hasil?.ID : args[0];
+      const id = args[0];
       const info = hapus ? sebelum : (id ? await infoCatatan(jenis, String(id)) : null);
       return {
         modul: MODUL_DOKUMEN[jenis], aksi,

@@ -12,8 +12,9 @@
                  peralatan, sparepart, ISR. Ditulis server.js dengan identitas
                  dari sesi E-Logbook yang sungguhan, jadi berlaku untuk semua
                  orang dan tidak bisa dikarang dari peramban.
-     elogbook  — tambah/ubah/hapus dokumen E-Logbook (logbook, daily check,
-                 LTK, isu, …) dan pengelolaan akun (peran, unit, aktif, hapus).
+     elogbook  — dokumen E-Logbook yang DIUBAH atau DIHAPUS (logbook, daily
+                 check, LTK, isu, …) dan pengelolaan akun (peran, unit, aktif,
+                 hapus). Dokumen baru tidak dicatat — itu input harian.
                  Dicatat E-Logbook di tabelnya sendiri, diteruskan /aktivitas.
                  Kolom `sumber` membedakan keduanya.
      lokal     — suntingan yang cuma hidup di localStorage peramban ini (lihat
@@ -431,8 +432,8 @@ function gambarAktivitas(){
   el('catatanAktivitas').innerHTML = `<div class="catatan">
     <b>${T('Dari mana catatan ini.','Where these records come from.')}</b>
     ${T('Jadwal dinas, kegiatan berkala, personel, hak, galeri, peralatan, sparepart, dan ISR dicatat '
-      + 'server dashboard. Dokumen E-Logbook — logbook, daily check, LTK, isu, dan lainnya: yang '
-      + 'ditambah, diubah, dihapus — serta perubahan akun (peran, unit, aktif, hapus) dicatat E-Logbook '
+      + 'server dashboard. Dokumen E-Logbook — logbook, daily check, LTK, isu, dan lainnya — yang '
+      + 'diubah atau dihapus, serta perubahan akun (peran, unit, aktif, hapus), dicatat E-Logbook '
       + 'dan barisnya bertanda <b>E-Logbook</b>. Semuanya memakai identitas sesi Anda yang sungguhan. '
       + 'Yang dicatat cuma perbuatannya: judul dokumen, nama baris yang berubah, peran lama → baru — '
       + 'bukan isi datanya, dan nomor lisensi atau kata sandi tidak pernah ikut masuk ke sini. '
