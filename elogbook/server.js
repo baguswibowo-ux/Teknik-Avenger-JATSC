@@ -37,7 +37,8 @@
  *                            Vercel. Produksi biarkan kosong = pakai webhook.
  */
 
-import { ringkasDokumen, NAMA_DOKUMEN } from './ringkas-dokumen.js';
+import { ringkasDokumen, NAMA_DOKUMEN, potong } from './ringkas-dokumen.js';
+import { MODUL_DOKUMEN, JENIS_RUTE, unitCsv, rincianDokumen, rincianAkun } from './aktivitas-rincian.js';
 import express from 'express';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -86,7 +87,8 @@ const {
   ambilBerkas,
   buatTautanTelegram, tautkanTelegram, getChatIdTelegram, putusTautanTelegram, statusTautanTelegram,
   logbookPerluPengingatTtd, tandaiPengingatTtd,
-  getPh, setPh, listDiwakiliOleh, listCalonPh, ringkasCatatan
+  getPh, setPh, listDiwakiliOleh, listCalonPh, ringkasCatatan,
+  infoCatatan, catatAktivitas, listAktivitas
 } = await import(PAKAI_POSTGRES ? './db-pg.js' : './db.js');
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -1712,6 +1714,22 @@ const API_ADMIN = {
     }
     await setAktif(u, !!aktif);
     return listUsers();
+  },
+
+  /**
+   * Log aktivitas E-Logbook, dibaca layar Aktivitas dashboard dengan cookie
+   * pemanggilnya sendiri. Administrator melihat semuanya; admin unit hanya
+   * baris yang unitnya jatuh di unit yang ia pegang — pagar yang sama dengan
+   * /aktivitas di dashboard, dijaga lagi di sini karena fungsi ini bisa
+   * dipanggil langsung.
+   *
+   * Pemanggil boleh tidak mengirim argumen; identitas selalu argumen terakhir.
+   */
+  getAktivitas: async (...a) => {
+    const user = a[a.length - 1];
+    const opsi = a.length > 1 ? a[0] : {};
+    const unit = isAdmin(user) ? null : await unitUntukUser(user);
+    return listAktivitas({ unit, batas: opsi?.batas });
   }
 };
 
@@ -1727,10 +1745,175 @@ const API_ADMIN = {
    menunggu admin utama. Wewenangnya dipagari di tiap handler lewat
    pastikanAdminUnitBolehKelola: hanya akun teknisi yang seluruh unitnya jatuh
    di dalam unit yang dipegang si admin unit. Peran, unit, penambahan, dan
-   penghapusan akun sengaja TIDAK ikut — itu tetap milik admin utama. */
+   penghapusan akun sengaja TIDAK ikut — itu tetap milik admin utama.
+
+   getAktivitas ikut karena admin unit memang membaca log aktivitas unitnya;
+   saringan unitnya dikerjakan di dalam handler. */
 const API_ADMIN_UNTUK_ADMINUNIT = new Set([
-  'listUsers', 'setUserAktif', 'setUserPassword', 'setUserNama', 'setUserUsername'
+  'listUsers', 'setUserAktif', 'setUserPassword', 'setUserNama', 'setUserUsername',
+  'getAktivitas'
 ]);
+
+/* ============== LOG AKTIVITAS ==============
+ * Setiap fungsi /api yang menambah, mengubah, atau menghapus data dicatat ke
+ * tabel aktivitas — begitu fungsinya BERHASIL, tidak sebelumnya. Dulu tidak
+ * ada satu pun: catatan yang dihapus hilang tanpa jejak siapa yang
+ * menghapusnya, dan peran akun bisa berubah tanpa ada yang tahu dari apa ke
+ * apa.
+ *
+ * Tiap pencatat punya dua bagian:
+ *   sebelum(args)                     dibaca SEBELUM handler jalan — satu-
+ *                                     satunya kesempatan membaca dokumen yang
+ *                                     akan dihapus, atau peran lama sebuah akun
+ *   tulis(args, hasil, sebelum, user) menyusun { modul, aksi, unit, rincian };
+ *                                     null = tidak ada yang perlu dicatat
+ *
+ * Yang dicatat judul dan kepala perihalnya saja (ringkasDokumen), bukan isi
+ * dokumen, dan kata sandi tidak pernah. Kolom unit memagari admin unit —
+ * lihat getAktivitas.
+ *
+ * TTD, PH, dan tautan Telegram sengaja tidak dicatat di sini; begitu juga
+ * masuk/keluar akun.
+ *
+ * Pencatatan tidak pernah menggagalkan pekerjaan yang dicatat: kalau penulisan
+ * log-nya gagal, yang gagal cuma log-nya.
+ */
+const namaUnitKode = (k) => UNIT.find((u) => u.kode === k)?.nama || k;
+
+/** Jenis dokumen & aksi per fungsi. `idDari` = di mana id dokumennya pada
+    argumen; fungsi tambah memakai ID hasilnya. `tambahan` = keterangan
+    pendek yang hanya diketahui dari argumennya. */
+const DOKUMEN_FN = {
+  addEntry:            { jenis: 'logbook',    aksi: 'tambah' },
+  updateEntry:         { jenis: 'logbook',    aksi: 'ubah' },
+  deleteEntry:         { jenis: 'logbook',    aksi: 'hapus' },
+  addDailyCheck:       { jenis: 'dailycheck', aksi: 'tambah' },
+  updateDailyCheck:    { jenis: 'dailycheck', aksi: 'ubah' },
+  deleteDcRecord:      { jenis: 'dailycheck', aksi: 'hapus' },
+  addMonitoring:       { jenis: 'monitoring', aksi: 'tambah' },
+  deleteMonitoring:    { jenis: 'monitoring', aksi: 'hapus' },
+  addDsTest:           { jenis: 'dstest',     aksi: 'tambah' },
+  updateDsTest:        { jenis: 'dstest',     aksi: 'ubah' },
+  deleteDsTest:        { jenis: 'dstest',     aksi: 'hapus' },
+  addBerkala:          { jenis: 'berkala',    aksi: 'tambah' },
+  deleteBerkala:       { jenis: 'berkala',    aksi: 'hapus' },
+  addLtk:              { jenis: 'ltk',        aksi: 'tambah' },
+  deleteLtk:           { jenis: 'ltk',        aksi: 'hapus' },
+  addLtkLampiran:      { jenis: 'ltk',        aksi: 'lampiran-tambah',
+                         tambahan: (a) => `${(a[1] || []).length} berkas` },
+  deleteLtkLampiran:   { jenis: 'ltk',        aksi: 'lampiran-hapus' },
+  addBapb:             { jenis: 'bapb',       aksi: 'tambah' },
+  updateBapb:          { jenis: 'bapb',       aksi: 'ubah' },
+  deleteBapb:          { jenis: 'bapb',       aksi: 'hapus' },
+  addIssue:            { jenis: 'isu',        aksi: 'tambah' },
+  updateIssueField:    { jenis: 'isu',        aksi: 'ubah',
+                         tambahan: (a) => `${String(a[1] || '')}: ${potong(String(a[2] ?? ''), 60) || '(kosong)'}` },
+  deleteIssue:         { jenis: 'isu',        aksi: 'hapus' },
+  tutupIsu:            { jenis: 'isu',        aksi: 'tutup',
+                         tambahan: (a) => potong(String(a[1] || ''), 60) },
+  addBuktiTutupIsu:    { jenis: 'isu',        aksi: 'lampiran-tambah',
+                         tambahan: (a) => `${(a[1] || []).length} bukti penutupan` },
+  addIssueLampiran:    { jenis: 'isu',        aksi: 'lampiran-tambah',
+                         tambahan: (a) => `${(a[2] || []).length} berkas (${String(a[1] || '')})` },
+  deleteIssueLampiran: { jenis: 'isu',        aksi: 'lampiran-hapus' }
+};
+
+function pencatatDokumen({ jenis, aksi, tambahan }) {
+  const hapus = aksi === 'hapus';
+  return {
+    sebelum: hapus ? (args) => infoCatatan(jenis, String(args[0] ?? '')) : null,
+    tulis: async (args, hasil, sebelum, user) => {
+      const id = aksi === 'tambah' ? hasil?.ID : args[0];
+      const info = hapus ? sebelum : (id ? await infoCatatan(jenis, String(id)) : null);
+      return {
+        modul: MODUL_DOKUMEN[jenis], aksi,
+        unit: unitCsv(info?.unit),
+        rincian: rincianDokumen(jenis, info, { pelaku: user?.username, tambahan: tambahan ? tambahan(args) : '' })
+      };
+    }
+  };
+}
+
+/** Rute TTD: jenisnya datang dari argumen (entry/dc/ltk/…), bukan tetap. */
+const pencatatRuteTtd = {
+  sebelum: null,
+  tulis: async ([kind, id, patch], hasil, sebelum, user) => {
+    const k = String(kind || '').toLowerCase();
+    const jenis = Object.prototype.hasOwnProperty.call(JENIS_RUTE, k) ? JENIS_RUTE[k] : null;
+    if (!jenis) return null;
+    const info = await infoCatatan(jenis, String(id ?? ''));
+    const p = patch || {};
+    const tujuan = [String(p.managerNama ?? p.pjNama ?? '').trim(),
+                    p.ttdUntuk !== undefined ? `akun ${String(p.ttdUntuk || '').trim() || '—'}` : '']
+      .filter(Boolean).join(', ');
+    return {
+      modul: MODUL_DOKUMEN[jenis], aksi: 'rute-ttd',
+      unit: unitCsv(info?.unit),
+      rincian: rincianDokumen(jenis, info, { pelaku: user?.username, tambahan: tujuan ? `TTD → ${tujuan}` : '' })
+    };
+  }
+};
+
+/** Keadaan satu akun untuk rincianAkun. Unit hanya untuk peran yang memang
+    terikat unit: admin/pejabat/PIC membuka semuanya, dan menyebut seluruh unit
+    di sini akan membuat perubahan akun mereka tampil di layar setiap admin
+    unit. */
+async function potretAkun(username) {
+  const u = await getUserByUsername(String(username || '').trim());
+  if (!u) return null;
+  return {
+    username: u.username, nama: u.nama || '', role: u.role, aktif: !!u.aktif,
+    unit: SEMUA_UNIT.includes(u.role) ? [] : await unitUntukUser(u)
+  };
+}
+
+/** Pencatat akun. `lamaDari`/`baruDari` = username mana yang dipotret sebelum
+    dan sesudah (setUserUsername memotret nama lama sebelum, nama baru
+    sesudah). Perubahan yang ternyata tidak mengubah apa pun tidak dicatat. */
+function pencatatAkun(aksi, { lamaDari = (a) => a[0], baruDari = (a) => a[0], adaSebelum = true, adaSesudah = true } = {}) {
+  return {
+    sebelum: adaSebelum ? (args) => potretAkun(lamaDari(args)) : null,
+    tulis: async (args, hasil, lama) => {
+      const baru = adaSesudah ? await potretAkun(baruDari(args)) : null;
+      const a = typeof aksi === 'function' ? aksi(args) : aksi;
+      const sama = (k) => lama && baru && JSON.stringify(lama[k]) === JSON.stringify(baru[k]);
+      if ((a === 'peran' && sama('role')) || (a === 'unit' && sama('unit')) || (a === 'nama' && sama('nama'))) return null;
+      return {
+        modul: 'akun', aksi: a,
+        unit: unitCsv(lama?.unit, baru?.unit),
+        rincian: rincianAkun(a, lama, baru, namaUnitKode)
+      };
+    }
+  };
+}
+
+const PENCATAT_AKTIVITAS = {
+  ...Object.fromEntries(Object.entries(DOKUMEN_FN).map(([fn, d]) => [fn, pencatatDokumen(d)])),
+  updateTtdRouting: pencatatRuteTtd,
+  addUser:         pencatatAkun('tambah', { adaSebelum: false, baruDari: (a) => String(a[0]?.username || '').trim().toLowerCase() }),
+  setUserRole:     pencatatAkun('peran'),
+  setUserUnit:     pencatatAkun('unit'),
+  setUserNama:     pencatatAkun('nama'),
+  setUserUsername: pencatatAkun('username', { baruDari: (a) => String(a[1] || '').trim().toLowerCase() }),
+  setUserPassword: pencatatAkun('sandi', { adaSebelum: false }),
+  setUserAktif:    pencatatAkun((a) => (a[1] ? 'aktifkan' : 'nonaktifkan'), { adaSebelum: false }),
+  deleteUser:      pencatatAkun('hapus', { adaSesudah: false })
+};
+
+/** Tulis satu baris log untuk fungsi yang barusan berhasil. Tidak melempar. */
+async function tulisAktivitas(pencatat, args, hasil, sebelum, user) {
+  try {
+    const isi = await pencatat.tulis(args, hasil, sebelum, user);
+    if (!isi) return;
+    await catatAktivitas({
+      jam: new Date().toISOString(),
+      oleh: user?.username || '', nama: user?.nama || user?.username || '', peran: user?.role || '',
+      ...isi
+    });
+  } catch (err) {
+    console.warn('[aktivitas] tidak tercatat:', err?.message || err);
+  }
+}
 
 /* ============== WEBHOOK TELEGRAM ==============
  * Titik masuk dari Telegram (bukan dari peramban): tidak lewat requireAuth.
@@ -1796,9 +1979,17 @@ app.post('/api/:fn', requireAuth, async (req, res) => {
   }
 
   const args = Array.isArray(req.body?.args) ? req.body.args : [];
+  // Keadaan sebelum perubahan — lihat LOG AKTIVITAS. Gagal membacanya tidak
+  // menghalangi pekerjaannya; lognya saja yang jadi kurang rinci.
+  const pencatat = Object.prototype.hasOwnProperty.call(PENCATAT_AKTIVITAS, fn) ? PENCATAT_AKTIVITAS[fn] : null;
+  let sebelum = null;
+  if (pencatat?.sebelum) {
+    try { sebelum = await pencatat.sebelum(args); } catch { sebelum = null; }
+  }
   try {
     // Argumen terakhir selalu identitas pemanggil; handler boleh mengabaikannya.
     const result = await handler(...args, req.user);
+    if (pencatat) await tulisAktivitas(pencatat, args, result, sebelum, req.user);
     res.json({ result: result === undefined ? null : result });
   } catch (err) {
     console.error(`[api:${fn}]`, err);

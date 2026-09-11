@@ -24,6 +24,7 @@
 
 import express from 'express';
 import path from 'node:path';
+import { selisihDaftar, aksiSelisih, ringkasSelisih } from './aktivitas-selisih.js';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import {
@@ -1083,7 +1084,9 @@ async function bolehSemua(user) {
    ===================================================================== */
 
 const AKTIVITAS_JSON  = path.join(DATA_DIR, 'aktivitas.json');
-const AKTIVITAS_BATAS = 400;
+// Dulu 400 — cukup untuk beberapa minggu, lalu riwayat lama hilang begitu
+// saja. Sekarang rinciannya lebih panjang tapi berkasnya tetap kecil (±1 MB).
+const AKTIVITAS_BATAS = 3000;
 
 async function catat(user, isi) {
   if (!DINAS_TULIS) return;
@@ -1161,14 +1164,48 @@ app.get('/aktivitas', async (req, res) => {
     });
   }
   const batas = Math.min(AKTIVITAS_BATAS, Math.max(1, Number(req.query.batas) || 120));
+  // E-Logbook mencatat tambah/ubah/hapus dokumennya dan pengelolaan akun di
+  // tabelnya sendiri. Diambil dengan cookie pemanggil, jadi E-Logbook sendiri
+  // yang memagari unitnya — dashboard tidak perlu (dan tidak boleh) menebak.
+  const elog = await aktivitasElogbook(req, batas);
+  const gabung = [
+    ...daftar.map((a) => ({ ...a, sumber: 'dashboard' })),
+    ...elog.daftar
+  ].sort((a, b) => String(b.jam || '').localeCompare(String(a.jam || '')));
   res.json({
-    aktivitas: daftar.slice(0, batas),
-    jumlah: daftar.length,
+    aktivitas: gabung.slice(0, batas),
+    jumlah: daftar.length + elog.daftar.length,
     // Supaya halaman bisa mengatakan terus terang bahwa yang tampil sebagian,
     // bukan membiarkan orang menyangka unitnya memang sesepi itu.
-    unitSaring: izin.unit || null
+    unitSaring: izin.unit || null,
+    // Kosong kalau log E-Logbook ikut terambil; kalau tidak, sebabnya — supaya
+    // layar tidak diam-diam tampak lengkap padahal separuhnya hilang.
+    galatElogbook: elog.galat
   });
 });
+
+/** Log aktivitas E-Logbook untuk pemanggil ini: { daftar, galat }. Gagalnya
+    tidak menggagalkan /aktivitas — log dashboard tetap tampil. */
+async function aktivitasElogbook(req, batas) {
+  if (!TERUS) return { daftar: [], galat: '' };
+  try {
+    const jawab = await fetch(ASAL + '/api/getAktivitas', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        ...(req.headers.cookie ? { cookie: req.headers.cookie } : {})
+      },
+      body: JSON.stringify({ args: [{ batas }] }),
+      signal: AbortSignal.timeout(8000)
+    });
+    const j = await jawab.json().catch(() => null);
+    if (!jawab.ok) return { daftar: [], galat: (j && j.error) || `E-Logbook menjawab ${jawab.status}` };
+    const baris = Array.isArray(j?.result) ? j.result : [];
+    return { daftar: baris.map((a) => ({ ...a, sumber: 'elogbook' })), galat: '' };
+  } catch (e) {
+    return { daftar: [], galat: e?.message || String(e) };
+  }
+}
 
 const badanDinas = express.json({ limit: '2mb' });
 
@@ -1732,6 +1769,11 @@ app.put('/dinas/bulan/:bulan/:unit', badanDinas, async (req, res) => {
     // sebulan penuh, dan tidak meninggalkan apa pun untuk dikembalikan. Itu
     // penghapusan, apa pun nama tombolnya di layar.
     const adaIsinya = Array.isArray(semua[bulan][unit]) && semua[bulan][unit].length > 0;
+    // Siapa masuk, siapa keluar, jadwal siapa berubah — dikunci nama orangnya,
+    // karena baris jadwal tidak punya id.
+    const selisih = selisihDaftar(adaIsinya ? semua[bulan][unit] : [], orang, {
+      kunci: (o) => String(o?.nama || '').trim().toLowerCase(), label: (o) => o?.nama
+    });
     if (!orang.length && adaIsinya && !(await bolehHapus(user, 'dinas', unit))) {
       return res.status(403).json({
         error: 'Mengosongkan jadwal yang sudah terisi terhitung menghapus, dan itu hanya '
@@ -1745,9 +1787,10 @@ app.put('/dinas/bulan/:bulan/:unit', badanDinas, async (req, res) => {
       [unit]: { oleh: user.username, jam: new Date().toISOString() }
     };
     await tulisJson(DINAS_JSON, semua);
+    const beda = ringkasSelisih(selisih);
     await catat(user, {
       modul: 'dinas', aksi: orang.length ? 'simpan' : 'kosongkan', unit,
-      rincian: `${bulan} · ${orang.length} orang`
+      rincian: `${bulan} · ${orang.length} orang${beda ? ' · ' + beda : ' · tidak ada yang berubah'}`
     });
     res.json({ ok: true, jumlah: orang.length });
   } catch (e) {
@@ -2059,12 +2102,19 @@ app.put('/berkala/:unit', badanDinas, async (req, res) => {
       });
     }
 
+    // Yang lama dirapikan dengan fungsi yang sama supaya baris yang tersimpan
+    // dalam bentuk versi terdahulu tidak seluruhnya terbaca "diubah".
+    const selisih = selisihDaftar(
+      (semua[unit] || []).map((k) => rapikanKegiatan(k, new Set())).filter(Boolean), daftar);
     if (daftar.length) semua[unit] = daftar; else delete semua[unit];
     await tulisJson(BERKALA_JSON, semua);
-    await catat(user, {
-      modul: 'berkala', aksi: 'atur', unit,
-      rincian: `${daftar.length} kegiatan`
-    });
+    const aksi = aksiSelisih(selisih);
+    if (aksi) {
+      await catat(user, {
+        modul: 'berkala', aksi, unit,
+        rincian: `${daftar.length} kegiatan · ${ringkasSelisih(selisih)}`
+      });
+    }
     res.json({ ok: true, jumlah: daftar.length });
   } catch (e) {
     console.error('[berkala] gagal menyimpan:', e);
@@ -2330,16 +2380,33 @@ app.put('/personel', badanDinas, async (req, res) => {
   }
 
   try {
+    /* Yang disebut di log cuma NAMA orang yang berubah dan arah perubahannya.
+       Nomor lisensi tidak boleh bocor lewat pintu belakang bernama "log
+       aktivitas" — bagian PERSONEL di atas menyembunyikannya dari yang belum
+       masuk justru karena itu identitas orang.
+
+       Unit diisi unit orang-orang yang tersentuh, supaya admin unit melihat
+       perubahan personel unitnya (dulu kosong, jadi hanya admin utama). */
+    const lamaRapi = (Array.isArray(sebelum) ? sebelum : [])
+      .map((p) => rapikanPersonel(p, new Set())).filter(Boolean);
+    const selisih = selisihDaftar(lamaRapi, daftar);
+    const petaLama = new Map(lamaRapi.map((p) => [p.id, p]));
+    const petaBaru = new Map(daftar.map((p) => [p.id, p]));
+    const unitSentuh = new Set();
+    for (const id of new Set([...petaLama.keys(), ...petaBaru.keys()])) {
+      const l = petaLama.get(id), b = petaBaru.get(id);
+      if (JSON.stringify(l) === JSON.stringify(b)) continue;
+      if (l?.unit) unitSentuh.add(l.unit);
+      if (b?.unit) unitSentuh.add(b.unit);
+    }
     await tulisJson(PERSONEL_JSON, daftar);
-    /* Yang disebut di log cuma jumlahnya dan arah perubahannya. Nomor lisensi
-       tidak boleh bocor lewat pintu belakang bernama "log aktivitas" — bagian
-       PERSONEL di atas menyembunyikannya dari yang belum masuk justru karena
-       itu identitas orang. */
-    const selisih = daftar.length - (Array.isArray(sebelum) ? sebelum.length : 0);
-    await catat(user, {
-      modul: 'personel', aksi: selisih > 0 ? 'tambah' : selisih < 0 ? 'hapus' : 'ubah',
-      rincian: `${daftar.length} orang terdaftar`
-    });
+    const aksi = aksiSelisih(selisih);
+    if (aksi) {
+      await catat(user, {
+        modul: 'personel', aksi, unit: [...unitSentuh].join(','),
+        rincian: `${daftar.length} orang terdaftar · ${ringkasSelisih(selisih)}`
+      });
+    }
     res.json({ ok: true, jumlah: daftar.length });
   } catch (e) {
     console.error('[personel] gagal menyimpan:', e);
@@ -2576,12 +2643,19 @@ app.put('/unitdb/:modul/:unit', badanDinas, async (req, res) => {
       });
     }
 
+    // Baris mana yang ditambah, dibuang, disunting — dengan nama alatnya.
+    // Yang lama dirapikan ulang dengan fungsi yang sama; lihat PUT /berkala.
+    const selisih = selisihDaftar(
+      (semua[unit] || []).map((x) => rapi(x, new Set())).filter(Boolean), daftar);
     if (daftar.length) semua[unit] = daftar; else delete semua[unit];
     await tulisJson(UNITDB_JSON[modul], semua);
-    await catat(user, {
-      modul, aksi: lamaId.size ? 'hapus' : 'simpan', unit,
-      rincian: `${daftar.length} baris`
-    });
+    const aksi = aksiSelisih(selisih);
+    if (aksi) {
+      await catat(user, {
+        modul, aksi, unit,
+        rincian: `${daftar.length} baris · ${ringkasSelisih(selisih)}`
+      });
+    }
     res.json({ ok: true, jumlah: daftar.length });
   } catch (e) {
     console.error(`[${modul}] gagal menyimpan:`, e);

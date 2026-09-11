@@ -21,10 +21,11 @@
 export const NAMA_DOKUMEN = {
   logbook: 'Logbook', dailycheck: 'Daily Check', monitoring: 'Monitoring',
   dstest: 'DS Test', berkala: 'Pemeliharaan Berkala',
-  ltk: 'Laporan Kerusakan (LTK)', bapb: 'BAPB'
+  ltk: 'Laporan Kerusakan (LTK)', bapb: 'BAPB', isu: 'Isu'
 };
 
-/** Kolom perihal per jenis — dibaca ringkasCatatan. */
+/** Kolom perihal per jenis — dibaca ringkasCatatan dan infoCatatan. Isu tidak
+    punya jalur TTD, jadi hanya infoCatatan (log aktivitas) yang membacanya. */
 export const KOLOM_RINGKAS = {
   logbook: 'uraian, lokasi',
   dailycheck: 'remark, fails_json, warns_json',
@@ -32,7 +33,8 @@ export const KOLOM_RINGKAS = {
   dstest: 'kategori',
   berkala: 'jenis, catatan',
   ltk: 'peralatan, modul, analisa',
-  bapb: 'nomor, untuk_pekerjaan, lokasi'
+  bapb: 'nomor, untuk_pekerjaan, lokasi',
+  isu: 'jenis, keterangan, lokasi, status'
 };
 
 /* Lembar yang menumpang tabel dstest — cermin catatan di insertDsTest (db.js)
@@ -130,6 +132,12 @@ export function ringkasDokumen(jenis, row) {
       return {
         judul: denganLokasi(NAMA_DOKUMEN.bapb + (r.nomor ? ` No. ${r.nomor}` : ''), r.lokasi),
         cuplikan: potong(r.untuk_pekerjaan)
+      };
+
+    case 'isu':
+      return {
+        judul: denganLokasi(NAMA_DOKUMEN.isu + (r.status ? ` (${r.status})` : ''), r.lokasi),
+        cuplikan: potong(gabung(r.jenis, r.keterangan))
       };
 
     default:

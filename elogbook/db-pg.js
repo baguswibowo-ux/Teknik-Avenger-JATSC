@@ -196,7 +196,20 @@ const TABEL_SUSULAN = [
      tautan_token   TEXT NOT NULL DEFAULT '',
      ditautkan_pada TEXT NOT NULL DEFAULT '',
      dibuat_pada    TEXT NOT NULL DEFAULT ''
-   )`
+   )`,
+  /* Log aktivitas — sepadan dengan CREATE TABLE aktivitas di db.js. */
+  `CREATE TABLE IF NOT EXISTS aktivitas (
+     id       BIGSERIAL PRIMARY KEY,
+     jam      TEXT NOT NULL,
+     oleh     TEXT NOT NULL DEFAULT '',
+     nama     TEXT NOT NULL DEFAULT '',
+     peran    TEXT NOT NULL DEFAULT '',
+     modul    TEXT NOT NULL DEFAULT '',
+     aksi     TEXT NOT NULL DEFAULT '',
+     unit     TEXT NOT NULL DEFAULT '',
+     rincian  TEXT NOT NULL DEFAULT ''
+   )`,
+  'CREATE INDEX IF NOT EXISTS idx_aktivitas_jam ON aktivitas(jam)'
 ];
 for (const sql of TABEL_SUSULAN) {
   try {
@@ -2616,4 +2629,48 @@ export async function ringkasCatatan(jenis, id) {
   const kolom = KOLOM_RINGKAS[jenis];
   if (!t || !kolom) return null;
   return (await q1(`SELECT ${kolom} FROM ${t.tabel} WHERE id = $1`, [String(id)])) || null;
+}
+
+/* ============== LOG AKTIVITAS ==============
+ * Cerminan bagian senama di db.js — kalau yang satu diubah, yang lain ikut. */
+const TABEL_INFO = {
+  ...Object.fromEntries(Object.entries(JENIS_TTD).map(([j, t]) => [j, { tabel: t.tabel, tgl: t.tglKolom }])),
+  isu: { tabel: 'issues', tgl: 'tanggal_report' }
+};
+
+export async function infoCatatan(jenis, id) {
+  const t = Object.prototype.hasOwnProperty.call(TABEL_INFO, jenis) ? TABEL_INFO[jenis] : null;
+  const kolom = KOLOM_RINGKAS[jenis];
+  if (!t || !kolom) return null;
+  return (await q1(
+    `SELECT ${kolom}, unit, ${t.tgl} AS tanggal_catatan, dibuat_oleh FROM ${t.tabel} WHERE id = $1`,
+    [String(id)]
+  )) || null;
+}
+
+export async function catatAktivitas(a = {}) {
+  await jalankan(
+    `INSERT INTO aktivitas (jam, oleh, nama, peran, modul, aksi, unit, rincian)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+    [String(a.jam || nowIso()), String(a.oleh || ''), String(a.nama || ''), String(a.peran || ''),
+     String(a.modul || ''), String(a.aksi || ''), String(a.unit || ''),
+     String(a.rincian || '').slice(0, 500)]
+  );
+}
+
+export const AKTIVITAS_BACA_MAKS = 1000;
+
+export async function listAktivitas({ unit = null, batas = 200 } = {}) {
+  const n = Math.min(AKTIVITAS_BACA_MAKS, Math.max(1, Math.floor(Number(batas)) || 200));
+  const kolom = 'jam, oleh, nama, peran, modul, aksi, unit, rincian';
+  if (unit === null) {
+    return q(`SELECT ${kolom} FROM aktivitas ORDER BY id DESC LIMIT $1`, [n]);
+  }
+  const kode = (Array.isArray(unit) ? unit : []).map((k) => String(k).toLowerCase()).filter(unitSah);
+  if (!kode.length) return [];
+  const syarat = kode.map((_, i) => `(',' || unit || ',') LIKE $${i + 1}`).join(' OR ');
+  return q(
+    `SELECT ${kolom} FROM aktivitas WHERE ${syarat} ORDER BY id DESC LIMIT $${kode.length + 1}`,
+    [...kode.map((k) => `%,${k},%`), n]
+  );
 }

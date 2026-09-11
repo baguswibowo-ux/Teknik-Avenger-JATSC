@@ -279,6 +279,23 @@ CREATE TABLE IF NOT EXISTS telegram_akun (
   ditautkan_pada TEXT NOT NULL DEFAULT '',
   dibuat_pada    TEXT NOT NULL DEFAULT ''
 );
+
+-- Log aktivitas E-Logbook: siapa menambah, mengubah, atau menghapus apa —
+-- termasuk pengelolaan akun. Ditulis server.js (PENCATAT_AKTIVITAS), dibaca
+-- layar Aktivitas dashboard lewat getAktivitas. unit = kode unit dipisah koma,
+-- dipakai memagari admin unit; kosong = hanya administrator yang melihatnya.
+CREATE TABLE IF NOT EXISTS aktivitas (
+  id       INTEGER PRIMARY KEY AUTOINCREMENT,
+  jam      TEXT NOT NULL,
+  oleh     TEXT NOT NULL DEFAULT '',
+  nama     TEXT NOT NULL DEFAULT '',
+  peran    TEXT NOT NULL DEFAULT '',
+  modul    TEXT NOT NULL DEFAULT '',
+  aksi     TEXT NOT NULL DEFAULT '',
+  unit     TEXT NOT NULL DEFAULT '',
+  rincian  TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_aktivitas_jam ON aktivitas(jam);
 `);
 
 /* ============== MIGRASI KOLOM ==============
@@ -2834,4 +2851,54 @@ export function ringkasCatatan(jenis, id) {
   const kolom = KOLOM_RINGKAS[jenis];
   if (!t || !kolom) return null;
   return db.prepare(`SELECT ${kolom} FROM ${t.tabel} WHERE id = ?`).get(String(id)) || null;
+}
+
+/* ============== LOG AKTIVITAS ==============
+ * Tabel dan kolom tanggal per jenis untuk infoCatatan: seluruh JENIS_TTD,
+ * ditambah isu yang tidak punya jalur TTD. */
+const TABEL_INFO = {
+  ...Object.fromEntries(Object.entries(JENIS_TTD).map(([j, t]) => [j, { tabel: t.tabel, tgl: t.tglKolom }])),
+  isu: { tabel: 'issues', tgl: 'tanggal_report' }
+};
+
+/** Kolom ringkas + unit + tanggal + pembuat satu catatan, untuk kalimat log
+    aktivitas (rincianDokumen). Dibaca SEBELUM penghapusan — sesudahnya
+    tidak ada lagi yang bisa dibaca. null kalau jenis/id tidak dikenal. */
+export function infoCatatan(jenis, id) {
+  const t = Object.prototype.hasOwnProperty.call(TABEL_INFO, jenis) ? TABEL_INFO[jenis] : null;
+  const kolom = KOLOM_RINGKAS[jenis];
+  if (!t || !kolom) return null;
+  return db.prepare(
+    `SELECT ${kolom}, unit, ${t.tgl} AS tanggal_catatan, dibuat_oleh FROM ${t.tabel} WHERE id = ?`
+  ).get(String(id)) || null;
+}
+
+export function catatAktivitas(a = {}) {
+  db.prepare(`INSERT INTO aktivitas (jam, oleh, nama, peran, modul, aksi, unit, rincian)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(String(a.jam || nowIso()), String(a.oleh || ''), String(a.nama || ''), String(a.peran || ''),
+         String(a.modul || ''), String(a.aksi || ''), String(a.unit || ''),
+         String(a.rincian || '').slice(0, 500));
+}
+
+export const AKTIVITAS_BACA_MAKS = 1000;
+
+/**
+ * Log aktivitas, terbaru di depan.
+ *   unit null  → seluruhnya (administrator)
+ *   unit [..]  → hanya baris yang kolom unit-nya menyebut salah satu kode itu
+ *                (kolomnya boleh CSV: perubahan akun lintas dua unit tampil
+ *                di keduanya). Larik kosong → tidak ada apa-apa.
+ */
+export function listAktivitas({ unit = null, batas = 200 } = {}) {
+  const n = Math.min(AKTIVITAS_BACA_MAKS, Math.max(1, Math.floor(Number(batas)) || 200));
+  const kolom = 'jam, oleh, nama, peran, modul, aksi, unit, rincian';
+  if (unit === null) {
+    return db.prepare(`SELECT ${kolom} FROM aktivitas ORDER BY id DESC LIMIT ?`).all(n);
+  }
+  const kode = (Array.isArray(unit) ? unit : []).map((k) => String(k).toLowerCase()).filter(unitSah);
+  if (!kode.length) return [];
+  const syarat = kode.map(() => "(',' || unit || ',') LIKE ?").join(' OR ');
+  return db.prepare(`SELECT ${kolom} FROM aktivitas WHERE ${syarat} ORDER BY id DESC LIMIT ?`)
+    .all(...kode.map((k) => `%,${k},%`), n);
 }
