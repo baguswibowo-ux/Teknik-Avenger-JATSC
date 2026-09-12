@@ -76,11 +76,74 @@ const isoTgl = (x) => { const m = String(x||'').match(/\d{4}-\d{2}-\d{2}/); retu
 const isoHariIni = () => new Date(Date.now() - new Date().getTimezoneOffset()*60000)
   .toISOString().slice(0,10);
 
-/** fetch dengan batas waktu — server yang menggantung tidak boleh membekukan kartu masuk. */
+/* ---------- SIMPANAN JAWABAN SERVER: gambar dulu, perbarui belakangan ----------
+
+   Menyegarkan halaman (F5) dulu berarti layar kosong sampai srvMuat() selesai:
+   /api/me, lalu getAllData, lalu delapan unit, lalu empat pemuat ekor — empat
+   gelombang bolak-balik ke server. Lewat tunnel ke luar tiap gelombang
+   berharga ratusan milidetik, dan yang tampak selama itu bukan apa-apa. Login
+   tidak terasa selama itu, padahal jaringannya sama: saat login orang sedang
+   menatap kartu masuk, saat refresh ia menatap kegelapan.
+
+   Jalannya sekarang: jawaban server yang terakhir DISIMPAN di sessionStorage,
+   dan saat halaman disegarkan srvMuat() dijalankan dua kali. Pass pertama
+   membaca simpanan itu — tanpa satu pun perjalanan ke server — dan dashboard
+   langsung tampil dengan data terakhir yang pernah dilihat. Pass kedua
+   berjalan seperti biasa ke server, lalu menggambar ulang. Kode pemuatnya
+   satu dan sama untuk kedua pass; yang berbeda cuma dari mana srvFetch
+   mengambil jawabannya.
+
+   Yang disimpan hanya jalur BACA yang dipanggil srvMuat() (daftar di bawah),
+   hanya kalau jawabannya 200, dan hanya untuk akun yang sama: simpanan milik
+   akun lain di komputer yang dipakai bergantian tidak boleh tampil sedetik pun.
+   sessionStorage, bukan localStorage, dengan alasan yang sama seperti sesi:
+   menutup tab berarti selesai. */
+const SIMPANAN_KUNCI = 'avenger.simpanan';
+const SIMPANAN_JALUR = /^\/(api\/(getAllData|me)|unitdb|sejarah|dokumen|hak-akun)(\?|$)/;
+// mode: null (biasa) | 'baca' (dari simpanan, tanpa jaringan) | 'tulis' (ke server, hasilnya disimpan)
+const SIMPANAN = { mode: null, isi: null, baru: null, tunggu: [] };
+
+const simpananKunci = (jalur, opsi) => jalur + '\n' + (opsi && opsi.body ? String(opsi.body) : '');
+
+function simpananBaca(){
+  try{
+    const s = JSON.parse(sessionStorage.getItem(SIMPANAN_KUNCI) || 'null');
+    if(!s || !s.isi || !s.user || !SRV.sesi || s.user !== SRV.sesi.username) return null;
+    return s;
+  }catch(e){ return null; }
+}
+function simpananTulis(isi){
+  if(!SRV.sesi) return;
+  try{ sessionStorage.setItem(SIMPANAN_KUNCI, JSON.stringify({ user: SRV.sesi.username, jam: Date.now(), isi })); }
+  catch(e){ /* kuota atau mode privat: tanpa simpanan, refresh berikutnya cuma kembali ke jalur biasa */ }
+}
+function simpananLupakan(){
+  try{ sessionStorage.removeItem(SIMPANAN_KUNCI); }catch(e){ /* tidak apa-apa */ }
+  SIMPANAN.isi = null;
+}
+
+/** fetch dengan batas waktu — server yang menggantung tidak boleh membekukan kartu masuk.
+    Dalam mode 'baca' jawabannya diambil dari simpanan (lihat blok di atas); jalur yang
+    tidak ada di simpanan melempar, dan pemanggilnya yang memutuskan jatuh ke mana. */
 async function srvFetch(jalur, opsi = {}, ms = 8000){
+  const bolehSimpan = SIMPANAN_JALUR.test(jalur);
+  const kunci = simpananKunci(jalur, opsi);
+  if(SIMPANAN.mode === 'baca'){
+    const teks = bolehSimpan && SIMPANAN.isi ? SIMPANAN.isi[kunci] : undefined;
+    if(typeof teks !== 'string') throw new Error('tidak ada di simpanan: ' + jalur);
+    return new Response(teks, { status: 200, headers: { 'Content-Type': 'application/json' } });
+  }
   const henti = new AbortController();
   const jam = setTimeout(()=>henti.abort(), ms);
-  try{ return await fetch(jalur, { credentials:'same-origin', signal:henti.signal, ...opsi }); }
+  try{
+    const r = await fetch(jalur, { credentials:'same-origin', signal:henti.signal, ...opsi });
+    if(SIMPANAN.mode === 'tulis' && bolehSimpan && r.ok && SIMPANAN.baru){
+      // clone(): badannya hanya bisa dibaca sekali, dan pemanggil masih akan
+      // membacanya. Janjinya ditampung supaya penulisan simpanan menunggu semua.
+      SIMPANAN.tunggu.push(r.clone().text().then(t=>{ SIMPANAN.baru[kunci] = t; }).catch(()=>{}));
+    }
+    return r;
+  }
   finally{ clearTimeout(jam); }
 }
 
@@ -330,7 +393,31 @@ async function masukServer(){
  * yang gagal cukup dilewati — satu unit bermasalah tidak boleh menggagalkan
  * seluruh layar.
  */
-async function srvMuat(){
+async function srvMuat(opsi = {}){
+  const mode = opsi.simpanan === 'baca' ? 'baca' : 'tulis';
+  if(mode === 'baca'){
+    const s = simpananBaca();
+    if(!s) throw new Error('tidak ada simpanan untuk akun ini');
+    SIMPANAN.isi = s.isi;
+  }
+  SIMPANAN.mode = mode;
+  SIMPANAN.baru = mode === 'tulis' ? {} : null;
+  SIMPANAN.tunggu = [];
+  try{
+    await srvMuatInti();
+    if(mode === 'tulis'){
+      await Promise.all(SIMPANAN.tunggu);
+      simpananTulis(SIMPANAN.baru);
+    }
+  }finally{
+    // Apa pun yang terjadi, srvFetch di luar srvMuat() harus kembali biasa —
+    // kalau tidak, satu pass yang gagal di tengah membuat seluruh dashboard
+    // membaca simpanan basi tanpa ada yang sadar.
+    SIMPANAN.mode = null; SIMPANAN.baru = null; SIMPANAN.tunggu = [];
+  }
+}
+
+async function srvMuatInti(){
   const awal = await srvApi('getAllData', '');
   // Daftar akun ikut di jawaban pertama, tapi hanya untuk administrator —
   // server yang memutuskan itu, bukan halaman ini. Untuk peran lain isinya

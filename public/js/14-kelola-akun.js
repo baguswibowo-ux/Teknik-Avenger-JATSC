@@ -174,7 +174,11 @@ async function muatUsers(){
     peta dikosongkan saja. */
 async function muatHakAkun(){
   try{
-    const jawab = await fetch('/hak-akun', { credentials:'include' });
+    // srvFetch, bukan fetch polos: ini dipanggil dari srvMuat(), dan lewat
+    // srvFetch jawabannya ikut tersimpan untuk pass "gambar dulu" saat refresh
+    // (lihat SIMPANAN JAWABAN SERVER di 12-jembatan-elogbook.js). Asalnya
+    // sama, jadi credentials 'same-origin' di dalamnya setara dengan 'include'.
+    const jawab = await srvFetch('/hak-akun', {}, 8000);
     if(!jawab.ok){ HAK_AKUN = {}; return; }
     const j = await jawab.json();
     HAK_AKUN = (j && j.hakAkun && typeof j.hakAkun === 'object') ? j.hakAkun : {};

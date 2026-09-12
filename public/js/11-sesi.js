@@ -27,6 +27,9 @@ function simpanSesi(){
 
 function lupakanSesi(){
   try{ sessionStorage.removeItem(SESI_KUNCI); }catch(e){ /* tidak apa-apa */ }
+  // Simpanan jawaban server ikut pergi bersama sesinya: keluar berarti tidak
+  // ada data siapa pun yang tertinggal untuk tampil sekilas di refresh berikut.
+  if(typeof simpananLupakan === 'function') simpananLupakan();
   // data-pulih dipasang inline di <head> supaya layar masuk tidak berkedip
   // sekilas sebelum dashboard muncul; kalau sesi gagal dipulihkan, atribut ini
   // harus lepas supaya kartu masuk kelihatan lagi.
@@ -49,16 +52,65 @@ function bacaSesi(){
 async function pulihkanSesi(){
   const s = bacaSesi();
   if(!s){ document.documentElement.removeAttribute('data-pulih'); return; }
+  if(!SRV.ada || !SRV.sesi) return lupakanSesi();
+  segarkanKartuMasuk();
+
+  /* Dua pass — lihat SIMPANAN JAWABAN SERVER di 12-jembatan-elogbook.js.
+
+     Pass pertama dari simpanan: tanpa jaringan, dashboard langsung tampil
+     dengan data yang terakhir dilihat akun ini. Gagal di sini bukan masalah
+     (tab baru belum punya simpanan, atau simpanannya milik akun lain) —
+     tinggal jatuh ke jalur biasa, yang memang jalur lama.
+
+     Pass kedua ke server, lalu gambar ulang. Kalau yang ini gagal SESUDAH
+     simpanan tampil, dashboard dibiarkan berdiri dengan data terakhirnya —
+     kecuali servernya bilang sesinya sudah tidak berlaku (401/403): data lama
+     di balik sesi yang mati harus turun dan kartu masuk yang naik. */
+  let dariSimpanan = false;
   try{
-    if(!SRV.ada || !SRV.sesi) return lupakanSesi();
-    segarkanKartuMasuk();
-    await srvMuat();
+    await srvMuat({ simpanan: 'baca' });
+    bukaDashboard();
+    pulihkanLayar(s);
+    el('ketBeranda').textContent += T(' · memperbarui dari server…', ' · refreshing from server…');
+    dariSimpanan = true;
   }catch(e){
-    console.warn('Sesi sebelumnya tidak bisa dipulihkan:', e && e.message || e);
-    return lupakanSesi();
+    // Simpanan yang tidak terpakai dibuang: yang setengah cocok lebih buruk
+    // daripada yang tidak ada, karena gagalnya akan berulang tiap refresh.
+    simpananLupakan();
   }
 
-  bukaDashboard();
+  try{
+    await srvMuat();
+  }catch(e){
+    const sesiMati = /menjawab 40[13]\b/.test(e && e.message || '');
+    if(dariSimpanan && !sesiMati){
+      console.warn('Pembaruan dari server gagal; data terakhir tetap ditampilkan:', e && e.message || e);
+      gambarSemua();      // menghapus tanda "memperbarui…" — yang tampil memang data terakhir
+      return;
+    }
+    console.warn('Sesi sebelumnya tidak bisa dipulihkan:', e && e.message || e);
+    lupakanSesi();
+    if(dariSimpanan){
+      akun = null; unitDibuka = null;
+      el('app').classList.remove('tampil');
+      el('layarMasuk').classList.remove('pergi');
+      segarkanKartuMasuk();
+      pesan(T('Sesi Anda sudah berakhir — silakan masuk lagi.', 'Your session has ended — please sign in again.'));
+    }
+    return;
+  }
+
+  if(dariSimpanan){
+    gambarSemua();        // data segar menimpa yang dari simpanan, tanda "memperbarui…" ikut hilang
+    if(unitDibuka) gambarUnit();
+  }else{
+    bukaDashboard();
+    pulihkanLayar(s);
+  }
+}
+
+/** Kembali ke layar dan unit yang terbuka sebelum halaman disegarkan. */
+function pulihkanLayar(s){
   if(s.unit && bolehBuka(s.unit)) bukaUnit(s.unit);
   // Layar yang tombolnya sedang tersembunyi tidak ikut dipulihkan — Kelola Akun
   // milik akun yang sebelumnya administrator, dan yang masuk sekarang belum
