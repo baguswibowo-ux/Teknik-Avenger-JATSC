@@ -87,7 +87,7 @@ const {
   ambilBerkas,
   buatTautanTelegram, tautkanTelegram, getChatIdTelegram, statusTautanTelegram,
   pelaksanaCatatan, usernameDariNama,
-  logbookPerluPengingatTtd, tandaiPengingatTtd,
+  catatanPerluPengingatTtd, tandaiPengingatTtd,
   getPh, setPh, listDiwakiliOleh, listCalonPh, ringkasCatatan,
   infoCatatan, catatAktivitas, listAktivitas
 } = await import(PAKAI_POSTGRES ? './db-pg.js' : './db.js');
@@ -445,10 +445,22 @@ async function notifSudahTtd(jenis, dibuatOleh, { unit, tanggal, penanda, id }) 
   }
 }
 
-/* ============== PENGINGAT TTD LOGBOOK ==============
- * Kalau sebuah logbook yang ditujukan ke pejabat belum ditandatangani 30 menit
- * setelah dinasnya berakhir, pembuatnya diberi tahu SEKALI lewat Telegram —
- * supaya dia yang menagih, bukan dokumennya yang diam-diam menumpuk.
+/* ============== PENGINGAT TTD (SEMUA LEMBAR) ==============
+ * Kalau sebuah lembar yang ditujukan ke pejabat belum ditandatangani 30 menit
+ * setelah waktunya lewat, teknisi yang tercantum diberi tahu SEKALI lewat
+ * Telegram — supaya mereka yang menagih, bukan dokumennya yang diam-diam
+ * menumpuk.
+ *
+ * BERLAKU UNTUK KETUJUH JENIS, bukan cuma logbook. Yang membedakan hanya
+ * PANGKAL hitungannya, dan itu mengikuti sifat lembarnya:
+ *
+ *   logbook, daily check   dikerjakan per dinas  → dihitung dari AKHIR DINAS
+ *   monitoring, DS test,   ditanggali saja, bisa → dihitung dari WAKTU LEMBAR
+ *   berkala, LTK, BAPB     dikerjakan kapan saja   ITU DISIMPAN
+ *
+ * Mana yang punya dinas ditentukan PUNYA_DINAS di db.js, dan kolom dinas yang
+ * kosong di sini otomatis jatuh ke waktu dibuat — jadi tidak ada jenis yang
+ * bisa "lupa" diurus.
  *
  * Jam akhir dinas dalam UTC, cermin SHIFT di public/js/02-kode-dinas.js milik
  * dashboard (sumber aslinya). Tanggal logbook juga UTC — tanggalHariIni() di
@@ -459,13 +471,15 @@ async function notifSudahTtd(jenis, dibuatOleh, { unit, tanggal, penanda, id }) 
  *
  * Pangkalnya yang terakhir dari akhir dinas dan waktu dibuat: catatan yang
  * disusulkan setelah dinas selesai tetap diberi 30 menit, bukan langsung
- * ditegur begitu tersimpan. Label dinas yang tidak dikenal jatuh ke waktu
- * dibuat saja.
+ * ditegur begitu tersimpan. Label dinas yang tidak dikenal — dan lembar yang
+ * memang tidak punya dinas — jatuh ke waktu dibuat saja.
  *
  * JENDELA mencegah banjir. Tanpanya, pemeriksaan pertama setelah fitur ini
- * dipasang akan mengingatkan setiap logbook lama yang tak pernah ditandatangani
+ * dipasang akan mengingatkan setiap lembar lama yang tak pernah ditandatangani
  * (ada puluhan, sejak Agustus). Yang jatuh temponya lewat lebih dari 6 jam
  * dilewati selamanya; 6 jam cukup lebar untuk server yang sempat mati sejenak.
+ * Itu juga yang menjaga pemasangan hari ini: lembar lama enam jenis yang baru
+ * sekarang punya kolom pengingat tidak ikut diteriaki sekaligus.
  *
  * Pembuat yang belum menautkan Telegram dilewati tanpa ditandai — kalau ia
  * menautkan masih di dalam jendela, pengingatnya tetap sampai.
@@ -495,18 +509,22 @@ async function periksaPengingatTtd() {
   pengingatBerjalan = true;
   try {
     const kini = Date.now();
-    const calon = await logbookPerluPengingatTtd(new Date(kini - 3 * 86400000).toISOString());
+    const calon = await catatanPerluPengingatTtd(new Date(kini - 3 * 86400000).toISOString());
     for (const r of calon) {
       const jatuh = jatuhTempoPengingat(r);
       if (!Number.isFinite(jatuh) || kini < jatuh || kini - jatuh > PENGINGAT_JENDELA_MS) continue;
       // Seluruh teknisi yang tercantum di lembar itu, bukan cuma pembuatnya —
       // dinasnya bersama, jadi tagihannya juga bersama.
-      const chatIds = await chatPenerimaCatatan('logbook', r.id, r.dibuat_oleh);
+      const chatIds = await chatPenerimaCatatan(r.jenis, r.id, r.dibuat_oleh);
       if (!chatIds.length) continue;
+      /* Judul dan perihalnya dibaca ulang per jenis (ringkasCatatan +
+         ringkas-dokumen.js), sama seperti dua notifikasi yang lain — kueri
+         pengingat sengaja tidak ikut membawa kolom perihal tiap tabel. */
+      const rk = await ringkasUntukNotif(r.jenis, r.id);
       const teks = pesanBelumTtd({
-        dokumen: NAMA_DOKUMEN.logbook, unit: namaUnit(r.unit), tanggal: r.tanggal,
-        dinas: r.dinas, menunggu: r.pj_nama || r.ttd_untuk, menit: PENGINGAT_TTD_MENIT,
-        cuplikan: ringkasDokumen('logbook', r).cuplikan
+        dokumen: rk.judul, unit: namaUnit(r.unit), tanggal: r.tanggal,
+        dinas: r.dinas, menunggu: r.pihak_nama || r.ttd_untuk, menit: PENGINGAT_TTD_MENIT,
+        cuplikan: rk.cuplikan
       });
       let terkirim = false;
       for (const chatId of chatIds) {
@@ -516,7 +534,7 @@ async function periksaPengingatTtd() {
       // sampai berarti yang lain dikirimi dua kali pada putaran berikutnya.
       // Telegram yang sedang tak terjangkau seluruhnya dicoba lagi, masih di
       // dalam jendela.
-      if (terkirim) await tandaiPengingatTtd(r.id, new Date().toISOString());
+      if (terkirim) await tandaiPengingatTtd(r.jenis, r.id, new Date().toISOString());
     }
   } catch (err) {
     console.error('[telegram pengingat]', err?.message || err);

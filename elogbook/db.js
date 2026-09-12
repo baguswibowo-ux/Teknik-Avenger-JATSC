@@ -341,8 +341,16 @@ tambahKolom('entries', 'lokasi', "TEXT NOT NULL DEFAULT ''");
 
 /* Kapan pengingat "belum ditandatangani" dikirim ke pembuat catatan. Kosong =
    belum pernah. Diisi sekali saja — pengingatnya memang sekali per catatan.
-   Lihat periksaPengingatTtd di server.js. */
-tambahKolom('entries', 'pengingat_ttd_pada', "TEXT NOT NULL DEFAULT ''");
+   Lihat periksaPengingatTtd di server.js.
+
+   SEMUA lembar ber-TTD punya kolom ini, bukan cuma logbook. Daily check yang
+   menunggu tanda tangan Manager Teknik sama saja nasibnya dengan logbook yang
+   menunggu: diam-diam menumpuk kalau tidak ada yang menagih. Daftarnya cermin
+   JENIS_TTD di bawah — kalau ada jenis baru, barisnya ditambah di sini juga,
+   atau lembar itu tidak akan pernah mengingatkan siapa-siapa. */
+for (const tabel of ['entries', 'dailychecks', 'monitoring', 'dstest', 'berkala', 'ltk', 'bapb']) {
+  tambahKolom(tabel, 'pengingat_ttd_pada', "TEXT NOT NULL DEFAULT ''");
+}
 
 /* Siapa yang membubuhkan tanda tangan susulan, dan kapan. Terpisah dari nama
    pada formulir — nama itu milik teknisi yang mengisi, ini sekadar keterangan
@@ -2821,24 +2829,44 @@ export function statusTautanTelegram(username) {
   return { tertaut: !!(row && row.chat_id), ditautkanPada: (row && row.ditautkan_pada) || '' };
 }
 
-/* ============== PENGINGAT TTD LOGBOOK ==============
+/* ============== PENGINGAT TTD (SEMUA LEMBAR) ==============
  * Calon pengingat "dokumen Anda belum ditandatangani" — dipakai
  * periksaPengingatTtd di server.js. Saringan di sini kasar saja: ditujukan ke
  * sebuah akun, pihak kedua belum membubuhkan (definisinya sama dengan
  * getInboxTtd), belum pernah diingatkan, dan dibuat sejak `sejakIso`. Kapan
- * tepatnya jatuh tempo — akhir dinas + 30 menit — dihitung di server.js,
- * karena itu butuh tabel jam dinas yang bukan urusan lapisan data. */
-export function logbookPerluPengingatTtd(sejakIso) {
-  return db.prepare(`SELECT id, tanggal, dinas, unit, pj_nama, ttd_untuk, dibuat_oleh, dibuat_pada, uraian, lokasi
-                       FROM entries
-                      WHERE ttd_untuk <> '' AND (pj_ttd = '' OR pj_ttd IS NULL)
-                        AND pengingat_ttd_pada = '' AND dibuat_oleh <> ''
-                        AND dibuat_pada >= ?`).all(String(sejakIso));
+ * tepatnya jatuh tempo dihitung di server.js, karena itu butuh tabel jam dinas
+ * yang bukan urusan lapisan data.
+ *
+ * Dulu hanya logbook. Padahal daily check, DS test, berkala, LTK, BAPB, dan
+ * monitoring sama-sama menunggu tanda tangan pihak kedua — dan yang tidak
+ * pernah ditagih sama-sama menumpuk diam-diam. Kuerinya dibangkitkan dari
+ * JENIS_TTD supaya jenis baru ikut sendiri, bukan ditulis satu per satu dan
+ * lupa ditambah. */
+/* Hanya dua lembar yang dikerjakan per DINAS; sisanya ditanggali saja. Yang
+   punya dinas diingatkan setelah dinasnya berakhir, yang tidak punya dihitung
+   dari waktu dibuatnya (jatuhTempoPengingat di server.js). */
+const PUNYA_DINAS = new Set(['logbook', 'dailycheck']);
+
+const SQL_PENGINGAT = Object.entries(JENIS_TTD).map(([jenis, t]) =>
+  `SELECT '${jenis}' AS jenis, id, ${t.tglKolom} AS tanggal,
+          ${PUNYA_DINAS.has(jenis) ? 'dinas' : "''"} AS dinas,
+          unit, ${t.nama} AS pihak_nama, ttd_untuk, dibuat_oleh, dibuat_pada
+     FROM ${t.tabel}
+    WHERE ttd_untuk <> '' AND (${t.ttd} = '' OR ${t.ttd} IS NULL)
+      AND pengingat_ttd_pada = '' AND dibuat_oleh <> ''
+      AND dibuat_pada >= ?`).join('\nUNION ALL\n');
+
+export function catatanPerluPengingatTtd(sejakIso) {
+  const sejak = String(sejakIso);
+  return db.prepare(SQL_PENGINGAT).all(...Object.keys(JENIS_TTD).map(() => sejak));
 }
 
-/** Tandai sebuah logbook sudah diingatkan — sekali saja per catatan. */
-export function tandaiPengingatTtd(id, waktuIso) {
-  db.prepare('UPDATE entries SET pengingat_ttd_pada = ? WHERE id = ?').run(String(waktuIso), String(id));
+/** Tandai satu catatan sudah diingatkan — sekali saja, apa pun jenisnya. */
+export function tandaiPengingatTtd(jenis, id, waktuIso) {
+  const t = JENIS_TTD[jenis];
+  if (!t) return;
+  db.prepare(`UPDATE ${t.tabel} SET pengingat_ttd_pada = ? WHERE id = ?`)
+    .run(String(waktuIso), String(id));
 }
 
 /* ============== RINGKASAN UNTUK NOTIFIKASI ==============

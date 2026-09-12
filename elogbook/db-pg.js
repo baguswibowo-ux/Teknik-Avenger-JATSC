@@ -266,9 +266,16 @@ const KOLOM_SUSULAN = [
   // dari dibuat_oleh — pelapor/penginput bisa teknisi, penutup selalu admin.
   ['issues', 'ditutup_oleh', "TEXT NOT NULL DEFAULT ''"],
   ['issues', 'keterangan_closed', "TEXT NOT NULL DEFAULT ''"],
-  // Kapan pengingat "belum ditandatangani" dikirim ke pembuat logbook — lihat
-  // logbookPerluPengingatTtd. Kosong = belum pernah; diisi sekali saja.
+  // Kapan pengingat "belum ditandatangani" dikirim — lihat
+  // catatanPerluPengingatTtd. Kosong = belum pernah; diisi sekali saja.
+  // Semua lembar ber-TTD, bukan cuma logbook: cermin daftar senama di db.js.
   ['entries', 'pengingat_ttd_pada', "TEXT NOT NULL DEFAULT ''"],
+  ['dailychecks', 'pengingat_ttd_pada', "TEXT NOT NULL DEFAULT ''"],
+  ['monitoring', 'pengingat_ttd_pada', "TEXT NOT NULL DEFAULT ''"],
+  ['dstest', 'pengingat_ttd_pada', "TEXT NOT NULL DEFAULT ''"],
+  ['berkala', 'pengingat_ttd_pada', "TEXT NOT NULL DEFAULT ''"],
+  ['ltk', 'pengingat_ttd_pada', "TEXT NOT NULL DEFAULT ''"],
+  ['bapb', 'pengingat_ttd_pada', "TEXT NOT NULL DEFAULT ''"],
   // PH (pelaksana harian) — lihat getPh di db.js.
   ['users', 'ph_username', "TEXT NOT NULL DEFAULT ''"],
   ['users', 'ph_sampai', "TEXT NOT NULL DEFAULT ''"]
@@ -2606,20 +2613,32 @@ export async function statusTautanTelegram(username) {
   return { tertaut: !!(row && row.chat_id), ditautkanPada: (row && row.ditautkan_pada) || '' };
 }
 
-/* ============== PENGINGAT TTD LOGBOOK ==============
- * Sepadan dengan logbookPerluPengingatTtd / tandaiPengingatTtd di db.js —
- * lihat catatan di sana. */
-export async function logbookPerluPengingatTtd(sejakIso) {
-  return await q(`SELECT id, tanggal, dinas, unit, pj_nama, ttd_untuk, dibuat_oleh, dibuat_pada, uraian, lokasi
-                    FROM entries
-                   WHERE ttd_untuk <> '' AND (pj_ttd = '' OR pj_ttd IS NULL)
-                     AND pengingat_ttd_pada = '' AND dibuat_oleh <> ''
-                     AND dibuat_pada >= $1`, [String(sejakIso)]);
+/* ============== PENGINGAT TTD (SEMUA LEMBAR) ==============
+ * Sepadan dengan catatanPerluPengingatTtd / tandaiPengingatTtd di db.js —
+ * lihat catatan di sana. Nomor parameternya dibangkitkan sendiri karena
+ * Postgres memakai $1..$n, satu per jenis. */
+const PUNYA_DINAS = new Set(['logbook', 'dailycheck']);
+
+const SQL_PENGINGAT = Object.entries(JENIS_TTD).map(([jenis, t], i) =>
+  `SELECT '${jenis}' AS jenis, id, ${t.tglKolom} AS tanggal,
+          ${PUNYA_DINAS.has(jenis) ? 'dinas' : "''"} AS dinas,
+          unit, ${t.nama} AS pihak_nama, ttd_untuk, dibuat_oleh, dibuat_pada
+     FROM ${t.tabel}
+    WHERE ttd_untuk <> '' AND (${t.ttd} = '' OR ${t.ttd} IS NULL)
+      AND pengingat_ttd_pada = '' AND dibuat_oleh <> ''
+      AND dibuat_pada >= $${i + 1}`).join('\nUNION ALL\n');
+
+export async function catatanPerluPengingatTtd(sejakIso) {
+  const sejak = String(sejakIso);
+  return await q(SQL_PENGINGAT, Object.keys(JENIS_TTD).map(() => sejak));
 }
 
-/** Tandai sebuah logbook sudah diingatkan — sekali saja per catatan. */
-export async function tandaiPengingatTtd(id, waktuIso) {
-  await jalankan('UPDATE entries SET pengingat_ttd_pada = $1 WHERE id = $2', [String(waktuIso), String(id)]);
+/** Tandai satu catatan sudah diingatkan — sekali saja, apa pun jenisnya. */
+export async function tandaiPengingatTtd(jenis, id, waktuIso) {
+  const t = JENIS_TTD[jenis];
+  if (!t) return;
+  await jalankan(`UPDATE ${t.tabel} SET pengingat_ttd_pada = $1 WHERE id = $2`,
+    [String(waktuIso), String(id)]);
 }
 
 /* ============== RINGKASAN UNTUK NOTIFIKASI ==============
