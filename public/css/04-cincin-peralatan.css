@@ -11,10 +11,11 @@
    dari kedalaman dan yang habis giliran mundur ke sana. Itu yang membuat
    pergantiannya terasa maju ke depan, bukan sekadar bertukar gambar.
    ===================================================================== */
-/* Tinggi panggung = 14px (top kartu) + tinggi kartu (±284px) × 1,11 — pembesaran
-   kartu depan, dari scale 1,06 bersama translateZ 60px pada perspective 1400px —
-   ≈ 330px, dilebihkan sedikit untuk bayangannya. */
-.orbit{position:relative;height:344px;margin:6px 0 0;overflow:hidden;
+/* Tinggi panggung = 14px (top kartu) + tinggi kartu (±284px) ≈ 298px, ditambah
+   ruang untuk bayangannya. Kartu depan tidak lagi diperbesar (lihat aturCincin
+   di 17-cincin-peralatan.js: pembesaran lewat transform 3D membuat rasternya
+   lembut), jadi tingginya tinggi kartu apa adanya. */
+.orbit{position:relative;height:330px;margin:6px 0 0;overflow:hidden;
   perspective:1400px;perspective-origin:50% 46%;}
 /* Lapis yang memegang kartunya. preserve-3d wajib: tanpa itu translateZ kartu
    tidak kebagian perspective .orbit dan kedalamannya hilang sama sekali. */

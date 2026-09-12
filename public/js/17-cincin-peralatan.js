@@ -124,8 +124,13 @@ function aturCincin(){
        atas — arah yang berbeda supaya pergantiannya terbaca sebagai maju,
        bukan sekadar timbul-tenggelam di tempat yang sama. */
     const lewat = i < cincinDepan;
+    /* Kartu depan DIAM TANPA transform, bukan diperbesar lewat translateZ +
+       scale. Peramban merasterkan lapisan 3D pada ukuran aslinya lalu
+       meregangkannya; pada pembesaran 1,1× foto unit dan hurufnya jadi lembut,
+       dan itu terlihat — satu kartu diam yang ditatap orang. Kedalamannya
+       tetap ada di kartu yang datang dan pergi; yang di depan tajam. */
     k.style.transform = depan
-      ? 'translateZ(60px) scale(1.06)'
+      ? 'none'
       : `translateZ(-220px) translateY(${lewat ? 26 : -26}px) scale(.86)`;
   });
   el('titikGiliran').querySelectorAll('button').forEach((b,i)=>
