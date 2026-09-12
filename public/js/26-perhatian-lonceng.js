@@ -45,7 +45,10 @@ function namaSaya(n){
 function unitDinasSaya(){
   if(!akun) return [];
   return UNIT.map(u=>u.kode)
-    .filter(kode=>dinasUnit(kode).some(s=>s.o.some(o=>namaSaya(o.n))));
+    // Petak CUTI/CAP/IJIN/DL tidak dihitung. Nama orangnya memang tercantum di
+    // situ, tetapi tercantum sebagai yang TIDAK masuk — dan lonceng yang
+    // berbunyi ke orang yang sedang cuti persis yang diminta hilang.
+    .filter(kode=>dinasUnit(kode).some(s=>berdinasShift(s.k) && s.o.some(o=>namaSaya(o.n))));
 }
 
 /**

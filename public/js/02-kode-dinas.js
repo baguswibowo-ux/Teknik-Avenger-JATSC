@@ -97,10 +97,84 @@ const URUT_PITA = ['PS','M','P','S'];
    akan membuat satu pekerjaan yang sama harus ditulis dua kali. */
 const ROMBONGAN_NAMA = { PS:['PS','Day'], M:['Malam','Night'] };
 
+/* =======================================================================
+   PEMBAKU KODE — dari tulisan di lembar ke kunci SHIFT
+
+   Yang tersimpan di jadwal tidak selalu kunci SHIFT yang bersih. Pengimpor
+   sengaja MENYIMPAN APA ADANYA kode yang tidak dikenalinya (lihat imporKode di
+   22-impor-jadwal.js) supaya salah ketik kelihatan alih-alih hilang diam-diam,
+   dan jadwal yang sudah terlanjur masuk memang berisi tulisan seperti ini:
+
+     'C  U  T  I'    huruf berspasi, sisa pembacaan lembar Excel/PDF
+     'MJ (SPKL)'     SPKL ditulis di belakang, bukan di depan seperti 'SPKLMJ'
+     'PSJ (SPKL)'    idem
+     'Pagi'          nama lama, sebelum kode J/NJ dipakai
+
+   Semuanya kode yang artinya jelas bagi yang membacanya, tetapi tidak sama
+   dengan kunci SHIFT — jadi tanpa pembaku ini 'C  U  T  I' terhitung berdinas
+   dan 'MJ (SPKL)' tidak punya rombongan. Dua-duanya salah, dan dua-duanya
+   diam-diam.
+
+   Yang dilakukan: buang semua yang bukan huruf, samakan besar-kecilnya, lalu
+   cocokkan — langsung, lewat alias nama panjang, atau lewat SPKL yang letaknya
+   terbalik. Yang tetap tidak ketemu dijawab '' — dan yang memanggil yang
+   memutuskan apa artinya kode asing baginya.
+   ======================================================================= */
+
+/* Nama panjang dan singkatan yang artinya sudah pasti, dipetakan ke kunci
+   SHIFT-nya. Kembarannya IMPOR_ALIAS di 22-impor-jadwal.js; yang di sana
+   menyaring waktu impor, yang di sini menolong jadwal yang terlanjur
+   tersimpan dengan tulisan itu. */
+const ALIAS_SHIFT = {
+  PAGI:'Pagi', SIANG:'Siang', MALAM:'Malam',
+  CT:'CUTI', CUTITAHUNAN:'CUTI',
+  CUTIALASANPENTING:'CAP', SAKIT:'CAP',
+  IZIN:'IJIN', DINASLUAR:'DL'
+};
+
+/** Kunci SHIFT untuk satu tulisan kode, atau '' kalau memang tidak dikenal. */
+function kodeBaku(kode){
+  const huruf = String(kode == null ? '' : kode).toUpperCase().replace(/[^A-Z]/g, '');
+  if(!huruf) return '';
+  if(SHIFT[huruf]) return huruf;
+  if(ALIAS_SHIFT[huruf] && SHIFT[ALIAS_SHIFT[huruf]]) return ALIAS_SHIFT[huruf];
+  /* SPKL di belakang: 'MJ (SPKL)' → 'MJSPKL' → dasarnya 'MJ' → 'SPKLMJ'.
+     Kalau dasarnya tidak punya varian SPKL sendiri, dasarnya yang dipakai —
+     yang penting orangnya berdinas pada bentuk shift itu. */
+  const tanpa = huruf.replace('SPKL', '');
+  if(tanpa !== huruf && tanpa){
+    const dasar = SHIFT[tanpa] ? tanpa : (ALIAS_SHIFT[tanpa] || '');
+    if(dasar) return SHIFT['SPKL' + dasar] ? 'SPKL' + dasar : dasar;
+  }
+  return '';
+}
+
 /** Rombongan satu kode dinas: 'PS', 'M', atau '' kalau kodenya tidak dikenal. */
 const rombonganShift = (kode) => {
-  const p = SHIFT[kode] && SHIFT[kode].pita;
+  const b = kodeBaku(kode);
+  const p = b && SHIFT[b].pita;
   return !p ? '' : p === 'M' ? 'M' : 'PS';
+};
+
+/**
+ * Orang dengan kode ini benar-benar masuk hari itu?
+ *
+ * Yang dijawab 'tidak' cuma kode yang ditandai `libur` di SHIFT — CUTI, CAP,
+ * IJIN, dan DL. Keempatnya tetap tampil di petak dinas supaya terlihat siapa
+ * yang tidak di tempat, tetapi pekerjaan berkala bukan urusan mereka: yang
+ * mengerjakan pekerjaan berkala adalah yang berdinas — PS, P, S, M, mau JATSC
+ * mau New JATSC, termasuk yang berdinas dengan SPKL.
+ *
+ * Kode yang benar-benar asing — tidak dikenal kodeBaku() sekalipun — dihitung
+ * BERDINAS. Lembar jadwal kadang memakai tulisan yang belum dikenal di sini,
+ * dan menganggapnya libur berarti diam-diam membebaskan orangnya dari
+ * pekerjaan yang sebenarnya jadi tanggungannya. Yang salah alamat masih bisa
+ * dibetulkan orangnya; yang tidak pernah muncul tidak ada yang tahu.
+ */
+const berdinasShift = (kode) => {
+  if(!String(kode == null ? '' : kode).trim()) return false;
+  const b = kodeBaku(kode);
+  return !b || !SHIFT[b].libur;
 };
 
 /**

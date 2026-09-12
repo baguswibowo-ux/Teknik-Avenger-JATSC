@@ -34,7 +34,11 @@ function dinasPadaTanggal(unit, d){
   const h = d.getDate();
   return daftar
     .map(o=>({ nama:o.nama, peran:o.peran || '', kode:(o.hari || [])[h-1] || '' }))
-    .filter(o=>o.kode && o.nama);
+    // Hanya yang benar-benar masuk hari itu. Yang petaknya CUTI, CAP, IJIN,
+    // atau DL tidak ikut — mereka bukan penerima pekerjaan berkala hari itu,
+    // dan menampilkan namanya di baris "Berdinas" membuat pekerjaan terlihat
+    // sudah ada yang memegang padahal orangnya tidak di tempat.
+    .filter(o=>o.nama && berdinasShift(o.kode));
 }
 
 /** Kenapa penerimanya tidak bisa dibaca. Dua sebab yang berbeda, dan hanya satu

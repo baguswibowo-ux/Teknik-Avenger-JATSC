@@ -1823,14 +1823,24 @@ async function cetakLembarPermintaanHtml(p, snap){
  * cetakIsiSnapshotHtml): kalau daftarnya berubah, satu titik yang disunting.
  */
 function dinasKodePUM(kode){
-  const k = String(kode || '').trim().toUpperCase();
-  if(!k) return '';
-  if(k === 'PSJ' || k === 'PSN' || k === 'PS') return 'PS';
-  if(k === 'MJ'  || k === 'MN'  || k === 'M')  return 'M';
-  if(k === 'PJ'  || k === 'PNJ' || k === 'P')  return 'P';
-  if(k === 'SJ'  || k === 'SNJ' || k === 'S')  return 'S';
-  // SPKL apa pun, CUTI, CAP, IJIN, DL, dan sisanya: sengaja dikosongkan.
-  return '';
+  /* Dibakukan dulu lewat kodeBaku() — jadwal yang sudah tersimpan berisi
+     tulisan seperti 'C  U  T  I', 'MJ (SPKL)', dan nama lama 'Pagi'. Tanpa
+     pembakuan, 'Pagi' ikut kosong padahal orangnya berdinas, dan lembar PUM
+     diam-diam melaporkan hari kerja sebagai hari kosong. */
+  const b = kodeBaku(kode);
+  if(!b) return '';                       // kode yang memang tidak dikenal
+  /* SPKL sengaja tidak ikut ke lembar PUM, bentuk apa pun ('SPKLMJ' maupun
+     'MJ (SPKL)'). Lembur urusan internal Teknik. Perhatikan bahwa ini BUKAN
+     berarti yang SPKL lepas dari pekerjaan berkala — di dashboard ia tetap
+     terhitung berdinas; lihat berdinasShift() di 02-kode-dinas.js. */
+  if(b.startsWith('SPKL')) return '';
+  const s = SHIFT[b];
+  /* CUTI, CAP, IJIN, DL: kosong di baris kodenya, karena keterangannya sudah
+     punya tempat sendiri di tabel bawah lembar (lihat dinasBarisCuti). */
+  if(s.libur) return '';
+  /* Yang tersisa tinggal ritme jaga pokok, dan `pita` memang sudah menyebutnya
+     dengan empat huruf yang sama: PS, M, P, S. */
+  return s.pita || '';
 }
 
 /* Nama bulan Bahasa Indonesia — dipakai untuk baris "Tangerang, 15 Agustus
