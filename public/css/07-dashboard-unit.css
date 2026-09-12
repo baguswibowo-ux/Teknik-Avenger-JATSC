@@ -553,3 +553,19 @@ html[data-tema="gelap"] .sert-sunting input[type=date]::-webkit-calendar-picker-
   padding:11px 16px;font-size:12.5px;box-shadow:var(--bayang);opacity:0;transition:.25s;pointer-events:none;}
 #pesan.tampil{opacity:1;transform:translateX(-50%) translateY(0);}
 
+
+/* ---------- Kartu Profil (js/38-profil.js) ---------- */
+.profil-identitas{display:grid; gap:6px; margin-bottom:14px;}
+.profil-baris{display:flex; gap:10px; font-size:13px; align-items:baseline;}
+.profil-label{flex:0 0 110px; color:var(--muted);}
+.profil-isi{font-weight:600; word-break:break-word;}
+.profil-telegram{border-top:1px solid var(--line); padding-top:12px;}
+.profil-telegram h4{font-size:13px; margin:0 0 4px;}
+.profil-tg-status{font-size:13px; margin:8px 0;}
+.profil-tg-aksi{display:flex; flex-wrap:wrap; gap:8px; align-items:center;}
+/* Lencana keadaan sambungan. Warnanya dari token tema, bukan hijau/merah
+   mentah, supaya ikut berganti di mode gelap. */
+.tg-lencana{display:inline-block; padding:1px 8px; border-radius:999px; font-size:11.5px;
+            border:1px solid var(--line); margin-right:4px;}
+.tg-lencana.on{border-color:var(--ok); color:var(--ok);}
+.tg-lencana.off{color:var(--muted);}

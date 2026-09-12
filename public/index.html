@@ -227,6 +227,14 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
           <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
       </button>
+      <!-- Profil: satu-satunya tempat orang mengurus akunnya sendiri —
+           identitas dan sambungan Telegram. Duduk di sebelah Keluar karena
+           keduanya soal "akun ini", bukan soal isi dashboard. -->
+      <button class="tombol-ikon" id="tombolProfil" title="Profil saya"
+              data-en-judul="My profile" aria-label="Profil saya">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      </button>
       <button class="tombol-ikon" id="tombolKeluar" title="Keluar" data-en-judul="Sign out">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
           <path d="M15 17l5-5-5-5"/><path d="M20 12H9"/><path d="M12 20H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h6"/></svg>
@@ -569,6 +577,31 @@
      karena kolomnya nyaris sama dan dua salinan markup akan saling meleset
      begitu salah satunya diubah. Di luar #app dengan alasan yang sama dengan
      lapis foto di atas. -->
+<!-- PROFIL AKUN — identitas dan sambungan Telegram. Diisi & dikelola oleh
+     js/38-profil.js. Panel Telegram menyembunyikan dirinya sendiri kalau
+     server E-Logbook belum menyalakan botnya. -->
+<div class="lapis-ubah" id="lapisProfil" role="dialog" aria-modal="true" aria-labelledby="judulProfil">
+  <div class="kartu-ubah">
+    <div class="kepala">
+      <h3 id="judulProfil" data-en="My Profile">Profil Saya</h3>
+      <span class="ket" data-en="Your account, not this device">Akun Anda, bukan perangkat ini</span>
+    </div>
+    <div class="badan">
+      <div class="profil-identitas" id="profilIdentitas"></div>
+
+      <div class="profil-telegram" id="profilTelegram" hidden>
+        <h4 data-en="🔔 Telegram notifications">🔔 Notifikasi Telegram</h4>
+        <div class="bantu" data-en="Get a message on Telegram when a document is waiting for your signature, when a document you filed has been signed, and when a shift you worked has not been signed yet.">Terima kabar di Telegram saat ada dokumen yang menunggu tanda tangan Anda, saat dokumen yang Anda kirim sudah ditandatangani, dan saat dinas yang Anda kerjakan belum juga ditandatangani.</div>
+        <div id="profilTgStatus" class="profil-tg-status"></div>
+        <div id="profilTgAksi" class="profil-tg-aksi"></div>
+      </div>
+    </div>
+    <div class="kaki">
+      <button class="btn garis" id="btnTutupProfil" data-en="Close">Tutup</button>
+    </div>
+  </div>
+</div>
+
 <div class="lapis-ubah" id="lapisAkun" role="dialog" aria-modal="true" aria-labelledby="judulKartuAkun">
   <div class="kartu-ubah">
     <div class="kepala">
@@ -766,6 +799,7 @@
 <script src="/js/35-impor-sparepart.js"></script>
 <script src="/js/36-cetak.js"></script>
 <script src="/js/37-isr.js"></script>
+<script src="/js/38-profil.js"></script>
 <script src="/js/33-mulai.js"></script>
 </body>
 </html>

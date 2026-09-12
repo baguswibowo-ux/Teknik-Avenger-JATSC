@@ -26,11 +26,3 @@
 .tg-badge{display:inline-block; padding:2px 8px; border-radius:999px; font-size:11.5px; font-weight:600; margin-right:4px;}
 .tg-badge.tg-on{background:rgba(45,180,90,.15); color:#2db45a; border:1px solid rgba(45,180,90,.4);}
 .tg-badge.tg-off{background:var(--panel-2); color:var(--muted); border:1px solid var(--line);}
-
-/* Blok identitas di modal Profil (js/28c-profil.js). Labelnya diberi lebar
-   tetap yang kecil supaya nilainya rata kiri satu garis, dan tetap terbaca di
-   layar sempit. */
-.profil-identitas{display:grid; gap:6px; margin-bottom:4px;}
-.profil-baris{display:flex; gap:10px; font-size:13px; align-items:baseline;}
-.profil-label{flex:0 0 118px; color:var(--muted, #888);}
-.profil-isi{font-weight:600; word-break:break-word;}
