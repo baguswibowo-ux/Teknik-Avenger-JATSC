@@ -269,6 +269,37 @@ async function teruskan(req, res, potong = '') {
   if (cookie.length) res.setHeader('Set-Cookie', cookie);
 
   const isi = Buffer.from(await jawab.arrayBuffer());
+
+  /* Dimampatkan di sini, bukan di E-Logbook, dan bukan diserahkan ke
+     Cloudflare. Cloudflare memang memampatkan ke arah peramban — tetapi jalur
+     yang sempit adalah dari PC ini NAIK ke Cloudflare (~1,6 Mbps, tunnel), dan
+     yang lewat situ adalah badan apa adanya dari sini. Satu login akun lintas
+     unit menarik ~300 KB JSON getAllData; mentah itu sekitar 1,5 detik di
+     pipa tersebut, sebagai gzip sekitar 0,3.
+
+     Aman digandakan di sini karena dua hal yang sudah berlaku di atas:
+     'accept-encoding' DIBUANG dari kepala yang diteruskan ke E-Logbook, jadi
+     badan yang datang selalu polos; dan 'content-encoding' dari E-Logbook
+     dibuang dari kepala yang dikembalikan. Tidak ada yang dimampatkan dua
+     kali, dan tidak ada kepala yang berbohong tentang isinya.
+
+     Hanya teks (JSON, HTML, JS, CSS, SVG) dan hanya kalau cukup besar: PNG dan
+     font tidak mengecil, dan badan di bawah 1 KB lebih murah dikirim apa
+     adanya daripada dibungkus. */
+  const tipe = String(jawab.headers.get('content-type') || '');
+  const bisaDimampatkan = /^(text\/|application\/(json|javascript|xml|x-javascript)|image\/svg\+xml)/i.test(tipe);
+  const mintaGzip = /\bgzip\b/i.test(String(req.headers['accept-encoding'] || ''));
+  if (bisaDimampatkan && mintaGzip && isi.length >= 1024 && req.method !== 'HEAD') {
+    const gz = zlib.gzipSync(isi, { level: 6 });
+    res.setHeader('Content-Encoding', 'gzip');
+    res.setHeader('Vary', 'Accept-Encoding');
+    res.setHeader('Content-Length', gz.length);
+    return res.end(gz);
+  }
+  // 204/304 (dan badan kosong lainnya) dibiarkan tanpa Content-Length, seperti
+  // sebelum ada pemampatan: 304 menyebut ukuran isi yang TIDAK dikirim, dan
+  // "Content-Length: 0" di sana membohongi peramban tentang salinannya.
+  if (isi.length) res.setHeader('Content-Length', isi.length);
   res.end(isi);
 }
 
