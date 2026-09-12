@@ -1,31 +1,32 @@
 /* =====================================================================
-   3. CINCIN PERALATAN 3D — berputar sendiri
-   ===================================================================== */
-/* Tinggi panggung = 24px (top .cincin) + tinggi kartu (±289px) × 1,18 (pembesaran kartu depan,
-   lihat aturCincin di 17-cincin-peralatan.js) ≈ 365px, dibulatkan ke atas. */
-.orbit{position:relative;height:376px;margin:6px -22px 0;overflow-x:clip;
-  perspective:2000px;perspective-origin:50% 44%;
-  -webkit-mask-image:linear-gradient(90deg,transparent,#000 13%,#000 87%,transparent);
-          mask-image:linear-gradient(90deg,transparent,#000 13%,#000 87%,transparent);}
-.cincin{position:absolute;left:50%;top:24px;width:0;height:0;transform-style:preserve-3d;
-  animation:putarCincin 36s linear infinite;}
-@keyframes putarCincin{to{transform:rotateY(-360deg);}}
-.orbit:hover .cincin,.orbit.jeda .cincin{animation-play-state:paused;}
+   3. KARTU PERALATAN — tampil bergantian di depan
 
-.kartu-orbit{position:absolute;left:-115px;top:0;width:230px;cursor:pointer;
+   Dulu ini cincin 3D yang berputar sendiri, satu putaran 36 detik. Harga
+   gerakan itu ternyata mahal: unit yang dicari harus ditunggu lewat, dan
+   separuh kartu selalu terlihat membelakangi di sisi jauh cincin. Yang
+   tinggal sekarang satu kartu di depan — sisanya tidak ada di layar sama
+   sekali — dan gilirannya berganti sendiri tiap 5 detik.
+
+   Perspective-nya bukan sisa yang lupa dibuang: kartu yang datang muncul
+   dari kedalaman dan yang habis giliran mundur ke sana. Itu yang membuat
+   pergantiannya terasa maju ke depan, bukan sekadar bertukar gambar.
+   ===================================================================== */
+/* Tinggi panggung = 14px (top kartu) + tinggi kartu (±284px) × 1,11 — pembesaran
+   kartu depan, dari scale 1,06 bersama translateZ 60px pada perspective 1400px —
+   ≈ 330px, dilebihkan sedikit untuk bayangannya. */
+.orbit{position:relative;height:344px;margin:6px 0 0;overflow:hidden;
+  perspective:1400px;perspective-origin:50% 46%;}
+/* Lapis yang memegang kartunya. preserve-3d wajib: tanpa itu translateZ kartu
+   tidak kebagian perspective .orbit dan kedalamannya hilang sama sekali. */
+.cincin{position:absolute;inset:0;transform-style:preserve-3d;}
+
+.kartu-orbit{position:absolute;left:50%;top:14px;margin-left:-115px;width:230px;cursor:pointer;
   border:1px solid var(--line);border-radius:15px;background:var(--panel);overflow:hidden;
-  backface-visibility:hidden;box-shadow:0 18px 40px rgba(0,0,0,.5);
-  animation:sorot 36s linear infinite;}
-.orbit:hover .kartu-orbit,.orbit.jeda .kartu-orbit{animation-play-state:paused;}
-/* Kartu di sisi jauh diredupkan sampai hampir hilang. Digabung dengan
-   backface-visibility, pergantiannya tidak pernah terlihat "meloncat". */
-@keyframes sorot{
-  0%  {filter:brightness(1)   saturate(1);}
-  22% {filter:brightness(.62) saturate(.75);}
-  50% {filter:brightness(.3)  saturate(.5);}
-  78% {filter:brightness(.62) saturate(.75);}
-  100%{filter:brightness(1)   saturate(1);}
-}
+  box-shadow:0 18px 40px rgba(0,0,0,.5);
+  transition:transform .62s cubic-bezier(.22,.68,.3,1),opacity .45s linear;}
+/* Yang belum giliran benar-benar hilang, bukan sekadar diredupkan: tidak ada
+   sisa kartu belakang yang ikut terbaca, dan tidak ada yang bisa tersentuh. */
+.kartu-orbit[data-sembunyi="1"]{opacity:0;pointer-events:none;}
 .kartu-orbit:hover{border-color:var(--accent);}
 .kartu-orbit.terkunci{cursor:not-allowed;}
 
@@ -60,6 +61,22 @@ a.cip{text-decoration:none;cursor:pointer;transition:color .15s,border-color .15
 a.cip::after{content:' \2197';font-size:9px;opacity:.75;}
 a.cip:hover{color:var(--ink);border-color:var(--ink);}
 
-.kendali-orbit{display:flex;justify-content:center;gap:9px;align-items:center;margin-top:2px;}
-.kendali-orbit .ket{font-family:var(--font-mono);font-size:10.5px;color:var(--muted);}
+.kendali-orbit{display:flex;justify-content:center;gap:9px;align-items:center;
+  margin-top:2px;flex-wrap:wrap;}
+.kendali-orbit .ket{font-family:var(--font-mono);font-size:10.5px;color:var(--muted);
+  text-align:center;}
+.kendali-orbit .bundar{width:30px;height:30px;padding:0;border-radius:50%;
+  display:grid;place-items:center;font-size:16px;line-height:1;}
+/* Nama unit yang sedang di depan. Lebarnya dikunci: tanpa itu tombol panah
+   bergeser tiap kali namanya berganti panjang — "Radtel" lalu "Pendaratan
+   Presisi & Alat Bantu Navigasi" — dan yang mau menekan panah jadi meleset. */
+.nama-depan{font-family:var(--font-display);font-size:13px;font-weight:600;
+  min-width:17ch;text-align:center;}
+/* Titik giliran: sekaligus penunjuk unit ke berapa dari delapan dan tombol
+   lompat, supaya tidak ada unit yang harus ditunggu giliran datang. */
+.titik-giliran{display:flex;gap:6px;align-items:center;}
+.titik-giliran button{width:7px;height:7px;padding:0;border:0;border-radius:50%;
+  background:var(--line);cursor:pointer;transition:background .2s,transform .2s;}
+.titik-giliran button:hover{background:var(--muted);}
+.titik-giliran button[aria-current="true"]{background:var(--accent);transform:scale(1.5);}
 

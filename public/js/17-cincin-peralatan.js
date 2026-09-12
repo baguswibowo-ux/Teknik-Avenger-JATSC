@@ -1,8 +1,28 @@
 /* =======================================================================
-   CINCIN PERALATAN — putarannya animasi CSS, JS hanya menaruh kartunya
+   KARTU PERALATAN — satu unit di depan, bergantian sendiri
+
+   Dulu berkas ini menaruh kartu melingkar dan menyerahkan putarannya ke
+   animasi CSS. Sekarang kartunya tidak melingkar lagi: satu di depan,
+   sisanya disingkirkan ke kedalaman dan disembunyikan, dan JS yang memegang
+   gilirannya. Alasannya ada di kepala 04-cincin-peralatan.css.
+
+   Giliran berhenti sendiri kalau:
+     - kursor sedang di atas panggung (orang sedang membaca kartu itu)
+     - tombol Jeda ditekan (kelas `jeda` di #orbit, dipasang 18-ubin-tabel.js)
+     - berandanya sedang tidak tampil (tidak ada gunanya bergilir di balik layar)
    ======================================================================= */
+
+/* Indeks unit yang sedang di depan. Sengaja di luar gambarCincin(): berkas ini
+   digambar ulang cukup sering — ganti bahasa, foto unit baru, data dari server
+   — dan kartu yang sedang dibaca orang tidak boleh melompat balik ke unit
+   pertama tiap kali itu terjadi. */
+let cincinDepan = 0;
+let cincinJam = null;      // setInterval giliran
+let cincinTahan = false;   // kursor sedang di atas panggung
+
+const CINCIN_JEDA = 5000;  // lama satu unit memegang layar
+
 function gambarCincin(){
-  const n = UNIT.length, langkah = 360/n, durasi = 36;
   el('cincin').innerHTML = UNIT.map((u,i)=>{
     const t = TROUBLE.filter(x=>x.unit === u.kode);
     const open = t.filter(x=>x.status === 'Open').length;
@@ -12,11 +32,8 @@ function gambarCincin(){
               : `<span class="cip aman">normal</span>`;
     const minim = PART.filter(p=>p.unit === u.kode && p.stok < p.min).length;
     const buka = bolehBuka(u.kode);
-    // Kartu i berada tepat di depan pada detik ke i*(durasi/n); geser fasa
-    // sorotnya ke sana supaya redup-terangnya cocok dengan posisi sebenarnya.
-    const fasa = (i*durasi/n - durasi).toFixed(2);
     /* Gambar pengenal unit — yang dipilih admin di kepala layar Database Unit
-       (LOGO, lihat ikonUnitHtml) — dipakai di sini juga, supaya kartu orbit
+       (LOGO, lihat ikonUnitHtml) — dipakai di sini juga, supaya kartunya
        memperlihatkan unit yang sebenarnya, bukan menara karangan. Ilustrasinya
        tetap digambar di bawah foto: kalau berkas fotonya gagal dimuat, img
        melepas dirinya dan ilustrasi yang tampak, bukan bingkai kosong. Tanda
@@ -25,8 +42,8 @@ function gambarCincin(){
        Semua kartu SERAGAM: bingkainya tetap 4:3 (230×172), foto maupun
        ilustrasi mengisinya penuh. Foto kamera/HP umumnya 4:3, jadi tidak ada
        yang terpangkas; rasio lain dipangkas tipis di tepi, bukan dibiarkan
-       mengubah tinggi kartu — tinggi yang berbeda-beda membuat cincin
-       bergeser dan kartu terpangkas panggung saat di depan. */
+       mengubah tinggi kartu — tinggi yang berbeda-beda membuat kartu depan
+       bergeser tiap kali gilirannya berganti. */
     const logo = LOGO[u.kode];
     const srcFoto = (logo && logo.berkas)
       ? `/foto/_logo/${esc(logo.berkas)}?v=${esc(String(logo.jam || '').replace(/\D/g, ''))}`
@@ -34,8 +51,7 @@ function gambarCincin(){
     const foto = srcFoto
       ? `<img class="foto-unit" src="${srcFoto}" alt="${esc(u.nama)}" loading="lazy" onerror="this.remove()">`
       : '';
-    return `<article class="kartu-orbit ${buka?'':'terkunci'}" data-unit="${u.kode}"
-              style="animation-delay:${fasa}s">
+    return `<article class="kartu-orbit ${buka?'':'terkunci'}" data-unit="${u.kode}" data-ke="${i}">
       <div class="bingkai">
         <span class="lampu ${lampu}"></span>
         ${adegan(u.adegan)}${foto}
@@ -54,8 +70,29 @@ function gambarCincin(){
     </article>`;
   }).join('');
 
-  aturCincin();
+  /* Titik giliran digambar ulang bersama kartunya: banyaknya unit bisa berubah
+     begitu jawaban E-Logbook datang, dan titik yang tidak menunjuk ke mana-mana
+     lebih buruk daripada tidak ada titik sama sekali. */
+  el('titikGiliran').innerHTML = UNIT.map((u,i)=>
+    `<button data-ke="${i}" aria-label="${T('Tampilkan','Show')} ${esc(u.nama)}"></button>`).join('');
+  el('titikGiliran').querySelectorAll('button').forEach(b=>
+    b.addEventListener('click', ()=>cincinKe(+b.dataset.ke)));
+
   el('cincin').querySelectorAll('.kartu-orbit').forEach(k=>{
+    /* Penahan giliran menempel di KARTUNYA, bukan di panggung. Panggung itu
+       selebar layar dan setinggi 344px, sedangkan kartunya 230px di tengah —
+       penahan di panggung berarti kursor yang diam jauh dari kartu pun ikut
+       menghentikan giliran, tanpa ada yang terlihat sebagai sebabnya. Kartu
+       yang belum giliran tidak ikut menahan: pointer-events-nya sudah dilepas
+       di CSS, jadi hanya kartu depan yang benar-benar menerima ini. */
+    k.addEventListener('pointerenter', ()=>{ cincinTahan = true; });
+    k.addEventListener('pointerleave', ()=>{
+      cincinTahan = false;
+      // Hitung ulang dari nol. Kalau tidak, sisa detak yang tadi terlewat
+      // membuat kartunya berganti pada jarak yang tidak bisa ditebak — kadang
+      // langsung, kadang lima detik lagi.
+      cincinJalan();
+    });
     k.addEventListener('click', ()=>{
       const kode = k.dataset.unit;
       if(!bolehBuka(kode)){ pesan(T('Akun '+akun.user+' tidak berhak membuka unit '+namaUnit(kode)+'.',
@@ -63,28 +100,61 @@ function gambarCincin(){
       bukaUnit(kode);
     });
   });
+
+  aturCincin();
+  cincinJalan();
 }
 
-/* Jari-jari cincin mengikuti lebar layar. Terlalu besar di layar sempit dan
-   kartunya keluar dari bingkai; terlalu kecil dan kartunya saling tindih.
-
-   Batas atasnya 300px, dan itu terikat dengan perspective 2000px di CSS:
-   kartu paling depan tampak diperbesar perspective/(perspective − jari), jadi
-   paling besar 2000/1700 ≈ 1,18× dan paling kecil (jari 210) ≈ 1,12×. Tinggi
-   panggung .orbit dihitung dari angka 1,18 itu supaya kartu depan tidak
-   pernah terpangkas. Dulu jari sampai 360 dengan perspective 1150 → 1,46×,
-   dan di layar lebar kaki kartu depan hilang di bawah panggung. */
+/**
+ * Menaruh tiap kartu menurut jaraknya dari yang sedang di depan.
+ *
+ * Namanya tetap aturCincin() karena pemanggilnya ada di tempat lain
+ * (pindahLayar di 16-jam-navigasi.js, dan resize di bawah) — dan pekerjaannya
+ * masih sama: menghitung ulang letak kartu. Yang berubah cuma letaknya.
+ */
 function aturCincin(){
-  const lebar = el('orbit').clientWidth;
-  // Lebar 0 berarti beranda sedang tidak tampil. Mengukur di keadaan itu
-  // menghasilkan jari-jari asal-asalan yang tidak pernah dibetulkan lagi saat
-  // beranda dibuka kembali — jadi lebih baik ditunda sampai ada yang bisa diukur.
-  if(!lebar) return;
-  const jari = Math.max(210, Math.min(300, lebar * 0.34));
-  const langkah = 360/UNIT.length;
+  const n = UNIT.length;
+  if(!n) return;
+  cincinDepan = ((cincinDepan % n) + n) % n;
   el('cincin').querySelectorAll('.kartu-orbit').forEach((k,i)=>{
-    k.style.transform = `rotateY(${i*langkah}deg) translateZ(${jari}px)`;
+    const depan = i === cincinDepan;
+    k.dataset.sembunyi = depan ? '0' : '1';
+    k.style.zIndex = depan ? 3 : 1;
+    /* Kartu yang sudah lewat mundur ke bawah, yang belum giliran menunggu di
+       atas — arah yang berbeda supaya pergantiannya terbaca sebagai maju,
+       bukan sekadar timbul-tenggelam di tempat yang sama. */
+    const lewat = i < cincinDepan;
+    k.style.transform = depan
+      ? 'translateZ(60px) scale(1.06)'
+      : `translateZ(-220px) translateY(${lewat ? 26 : -26}px) scale(.86)`;
   });
+  el('titikGiliran').querySelectorAll('button').forEach((b,i)=>
+    b.setAttribute('aria-current', i === cincinDepan ? 'true' : 'false'));
+  el('namaDepan').textContent = UNIT[cincinDepan] ? UNIT[cincinDepan].nama : '';
 }
-addEventListener('resize', aturCincin);
 
+/** Pindah ke unit tertentu, lalu hitung ulang jedanya dari nol — kalau tidak,
+    unit yang baru saja dipilih orang bisa langsung berganti setengah detik
+    kemudian karena giliran sebelumnya sudah hampir habis. */
+function cincinKe(i){
+  cincinDepan = i;
+  aturCincin();
+  cincinJalan();
+}
+
+function cincinJalan(){
+  clearInterval(cincinJam);
+  cincinJam = setInterval(()=>{
+    if(cincinTahan) return;
+    if(el('orbit').classList.contains('jeda')) return;
+    // offsetParent null = berandanya sedang tidak tampil.
+    if(!el('orbit').offsetParent) return;
+    cincinDepan++;
+    aturCincin();
+  }, CINCIN_JEDA);
+}
+
+el('btnMundur').addEventListener('click', ()=>cincinKe(cincinDepan - 1));
+el('btnMaju').addEventListener('click',   ()=>cincinKe(cincinDepan + 1));
+
+addEventListener('resize', aturCincin);

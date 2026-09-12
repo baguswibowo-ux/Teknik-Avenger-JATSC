@@ -135,18 +135,12 @@ el('tombolBahasa').addEventListener('click', ()=>{
   // isi dashboard digambar ulang. Hanya kalau ada yang sedang masuk: gambarSemua()
   // membaca akun, dan sebelum ada yang masuk isinya memang belum pernah digambar.
   if(akun) gambarSemua();
-  // Kedua tombol jeda menyimpan keadaannya di kelas, bukan di teksnya.
-  el('btnJeda').textContent = el('orbit').classList.contains('jeda')
-    ? T('Jalankan putaran','Resume rotation') : T('Jeda putaran','Pause rotation');
+  // Tombol jeda menyimpan keadaannya di kelas, bukan di teksnya — termasuk
+  // tombol giliran kartu peralatan, yang sejak kartunya tidak berputar lagi
+  // memakai data-jeda yang sama dengan pita berjalan.
   document.querySelectorAll('[data-jeda]').forEach(b=>{
     b.textContent = el(b.dataset.jeda).classList.contains('jeda')
       ? T('Jalankan','Resume') : T('Jeda','Pause');
   });
-});
-
-el('btnJeda').addEventListener('click', ()=>{
-  const o = el('orbit'); o.classList.toggle('jeda');
-  el('btnJeda').textContent = o.classList.contains('jeda')
-    ? T('Jalankan putaran','Resume rotation') : T('Jeda putaran','Pause rotation');
 });
 

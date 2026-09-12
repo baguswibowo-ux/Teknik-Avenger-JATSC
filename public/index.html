@@ -100,7 +100,9 @@
 
   <div class="lm-kanvas">
     <div class="lm-merek">
-      <div class="lm-tanda"><img src="/images/airnav-logo.png" alt="AirNav Indonesia"></div>
+      <!-- Versi 128 px: tampilnya cuma 54×54, dan yang 946×960 (297 KB)
+           tidak menambah ketajaman sedikit pun, hanya waktu muat. -->
+      <div class="lm-tanda"><img src="/images/airnav-logo-128.png" alt="AirNav Indonesia"></div>
       <div class="lm-merek-teks">
         <b>PERUM LPPNPI</b>
         <span>CABANG JATSC &middot; SOEKARNO&ndash;HATTA</span>
@@ -276,10 +278,21 @@
   </div>
 
   <div class="orbit" id="orbit"><div class="cincin" id="cincin"></div></div>
+  <!-- Kendali giliran. Tombol Jeda memakai data-jeda yang sama dengan pita
+       berjalan di bawah (lihat 18-ubin-tabel.js): ia cuma memasang kelas
+       `jeda` di #orbit, dan mesin gilirannya yang membaca kelas itu. -->
   <div class="kendali-orbit">
-    <button class="btn garis kecil" id="btnJeda" data-en="Pause rotation">Jeda putaran</button>
-    <span class="ket" data-en="Hover a card to hold the rotation · click to open the unit"
-      >Arahkan kursor ke kartu untuk menahan putaran · klik untuk membuka unit</span>
+    <button class="btn garis kecil bundar" id="btnMundur" title="Unit sebelumnya"
+      data-en-judul="Previous unit" aria-label="Unit sebelumnya">&#8249;</button>
+    <span class="nama-depan" id="namaDepan"></span>
+    <button class="btn garis kecil bundar" id="btnMaju" title="Unit berikutnya"
+      data-en-judul="Next unit" aria-label="Unit berikutnya">&#8250;</button>
+    <div class="titik-giliran" id="titikGiliran"></div>
+    <button class="btn garis kecil" data-jeda="orbit" data-en="Pause">Jeda</button>
+  </div>
+  <div class="kendali-orbit">
+    <span class="ket" data-en="Hover a card to hold its turn · click to open the unit"
+      >Arahkan kursor ke kartu untuk menahan gilirannya · klik untuk membuka unit</span>
   </div>
 
   <div class="ubin-baris" id="ubin"></div>
@@ -319,11 +332,11 @@
   <div class="catatan" data-en="<b>The boundary that applies here.</b> Down to this line every account
     sees the same thing — trouble and duty rosters across all units, so that whoever comes on shift
     knows what is still hanging in the next unit. Roles only start to matter in
-    <b>Unit Database</b>: units this account may not open are padlocked in the ring above.">
+    <b>Unit Database</b>: units this account may not open are padlocked on the equipment cards above.">
     <b>Batas yang berlaku di sini.</b> Sampai baris ini, semua akun melihat hal yang sama —
     trouble dan dinas seluruh unit, supaya siapa pun yang masuk dinas tahu apa yang sedang
     menggantung di unit sebelah. Yang membedakan peran baru terasa di
-    <b>Database Unit</b>: unit yang tidak boleh dibuka akun ini bergembok di cincin atas.
+    <b>Database Unit</b>: unit yang tidak boleh dibuka akun ini bergembok di kartu peralatan atas.
   </div>
 </section>
 
