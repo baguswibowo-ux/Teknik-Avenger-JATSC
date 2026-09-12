@@ -13,7 +13,11 @@
    Sesudah itu notifikasi "perlu TTD" dan "sudah di-TTD" masuk ke Telegram
    pribadinya. Panel ini menyembunyikan dirinya sendiri kalau server belum
    menyalakan bot (tanpa token BotFather), supaya tidak ada tombol yang tak
-   berfungsi. */
+   berfungsi.
+
+   Sengaja TIDAK ada tombol "Putuskan": notifikasi TTD bukan pilihan pribadi.
+   Yang ada hanya "Ganti akun Telegram" — alur taut yang sama; chat lama tetap
+   menerima sampai chat baru menekan Start, lalu digantikan (tautkanTelegram). */
 
 /** Status terakhir dari server, supaya render tidak perlu memanggil ulang. */
 let telegramInfo = { aktif: false, tertaut: false, botUsername: '' };
@@ -45,7 +49,7 @@ function renderTelegram(){
   if(telegramInfo.tertaut){
     status.innerHTML = '<span class="tg-badge tg-on">✅ Terhubung</span> '
       + 'Notifikasi dikirim ke Telegram Anda.';
-    aksi.innerHTML = '<button class="btn ghost" onclick="putuskanTelegram()">Putuskan</button>';
+    aksi.innerHTML = '<button class="btn ghost" onclick="hubungkanTelegram()">Ganti akun Telegram</button>';
   }else{
     status.innerHTML = '<span class="tg-badge tg-off">Belum terhubung</span>';
     aksi.innerHTML = '<button class="btn" onclick="hubungkanTelegram()">🔗 Hubungkan Telegram</button>';
@@ -78,19 +82,9 @@ async function hubungkanTelegram(){
          Tekan tombol di atas → Telegram akan terbuka di bot
          <b>@${escapeHtml(data.botUsername || '')}</b> → tekan <b>Start</b>.
          Setelah bot membalas "berhasil terhubung", tekan "Sudah, cek status".
+         ${telegramInfo.tertaut ? '<br>Buka tautan ini di Telegram yang <b>baru</b>. Sampai di sana ditekan Start, notifikasi tetap ke Telegram lama.' : ''}
        </div>`;
   }
   // Sekalian buka langsung — kalau pop-up diblokir, tombol di atas tetap ada.
   try{ window.open(url, '_blank', 'noopener'); }catch(e){ /* diabaikan */ }
-}
-
-async function putuskanTelegram(){
-  try{
-    await gsRun('telegramPutus');
-    telegramInfo.tertaut = false;
-    toast('Notifikasi Telegram diputus.');
-  }catch(e){
-    toast(e?.message || 'Gagal memutus.');
-  }
-  renderTelegram();
 }

@@ -218,7 +218,7 @@ export function pesanBelumTtd({ dokumen, unit, tanggal, dinas, menunggu, menit, 
 export function pesanTautBerhasil(nama) {
   return `✅ Akun E-Logbook <b>${esc(nama)}</b> berhasil terhubung.\n\n`
     + 'Mulai sekarang notifikasi tanda tangan akan dikirim ke chat ini. '
-    + 'Untuk memutus, buka menu Notifikasi Telegram di E-Logbook.';
+    + 'Bot ini hanya mengirim kabar; pesan yang Anda tulis di sini tidak dibaca.';
 }
 
 /** Balasan saat /start dibuka tanpa kode taut yang sah. */

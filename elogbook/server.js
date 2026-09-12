@@ -85,7 +85,7 @@ const {
   UNIT, KODE_UNIT, unitSah, unitUntukUser, setUnitUser,
   createSession, getSessionUser, deleteSession, purgeExpiredSessions,
   ambilBerkas,
-  buatTautanTelegram, tautkanTelegram, getChatIdTelegram, putusTautanTelegram, statusTautanTelegram,
+  buatTautanTelegram, tautkanTelegram, getChatIdTelegram, statusTautanTelegram,
   pelaksanaCatatan, usernameDariNama,
   logbookPerluPengingatTtd, tandaiPengingatTtd,
   getPh, setPh, listDiwakiliOleh, listCalonPh, ringkasCatatan,
@@ -1287,10 +1287,9 @@ const API = {
     };
   },
 
-  telegramPutus: async (user) => {
-    await putusTautanTelegram(user.username);
-    return { tertaut: false };
-  },
+  /* Tidak ada telegramPutus: pengguna tidak boleh mematikan notifikasi TTD
+     sendiri. Pindah ke Telegram lain cukup lewat telegramTaut lagi — chat yang
+     baru menggantikan yang lama saat Start ditekan (tautkanTelegram). */
 
   /* ---------- PH (pelaksana harian) milik pejabat sendiri ----------
      Pejabat menunjuk sendiri siapa yang mewakilinya dan sampai kapan — boleh
