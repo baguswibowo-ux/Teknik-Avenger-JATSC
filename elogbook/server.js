@@ -86,6 +86,7 @@ const {
   createSession, getSessionUser, deleteSession, purgeExpiredSessions,
   ambilBerkas,
   buatTautanTelegram, tautkanTelegram, getChatIdTelegram, putusTautanTelegram, statusTautanTelegram,
+  pelaksanaCatatan, usernameDariNama,
   logbookPerluPengingatTtd, tandaiPengingatTtd,
   getPh, setPh, listDiwakiliOleh, listCalonPh, ringkasCatatan,
   infoCatatan, catatAktivitas, listAktivitas
@@ -399,17 +400,46 @@ async function notifPerluTtd(jenis, ttdUntukUsername, form, pembuatNama, id) {
   }
 }
 
+/* Siapa saja yang berhak tahu nasib sebuah lembar: akun yang menyimpannya,
+   ditambah teknisi yang tercantum sebagai pelaksana — mereka dinas bersama,
+   jadi kabar "sudah di-TTD" dan "belum di-TTD" memang untuk mereka juga.
+   Nama pelaksana teks bebas; pemetaannya ke akun di db.js (usernameDariNama),
+   yang melewati nama tak dikenal dan nama yang dipakai lebih dari satu akun.
+
+   Yang pulang CHAT ID, bukan username: satu orang bisa muncul dua kali (nama
+   pelaksana yang sekaligus pembuatnya), dan yang belum menautkan Telegram
+   tidak perlu ikut dihitung sama sekali. */
+async function chatPenerimaCatatan(jenis, id, dibuatOleh, namaPelaksana) {
+  const chat = new Set();
+  const tambah = async (username) => {
+    if (!username) return;
+    const c = await getChatIdTelegram(username);
+    if (c) chat.add(String(c));
+  };
+  await tambah(dibuatOleh);
+  try {
+    const nama = Array.isArray(namaPelaksana) ? namaPelaksana : await pelaksanaCatatan(jenis, String(id));
+    for (const u of await usernameDariNama(nama)) await tambah(u);
+  } catch (err) {
+    // Daftar pelaksana gagal dibaca: pembuatnya tetap dikabari — lebih baik
+    // satu orang tahu daripada tidak ada sama sekali.
+    console.error('[telegram pelaksana]', err?.message || err);
+  }
+  return [...chat];
+}
+
 /** Kabari pembuat/pelaksana bahwa dokumennya sudah ditandatangani. */
 async function notifSudahTtd(jenis, dibuatOleh, { unit, tanggal, penanda, id }) {
   try {
-    if (!telegramAktif() || !dibuatOleh) return;
-    const chatId = await getChatIdTelegram(dibuatOleh);
-    if (!chatId) return;
+    if (!telegramAktif()) return;
+    const chatIds = await chatPenerimaCatatan(jenis, id, dibuatOleh);
+    if (!chatIds.length) return;
     const rk = await ringkasUntukNotif(jenis, id);
-    await kirimPesan(chatId, pesanSudahTtd({
+    const teks = pesanSudahTtd({
       dokumen: rk.judul, cuplikan: rk.cuplikan,
       unit: namaUnit(unit), tanggal, penanda
-    }));
+    });
+    for (const chatId of chatIds) await kirimPesan(chatId, teks);
   } catch (err) {
     console.error('[telegram notifSudahTtd]', err?.message || err);
   }
@@ -469,15 +499,23 @@ async function periksaPengingatTtd() {
     for (const r of calon) {
       const jatuh = jatuhTempoPengingat(r);
       if (!Number.isFinite(jatuh) || kini < jatuh || kini - jatuh > PENGINGAT_JENDELA_MS) continue;
-      const chatId = await getChatIdTelegram(r.dibuat_oleh);
-      if (!chatId) continue;
-      const terkirim = await kirimPesan(chatId, pesanBelumTtd({
+      // Seluruh teknisi yang tercantum di lembar itu, bukan cuma pembuatnya —
+      // dinasnya bersama, jadi tagihannya juga bersama.
+      const chatIds = await chatPenerimaCatatan('logbook', r.id, r.dibuat_oleh);
+      if (!chatIds.length) continue;
+      const teks = pesanBelumTtd({
         dokumen: NAMA_DOKUMEN.logbook, unit: namaUnit(r.unit), tanggal: r.tanggal,
         dinas: r.dinas, menunggu: r.pj_nama || r.ttd_untuk, menit: PENGINGAT_TTD_MENIT,
         cuplikan: ringkasDokumen('logbook', r).cuplikan
-      }));
-      // Ditandai hanya kalau benar-benar terkirim: Telegram yang sedang tak
-      // terjangkau dicoba lagi pada putaran berikutnya, masih di dalam jendela.
+      });
+      let terkirim = false;
+      for (const chatId of chatIds) {
+        if (await kirimPesan(chatId, teks)) terkirim = true;
+      }
+      // Ditandai kalau SETIDAKNYA satu sampai: menandai baru saat semuanya
+      // sampai berarti yang lain dikirimi dua kali pada putaran berikutnya.
+      // Telegram yang sedang tak terjangkau seluruhnya dicoba lagi, masih di
+      // dalam jendela.
       if (terkirim) await tandaiPengingatTtd(r.id, new Date().toISOString());
     }
   } catch (err) {

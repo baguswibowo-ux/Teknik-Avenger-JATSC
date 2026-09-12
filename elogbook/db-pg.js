@@ -2631,6 +2631,59 @@ export async function ringkasCatatan(jenis, id) {
   return (await q1(`SELECT ${kolom} FROM ${t.tabel} WHERE id = $1`, [String(id)])) || null;
 }
 
+/* ============== PELAKSANA SEBUAH CATATAN ==============
+ * Cermin Postgres dari bagian senama di db.js — aturan dan alasannya di sana.
+ * KOLOM_PELAKSANA sengaja ditulis ulang, bukan diimpor: kedua berkas ini
+ * memang berdiri sendiri-sendiri. */
+export const KOLOM_PELAKSANA = {
+  logbook:    { list: 'teknisi_nama_list', tunggal: 'teknisi_nama' },
+  dailycheck: { list: 'teknisi_nama_list', tunggal: 'teknisi_nama' },
+  monitoring: { list: 'teknisi_nama_list', tunggal: 'personil_teknik' },
+  dstest:     { list: 'teknisi_nama_list', tunggal: 'teknisi_nama' },
+  berkala:    { list: 'teknisi_nama_list', tunggal: 'teknisi_nama' },
+  ltk:        { list: '',                  tunggal: 'teknisi_nama' },
+  bapb:       { list: 'petugas_nama_list', tunggal: 'petugas_nama' }
+};
+
+export function namaPelaksanaBaris(row, jenis) {
+  const k = KOLOM_PELAKSANA[jenis];
+  if (!row || !k) return [];
+  let daftar = [];
+  if (k.list) {
+    const mentah = row[k.list];
+    if (Array.isArray(mentah)) daftar = mentah;                 // kolom json/jsonb
+    else { try { daftar = JSON.parse(mentah || '[]'); } catch { daftar = []; } }
+  }
+  if (!Array.isArray(daftar) || !daftar.length) {
+    daftar = String(row[k.tunggal] || '').split(',');
+  }
+  return daftar.map((x) => String(x || '').trim()).filter(Boolean);
+}
+
+export async function pelaksanaCatatan(jenis, id) {
+  const t = JENIS_TTD[jenis];
+  const k = KOLOM_PELAKSANA[jenis];
+  if (!t || !k) return [];
+  const kolom = [k.list, k.tunggal].filter(Boolean).join(', ');
+  const row = await q1(`SELECT ${kolom} FROM ${t.tabel} WHERE id = $1`, [String(id)]);
+  return namaPelaksanaBaris(row, jenis);
+}
+
+export async function usernameDariNama(namaList) {
+  const cari = [...new Set((namaList || [])
+    .map((n) => String(n || '').trim().toLowerCase())
+    .filter(Boolean))];
+  if (!cari.length) return [];
+  const tanda = cari.map((_, i) => '$' + (i + 1)).join(',');
+  const baris = await q(
+    `SELECT username, lower(btrim(nama)) AS kunci FROM users
+      WHERE aktif = true AND lower(btrim(nama)) IN (${tanda})`, cari
+  );
+  const per = new Map();
+  for (const b of baris) per.set(b.kunci, per.has(b.kunci) ? 'ganda' : b.username);
+  return [...per.values()].filter((v) => v !== 'ganda');
+}
+
 /* ============== LOG AKTIVITAS ==============
  * Cerminan bagian senama di db.js — kalau yang satu diubah, yang lain ikut. */
 const TABEL_INFO = {

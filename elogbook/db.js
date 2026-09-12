@@ -2853,6 +2853,75 @@ export function ringkasCatatan(jenis, id) {
   return db.prepare(`SELECT ${kolom} FROM ${t.tabel} WHERE id = ?`).get(String(id)) || null;
 }
 
+/* ============== PELAKSANA SEBUAH CATATAN ==============
+ * Siapa saja teknisi yang tercantum di lembar — dipakai server.js supaya
+ * notifikasi "sudah di-TTD" dan pengingat "belum di-TTD" sampai ke SEMUA yang
+ * dinas bersama, bukan hanya akun yang kebetulan menyimpannya.
+ *
+ * Nama pelaksana disimpan sebagai teks bebas (lihat 20-ttd-pejabat.js): tidak
+ * ada kolom username di formulir mana pun. Jadi pemetaan ke akun dikerjakan di
+ * sini, dengan syarat nama cocok PERSIS — beda huruf besar-kecil dan spasi
+ * berlebih dimaafkan. Yang tidak cocok dilewati diam-diam, persis seperti
+ * ttdUntuk yang namanya tidak dikenal: sekadar tidak ada yang diberi tahu.
+ *
+ * Nama yang dipakai LEBIH DARI SATU akun aktif juga dilewati. Menebak salah
+ * satunya berarti mengirim dokumen orang lain ke orang yang keliru; diam lebih
+ * aman daripada salah alamat.
+ *
+ * Cermin Postgres-nya di db-pg.js. */
+export const KOLOM_PELAKSANA = {
+  logbook:    { list: 'teknisi_nama_list', tunggal: 'teknisi_nama' },
+  dailycheck: { list: 'teknisi_nama_list', tunggal: 'teknisi_nama' },
+  monitoring: { list: 'teknisi_nama_list', tunggal: 'personil_teknik' },
+  dstest:     { list: 'teknisi_nama_list', tunggal: 'teknisi_nama' },
+  berkala:    { list: 'teknisi_nama_list', tunggal: 'teknisi_nama' },
+  ltk:        { list: '',                  tunggal: 'teknisi_nama' },
+  bapb:       { list: 'petugas_nama_list', tunggal: 'petugas_nama' }
+};
+
+/** Nama pelaksana dari satu baris yang sudah dibaca. Daftar jamak kalau ada,
+    kalau tidak nama tunggalnya — yang pada catatan lama berisi "A, B", jadi
+    ikut dipecah dengan koma. */
+export function namaPelaksanaBaris(row, jenis) {
+  const k = KOLOM_PELAKSANA[jenis];
+  if (!row || !k) return [];
+  let daftar = [];
+  if (k.list) {
+    try { daftar = JSON.parse(row[k.list] || '[]'); } catch { daftar = []; }
+  }
+  if (!Array.isArray(daftar) || !daftar.length) {
+    daftar = String(row[k.tunggal] || '').split(',');
+  }
+  return daftar.map((x) => String(x || '').trim()).filter(Boolean);
+}
+
+/** Nama-nama teknisi yang tercantum pada sebuah catatan. */
+export function pelaksanaCatatan(jenis, id) {
+  const t = JENIS_TTD[jenis];
+  const k = KOLOM_PELAKSANA[jenis];
+  if (!t || !k) return [];
+  const kolom = [k.list, k.tunggal].filter(Boolean).join(', ');
+  const row = db.prepare(`SELECT ${kolom} FROM ${t.tabel} WHERE id = ?`).get(String(id));
+  return namaPelaksanaBaris(row, jenis);
+}
+
+/** Nama-nama -> username akun aktif yang namanya cocok persis. Nama yang tidak
+    dikenal, atau yang dipakai lebih dari satu akun, tidak ikut pulang. */
+export function usernameDariNama(namaList) {
+  const cari = [...new Set((namaList || [])
+    .map((n) => String(n || '').trim().toLowerCase())
+    .filter(Boolean))];
+  if (!cari.length) return [];
+  const tanda = cari.map(() => '?').join(',');
+  const baris = db.prepare(
+    `SELECT username, lower(trim(nama)) AS kunci FROM users
+       WHERE aktif = 1 AND lower(trim(nama)) IN (${tanda})`
+  ).all(...cari);
+  const per = new Map();
+  for (const b of baris) per.set(b.kunci, per.has(b.kunci) ? 'ganda' : b.username);
+  return [...per.values()].filter((v) => v !== 'ganda');
+}
+
 /* ============== LOG AKTIVITAS ==============
  * Tabel dan kolom tanggal per jenis untuk infoCatatan: seluruh JENIS_TTD,
  * ditambah isu yang tidak punya jalur TTD. */
