@@ -342,23 +342,50 @@ async function srvMuat(){
   // sebelum pernah menekan "Muat ulang" menampilkan seluruh centang bolehTtd
   // dalam keadaan kosong walau data di server sudah ada. muatHakAkun sudah
   // menelan galat 403/error sendiri — non-admin tetap aman.
-  if(USERS.length && typeof muatHakAkun === 'function') await muatHakAkun();
+  /* SEMUA YANG TIDAK SALING MENUNGGU, DILEPAS BERSAMAAN.
+   *
+   * Dulu seluruhnya diantre: hak akun, lalu getAllData satu per satu untuk
+   * tiap unit, lalu empat pemuat ekor, masing-masing menunggu pendahulunya
+   * selesai. Sekitar empat belas perjalanan bolak-balik, berurutan.
+   *
+   * Di jaringan kantor itu tidak terasa. Lewat tunnel keluar, satu perjalanan
+   * berharga ratusan milidetik sampai dua detik — dan empat belas yang
+   * berbaris menjadi belasan detik layar diam, tiap kali dashboard dimuat.
+   * Ini data dinamis, jadi tidak ada singgahan mana pun yang boleh
+   * menyimpannya; satu-satunya yang bisa dikurangi adalah antreannya.
+   *
+   * Yang dijalankan bersamaan hanya yang benar-benar tidak bergantung satu
+   * sama lain: tiap unit mengisi petaknya sendiri di `paket`, dan hak akun
+   * cuma perlu USERS yang sudah ada di tangan dari jawaban pertama. */
   const paket = { [awal.unit]: awal };
-  for(const u of (awal.unitSaya || [])){
-    if(paket[u.kode]) continue;
-    try{ paket[u.kode] = await srvApi('getAllData', u.kode); }
-    catch(e){ console.warn('Unit ' + u.kode + ' dilewati:', e && e.message || e); }
-  }
+  const unitLain = (awal.unitSaya || []).filter(u => !paket[u.kode]);
+
+  const [, ...hasilUnit] = await Promise.all([
+    (USERS.length && typeof muatHakAkun === 'function') ? muatHakAkun() : null,
+    ...unitLain.map(u => srvApi('getAllData', u.kode).then(
+      data => ({ kode: u.kode, data }),
+      // Satu unit bermasalah tetap cukup dilewati — persis seperti waktu
+      // masih diambil satu-satu. Ditangkap di sini, bukan dengan
+      // Promise.allSettled, supaya unit yang berhasil tetap terpasang.
+      e => { console.warn('Unit ' + u.kode + ' dilewati:', e && e.message || e); return null; }
+    ))
+  ]);
+  for(const h of hasilUnit) if(h) paket[h.kode] = h.data;
+
   srvPasang(awal.unitSaya || [], paket, awal.unitSemua);
-  // Setelah SRV.aktif menyala: database unit diambil dari server ini sendiri,
-  // bukan dari E-Logbook. Kegagalannya tidak menggagalkan pemuatan — layarnya
-  // tetap hidup, hanya daftarnya yang belum terisi.
-  await unitdbMuat();
-  await sjrMuat();
-  await dokMuat();
-  /* TTD tersimpan milik akun ini dipanaskan di singgahan sisi peramban,
-     supaya modal cetak yang dibuka pertama kali tidak perlu menunggu
-     bolak-balik ke E-Logbook untuk gambarnya sendiri. */
-  await ttdSayaMuat();
+
+  /* Empat pemuat ekor, juga bersamaan. Masing-masing memegang endpoint dan
+   * wadah global yang berbeda — /unitdb→PERALATAN, /sejarah→SEJARAH,
+   * /dokumen→BERKAS, /api/me→TTD — dan masing-masing sudah menelan galatnya
+   * sendiri, jadi tidak ada yang bisa saling menjatuhkan di sini.
+   *
+   * Semuanya tetap SESUDAH srvPasang: unitdbMuat baru boleh jalan setelah
+   * SRV.aktif menyala. Kegagalannya tidak menggagalkan pemuatan — layarnya
+   * tetap hidup, hanya daftarnya yang belum terisi.
+   *
+   * ttdSayaMuat memanaskan TTD milik akun ini di singgahan sisi peramban,
+   * supaya modal cetak yang dibuka pertama kali tidak perlu menunggu
+   * bolak-balik ke E-Logbook untuk gambarnya sendiri. */
+  await Promise.all([ unitdbMuat(), sjrMuat(), dokMuat(), ttdSayaMuat() ]);
 }
 

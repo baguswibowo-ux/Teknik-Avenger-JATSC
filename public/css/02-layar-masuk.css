@@ -43,7 +43,7 @@
 .lm-langit{
   position:fixed; inset:0; z-index:-2; pointer-events:none;
   background:
-    url('/images/indonesia-orbit-bg.png') center center / cover no-repeat,
+    url('/images/indonesia-orbit-bg.jpg') center center / cover no-repeat,
     #04070f;
   filter:brightness(1.35) saturate(1.12) contrast(1.02);
 }

@@ -35,7 +35,10 @@ body{margin:0;color:var(--text);font-family:var(--font-body);
      background:var(--bg);}
 body::before{
   content:''; position:fixed; inset:0; z-index:-2; pointer-events:none;
-  background:url('/images/indonesia-orbit-bg.png') center center / cover no-repeat;
+  /* .jpg, bukan .png: fotonya sama persis (1672×941), cuma formatnya. Sebagai
+     PNG ia 2,1 MB dan sendirian butuh satu detik penuh tiap halaman dimuat;
+     sebagai JPEG mutu 92 ia 341 KB dengan beda piksel rata-rata 0,7%. */
+  background:url('/images/indonesia-orbit-bg.jpg') center center / cover no-repeat;
   filter:brightness(1.35) saturate(1.12) contrast(1.02);
 }
 body::after{

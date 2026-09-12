@@ -46,7 +46,7 @@
     2. Dashboard umum        — sama untuk semua akun: trouble dan dinas SEMUA unit
     3. Dashboard unit        — baru di sini peran akun menentukan apa yang terbuka
 
-  Latarnya satu gambar — public/images/indonesia-orbit-bg.png — dipatok fixed di
+  Latarnya satu gambar — public/images/indonesia-orbit-bg.jpg — dipatok fixed di
   body, jadi tetap di tempatnya saat halaman digulir. Panel dashboard tetap
   gelap solid supaya angka dan tabel tetap tajam terbaca; orbit terlihat di sela
   ubin, di margin layar, dan menembus kepala konsol yang dibuat sedikit tembus.
@@ -59,15 +59,11 @@
   bingkai berukuran sama dengan slot foto nanti, jadi mengganti gambar dengan
   foto sungguhan tidak mengubah tata letak sedikit pun.
 -->
-<link href="/css/01-dasar.css" rel="stylesheet">
-<link href="/css/02-layar-masuk.css" rel="stylesheet">
-<link href="/css/03-kerangka.css" rel="stylesheet">
-<link href="/css/04-cincin-peralatan.css" rel="stylesheet">
-<link href="/css/05-ubin-panel-tabel.css" rel="stylesheet">
-<link href="/css/06-pita-berjalan.css" rel="stylesheet">
-<link href="/css/07-dashboard-unit.css" rel="stylesheet">
-<link href="/css/08-tablet-hp.css" rel="stylesheet">
-<link href="/css/09-cetak.css" rel="stylesheet">
+<!-- Sembilan berkas css disambung jadi satu oleh server (URUTAN_CSS di
+     server.js). Yang disunting tetap berkas aslinya di public/css/, dan
+     tiap-tiapnya masih bisa diminta sendiri. Kalau gabungannya bermasalah,
+     kembalikan sembilan baris <link> di sini; servernya tidak perlu disentuh. -->
+<link href="/css/semua.css" rel="stylesheet">
 
 <!-- Sembunyikan layar masuk lebih awal saat halaman dipulihkan.
      Sebelumnya #layarMasuk tampil apa adanya sampai srvPeriksa()+srvMuat()
@@ -778,41 +774,10 @@
      window.print(), dan dibersihkan lagi sesudahnya. -->
 <div id="printArea"></div>
 
-<script src="/js/01-unit-dan-dinas.js"></script>
-<script src="/js/02-kode-dinas.js"></script>
-<script src="/js/04-galeri.js"></script>
-<script src="/js/05-ilustrasi.js"></script>
-<script src="/js/07-kartu-masuk.js"></script>
-<script src="/js/08-bantu.js"></script>
-<script src="/js/09-bahasa.js"></script>
-<script src="/js/10-layar-masuk.js"></script>
-<script src="/js/11-sesi.js"></script>
-<script src="/js/12-jembatan-elogbook.js"></script>
-<script src="/js/13-unitdb-server.js"></script>
-<script src="/js/14-kelola-akun.js"></script>
-<script src="/js/15-tautan-elogbook.js"></script>
-<script src="/js/16-jam-navigasi.js"></script>
-<script src="/js/17-cincin-peralatan.js"></script>
-<script src="/js/18-ubin-tabel.js"></script>
-<script src="/js/19-dinas.js"></script>
-<script src="/js/20-hak-modul.js"></script>
-<script src="/js/21-jadwal-dinas.js"></script>
-<script src="/js/22-impor-jadwal.js"></script>
-<script src="/js/23-berkala.js"></script>
-<script src="/js/24-personel.js"></script>
-<script src="/js/25-aktivitas.js"></script>
-<script src="/js/26-perhatian-lonceng.js"></script>
-<script src="/js/27-kotak-masuk.js"></script>
-<script src="/js/28-database-unit.js"></script>
-<script src="/js/29-sunting-unitdb.js"></script>
-<script src="/js/30-papan-nama.js"></script>
-<script src="/js/31-gambar-kartu.js"></script>
-<script src="/js/32-dokumen-unit.js"></script>
-<script src="/js/34-sejarah-alat.js"></script>
-<script src="/js/35-impor-sparepart.js"></script>
-<script src="/js/36-cetak.js"></script>
-<script src="/js/37-isr.js"></script>
-<script src="/js/38-profil.js"></script>
-<script src="/js/33-mulai.js"></script>
+<!-- Tiga puluh enam berkas js disambung jadi satu oleh server (URUTAN_JS di
+     server.js), urutannya persis urutan lama dan 33-mulai.js tetap terakhir.
+     Yang disunting tetap berkas aslinya di public/js/. Kalau gabungannya
+     bermasalah, kembalikan deretan <script> di sini; server tidak disentuh. -->
+<script src="/js/semua.js"></script>
 </body>
 </html>

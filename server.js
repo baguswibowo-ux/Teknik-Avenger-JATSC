@@ -24,6 +24,8 @@
 
 import express from 'express';
 import path from 'node:path';
+import fs from 'node:fs';
+import zlib from 'node:zlib';
 import { selisihDaftar, aksiSelisih, ringkasSelisih } from './aktivitas-selisih.js';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
@@ -4462,7 +4464,154 @@ if (DI_TABEL) {
   });
 }
 
-app.use(express.static(path.join(ROOT, 'public'), { extensions: ['html'] }));
+/* =====================================================================
+   SATU BERKAS JS, SATU BERKAS CSS
+
+   Halaman depan dulu memanggil 34 berkas js dan 9 css satu per satu. Diukur
+   dari peramban, tiap berkas js itu: mengantre ~1070 ms, menunggu jawaban
+   240-650 ms, lalu mengunduh 0-1 ms. Unduhnya nol karena berkasnya memang
+   kecil - yang dibayar bukan isinya, melainkan bolak-baliknya. Empat puluh
+   tiga kali, untuk setiap orang yang membuka halaman.
+
+   Digabung di sini, bukan di berkas hasil build, supaya tidak ada langkah
+   yang bisa lupa dikerjakan: yang disunting tetap berkas aslinya, dan
+   gabungannya dihitung ulang sendiri begitu ada yang berubah (kunci cache-nya
+   mtime terbaru). Berkas satuannya TIDAK dihapus dan tetap bisa diminta
+   sendiri-sendiri, jadi kalau gabungan ini bermasalah, cukup kembalikan
+   deretan <script> di index.html - tanpa menyentuh server.
+
+   Menggabung aman di sini karena semuanya skrip klasik yang berbagi satu
+   ruang global, bukan modul: dimuat berurutan atau disambung jadi satu,
+   hasilnya sama. Yang TIDAK boleh berubah cuma urutannya - 33-mulai.js wajib
+   terakhir, dan itulah kenapa daftarnya ditulis terang-terangan di bawah,
+   bukan hasil sortir nama berkas.
+   ===================================================================== */
+const URUTAN_JS = [
+  '01-unit-dan-dinas.js', '02-kode-dinas.js', '04-galeri.js', '05-ilustrasi.js',
+  '07-kartu-masuk.js', '08-bantu.js', '09-bahasa.js', '10-layar-masuk.js',
+  '11-sesi.js', '12-jembatan-elogbook.js', '13-unitdb-server.js',
+  '14-kelola-akun.js', '15-tautan-elogbook.js', '16-jam-navigasi.js',
+  '17-cincin-peralatan.js', '18-ubin-tabel.js', '19-dinas.js', '20-hak-modul.js',
+  '21-jadwal-dinas.js', '22-impor-jadwal.js', '23-berkala.js', '24-personel.js',
+  '25-aktivitas.js', '26-perhatian-lonceng.js', '27-kotak-masuk.js',
+  '28-database-unit.js', '29-sunting-unitdb.js', '30-papan-nama.js',
+  '31-gambar-kartu.js', '32-dokumen-unit.js', '34-sejarah-alat.js',
+  '35-impor-sparepart.js', '36-cetak.js', '37-isr.js', '38-profil.js',
+  '33-mulai.js'   // terakhir: inilah yang menyalakan, bukan yang mendeklarasikan
+];
+const URUTAN_CSS = [
+  '01-dasar.css', '02-layar-masuk.css', '03-kerangka.css', '04-cincin-peralatan.css',
+  '05-ubin-panel-tabel.css', '06-pita-berjalan.css', '07-dashboard-unit.css',
+  '08-tablet-hp.css', '09-cetak.css'
+];
+
+/* Berkas js yang ada di cakram tetapi tidak disebut daftar di atas tidak akan
+   ikut termuat sama sekali - kesalahan yang senyap dan membingungkan. Jadi
+   dikeluhkan sekali saat server nyala, selagi masih gampang dihubungkan
+   dengan berkas yang baru saja ditambahkan. */
+for (const [dir, daftar] of [['js', URUTAN_JS], ['css', URUTAN_CSS]]) {
+  try {
+    const adaDiCakram = fs.readdirSync(path.join(ROOT, 'public', dir))
+      .filter(f => f.endsWith(dir === 'js' ? '.js' : '.css'));
+    const tertinggal = adaDiCakram.filter(f => !daftar.includes(f));
+    if (tertinggal.length) {
+      console.warn(`[gabung] public/${dir}/ punya berkas yang tidak ada di URUTAN_${dir.toUpperCase()} ` +
+                   `dan karena itu TIDAK dimuat: ${tertinggal.join(', ')}`);
+    }
+  } catch { /* foldernya tidak ada: biar rute gabungannya sendiri yang gagal */ }
+}
+
+const gabungTersimpan = new Map();   // 'js' -> { kunci, isi }
+
+function gabung(dir, daftar) {
+  const berkas = daftar.map(f => path.join(ROOT, 'public', dir, f));
+  // Kunci cache = mtime terbesar + jumlah berkas. Menyunting salah satu berkas
+  // sumbernya sudah cukup untuk membuat gabungan lama basi dengan sendirinya.
+  let kunci = daftar.length;
+  for (const f of berkas) {
+    try { kunci = Math.max(kunci, fs.statSync(f).mtimeMs); } catch { /* dilaporkan di bawah */ }
+  }
+  const tersimpan = gabungTersimpan.get(dir);
+  if (tersimpan && tersimpan.kunci === kunci) return tersimpan;
+
+  const potong = berkas.map((f, i) => {
+    let teks;
+    try { teks = fs.readFileSync(f, 'utf8'); }
+    catch (e) {
+      console.error(`[gabung] ${dir}/${daftar[i]} tidak terbaca:`, e.message);
+      // Sengaja dibiarkan kosong, bukan melempar: satu berkas hilang tidak
+      // boleh membuat seluruh dashboard tidak tampil sama sekali.
+      return `/* ${daftar[i]} TIDAK TERBACA */`;
+    }
+    return `/* ===== ${daftar[i]} ===== */\n${teks}`;
+  });
+  // Titik koma di antara berkas: menjaga berkas yang tidak diakhiri titik koma
+  // agar tidak tersambung ke baris pertama berkas berikutnya.
+  const isi = Buffer.from(potong.join(dir === 'js' ? '\n;\n' : '\n'), 'utf8');
+  /* Dimampatkan sekali di sini, bukan tiap permintaan. Yang menghemat bukan
+     jalur ke pemakai - Cloudflare sudah memampatkan sendiri di tepi - tetapi
+     jalur dari PC ini NAIK ke Cloudflare: tunnel-nya sekitar 1,6 Mbps, dan
+     gabungan js yang 717 KB mentah butuh tiga detik penuh di sana tiap kali
+     tepiannya menarik ulang. Sebagai gzip ia sekitar seperlima. */
+  const gz = zlib.gzipSync(isi, { level: 9 });
+  gabungTersimpan.set(dir, { kunci, isi, gz });
+  return { isi, gz };
+}
+
+function kirimGabungan(req, res, dir, daftar, tipe) {
+  const paket = gabung(dir, daftar);
+  const pakaiGzip = /\bgzip\b/.test(req.headers['accept-encoding'] || '');
+  const badan = pakaiGzip ? paket.gz : paket.isi;
+  res.type(tipe);
+  res.setHeader('Cache-Control', 'public, max-age=60');
+  // Tanpa Vary, tepian bisa menyimpan jawaban terkompresi lalu menyodorkannya
+  // ke peminta yang tidak menyebut gzip - dan yang sampai ke sana sampah.
+  res.setHeader('Vary', 'Accept-Encoding');
+  if (pakaiGzip) res.setHeader('Content-Encoding', 'gzip');
+  res.setHeader('Content-Length', badan.length);
+  res.end(badan);
+}
+
+app.get('/js/semua.js',   (req, res) => kirimGabungan(req, res, 'js',  URUTAN_JS,  'application/javascript; charset=utf-8'));
+app.get('/css/semua.css', (req, res) => kirimGabungan(req, res, 'css', URUTAN_CSS, 'text/css; charset=utf-8'));
+
+/* Berkas statis.
+ *
+ * setHeaders ada karena "refresh" terasa berat padahal servernya menjawab
+ * dalam 66 ms. Sebabnya bukan besar, tapi BANYAK: tanpa Cache-Control,
+ * express.static hanya memasang ETag, dan ETag berarti peramban tetap
+ * BERTANYA untuk setiap berkas tiap kali halaman dibuka. Halaman depan punya
+ * 34 berkas js, 9 css, dan beberapa gambar - 55 tanya-jawab bolak-balik yang
+ * semuanya dijawab "tidak berubah". Itu yang terasa menggantung, bukan
+ * unduhannya.
+ *
+ * Umurnya dibedakan menurut seberapa sering isinya benar-benar berganti:
+ *
+ *   gambar, font, vendor  7 hari   jarang disentuh, dan kalau berganti
+ *                                  biasanya sekalian berganti nama berkas
+ *   js dan css            60 detik cukup untuk menelan rentetan refresh,
+ *                                  tetapi perubahan tetap sampai ke semua
+ *                                  orang dalam semenit - tanpa perlu
+ *                                  menyuruh siapa pun menekan Ctrl+F5
+ *   sisanya (html)        no-cache halaman induk harus selalu ditanyakan;
+ *                                  dialah yang menyebut js dan css mana yang
+ *                                  berlaku
+ */
+const UMUR_ASET = 7 * 24 * 60 * 60;   // detik
+const UMUR_KODE = 60;
+
+app.use(express.static(path.join(ROOT, 'public'), {
+  extensions: ['html'],
+  setHeaders(res, berkas) {
+    if (/[\\/](images|vendor)[\\/]/.test(berkas)) {
+      res.setHeader('Cache-Control', `public, max-age=${UMUR_ASET}`);
+    } else if (/\.(js|css)$/i.test(berkas)) {
+      res.setHeader('Cache-Control', `public, max-age=${UMUR_KODE}`);
+    } else {
+      res.setHeader('Cache-Control', 'no-cache');
+    }
+  }
+}));
 
 /* =====================================================================
    START
