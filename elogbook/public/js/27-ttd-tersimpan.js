@@ -162,9 +162,9 @@ function openTtdSayaModal(){
   renderTtdSaya();
   document.getElementById('ttdSayaModalBg').classList.add('show');
   setTimeout(()=>resizeSigCanvas('sigTtdSaya'), 60);
-  // Segarkan panel Notifikasi Telegram (js/28-telegram.js) — menyembunyikan
-  // dirinya sendiri kalau server belum menyalakan bot.
-  if(typeof muatStatusTelegram === 'function') muatStatusTelegram();
+  // Notifikasi Telegram tidak lagi di sini — pindah ke modal Profil
+  // (js/28c-profil.js), karena sambungannya menempel pada akun, bukan pada
+  // tanda tangan.
   // Panel PH (js/28b-ph.js) — menyembunyikan dirinya untuk selain pejabat/admin.
   if(typeof muatPh === 'function') muatPh();
 }

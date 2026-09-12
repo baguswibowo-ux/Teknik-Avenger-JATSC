@@ -101,3 +101,11 @@
 }
 
 @media print{ #pintuTutup, .user-chip, .pengaturan-chip{display:none !important;} }
+
+/* Nama sendiri di kepala halaman adalah pintu ke modal Profil
+   (js/28c-profil.js). Sengaja tidak berbentuk tombol: kepala halaman di HP
+   sudah padat, dan tombol kesembilan akan menggeser susunan yang baru saja
+   dirapikan. Garis putus-putus di bawahnya yang memberi tahu ia bisa ditekan. */
+.chip-nama{cursor:pointer; border-bottom:1px dashed currentColor; padding-bottom:1px;}
+.chip-nama:hover, .chip-nama:focus-visible{color:var(--accent); border-bottom-style:solid;}
+.chip-nama:focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:3px;}

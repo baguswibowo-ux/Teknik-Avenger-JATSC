@@ -319,6 +319,10 @@ const KAMUS = {
     ttdTersimpanJudul:'Pakai TTD tersimpan',
     ttdTersimpanKeterangan:'Tanpa menggambar lagi: yang dibubuhkan tanda tangan yang sudah Anda simpan lewat menu “TTD Saya”.',
     ttdTersimpanTombol:'✅ Setujui & Bubuhkan',
+    /* profil akun (js/28c-profil.js) */
+    profilJudul:'Profil Saya', profilTombolKet:'Buka profil akun Anda',
+    profilNama:'Nama', profilUsername:'Nama pengguna', profilPeran:'Peran', profilUnit:'Unit',
+    telegramKeterangan:'Terima kabar di Telegram saat ada dokumen yang menunggu tanda tangan Anda, dan saat dokumen yang Anda kirim sudah ditandatangani.',
     ttdSayaJudul:'TTD Tersimpan Saya', ttdSayaTombol:'✍ TTD Saya',
     ttdSayaTersimpanKini:'Yang tersimpan sekarang', ttdSayaGambarBaru:'Gambar tanda tangan baru',
     ttdTersimpanKosong:'— belum ada TTD tersimpan —',
@@ -678,6 +682,10 @@ const KAMUS = {
     ttdTersimpanJudul:'Use your saved signature',
     ttdTersimpanKeterangan:'No drawing needed: the signature you saved under “My Signature” is stamped instead.',
     ttdTersimpanTombol:'✅ Approve & sign',
+    /* account profile (js/28c-profil.js) */
+    profilJudul:'My Profile', profilTombolKet:'Open your account profile',
+    profilNama:'Name', profilUsername:'Username', profilPeran:'Role', profilUnit:'Unit',
+    telegramKeterangan:'Get a message on Telegram when a document is waiting for your signature, and when a document you filed has been signed.',
     ttdSayaJudul:'My Saved Signature', ttdSayaTombol:'✍ My Signature',
     ttdSayaTersimpanKini:'Currently saved', ttdSayaGambarBaru:'Draw a new signature',
     ttdTersimpanKosong:'— no saved signature —',
@@ -1008,6 +1016,10 @@ const KAMUS = {
     ttdTersimpanJudul:'Usar su firma guardada',
     ttdTersimpanKeterangan:'No hace falta dibujar: se estampa la firma que guardó en “Mi Firma”.',
     ttdTersimpanTombol:'✅ Aprobar y firmar',
+    /* perfil de la cuenta (js/28c-profil.js) */
+    profilJudul:'Mi Perfil', profilTombolKet:'Abrir el perfil de su cuenta',
+    profilNama:'Nombre', profilUsername:'Usuario', profilPeran:'Rol', profilUnit:'Unidad',
+    telegramKeterangan:'Reciba aviso en Telegram cuando un documento espere su firma, y cuando el documento que envió ya esté firmado.',
     ttdSayaJudul:'Mi Firma Guardada', ttdSayaTombol:'✍ Mi Firma',
     ttdSayaTersimpanKini:'Guardada actualmente', ttdSayaGambarBaru:'Dibujar una firma nueva',
     ttdTersimpanKosong:'— sin firma guardada —',

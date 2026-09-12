@@ -99,7 +99,11 @@
         </button>
       </div>
       <div class="user-chip" id="userChip" style="display:none;">
-        <span><span data-t="masukSebagai">masuk sebagai</span> <b id="userChipNama">-</b></span>
+        <!-- Namanya sendiri yang jadi pintu ke Profil: tidak ada tombol baru
+             di kepala halaman, jadi susunan di HP tidak bergeser sama sekali. -->
+        <span><span data-t="masukSebagai">masuk sebagai</span> <b id="userChipNama" class="chip-nama"
+              role="button" tabindex="0" data-t-title="profilTombolKet"
+              onclick="openProfilModal()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openProfilModal();}">-</b></span>
         <button onclick="openTtdSayaModal()" data-t="ttdSayaTombol">✍ TTD Saya</button>
         <button onclick="doLogout()" data-t="keluar">Keluar</button>
       </div>
@@ -2179,18 +2183,36 @@
       <div id="phAksi" class="telegram-aksi"></div>
     </div>
 
+    <!-- Notifikasi Telegram pindah ke modal Profil: itu urusan akun, bukan
+         urusan tanda tangan. Lihat #profilModalBg di bawah. -->
+
+    <div class="modal-footer">
+      <button class="btn ghost" onclick="closeTtdSayaModal()" data-t="tutup">Tutup</button>
+      <button class="btn" id="ttdSayaSaveBtn" onclick="simpanTtdSaya()" data-t="ttdSayaSimpan">💾 Simpan TTD</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PROFIL AKUN — dibuka dengan menekan nama sendiri di kepala halaman.
+     Isinya hal-hal yang menempel pada AKUN, bukan pada dokumen: identitas dan
+     sambungan Telegram. Diisi & dikelola oleh js/28c-profil.js. -->
+<div class="modal-bg" id="profilModalBg">
+  <div class="modal" style="max-width:560px;">
+    <h3 data-t="profilJudul">Profil Saya</h3>
+
+    <div class="profil-identitas" id="profilIdentitas"></div>
+
     <!-- NOTIFIKASI TELEGRAM — muncul hanya kalau server mengaktifkan bot.
          Diisi & dikelola oleh js/28-telegram.js. -->
     <div id="telegramPanel" class="telegram-panel" style="display:none;">
       <h4 style="margin:0 0 6px;">🔔 Notifikasi Telegram</h4>
-      <div class="subtle-note" style="margin-bottom:8px;">Terima kabar di Telegram saat ada dokumen yang menunggu tanda tangan Anda, dan saat dokumen yang Anda kirim sudah ditandatangani.</div>
+      <div class="subtle-note" style="margin-bottom:8px;" data-t="telegramKeterangan">Terima kabar di Telegram saat ada dokumen yang menunggu tanda tangan Anda, dan saat dokumen yang Anda kirim sudah ditandatangani.</div>
       <div id="telegramStatus" class="telegram-status">Memeriksa status…</div>
       <div id="telegramAksi" class="telegram-aksi"></div>
     </div>
 
     <div class="modal-footer">
-      <button class="btn ghost" onclick="closeTtdSayaModal()" data-t="tutup">Tutup</button>
-      <button class="btn" id="ttdSayaSaveBtn" onclick="simpanTtdSaya()" data-t="ttdSayaSimpan">💾 Simpan TTD</button>
+      <button class="btn ghost" onclick="closeProfilModal()" data-t="tutup">Tutup</button>
     </div>
   </div>
 </div>
@@ -2351,6 +2373,7 @@
 <script src="js/27-ttd-tersimpan.js"></script>
 <script src="js/28-telegram.js"></script>
 <script src="js/28b-ph.js"></script>
+<script src="js/28c-profil.js"></script>
 <script src="js/29-rekap.js"></script>
 <script src="js/25-login.js"></script>
 <script src="js/26-init.js"></script>
