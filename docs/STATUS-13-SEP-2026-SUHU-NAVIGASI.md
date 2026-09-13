@@ -29,7 +29,7 @@ Tidak ada perubahan server/database: state daily check memang JSON bebas
   tanpa kunci suhu tetap terbaca.
 - Server uji E-Logbook dari worktree ini di `http://localhost:3900` (data
   salinan, Telegram mati) sudah menyajikan js/css baru. Akun uji di salinan DB:
-  `uji.teknisi` / `uji1234`, unit `ppabn` + `radtel` — hanya ada di salinan.
+  `uji.teknisi` (kata sandinya di catatan lokal, bukan di sini), unit `ppabn` + `radtel` — hanya ada di salinan.
 - Browser pane Claude tidak bisa membuka localhost di sesi ini; tangkapan layar
   belum ada.
 
