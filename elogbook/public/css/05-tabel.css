@@ -36,6 +36,12 @@ table.dc.dc-j input.nav-suhu{width:56px; background:var(--panel-2); border:1px s
              color:var(--text); border-radius:4px; padding:2px 4px; font-size:11px;
              text-align:center; font-family:var(--font-mono);}
 table.dc.dc-j input.nav-suhu:focus{border-color:var(--accent); outline:none;}
+/* Pil Main/Stby di bawah tombol status Tx 1 dan Tx 2 (Daily Check Navigasi) —
+   pola pasangan TMCS 1/2 Radtel, tapi ditumpuk di dalam selnya sendiri supaya
+   tabel tidak bertambah baris. */
+.nav-main-wrap{display:block; margin-top:2px;}
+.status-btn.nav-main{width:auto; min-width:34px; height:15px; padding:0 5px; font-size:8.5px;
+                     font-family:var(--font-mono); letter-spacing:.04em; border-radius:8px;}
 
 /* ---------- Daily Check Pengamatan (kompak, berjejer) ----------
    Form CKG 3 / Fasilitas Pengamatan padat sekali blok kecil. Supaya sekali

@@ -173,6 +173,7 @@ function buildDcNavPrintHtml(r, state){
 
     <div style="font-size:8.5pt;margin-top:6px;">
       <b>NB :</b> ✓ : Normal / Serviceable &nbsp;&nbsp; ! : Alarm &nbsp;&nbsp; ✕ : Gangguan / Unserviceable
+      &nbsp;&nbsp; <b>M</b> : Tx Main &nbsp;&nbsp; S : Tx Standby
     </div>
     ${r.remark ? `<div style="font-size:8.5pt;margin-top:4px;"><b>KETERANGAN :</b> ${escapeHtml(r.remark).replace(/\n/g,'<br>')}</div>` : ''}
 

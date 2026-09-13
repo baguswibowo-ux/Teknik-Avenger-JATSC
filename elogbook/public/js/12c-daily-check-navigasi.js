@@ -41,6 +41,12 @@ const DC_NAV_KOLOM_STD = ['Tx 1','Tx 2','Mon 1','Mon 2','Mon Stb'];
    menyentuhnya — nilainya angka, bukan ok/warn/fail. */
 const DC_NAV_KOLOM_SUHU  = 'Suhu';
 const DC_NAV_LABEL_SUHU  = 'Suhu (°C)';
+/* Penanda Tx mana yang sedang Main per baris item — pola pasangan TMCS 1/2 di
+   Radtel: satu nilai per baris ('1' atau '2'), pil Main/Standby di bawah tombol
+   status Tx 1 dan Tx 2, klik salah satunya membalik pasangannya. Juga di luar
+   DC_NAV_KOLOM_STD; catatan lama tanpa kunci ini dibaca Tx 1 = Main. */
+const DC_NAV_KOLOM_MAIN  = 'Main';
+const DC_NAV_TX          = ['Tx 1','Tx 2'];
 
 const DC_NAV = [
   { kode:'A', judul:'A. ILS R/W 25 R', blok:[
@@ -98,6 +104,7 @@ function initDcNState(){
           dcNState[navKunci(seksi.kode, bi, ri, kk)] = 'ok';
         });
         dcNState[navKunci(seksi.kode, bi, ri, DC_NAV_KOLOM_SUHU)] = '';
+        dcNState[navKunci(seksi.kode, bi, ri, DC_NAV_KOLOM_MAIN)] = '1';
       });
     });
   });
@@ -115,6 +122,26 @@ function setDcNSuhu(k, nilai){
 function navSuhu(state, sk, bi, ri){
   const v = state[navKunci(sk, bi, ri, DC_NAV_KOLOM_SUHU)];
   return v == null ? '' : String(v);
+}
+
+/** Tx mana yang Main di satu baris: 1 atau 2 (tanpa kunci → 1). */
+function navMain(state, sk, bi, ri){
+  return Number(state[navKunci(sk, bi, ri, DC_NAV_KOLOM_MAIN)]) === 2 ? 2 : 1;
+}
+
+/** Balik pasangan Main/Standby satu baris — sama hasilnya diklik dari pil
+    Tx 1 maupun Tx 2, seperti toggleTmcsMain() di Radtel. */
+function toggleDcNMain(k){
+  dcNState[k] = Number(dcNState[k]) === 2 ? '1' : '2';
+  renderDcNavTable();
+}
+
+/** Pil "Main"/"Stby" di bawah tombol status Tx. `aktif` = boleh diklik. */
+function navPilMain(iniMain, k, aktif){
+  const kelas = iniMain ? 'ok' : 'minus';
+  const label = iniMain ? 'Main' : 'Stby';
+  const klik = aktif ? ` onclick="toggleDcNMain('${k}')"` : ' style="cursor:default;"';
+  return `<span class="nav-main-wrap"><button class="status-btn nav-main ${kelas}"${klik}>${label}</button></span>`;
 }
 
 function cycleNavStatus(s){ return s==='ok' ? 'warn' : (s==='warn' ? 'fail' : 'ok'); }
@@ -165,10 +192,15 @@ function renderDcNavTable(){
       const headKols = kols.map(k=>`<th>${escapeHtml(k)}</th>`).join('')
                      + `<th>${escapeHtml(DC_NAV_LABEL_SUHU)}</th>`;
       const rows = b.baris.map((nama, ri)=>{
+        const kMain = navKunci(seksi.kode, bi, ri, DC_NAV_KOLOM_MAIN);
+        const main = navMain(dcNState, seksi.kode, bi, ri);
         const status = kols.map(kk=>{
           const k = navKunci(seksi.kode, bi, ri, kk);
           const s = dcNState[k] || 'ok';
-          return `<td><button class="status-btn ${s}" onclick="toggleDcNStatus('${k}')">${navSimbol(s)}</button></td>`;
+          const tombol = `<button class="status-btn ${s}" onclick="toggleDcNStatus('${k}')">${navSimbol(s)}</button>`;
+          const ix = DC_NAV_TX.indexOf(kk);
+          if(ix === -1) return `<td>${tombol}</td>`;
+          return `<td>${tombol}${navPilMain(main === ix + 1, kMain, true)}</td>`;
         }).join('');
         const kSuhu = navKunci(seksi.kode, bi, ri, DC_NAV_KOLOM_SUHU);
         const suhu = `<td><input type="text" inputmode="decimal" class="nav-suhu"
@@ -201,9 +233,19 @@ function dcNavTabelBaca(state, cetak){
       const headKols = kols.map(k=>`<td>${escapeHtml(k)}</td>`).join('')
                      + `<td>${escapeHtml(DC_NAV_LABEL_SUHU)}</td>`;
       const rows = b.baris.map((nama, ri)=>{
+        const main = navMain(state, seksi.kode, bi, ri);
         const stats = kols.map(kk=>{
           const k = navKunci(seksi.kode, bi, ri, kk);
-          return sel(state[k] || 'ok');
+          const ix = DC_NAV_TX.indexOf(kk);
+          if(ix === -1) return sel(state[k] || 'ok');
+          const s = state[k] || 'ok';
+          const iniMain = main === ix + 1;
+          // Cetak: simbol + huruf M/S kecil di sebelahnya; detail: pil seperti form, baca-saja.
+          if(cetak){
+            return `<td style="text-align:center;"><span class="${s==='ok'?'p-ok':(s==='warn'?'p-warn':'p-fail')}">${navSimbol(s)}</span>` +
+                   `<span style="font-size:6.5pt;margin-left:3px;${iniMain ? 'font-weight:bold;' : 'color:#666;'}">${iniMain ? 'M' : 'S'}</span></td>`;
+          }
+          return `<td><span class="status-btn ${s}" style="cursor:default;">${navSimbol(s)}</span>${navPilMain(iniMain, '', false)}</td>`;
         }).join('');
         const suhu = navSuhu(state, seksi.kode, bi, ri);
         const selSuhu = `<td style="text-align:center;${cetak ? '' : 'font-family:var(--font-mono);'}">${
