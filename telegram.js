@@ -232,6 +232,31 @@ export function pesanDinasMendatang({ nama, unit, namaShift, kode, tanggal, jam,
   return baris.join('\n');
 }
 
+const JENIS_BERKALA_NAMA = {
+  harian: 'harian', mingguan: 'mingguan', bulanan: 'bulanan',
+  triwulan: 'triwulan', semesteran: 'semesteran', tahunan: 'tahunan'
+};
+
+/** Pengingat ke teknisi (dashboard): sejam sesudah dinasnya mulai, kegiatan
+    berkala unitnya yang belum dikerjakan. `daftar` keluaran
+    kegiatanUntukDinas() di pengingat-berkala.js. */
+export function pesanBerkalaDinas({ nama, unit, namaShift, kode, tanggal, jam, daftar }) {
+  const baris = ['📋 <b>Kegiatan berkala dinas Anda</b>', ''];
+  baris.push(`${nama ? esc(nama) + ', ' : ''}Anda sedang dinas <b>${esc(namaShift || kode)}</b>`
+    + (unit ? ` di unit ${esc(unit)}` : '') + (jam ? ` (mulai ${esc(jam)})` : '') + '.');
+  if (tanggal) baris.push(`Tanggal: ${esc(tanggal)}`);
+  baris.push('', 'Yang belum dikerjakan:');
+  (daftar || []).forEach(({ k, sisa, sebut }, i) => {
+    const ket = [JENIS_BERKALA_NAMA[k.jenis] || k.jenis || ''];
+    if (sisa < 0) ket.push(`<b>lewat ${-sisa} hari</b>`);
+    if (k.shift === 'PS' || k.shift === 'M') ket.push(k.shift === 'M' ? 'rombongan Malam' : 'rombongan PS');
+    baris.push(`${i + 1}. <b>${esc(k.nama || k.id)}</b> — ${ket.filter(Boolean).join(' · ')}`
+      + (sebut ? `\n    isi ${esc(sebut)} di E-Logbook` : ''));
+  });
+  baris.push('', 'Mohon dikerjakan selama dinas ini.');
+  return baris.join('\n');
+}
+
 /** Balasan saat akun berhasil ditautkan dari dalam Telegram. */
 export function pesanTautBerhasil(nama) {
   return `✅ Akun E-Logbook <b>${esc(nama)}</b> berhasil terhubung.\n\n`

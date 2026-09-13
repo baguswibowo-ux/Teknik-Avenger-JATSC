@@ -2025,6 +2025,33 @@ app.get('/internal/daftar', hanyaInternal, async (req, res) => {
   }
 });
 
+/** Bukti kegiatan berkala satu unit: baris lembar yang sama dengan yang dibaca
+    dashboard lewat getAllData (jumlahnya pun sama, MAX_ROWS), tetapi dipangkas
+    ke kolom yang dipakai registri BERKALA_SUMBER — tanggal, Lokasi/Form,
+    Kategori/Jenis, dan kunci penanda lembar `__…` di State. Isi lembar dan
+    tanda tangan tidak ikut. Pemakainya pengingat berkala di server dashboard. */
+app.get('/internal/bukti-berkala', hanyaInternal, async (req, res) => {
+  try {
+    const unit = String(req.query?.unit || '').toLowerCase();
+    if (!UNIT.some((u) => u.kode === unit)) return res.status(400).json({ error: 'Unit tidak dikenal.' });
+    const tgl = (x) => ({ Tanggal: x.Tanggal || '', DibuatPada: x.DibuatPada || '' });
+    const penanda = (s) => Object.fromEntries(Object.entries(s && typeof s === 'object' ? s : {})
+      .filter(([k, v]) => k.startsWith('__') && typeof v !== 'object'));
+    const [dcHistory, dstest, monitoring, berkala] = await Promise.all([
+      listDailyChecks(unit, MAX_ROWS), listDsTest(unit, MAX_ROWS),
+      listMonitoring(unit, MAX_ROWS), listBerkala(unit, MAX_ROWS)
+    ]);
+    res.json({
+      dcHistory: dcHistory.map((x) => ({ ...tgl(x), TanggalIso: x.TanggalIso || '', Lokasi: x.Lokasi || '', Form: x.Form || '' })),
+      dstest: dstest.map((x) => ({ ...tgl(x), Kategori: x.Kategori || '', State: penanda(x.State) })),
+      monitoring: monitoring.map(tgl),
+      berkala: berkala.map((x) => ({ ...tgl(x), Jenis: x.Jenis || '' }))
+    });
+  } catch (err) {
+    res.status(500).json({ error: err?.message || String(err) });
+  }
+});
+
 /** Kirim satu pesan HTML ke chat Telegram sebuah akun.
     { aktif, tertaut, terkirim } — aktif false berarti bot tidak dikonfigurasi,
     tertaut false berarti akun itu belum menekan Start di bot. */

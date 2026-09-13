@@ -30,7 +30,10 @@ import { selisihDaftar, aksiSelisih, ringkasSelisih } from './aktivitas-selisih.
 import {
   dinasDalamRentang, usernameUntukPetak, kunciPengingat, jamWib, tanggalWib
 } from './pengingat-dinas.js';
-import { pesanDinasMendatang } from './telegram.js';
+import {
+  kegiatanUntukDinas, paketDibutuhkan, kunciPengingatBerkala
+} from './pengingat-berkala.js';
+import { pesanDinasMendatang, pesanBerkalaDinas } from './telegram.js';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import {
@@ -4750,16 +4753,118 @@ async function periksaPengingatDinas() {
       if (hasil.terkirim) { terkirim[kunci] = new Date().toISOString(); berubah = true; }
     }
     if (berubah) {
+      // Dibaca ulang dulu: pengingat berkala menulis ke berkas yang sama, dan
+      // menimpanya dengan salinan lama berarti pesan berkalanya terkirim ulang.
+      const semua = { ...(await bacaJson(PENGINGAT_JSON, {})), ...terkirim };
       const batas = Date.now() - PENGINGAT_SIMPAN_MS;
-      for (const [k, waktu] of Object.entries(terkirim)) {
-        if (!(Date.parse(waktu) > batas)) delete terkirim[k];
+      for (const [k, waktu] of Object.entries(semua)) {
+        if (!(Date.parse(waktu) > batas)) delete semua[k];
       }
-      await tulisJson(PENGINGAT_JSON, terkirim);
+      await tulisJson(PENGINGAT_JSON, semua);
     }
   } catch (err) {
     console.error('[pengingat dinas]', err?.message || err);
   } finally {
     pengingatDinasBerjalan = false;
+  }
+}
+
+/* =====================================================================
+   PENGINGAT KEGIATAN BERKALA — sejam sesudah dinas mulai
+
+   Tiap orang yang berdinas (jadwal dashboard, bukan CUTI/CAP/IJIN/DL) menerima
+   satu pesan Telegram PENGINGAT_BERKALA_MENIT (bawaan 60) sesudah dinasnya
+   mulai, berisi kegiatan berkala unitnya yang jatuh hari ini atau sudah lewat
+   dan belum dikerjakan. Tidak ada yang belum dikerjakan → tidak ada pesan.
+   Permintaan Bagus 14 September 2026; aturan pemilihan kegiatannya di
+   pengingat-berkala.js (murni, teruji: tools/uji-pengingat-berkala.mjs).
+
+   Selebihnya meniru pengingat dinas di atas: orang → akun lewat NIK dulu,
+   kiriman dititipkan ke E-Logbook, penanda di pengingat-terkirim.json dengan
+   awalan kunci "berkala|". "Sudah dikerjakan" untuk kegiatan bersumber lembar
+   E-Logbook ditanyakan lewat pintu internal /internal/bukti-berkala, sekali
+   per unit per putaran, dan hanya untuk unit yang ada orang yang perlu diingatkan.
+
+   JENDELANYA satu jam: dikirim begitu kini ≥ mulai + 60 menit, dan tidak lagi
+   sesudah mulai + 120 menit — server yang mati sebentar tetap mengirim, yang
+   baru hidup tengah dinas tidak mengirim pesan basi.
+   ===================================================================== */
+const PENGINGAT_BERKALA_MENIT = Math.max(0, Number(process.env.PENGINGAT_BERKALA_MENIT ?? 60) || 0);
+const PENGINGAT_BERKALA_JENDELA_MS = 60 * 60000;
+
+async function buktiBerkalaELogbook(unit) {
+  const jawab = await fetch(ASAL + '/internal/bukti-berkala?unit=' + encodeURIComponent(unit),
+    { signal: AbortSignal.timeout(15000) });
+  if (!jawab.ok) throw new Error(`E-Logbook menjawab ${jawab.status} untuk /internal/bukti-berkala`);
+  return await jawab.json();
+}
+
+let pengingatBerkalaBerjalan = false;
+
+async function periksaPengingatBerkala() {
+  if (!TERUS || pengingatBerkalaBerjalan) return;
+  pengingatBerkalaBerjalan = true;
+  try {
+    const kini = Date.now();
+    const jeda = PENGINGAT_BERKALA_MENIT * 60000;
+    // Petak yang mulainya dalam (kini − jeda − jendela, kini − jeda].
+    const jadwal = await bacaJson(DINAS_JSON, {});
+    const petak = dinasDalamRentang(jadwal, kini - jeda - PENGINGAT_BERKALA_JENDELA_MS + 1, kini - jeda + 1);
+    if (!petak.length) return;
+
+    const semuaKegiatan = await bacaJson(BERKALA_JSON, {});
+    if (!petak.some((p) => (semuaKegiatan[p.unit] || []).length)) return;
+    const terkirim = await bacaJson(PENGINGAT_JSON, {});
+    const { akun, unit } = await daftarELogbook();
+    if (!akun.length) return;
+    const namaUnit = (kode) => (unit.find((u) => u.kode === kode) || {}).nama || kode;
+
+    const calon = [];
+    for (const p of petak) {
+      if (!(semuaKegiatan[p.unit] || []).length) continue;
+      const username = usernameUntukPetak(p, akun);
+      if (!username) continue;
+      const kunci = kunciPengingatBerkala(p, username);
+      if (!terkirim[kunci]) calon.push({ p, username, kunci });
+    }
+    if (!calon.length) return;
+
+    const selesai = await bacaJson(SELESAI_JSON, {});
+    const bukti = new Map();
+    const baru = {};
+    for (const { p, username, kunci } of calon) {
+      const kegiatan = semuaKegiatan[p.unit];
+      if (paketDibutuhkan(kegiatan).length && !bukti.has(p.unit)) {
+        bukti.set(p.unit, await buktiBerkalaELogbook(p.unit));
+      }
+      const daftar = kegiatanUntukDinas({
+        unit: p.unit, kunci: p.kunci, saatMs: Date.now(),
+        kegiatan, selesai, bukti: bukti.get(p.unit) || {}
+      });
+      if (!daftar.length) continue;
+      const teks = pesanBerkalaDinas({
+        nama: (akun.find((a) => a.username === username) || {}).nama || p.nama,
+        unit: namaUnit(p.unit), namaShift: p.namaShift, kode: p.kode,
+        tanggal: tanggalWib(p.mulaiMs), jam: jamWib(p.mulaiMs), daftar
+      });
+      const hasil = await kirimTelegramKeAkun(username, teks);
+      if (!hasil.aktif) break;             // bot tidak dikonfigurasi: percuma lanjut
+      if (hasil.terkirim) baru[kunci] = new Date().toISOString();
+    }
+    if (Object.keys(baru).length) {
+      /* Dibaca ulang tepat sebelum ditulis: pengingat dinas memakai berkas yang
+         sama dan bisa saja menulis di sela pengiriman di atas. */
+      const semua = { ...(await bacaJson(PENGINGAT_JSON, {})), ...baru };
+      const batas = Date.now() - PENGINGAT_SIMPAN_MS;
+      for (const [k, waktu] of Object.entries(semua)) {
+        if (!(Date.parse(waktu) > batas)) delete semua[k];
+      }
+      await tulisJson(PENGINGAT_JSON, semua);
+    }
+  } catch (err) {
+    console.error('[pengingat berkala]', err?.message || err);
+  } finally {
+    pengingatBerkalaBerjalan = false;
   }
 }
 
@@ -4797,6 +4902,8 @@ if (dijalankanLangsung) {
   if (TERUS) {
     setTimeout(periksaPengingatDinas, 30 * 1000).unref();
     setInterval(periksaPengingatDinas, 5 * 60 * 1000).unref();
+    setTimeout(periksaPengingatBerkala, 45 * 1000).unref();
+    setInterval(periksaPengingatBerkala, 5 * 60 * 1000).unref();
   }
 }
 
