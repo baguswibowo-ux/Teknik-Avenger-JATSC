@@ -64,3 +64,21 @@ Server uji: `https://uji.teknik-avengers.com` (dashboard uji 3910 → E-Logbook 
 dengan `Start-Process`). Ingress tunnel `uji.teknik-avengers.com → localhost:3910`
 sudah dipasang di config systemprofile. Dashboard uji WAJIB mendengar di
 `0.0.0.0`: cloudflared menghubungi `localhost` lewat `::1`.
+
+## Rapi tabel Meter Reading (commit `d69ba51`, `b44593c`)
+
+Keluhan Bagus dari cetak DME DKI: kepala info dan tabel direntang selebar
+kertas landscape, nilai jauh dari parameter. Perbaikan di `17f`:
+- Tabel dengan kolom nilai <= 4 ("rapat") memakai `<colgroup>` +
+  `table-layout:fixed`: NO 7%, nilai 20% per kolom (maks. 56% total), UNIT/LIMIT
+  16%, sisanya PARAMETER — sama untuk semua seksi, tepi kanan lurus.
+  Berlaku juga ke tabel kecil di lembar ILS; tabel besar ILS tidak berubah.
+- Kepala info cetak `width:auto`.
+- Lembar yang seluruh tabelnya rapat (DVOR/DME) dicetak portrait; ILS landscape.
+  Pilihan orientasi pemakai (`orientasiCetak`) tetap menang.
+Catatan cache: `/logbook/js/*.js` di-cache edge Cloudflare 5 menit
+(`s-maxage=300`) dan peramban 1 jam — sesudah deploy, tunggu 5 menit lalu
+Ctrl+F5 di halaman `/logbook/`.
+
+Bagus sudah mencoba di server uji dan bilang beres (13 Sep 2026). Siap
+dipasang: `git merge --ff-only feature/nav-suhu` di folder utama, tanpa restart.
