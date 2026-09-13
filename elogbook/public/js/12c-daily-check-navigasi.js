@@ -41,12 +41,17 @@ const DC_NAV_KOLOM_STD = ['Tx 1','Tx 2','Mon 1','Mon 2','Mon Stb'];
    menyentuhnya — nilainya angka, bukan ok/warn/fail. */
 const DC_NAV_KOLOM_SUHU  = 'Suhu';
 const DC_NAV_LABEL_SUHU  = 'Suhu (°C)';
-/* Penanda Tx mana yang sedang Main per baris item — pola pasangan TMCS 1/2 di
-   Radtel: satu nilai per baris ('1' atau '2'), pil Main/Standby di bawah tombol
-   status Tx 1 dan Tx 2, klik salah satunya membalik pasangannya. Juga di luar
-   DC_NAV_KOLOM_STD; catatan lama tanpa kunci ini dibaca Tx 1 = Main. */
-const DC_NAV_KOLOM_MAIN  = 'Main';
-const DC_NAV_TX          = ['Tx 1','Tx 2'];
+/* Penanda mana yang sedang Main per baris item — pola pasangan TMCS 1/2 di
+   Radtel: satu nilai per pasangan per baris ('1' atau '2'), pil Main/Standby
+   di bawah tombol status, klik salah satunya membalik pasangannya. Dua
+   pasangan: Tx 1/Tx 2 (kunci 'Main') dan Mon 1/Mon 2 (kunci 'MainMon'). Kunci
+   ini di luar DC_NAV_KOLOM_STD; catatan lama tanpa kunci dibaca nomor 1 = Main. */
+const DC_NAV_PASANGAN = [
+  { kunci: 'Main',    kolom: ['Tx 1','Tx 2'] },
+  { kunci: 'MainMon', kolom: ['Mon 1','Mon 2'] }
+];
+/** Pasangan yang memuat kolom kk, atau null (Mon Stb tidak berpasangan). */
+function navPasangan(kk){ return DC_NAV_PASANGAN.find(p => p.kolom.includes(kk)) || null; }
 
 const DC_NAV = [
   { kode:'A', judul:'A. ILS R/W 25 R', blok:[
@@ -104,7 +109,7 @@ function initDcNState(){
           dcNState[navKunci(seksi.kode, bi, ri, kk)] = 'ok';
         });
         dcNState[navKunci(seksi.kode, bi, ri, DC_NAV_KOLOM_SUHU)] = '';
-        dcNState[navKunci(seksi.kode, bi, ri, DC_NAV_KOLOM_MAIN)] = '1';
+        DC_NAV_PASANGAN.forEach(p => { dcNState[navKunci(seksi.kode, bi, ri, p.kunci)] = '1'; });
       });
     });
   });
@@ -124,9 +129,9 @@ function navSuhu(state, sk, bi, ri){
   return v == null ? '' : String(v);
 }
 
-/** Tx mana yang Main di satu baris: 1 atau 2 (tanpa kunci → 1). */
-function navMain(state, sk, bi, ri){
-  return Number(state[navKunci(sk, bi, ri, DC_NAV_KOLOM_MAIN)]) === 2 ? 2 : 1;
+/** Nomor yang Main untuk satu pasangan di satu baris: 1 atau 2 (tanpa kunci → 1). */
+function navMain(state, sk, bi, ri, kunci){
+  return Number(state[navKunci(sk, bi, ri, kunci)]) === 2 ? 2 : 1;
 }
 
 /** Balik pasangan Main/Standby satu baris — sama hasilnya diklik dari pil
@@ -192,15 +197,15 @@ function renderDcNavTable(){
       const headKols = kols.map(k=>`<th>${escapeHtml(k)}</th>`).join('')
                      + `<th>${escapeHtml(DC_NAV_LABEL_SUHU)}</th>`;
       const rows = b.baris.map((nama, ri)=>{
-        const kMain = navKunci(seksi.kode, bi, ri, DC_NAV_KOLOM_MAIN);
-        const main = navMain(dcNState, seksi.kode, bi, ri);
         const status = kols.map(kk=>{
           const k = navKunci(seksi.kode, bi, ri, kk);
           const s = dcNState[k] || 'ok';
           const tombol = `<button class="status-btn ${s}" onclick="toggleDcNStatus('${k}')">${navSimbol(s)}</button>`;
-          const ix = DC_NAV_TX.indexOf(kk);
-          if(ix === -1) return `<td>${tombol}</td>`;
-          return `<td>${tombol}${navPilMain(main === ix + 1, kMain, true)}</td>`;
+          const p = navPasangan(kk);
+          if(!p) return `<td>${tombol}</td>`;
+          const kMain = navKunci(seksi.kode, bi, ri, p.kunci);
+          const iniMain = navMain(dcNState, seksi.kode, bi, ri, p.kunci) === p.kolom.indexOf(kk) + 1;
+          return `<td>${tombol}${navPilMain(iniMain, kMain, true)}</td>`;
         }).join('');
         const kSuhu = navKunci(seksi.kode, bi, ri, DC_NAV_KOLOM_SUHU);
         const suhu = `<td><input type="text" inputmode="decimal" class="nav-suhu"
@@ -233,13 +238,12 @@ function dcNavTabelBaca(state, cetak){
       const headKols = kols.map(k=>`<td>${escapeHtml(k)}</td>`).join('')
                      + `<td>${escapeHtml(DC_NAV_LABEL_SUHU)}</td>`;
       const rows = b.baris.map((nama, ri)=>{
-        const main = navMain(state, seksi.kode, bi, ri);
         const stats = kols.map(kk=>{
           const k = navKunci(seksi.kode, bi, ri, kk);
-          const ix = DC_NAV_TX.indexOf(kk);
-          if(ix === -1) return sel(state[k] || 'ok');
+          const p = navPasangan(kk);
+          if(!p) return sel(state[k] || 'ok');
           const s = state[k] || 'ok';
-          const iniMain = main === ix + 1;
+          const iniMain = navMain(state, seksi.kode, bi, ri, p.kunci) === p.kolom.indexOf(kk) + 1;
           // Cetak: simbol + huruf M/S kecil di sebelahnya; detail: pil seperti form, baca-saja.
           if(cetak){
             return `<td style="text-align:center;"><span class="${s==='ok'?'p-ok':(s==='warn'?'p-warn':'p-fail')}">${navSimbol(s)}</span>` +
