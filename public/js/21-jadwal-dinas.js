@@ -258,7 +258,7 @@ function jdwIsi(unit){
   return kepala
     + `<div class="jdw-gulir">${jdwTabel(unit)}</div>`
     + `<div class="dinas-baris" style="margin-top:18px">${
-        petak.map(s=>kartuShift(s, kodeTerpakai(petak))).join('')}</div>`
+        petak.filter(s=>s.o.length).map(s=>kartuShift(s, kodeTerpakai(petak))).join('')}</div>`
     + `<div class="catatan"><b>${T('Kode yang bisa diisi:','Codes you can fill in:')}</b> ${u.dinas.join(' · ')}.
         ${T('Huruf terakhir menyebut gedungnya — <b>J</b> untuk JATSC, <b>N</b> untuk New JATSC — dan jamnya '
           + 'sama untuk keduanya. Jam dinas dihitung UTC: <b>PS</b> 00:00–12:00, <b>M</b> 12:00–00:00, dan '

@@ -78,16 +78,21 @@ function gambarDinas(){
   }).join('');
   isiTiker('tikerDinas', kartuOrang, semua.length * 2.1);
 
-  // Penuh: dikelompokkan per unit
+  /* Penuh: dikelompokkan per unit. Hanya kode yang hari ini ada orangnya —
+     termasuk CUTI/CAP/DL — yang dibuatkan kartu; kartu "tidak ada personel"
+     cuma memenuhi layar tanpa memberi tahu apa-apa. */
   el('dinasPenuh').innerHTML = UNIT.map(u=>{
     const { petak, kodeHari } = petakUnit.get(u.kode);
+    const terisi = petak.filter(s=>s.o.length);
     return `<div style="margin-bottom:20px">
       <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:10px">
         <h3 style="font-size:14px">${esc(u.nama)}</h3>
-        <span class="mono" style="font-size:10.5px;color:var(--muted)">${
-          T('kode dinas','shift codes')}: ${petak.map(s=>s.k).join(' · ')}</span>
+        <span class="mono" style="font-size:10.5px;color:var(--muted)">${terisi.length
+          ? `${T('kode dinas','shift codes')}: ${terisi.map(s=>s.k).join(' · ')}`
+          : T('tidak ada personel hari ini','no personnel today')}</span>
       </div>
-      <div class="dinas-baris">${petak.map(s=>kartuShift(s, kodeHari)).join('')}</div>
+      ${terisi.length
+        ? `<div class="dinas-baris">${terisi.map(s=>kartuShift(s, kodeHari)).join('')}</div>` : ''}
     </div>`;
   }).join('');
 
