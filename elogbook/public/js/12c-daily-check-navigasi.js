@@ -141,10 +141,10 @@ function toggleDcNMain(k){
   renderDcNavTable();
 }
 
-/** Pil "Main"/"Stby" di bawah tombol status Tx. `aktif` = boleh diklik. */
+/** Pil "Main"/"Standby" di bawah tombol status Tx. `aktif` = boleh diklik. */
 function navPilMain(iniMain, k, aktif){
   const kelas = iniMain ? 'ok' : 'minus';
-  const label = iniMain ? 'Main' : 'Stby';
+  const label = iniMain ? 'Main' : 'Standby';
   const klik = aktif ? ` onclick="toggleDcNMain('${k}')"` : ' style="cursor:default;"';
   return `<span class="nav-main-wrap"><button class="status-btn nav-main ${kelas}"${klik}>${label}</button></span>`;
 }
