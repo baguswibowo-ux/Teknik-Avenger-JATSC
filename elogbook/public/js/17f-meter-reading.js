@@ -491,12 +491,11 @@ function mrTotalCol(sec){
 function mrCell(si, ri, col, data, mode, cetak, rapat){
   const val = mrVal(data, si, ri, col);
   if(mode === 'form'){
-    // Tabel rapat (kolom nilai sedikit, mis. DVOR/DME): kotaknya lebar tetap,
-    // supaya tidak melar mengisi modal dan menjauh dari nama parameternya.
-    const lebar = rapat ? 'width:112px;' : 'width:100%;';
+    // Lebar kotak mengikuti selnya; di tabel rapat lebar sel sudah dipatok
+    // lewat <colgroup> (lihat mrColgroup), jadi kotaknya tidak ikut melar.
     return `<td><input type="text" id="mr_${si}_${ri}_${col}" value="${escapeHtml(val)}"
       oninput="mrSet(${si},${ri},'${col}',this.value)"
-      style="${lebar}box-sizing:border-box;background:var(--panel-2);border:1px solid var(--line);color:var(--text);border-radius:5px;padding:5px 3px;font-size:12.5px;text-align:center;"></td>`;
+      style="width:100%;box-sizing:border-box;background:var(--panel-2);border:1px solid var(--line);color:var(--text);border-radius:5px;padding:5px 3px;font-size:12.5px;text-align:center;"></td>`;
   }
   return `<td style="text-align:center;${cetak ? 'font-size:6.4pt;' : ''}">${escapeHtml(val) || '-'}</td>`;
 }
@@ -530,15 +529,32 @@ function mrSeksiTabel(sec, si, data, mode){
     return `<tr>${tds}</tr>`;
   }).join('');
   const cls = cetak ? 'mr-tbl mr-print' : 'mr-tbl';
-  // Cetak: tabel rapat pun tidak direntang — di kertas kolom yang terlalu
-  // lebar sama membingungkannya (nilai jauh dari parameter).
-  const tableStyle = rapat ? 'width:auto;border-collapse:collapse;'
+  // Tabel rapat: semua seksi selebar penuh dengan pembagian kolom yang SAMA
+  // (colgroup + table-layout:fixed), supaya tepi kanannya lurus dari atas ke
+  // bawah dan kolom nilai tidak melar menjauh dari nama parameternya.
+  const tableStyle = rapat ? 'width:100%;table-layout:fixed;border-collapse:collapse;'
                    : cetak ? 'width:100%;border-collapse:collapse;'
                            : 'width:100%;border-collapse:collapse;min-width:' + Math.max(520, total * 68) + 'px;';
+  const colgroup = rapat ? mrColgroup(sec, cetak) : '';
   return `<div class="mr-seksi">
     <div class="mr-seksi-judul" style="${fs}">${escapeHtml(sec.title)}</div>
-    <div style="overflow-x:auto;"><table class="${cls}" style="${tableStyle}">${mrHead(sec, cetak)}<tbody>${body}</tbody></table></div>
+    <div style="overflow-x:auto;"><table class="${cls}" style="${tableStyle}">${colgroup}${mrHead(sec, cetak)}<tbody>${body}</tbody></table></div>
   </div>`;
+}
+
+/** Pembagian kolom tabel rapat (persen, sama untuk semua seksi satu lembar):
+    NO 7 · nilai 20 tiap kolom (maks. 56 total) · UNIT/LIMIT 16 · sisanya
+    PARAMETER. Di layar kolom nilai dibatasi supaya kotaknya tidak lebih lebar
+    dari yang perlu diketik. */
+function mrColgroup(sec, cetak){
+  const n = sec.cols.length;
+  const nilai = Math.min(20, Math.floor(56 / n));
+  const cols = [];
+  if(sec.no !== false) cols.push('7%');
+  cols.push('');                                   // PARAMETER: sisa
+  for(let i = 0; i < n; i++) cols.push(cetak ? nilai + '%' : Math.min(140, Math.round(nilai * 7)) + 'px');
+  if(sec.unit !== false) cols.push(cetak ? '16%' : '110px');
+  return '<colgroup>' + cols.map(w => w ? `<col style="width:${w};">` : '<col>').join('') + '</colgroup>';
 }
 
 /** Seluruh lembar (semua seksi). */
