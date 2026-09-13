@@ -96,4 +96,7 @@ legenda NB di `24-cetak-daily-check.js`. CSS `.status-btn.nav-main` di
 
 Keadaan saat ditulis: produksi di `ec7aa19` (merge pertama sudah dilakukan
 Bagus), branch `feature/nav-suhu` di `a0c81c6` — tiga commit ini yang belum
-masuk. Bagus akan mengeksekusi sendiri: merge, push, Vercel.
+masuk. Bagus mengeksekusi sendiri di folder utama:
+`git merge --ff-only feature/nav-suhu`, tanpa restart (hanya css/js/docs).
+Vercel sudah tidak dipakai (13 Sep 2026) — semuanya disajikan dari PC ini.
+Push ke GitHub hanya kalau Bagus minta.
