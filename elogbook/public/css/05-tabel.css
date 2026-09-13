@@ -30,6 +30,12 @@ input.rk-ket{width:100%; background:transparent; border:none; color:var(--text);
 table.dc.dc-j{min-width:0;}
 table.dc.dc-j th{font-size:10px; padding:4px 6px;}
 table.dc.dc-j td{padding:3px 6px;}
+/* Kotak suhu shelter di Daily Check Navigasi — diwarnai eksplisit (lihat catatan
+   .lk-tbl di bawah: <input> polos jadi bercak putih di tema gelap). */
+table.dc.dc-j input.nav-suhu{width:56px; background:var(--panel-2); border:1px solid var(--line);
+             color:var(--text); border-radius:4px; padding:2px 4px; font-size:11px;
+             text-align:center; font-family:var(--font-mono);}
+table.dc.dc-j input.nav-suhu:focus{border-color:var(--accent); outline:none;}
 
 /* ---------- Daily Check Pengamatan (kompak, berjejer) ----------
    Form CKG 3 / Fasilitas Pengamatan padat sekali blok kecil. Supaya sekali

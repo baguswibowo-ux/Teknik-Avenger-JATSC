@@ -12,6 +12,11 @@
      ✓ (ok)    = Normal   / Serviceable (di kolom Tx dibaca "S")
      ! (warn)  = Alarm    (biasanya hanya berlaku di kolom Mon)
      ✕ (fail)  = Gangguan / Unserviceable (di kolom Tx dibaca "U/S")
+
+   Di ujung kanan tiap baris ada kolom SUHU (°C): tiap shelter (LLZ, GP,
+   DVOR, ...) punya termometernya sendiri, jadi angkanya dicatat per item,
+   bukan per fasilitas. Isinya angka bebas (boleh kosong), disimpan di state
+   dengan kunci kolom 'Suhu' — bukan status, jadi tidak ikut dihitung temuan.
 */
 
 /* Setiap SEKSI = satu fasilitas yang berdiri sendiri.
@@ -31,6 +36,11 @@
    Nambah fasilitas baru = tambah obyek { kode, judul, blok:[...] } di ujung
    array. Kode-nya bisa 'G', 'H', dst. */
 const DC_NAV_KOLOM_STD = ['Tx 1','Tx 2','Mon 1','Mon 2','Mon Stb'];
+/* Kolom suhu shelter, selalu paling kanan. Sengaja TIDAK dimasukkan ke
+   DC_NAV_KOLOM_STD supaya pengulang status (navTemuan, cycle) tidak pernah
+   menyentuhnya — nilainya angka, bukan ok/warn/fail. */
+const DC_NAV_KOLOM_SUHU  = 'Suhu';
+const DC_NAV_LABEL_SUHU  = 'Suhu (°C)';
 
 const DC_NAV = [
   { kode:'A', judul:'A. ILS R/W 25 R', blok:[
@@ -87,9 +97,24 @@ function initDcNState(){
         blok.kolom.forEach(kk=>{
           dcNState[navKunci(seksi.kode, bi, ri, kk)] = 'ok';
         });
+        dcNState[navKunci(seksi.kode, bi, ri, DC_NAV_KOLOM_SUHU)] = '';
       });
     });
   });
+}
+
+/** Suhu shelter diketik, bukan diklik — simpan apa adanya sebagai teks.
+    Tidak menggambar ulang tabel (renderDcNavTable) supaya kursor tidak
+    lompat keluar dari kotak yang sedang diketik. */
+function setDcNSuhu(k, nilai){
+  dcNState[k] = String(nilai == null ? '' : nilai);
+}
+
+/** Nilai suhu tersimpan untuk satu baris; catatan lama (sebelum kolom ini
+    ada) tidak punya kuncinya → dibaca kosong. */
+function navSuhu(state, sk, bi, ri){
+  const v = state[navKunci(sk, bi, ri, DC_NAV_KOLOM_SUHU)];
+  return v == null ? '' : String(v);
 }
 
 function cycleNavStatus(s){ return s==='ok' ? 'warn' : (s==='warn' ? 'fail' : 'ok'); }
@@ -137,14 +162,19 @@ function renderDcNavTable(){
     const blok = seksi.blok.map((b, bi)=>{
       const sub = b.judul ? `<div class="dc-j-blok-judul">${escapeHtml(b.judul)}</div>` : '';
       const kols = b.kolom;
-      const headKols = kols.map(k=>`<th>${escapeHtml(k)}</th>`).join('');
+      const headKols = kols.map(k=>`<th>${escapeHtml(k)}</th>`).join('')
+                     + `<th>${escapeHtml(DC_NAV_LABEL_SUHU)}</th>`;
       const rows = b.baris.map((nama, ri)=>{
         const status = kols.map(kk=>{
           const k = navKunci(seksi.kode, bi, ri, kk);
           const s = dcNState[k] || 'ok';
           return `<td><button class="status-btn ${s}" onclick="toggleDcNStatus('${k}')">${navSimbol(s)}</button></td>`;
         }).join('');
-        return `<tr><td class="name">${escapeHtml(nama)}</td>${status}</tr>`;
+        const kSuhu = navKunci(seksi.kode, bi, ri, DC_NAV_KOLOM_SUHU);
+        const suhu = `<td><input type="text" inputmode="decimal" class="nav-suhu"
+                          value="${escapeHtml(navSuhu(dcNState, seksi.kode, bi, ri))}" placeholder="22"
+                          oninput="setDcNSuhu('${kSuhu}', this.value)"></td>`;
+        return `<tr><td class="name">${escapeHtml(nama)}</td>${status}${suhu}</tr>`;
       }).join('');
       return `${sub}<div class="dc-table-wrap">
         <table class="dc dc-j">
@@ -168,13 +198,17 @@ function dcNavTabelBaca(state, cetak){
     const blok = seksi.blok.map((b, bi)=>{
       const sub = b.judul ? `<div style="font-size:${cetak?'8pt':'11px'};color:${cetak?'#333':'var(--muted)'};margin:${cetak?'3px 0 2px':'6px 0 2px'};">${escapeHtml(b.judul)}</div>` : '';
       const kols = b.kolom;
-      const headKols = kols.map(k=>`<td>${escapeHtml(k)}</td>`).join('');
+      const headKols = kols.map(k=>`<td>${escapeHtml(k)}</td>`).join('')
+                     + `<td>${escapeHtml(DC_NAV_LABEL_SUHU)}</td>`;
       const rows = b.baris.map((nama, ri)=>{
         const stats = kols.map(kk=>{
           const k = navKunci(seksi.kode, bi, ri, kk);
           return sel(state[k] || 'ok');
         }).join('');
-        return `<tr><td style="text-align:left;">${escapeHtml(nama)}</td>${stats}</tr>`;
+        const suhu = navSuhu(state, seksi.kode, bi, ri);
+        const selSuhu = `<td style="text-align:center;${cetak ? '' : 'font-family:var(--font-mono);'}">${
+          suhu ? escapeHtml(suhu) + ' °C' : '<span style="opacity:.45;">–</span>'}</td>`;
+        return `<tr><td style="text-align:left;">${escapeHtml(nama)}</td>${stats}${selSuhu}</tr>`;
       }).join('');
       const tabel = `<table class="${cetak?'':'dc dc-j'}" style="font-size:${cetak?'7.5pt':''};">
         <thead><tr class="p-kepala"><td>Item</td>${headKols}</tr></thead>
