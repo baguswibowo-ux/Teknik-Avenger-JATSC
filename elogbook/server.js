@@ -48,7 +48,7 @@ import {
   pasangWebhook, infoWebhook, bacaUpdate,
   telegramModePolling, mulaiPolling,
   pesanPerluTtd, pesanSudahTtd, pesanBelumTtd, pesanTautBerhasil, pesanPerluTaut
-} from './telegram.js';
+} from '../telegram.js';
 
 /**
  * Lapisan data dipilih saat start:

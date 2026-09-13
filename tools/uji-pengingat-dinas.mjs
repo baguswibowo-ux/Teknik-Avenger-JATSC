@@ -24,8 +24,9 @@ import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 import {
   SHIFT_MULAI, kodeBaku, jamMulai, dinasDalamRentang, usernameUntukPetak,
-  kunciPengingat, jamWib, tanggalWib, pesanDinasMendatang
+  kunciPengingat, jamWib, tanggalWib
 } from '../pengingat-dinas.js';
+import { pesanDinasMendatang } from '../telegram.js';
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const AKAR = path.resolve(DIR, '..');

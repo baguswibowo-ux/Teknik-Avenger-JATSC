@@ -1,10 +1,15 @@
 /**
- * E-LOGBOOK — NOTIFIKASI TELEGRAM (lapisan transport)
+ * NOTIFIKASI TELEGRAM — lapisan transport, milik seluruh aplikasi
  *
  * Modul kecil yang berdiri sendiri: hanya mengurus bicara dengan Bot API
  * Telegram (kirim pesan, pasang webhook, baca update) dan menyusun teks
- * notifikasi. TIDAK menyentuh database — pemetaan akun ↔ chat_id ada di db.js /
- * db-pg.js, dan server.js yang menjembatani keduanya.
+ * notifikasi. TIDAK menyentuh database — pemetaan akun ↔ chat_id ada di
+ * elogbook/db.js / db-pg.js, dan elogbook/server.js yang menjembatani keduanya.
+ *
+ * Ditaruh di akar, bukan di elogbook/, karena pemakainya dua: E-Logbook
+ * (notifikasi TTD, pengingat TTD, balasan /start) dan dashboard (teks
+ * pengingat dinas; pengingat berikutnya menyusul di sini juga). Satu bot untuk
+ * semuanya, jadi satu berkas untuk semuanya.
  *
  * FEATURE-FLAG. Tanpa TELEGRAM_BOT_TOKEN, telegramAktif() bernilai false dan
  * seluruh fungsi menjadi no-op yang aman — aplikasi berjalan persis seperti
@@ -211,6 +216,19 @@ export function pesanBelumTtd({ dokumen, unit, tanggal, dinas, menunggu, menit, 
   if (tanggal) baris.push(`Tanggal: ${esc(tanggal)}${dinas ? ' · Dinas ' + esc(dinas) : ''}`);
   if (menunggu) baris.push(`Menunggu tanda tangan: <b>${esc(menunggu)}</b>`);
   baris.push('', `Dinasnya sudah berakhir lebih dari ${esc(menit)} menit. Silakan ingatkan penanda tangannya.`);
+  return baris.join('\n');
+}
+
+/** Pengingat ke teknisi (dashboard): dinasnya mulai sebentar lagi. Jam dan
+    tanggal sudah dalam WIB — pesan dibaca sambil melihat jam dinding, bukan
+    lembar UTC. Penghitungnya di pengingat-dinas.js. */
+export function pesanDinasMendatang({ nama, unit, namaShift, kode, tanggal, jam, menit }) {
+  const baris = ['🕖 <b>Pengingat dinas</b>', ''];
+  baris.push(`${nama ? esc(nama) + ', ' : ''}Anda dijadwalkan dinas <b>${esc(namaShift || kode)}</b>`
+    + (unit ? ` di unit ${esc(unit)}` : '') + '.');
+  if (tanggal) baris.push(`Tanggal: ${esc(tanggal)}`);
+  if (jam) baris.push(`Mulai: <b>${esc(jam)}</b>`);
+  baris.push('', `Dinas dimulai ${esc(menit)} menit lagi.`);
   return baris.join('\n');
 }
 

@@ -41,7 +41,7 @@ for (const berkas of [
 
 const {
   telegramAktif, cekToken, pasangWebhook, infoWebhook, hapusWebhook
-} = await import('../telegram.js');
+} = await import('../../telegram.js');
 
 const [, , perintah, alamat] = process.argv;
 

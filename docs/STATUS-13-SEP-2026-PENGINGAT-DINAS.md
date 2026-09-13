@@ -36,6 +36,7 @@ produksi 07:40–; dipindahkan di commit berikutnya.
 | `elogbook/tools/telegram-ke-satu-akun.mjs` | Alat server uji: arahkan semua chat Telegram di salinan DB ke satu akun. |
 | `elogbook/tools/telegram-putus.mjs` | Lepas tautan Telegram akun (dipakai untuk akun uji). |
 | `.env.example` | `PENGINGAT_DINAS_MENIT` (dibaca dashboard). |
+| `telegram.js` (akar, **dipindah dari `elogbook/`**) | Lapisan transport Bot API + seluruh penyusun teks, termasuk `pesanDinasMendatang()`. Permintaan Bagus: satu bot untuk semuanya, jadi berkasnya milik bersama di akar. Diimpor `elogbook/server.js` (`../telegram.js`), `elogbook/tools/telegram-webhook.js`, dan `server.js` dashboard. |
 
 Tabel `pengingat_dinas` yang sempat dibuat versi pertama di `elogbook.db`
 produksi dibiarkan; kosong dan tidak dipakai lagi.

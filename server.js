@@ -28,8 +28,9 @@ import fs from 'node:fs';
 import zlib from 'node:zlib';
 import { selisihDaftar, aksiSelisih, ringkasSelisih } from './aktivitas-selisih.js';
 import {
-  dinasDalamRentang, usernameUntukPetak, kunciPengingat, jamWib, tanggalWib, pesanDinasMendatang
+  dinasDalamRentang, usernameUntukPetak, kunciPengingat, jamWib, tanggalWib
 } from './pengingat-dinas.js';
+import { pesanDinasMendatang } from './telegram.js';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import {
