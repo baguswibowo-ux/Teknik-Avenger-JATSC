@@ -82,3 +82,18 @@ Ctrl+F5 di halaman `/logbook/`.
 
 Bagus sudah mencoba di server uji dan bilang beres (13 Sep 2026). Siap
 dipasang: `git merge --ff-only feature/nav-suhu` di folder utama, tanpa restart.
+
+## Pil Main/Standby di Daily Check Navigasi (`b57eb0c`, `2496542`, `a0c81c6`)
+
+Permintaan Bagus: seperti pasangan TMCS 1/2 Radtel. Di bawah tombol status
+Tx 1/Tx 2 dan Mon 1/Mon 2 tiap baris item ada pil `Main` (hijau) / `Standby`
+(abu-abu); klik salah satu membalik pasangannya. Dua pasangan per baris,
+kunci state `Main` (Tx) dan `MainMon` (Mon), nilai '1'/'2', di luar
+`DC_NAV_KOLOM_STD` jadi tidak ikut temuan. Catatan lama tanpa kunci dibaca
+nomor 1 = Main. Detail: pil baca-saja; cetak: huruf M/S di sebelah simbol,
+legenda NB di `24-cetak-daily-check.js`. CSS `.status-btn.nav-main` di
+`05-tabel.css`. Label "Standby" disunting Bagus sendiri di worktree.
+
+Keadaan saat ditulis: produksi di `ec7aa19` (merge pertama sudah dilakukan
+Bagus), branch `feature/nav-suhu` di `a0c81c6` — tiga commit ini yang belum
+masuk. Bagus akan mengeksekusi sendiri: merge, push, Vercel.
