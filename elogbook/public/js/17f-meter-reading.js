@@ -488,12 +488,15 @@ function mrTotalCol(sec){
 }
 
 /** Satu sel terukur. mode 'form' → input; selainnya → teks. */
-function mrCell(si, ri, col, data, mode, cetak){
+function mrCell(si, ri, col, data, mode, cetak, rapat){
   const val = mrVal(data, si, ri, col);
   if(mode === 'form'){
+    // Tabel rapat (kolom nilai sedikit, mis. DVOR/DME): kotaknya lebar tetap,
+    // supaya tidak melar mengisi modal dan menjauh dari nama parameternya.
+    const lebar = rapat ? 'width:112px;' : 'width:100%;';
     return `<td><input type="text" id="mr_${si}_${ri}_${col}" value="${escapeHtml(val)}"
       oninput="mrSet(${si},${ri},'${col}',this.value)"
-      style="width:100%;box-sizing:border-box;background:var(--panel-2);border:1px solid var(--line);color:var(--text);border-radius:5px;padding:5px 3px;font-size:12.5px;text-align:center;"></td>`;
+      style="${lebar}box-sizing:border-box;background:var(--panel-2);border:1px solid var(--line);color:var(--text);border-radius:5px;padding:5px 3px;font-size:12.5px;text-align:center;"></td>`;
   }
   return `<td style="text-align:center;${cetak ? 'font-size:6.4pt;' : ''}">${escapeHtml(val) || '-'}</td>`;
 }
@@ -511,6 +514,10 @@ function mrSeksiTabel(sec, si, data, mode){
     return `<div class="mr-seksi"><div class="mr-seksi-judul" style="${fs}">${escapeHtml(sec.title)}</div>${isi}</div>`;
   }
   const total = mrTotalCol(sec);
+  // Rapat = kolom nilainya sedikit (DVOR/DME: 2–4). Tabelnya dibiarkan selebar
+  // isinya, bukan direntang selebar modal — kalau direntang, kotak nilai melar
+  // dan berjauhan dari nama parameternya.
+  const rapat = sec.cols.length <= 4;
   const body = sec.rows.map((r, ri) => {
     if(r.group){
       return `<tr class="mr-grp"><td colspan="${total}" style="text-align:left;font-weight:bold;${fs}">${escapeHtml(r.group)}</td></tr>`;
@@ -518,12 +525,15 @@ function mrSeksiTabel(sec, si, data, mode){
     let tds = '';
     if(sec.no !== false) tds += `<td style="text-align:center;color:var(--muted);${fs}">${escapeHtml(r.no)}</td>`;
     tds += `<td class="mr-par" style="${fs}">${escapeHtml(r.label)}</td>`;
-    tds += sec.cols.map(col => mrCell(si, ri, col, data, mode, cetak)).join('');
-    if(sec.unit !== false) tds += `<td style="text-align:center;color:var(--muted);${fs}">${escapeHtml(r.unit)}</td>`;
+    tds += sec.cols.map(col => mrCell(si, ri, col, data, mode, cetak, rapat)).join('');
+    if(sec.unit !== false) tds += `<td style="text-align:center;color:var(--muted);${fs}${rapat ? 'white-space:nowrap;' : ''}">${escapeHtml(r.unit)}</td>`;
     return `<tr>${tds}</tr>`;
   }).join('');
   const cls = cetak ? 'mr-tbl mr-print' : 'mr-tbl';
-  const tableStyle = cetak ? 'width:100%;border-collapse:collapse;'
+  // Cetak: tabel rapat pun tidak direntang — di kertas kolom yang terlalu
+  // lebar sama membingungkannya (nilai jauh dari parameter).
+  const tableStyle = rapat ? 'width:auto;border-collapse:collapse;'
+                   : cetak ? 'width:100%;border-collapse:collapse;'
                            : 'width:100%;border-collapse:collapse;min-width:' + Math.max(520, total * 68) + 'px;';
   return `<div class="mr-seksi">
     <div class="mr-seksi-judul" style="${fs}">${escapeHtml(sec.title)}</div>
@@ -726,11 +736,14 @@ function printMr(id){
   const def = MR_FORMS[form] || {};
   const data = d.state.data || {};
   const info = mrInfoBaris(d).map(([k, v]) =>
-    `<tr><td style="padding:0 6px 1px 0;white-space:nowrap;">${escapeHtml(k)}</td><td>: ${escapeHtml(v)}</td></tr>`).join('');
+    `<tr><td style="padding:0 6px 1px 0;white-space:nowrap;">${escapeHtml(k)}</td><td style="white-space:nowrap;">: ${escapeHtml(v)}</td></tr>`).join('');
+  // Lembar yang semua tabelnya rapat (DVOR/DME) muat di portrait; ILS yang
+  // dua belas kolom tetap landscape.
+  const portrait = mrSeksi(form).every(s => s.type === 'note' || s.cols.length <= 4);
   doPrint(`
     <div style="text-align:center;font-weight:bold;font-size:12pt;">${escapeHtml(def.cetak || 'METER READING — INSTRUMENT LANDING SYSTEM')}</div>
     <div style="text-align:center;font-size:10pt;margin-bottom:6px;">${escapeHtml(def.merk || 'SELEX-SI')} · ${escapeHtml(def.equip || def.label)}</div>
-    <table class="no-border" style="font-size:8pt;margin-bottom:8px;"><tbody>${info}</tbody></table>
+    <table class="no-border" style="font-size:8pt;margin-bottom:8px;width:auto;"><tbody>${info}</tbody></table>
     ${mrLembar(form, data, 'cetak')}
     <table class="no-border" style="font-size:9pt;margin-top:14px;">
       <tr>
@@ -745,5 +758,5 @@ function printMr(id){
           <div style="border-top:1px solid #000;display:inline-block;padding:0 24px;">${d.managerTtd ? (escapeHtml(d.managerNama) || '&nbsp;') : '&nbsp;'}</div>
         </td>
       </tr>
-    </table>`, 'landscape');
+    </table>`, portrait ? 'portrait' : 'landscape');
 }
