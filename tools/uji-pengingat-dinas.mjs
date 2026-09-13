@@ -1,13 +1,13 @@
 /**
  * UJI PENGINGAT DINAS — jalankan dengan:
  *
- *   node --test elogbook/tools/uji-pengingat-dinas.mjs
+ *   node --test tools/uji-pengingat-dinas.mjs
  *
  * Tiga hal yang dijaga:
  *   1. Tabel jam di pengingat-dinas.js SAMA dengan SHIFT di
- *      public/js/02-kode-dinas.js milik dashboard — berkas aslinya dimuat di
- *      dalam vm, lalu dibandingkan kode demi kode, termasuk pembaku kodeBaku()
- *      untuk tulisan kotor seperti "MJ (SPKL)" dan "C  U  T  I".
+ *      public/js/02-kode-dinas.js — berkas aslinya dimuat di dalam vm, lalu
+ *      dibandingkan kode demi kode, termasuk pembaku kodeBaku() untuk tulisan
+ *      kotor seperti "MJ (SPKL)" dan "C  U  T  I".
  *   2. Perhitungan jam mulai: PS 00 UTC, Malam 12 UTC, Malam mundur ke 13 kalau
  *      harinya dipecah P/S, libur tidak ikut, rentang hari dan bulan benar.
  *   3. Pencocokan petak → akun: NIK dulu, nama persis, nama longgar hanya kalau
@@ -24,11 +24,11 @@ import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 import {
   SHIFT_MULAI, kodeBaku, jamMulai, dinasDalamRentang, usernameUntukPetak,
-  kunciPengingat, jamWib, tanggalWib
+  kunciPengingat, jamWib, tanggalWib, pesanDinasMendatang
 } from '../pengingat-dinas.js';
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
-const AKAR = path.resolve(DIR, '..', '..');
+const AKAR = path.resolve(DIR, '..');
 
 /** SHIFT, kodeBaku, jamShift asli milik dashboard, dimuat dari berkasnya. */
 function muatKodeDinasDashboard() {
@@ -189,6 +189,20 @@ test('kunci pengingat, jam dan tanggal WIB', () => {
   assert.equal(tanggalWib(utc(6, 13)), 'Minggu, 6 September 2026');
   // 23:30 UTC = 06:30 WIB esok harinya.
   assert.equal(tanggalWib(utc(5, 23, 30)), 'Minggu, 6 September 2026');
+});
+
+test('teks pesan: HTML aman, semua baris ada', () => {
+  const teks = pesanDinasMendatang({
+    nama: 'Bagus <W>', unit: 'Radtel', namaShift: 'PS JATSC', kode: 'PSJ',
+    tanggal: 'Senin, 14 September 2026', jam: '07:00 WIB', menit: 58
+  });
+  assert.match(teks, /^🕖 <b>Pengingat dinas<\/b>/);
+  assert.ok(teks.includes('Bagus &lt;W&gt;, Anda dijadwalkan dinas <b>PS JATSC</b> di unit Radtel.'));
+  assert.ok(teks.includes('Tanggal: Senin, 14 September 2026'));
+  assert.ok(teks.includes('Mulai: <b>07:00 WIB</b>'));
+  assert.ok(teks.endsWith('Dinas dimulai 58 menit lagi.'));
+  // Tanpa nama shift dikenal, kodenya yang dipakai.
+  assert.ok(pesanDinasMendatang({ kode: 'XYZ', menit: 5 }).includes('<b>XYZ</b>'));
 });
 
 test('jadwal produksi (kalau ada) terbaca tanpa meledak', (t) => {

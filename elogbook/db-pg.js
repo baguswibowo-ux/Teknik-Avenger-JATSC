@@ -197,11 +197,6 @@ const TABEL_SUSULAN = [
      ditautkan_pada TEXT NOT NULL DEFAULT '',
      dibuat_pada    TEXT NOT NULL DEFAULT ''
    )`,
-  /* Pengingat dinas yang sudah terkirim — sepadan dengan tabel senama di db.js. */
-  `CREATE TABLE IF NOT EXISTS pengingat_dinas (
-     kunci        TEXT PRIMARY KEY,
-     dikirim_pada TEXT NOT NULL DEFAULT ''
-   )`,
   /* Log aktivitas — sepadan dengan CREATE TABLE aktivitas di db.js. */
   `CREATE TABLE IF NOT EXISTS aktivitas (
      id       BIGSERIAL PRIMARY KEY,
@@ -2644,24 +2639,6 @@ export async function tandaiPengingatTtd(jenis, id, waktuIso) {
   if (!t) return;
   await jalankan(`UPDATE ${t.tabel} SET pengingat_ttd_pada = $1 WHERE id = $2`,
     [String(waktuIso), String(id)]);
-}
-
-/* ============== PENGINGAT DINAS ==============
- * Cermin Postgres dari pengingatDinasTerkirim / tandaiPengingatDinas di db.js. */
-export async function pengingatDinasTerkirim(kunciList) {
-  const daftar = [...new Set((kunciList || []).map(String).filter(Boolean))];
-  if (!daftar.length) return new Set();
-  const baris = await q('SELECT kunci FROM pengingat_dinas WHERE kunci = ANY($1::text[])', [daftar]);
-  return new Set(baris.map((r) => r.kunci));
-}
-
-export async function tandaiPengingatDinas(kunci, waktuIso) {
-  await jalankan(
-    `INSERT INTO pengingat_dinas (kunci, dikirim_pada) VALUES ($1, $2)
-     ON CONFLICT (kunci) DO UPDATE SET dikirim_pada = EXCLUDED.dikirim_pada`,
-    [String(kunci), String(waktuIso)]);
-  const batas = new Date(Date.parse(waktuIso) - 7 * 86400000).toISOString();
-  await jalankan('DELETE FROM pengingat_dinas WHERE dikirim_pada < $1', [batas]);
 }
 
 /* ============== RINGKASAN UNTUK NOTIFIKASI ==============

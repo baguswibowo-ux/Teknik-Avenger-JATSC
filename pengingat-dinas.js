@@ -1,12 +1,18 @@
 /**
  * PENGINGAT DINAS — "satu jam lagi Anda masuk"
  *
- * Bagian yang bisa dihitung tanpa server: membaca jadwal dinas dashboard
- * (data/dinas.json), menentukan siapa masuk kapan, dan mencocokkan tiap petak
- * dengan akun E-Logbook. Tidak menyentuh database, tidak menyentuh Telegram —
- * server.js yang menyambungkan ketiganya (periksaPengingatDinas), sama seperti
- * pengingat TTD. Karena murni, seluruh aturannya bisa diuji dengan jadwal
- * buatan: lihat tools/uji-pengingat-dinas.mjs.
+ * Modul milik dashboard. Bagian yang bisa dihitung tanpa server: membaca
+ * jadwal dinas (data/dinas.json), menentukan siapa masuk kapan, mencocokkan
+ * tiap petak dengan akun, dan menyusun teks pesannya. Tidak menyentuh
+ * simpanan, tidak menyentuh Telegram — server.js dashboard yang menyambungkan
+ * semuanya (periksaPengingatDinas), dan pengirimannya dititipkan ke E-Logbook
+ * lewat pintu internal /internal/telegram/kirim, karena token bot dan tabel
+ * chat memang tinggal di sana. Karena murni, seluruh aturannya bisa diuji
+ * dengan jadwal buatan: lihat tools/uji-pengingat-dinas.mjs.
+ *
+ * Pengingat lain (kegiatan berkala, dan seterusnya) mengikuti pola yang sama:
+ * satu modul murni per jenis, satu pemeriksa di server.js, satu penanda
+ * "sudah dikirim" di data/pengingat-terkirim.json.
  *
  * BENTUK JADWALNYA, seperti yang ditulis modul Jadwal Dinas di dashboard:
  *
@@ -216,4 +222,19 @@ const BULAN_ID = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
 export function tanggalWib(ms) {
   const d = new Date(ms + 7 * 3600 * 1000);
   return `${HARI_ID[d.getUTCDay()]}, ${d.getUTCDate()} ${BULAN_ID[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+}
+
+const esc = (s) => String(s == null ? '' : s)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/** Teks pesan Telegram (HTML): dinasnya mulai sebentar lagi. Jam dan tanggal
+    sudah dalam WIB — pesan dibaca sambil melihat jam dinding, bukan lembar UTC. */
+export function pesanDinasMendatang({ nama, unit, namaShift, kode, tanggal, jam, menit }) {
+  const baris = ['🕖 <b>Pengingat dinas</b>', ''];
+  baris.push(`${nama ? esc(nama) + ', ' : ''}Anda dijadwalkan dinas <b>${esc(namaShift || kode)}</b>`
+    + (unit ? ` di unit ${esc(unit)}` : '') + '.');
+  if (tanggal) baris.push(`Tanggal: ${esc(tanggal)}`);
+  if (jam) baris.push(`Mulai: <b>${esc(jam)}</b>`);
+  baris.push('', `Dinas dimulai ${esc(menit)} menit lagi.`);
+  return baris.join('\n');
 }

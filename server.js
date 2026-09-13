@@ -27,6 +27,9 @@ import path from 'node:path';
 import fs from 'node:fs';
 import zlib from 'node:zlib';
 import { selisihDaftar, aksiSelisih, ringkasSelisih } from './aktivitas-selisih.js';
+import {
+  dinasDalamRentang, usernameUntukPetak, kunciPengingat, jamWib, tanggalWib, pesanDinasMendatang
+} from './pengingat-dinas.js';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import {
@@ -4645,6 +4648,121 @@ app.use(express.static(path.join(ROOT, 'public'), {
 }));
 
 /* =====================================================================
+   PENGINGAT DINAS — sejam sebelum masuk, lewat Telegram
+
+   Tiap orang yang tercantum di jadwal dinas (data/dinas.json) diberi tahu
+   satu jam sebelum dinasnya mulai — "Anda dijadwalkan dinas PS JATSC, mulai
+   07:00 WIB". Sekali per orang per petak dinas.
+
+   Hitungannya di sini, di dashboard: jadwalnya milik dashboard, tautan
+   Telegram dibuat dari Profil di dashboard, dan pengingat berikutnya
+   (kegiatan berkala) datanya juga di sini. Yang dititipkan ke E-Logbook hanya
+   dua hal yang memang tinggal di sana — daftar akun (username = NIK) beserta
+   nama unit, dan pengiriman ke chat_id — lewat pintu internal /internal/daftar
+   dan /internal/telegram/kirim, yang hanya menerima dari loopback.
+
+   Aturan jam, pembakuan kode, dan pencocokan orang → akun ada di
+   pengingat-dinas.js (murni, teruji: tools/uji-pengingat-dinas.mjs). Yang di
+   sini hanya: baca jadwal, saring yang jatuh tempo, kirim, tandai.
+
+   JENDELANYA satu jam penuh sebelum mulai: dikirim begitu putaran pertama
+   mendapati kini ≥ mulai − 60 menit, dan tidak lagi begitu dinasnya sudah
+   mulai. Server yang sempat mati 20 menit tetap mengirim, 40 menit sebelum
+   masuk; yang baru hidup setelah dinasnya mulai tidak mengirim apa-apa.
+
+   PENANDA "sudah dikirim" di data/pengingat-terkirim.json — { kunci: waktu },
+   kuncinya tanggal|unit|kode|username. Tanpa ini server yang restart di dalam
+   jendela akan mengirim ulang. Yang lebih tua dari seminggu dibuang tiap kali
+   menulis. Pengingat jenis lain nanti memakai berkas yang sama dengan awalan
+   kunci sendiri.
+
+   Yang belum menautkan Telegram, atau yang petaknya tidak ketemu akun (NIK
+   kosong DAN namanya tidak cocok), dilewati tanpa ditandai — kalau ia
+   menautkan masih di dalam jendela, pengingatnya tetap sampai. Gagal kirim
+   juga tidak ditandai. Jadwal dibaca ulang tiap putaran: tukar dinas hari itu
+   langsung berlaku. PENGINGAT_DINAS_MENIT di .env mengganti 60 menit, khusus
+   untuk menguji.
+   ===================================================================== */
+const PENGINGAT_DINAS_MENIT = Math.max(1, Number(process.env.PENGINGAT_DINAS_MENIT) || 60);
+const PENGINGAT_JSON = path.join(DATA_DIR, 'pengingat-terkirim.json');
+const PENGINGAT_SIMPAN_MS = 7 * 86400000;
+
+/** Akun aktif [{username, nama}] dan unit [{kode, nama}] dari E-Logbook. */
+async function daftarELogbook() {
+  const jawab = await fetch(ASAL + '/internal/daftar', { signal: AbortSignal.timeout(8000) });
+  if (!jawab.ok) throw new Error(`E-Logbook menjawab ${jawab.status} untuk /internal/daftar`);
+  const j = await jawab.json();
+  return {
+    akun: Array.isArray(j?.akun) ? j.akun : [],
+    unit: Array.isArray(j?.unit) ? j.unit : []
+  };
+}
+
+/** Titipkan satu pesan ke E-Logbook → { aktif, tertaut, terkirim }. */
+async function kirimTelegramKeAkun(username, teks) {
+  const jawab = await fetch(ASAL + '/internal/telegram/kirim', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, teks }),
+    signal: AbortSignal.timeout(15000)
+  });
+  if (!jawab.ok) throw new Error(`E-Logbook menjawab ${jawab.status} untuk /internal/telegram/kirim`);
+  return await jawab.json();
+}
+
+let pengingatDinasBerjalan = false;
+
+async function periksaPengingatDinas() {
+  if (!TERUS || pengingatDinasBerjalan) return;
+  pengingatDinasBerjalan = true;
+  try {
+    const kini = Date.now();
+    const jendela = PENGINGAT_DINAS_MENIT * 60000;
+    // Petak yang mulai dalam (kini, kini + jendela]: belum mulai, tapi sudah
+    // kurang dari PENGINGAT_DINAS_MENIT lagi.
+    const jadwal = await bacaJson(DINAS_JSON, {});
+    const petak = dinasDalamRentang(jadwal, kini + 1, kini + jendela + 1);
+    if (!petak.length) return;
+
+    const { akun, unit } = await daftarELogbook();
+    if (!akun.length) return;
+    const namaUnit = (kode) => (unit.find((u) => u.kode === kode) || {}).nama || kode;
+    const calon = [];
+    for (const p of petak) {
+      const username = usernameUntukPetak(p, akun);
+      if (username) calon.push({ p, username, kunci: kunciPengingat(p, username) });
+    }
+    if (!calon.length) return;
+
+    const terkirim = await bacaJson(PENGINGAT_JSON, {});
+    let berubah = false;
+    for (const { p, username, kunci } of calon) {
+      if (terkirim[kunci]) continue;
+      const sisaMenit = Math.max(1, Math.round((p.mulaiMs - Date.now()) / 60000));
+      const teks = pesanDinasMendatang({
+        nama: (akun.find((a) => a.username === username) || {}).nama || p.nama,
+        unit: namaUnit(p.unit), namaShift: p.namaShift, kode: p.kode,
+        tanggal: tanggalWib(p.mulaiMs), jam: jamWib(p.mulaiMs), menit: sisaMenit
+      });
+      const hasil = await kirimTelegramKeAkun(username, teks);
+      if (!hasil.aktif) return;            // bot tidak dikonfigurasi: percuma lanjut
+      if (hasil.terkirim) { terkirim[kunci] = new Date().toISOString(); berubah = true; }
+    }
+    if (berubah) {
+      const batas = Date.now() - PENGINGAT_SIMPAN_MS;
+      for (const [k, waktu] of Object.entries(terkirim)) {
+        if (!(Date.parse(waktu) > batas)) delete terkirim[k];
+      }
+      await tulisJson(PENGINGAT_JSON, terkirim);
+    }
+  } catch (err) {
+    console.error('[pengingat dinas]', err?.message || err);
+  } finally {
+    pengingatDinasBerjalan = false;
+  }
+}
+
+/* =====================================================================
    START
    ===================================================================== */
 
@@ -4669,6 +4787,16 @@ if (dijalankanLangsung) {
       : `Simpanan modul Avenger: berkas di ${DATA_DIR}`);
     if (!GALERI) console.log('Galeri dimatikan — penyimpanan tidak permanen.');
   });
+
+  /* Pengingat dinas hanya di proses yang hidup terus — serverless tidak punya
+     jam yang berdetak di antara permintaan. Putaran pertama setengah menit
+     setelah menyala (E-Logbook di sebelah butuh beberapa detik untuk siap, dan
+     restart di dalam jendela tidak boleh menunda pesannya), sesudahnya tiap 5
+     menit: pesan sampai 55–60 menit sebelum dinas. */
+  if (TERUS) {
+    setTimeout(periksaPengingatDinas, 30 * 1000).unref();
+    setInterval(periksaPengingatDinas, 5 * 60 * 1000).unref();
+  }
 }
 
 export default app;
