@@ -112,7 +112,7 @@ function terapkanUnit(){
   const subGcheck = document.querySelector('.subtab-btn[data-subtab="gcheck"]');
   if(subGcheck) subGcheck.style.display = adaGcheck ? '' : 'none';
   if(adaGcheck && typeof renderSemuaLlzList === 'function') renderSemuaLlzList();
-  // Meter Reading (ILS: LLZ/GP/TDME/OM; DVOR/DME menyusul) — sama, hanya ppabn.
+  // Meter Reading (ILS: LLZ/GP/TDME/OM; DVOR/DME: CKG & DKI) — sama, hanya ppabn.
   const subMeter = document.querySelector('.subtab-btn[data-subtab="meter"]');
   if(subMeter) subMeter.style.display = adaGcheck ? '' : 'none';
   if(adaGcheck && typeof renderSemuaMrList === 'function') renderSemuaMrList();

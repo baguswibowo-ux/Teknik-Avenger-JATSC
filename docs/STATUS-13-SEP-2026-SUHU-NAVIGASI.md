@@ -48,3 +48,19 @@ Halaman yang sudah terbuka baru ikut sesudah cache JS 1 jam habis atau Ctrl+F5.
 - Suhu dicatat **per baris item**, bukan per fasilitas. Kalau GP dan DME
   berbagi shelter, salah satu dibiarkan kosong — atau ubah jadi per seksi
   kalau Bagus mau.
+
+## Tambahan: Meter Reading DVOR/DME (commit berikutnya di branch ini)
+
+Empat lembar baru di `17f-meter-reading.js` dari "METER READING DVOR-DME-NDB.xlsx":
+`dvor-ckg` (SELEX), `dme-ckg` (SELEX), `dvor-dki` (AWA VRB-52D), `dme-dki` (AWA).
+Sheet NDB (Jacotron, SAC) dan GC DVOR **tidak** dibuat, sesuai permintaan Bagus.
+Pohon di index.html: METER READING → DVOR / DME → CKG | DKI → DVOR · DME.
+Penyimpanan sama dengan ILS (tabel `dstest`, `__format:'mrreading'`, `__mrForm`),
+jadi TTD manager, kotak masuk, hapus, dan cetak sudah jalan tanpa perubahan server.
+Judul cetak & merk kini per lembar (`def.cetak`, `def.merk`); ILS tetap seperti semula.
+
+Server uji: `https://uji.teknik-avengers.com` (dashboard uji 3910 → E-Logbook uji
+3900, keduanya dari worktree ini; peluncur di scratchpad sesi, dinyalakan Bagus
+dengan `Start-Process`). Ingress tunnel `uji.teknik-avengers.com → localhost:3910`
+sudah dipasang di config systemprofile. Dashboard uji WAJIB mendengar di
+`0.0.0.0`: cloudflared menghubungi `localhost` lewat `::1`.

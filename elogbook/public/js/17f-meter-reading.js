@@ -6,10 +6,12 @@
           ├─ ILS 07R → LLZ 07R · GP 07R · TDME 07R
           ├─ ILS 25L → LLZ 25L · GP 25L · TDME 25L
           └─ ILS 25R → LLZ 25R · GP 25R · TDME 25R · OM 25R
-     DVOR/DME → (form menyusul)
+     DVOR/DME ─┬─ CKG → DVOR CKG (SELEX) · DME CKG (SELEX)
+               └─ DKI → DVOR DKI (AWA VRB-52D) · DME DKI (AWA)
 
    Tiap lembar dialihaksarakan apa adanya dari "METER READING ILS Selex 2025.xlsx"
-   (satu sheet = satu lembar). Bentuk lembar per JENIS fasilitas sama persis untuk
+   dan "METER READING DVOR-DME-NDB.xlsx" (satu sheet = satu lembar; sheet NDB
+   dan GC DVOR sengaja tidak dibuat). Bentuk lembar per JENIS fasilitas sama persis untuk
    keempat ujung landas — cuma nilai default kepala (freq/channel/ident) yang beda —
    jadi satu skema per jenis (LLZ/GP/TDME/OM) dipakai bersama; id lembar (mis.
    'llz-07l') menentukan judul + default kepala.
@@ -39,7 +41,20 @@ const MR_FORMS = {
   'tdme-07r':{ jenis: 'tdme',label: 'TDME 07R',equip: 'TDME 07 R', channel: '42X', ident: 'ICHR', lokasi: 'SHELTER GP 07R' },
   'tdme-25l':{ jenis: 'tdme',label: 'TDME 25L',equip: 'TDME 25 L', channel: '48X', ident: 'ICGL', lokasi: 'SHELTER GP 25L' },
   'tdme-25r':{ jenis: 'tdme',label: 'TDME 25R',equip: 'TDME 25 R', channel: '',    ident: 'ICGR', lokasi: 'SHELTER GP 25R' },
-  'om-25r':  { jenis: 'om',  label: 'OM 25R',  equip: 'OUTER MARKER 25R' }
+  'om-25r':  { jenis: 'om',  label: 'OM 25R',  equip: 'OUTER MARKER 25R' },
+  /* DVOR/DME — dari "METER READING DVOR-DME-NDB.xlsx" (sheet DVOR CKG, DME CKG,
+     DVOR DKI, DME DKI). NDB sengaja tidak dibuat. Dua site berbeda merk, jadi
+     lembarnya berbeda skema: CKG = SELEX, DKI = AWA. `cetak` = judul lembar
+     cetak, `merk` = baris kedua kepala cetak & info detail. */
+  'dvor-ckg':{ jenis: 'dvor-selex', label: 'DVOR CKG', equip: 'DVOR "CKG"', merk: 'SELEX',
+               freq: '113.6 MHz', lokasi: 'PS. KEMIS', cetak: 'METER READING — DVOR "CKG"' },
+  'dme-ckg': { jenis: 'dme-selex',  label: 'DME CKG',  equip: 'DME "CKG"',  merk: 'SELEX',
+               channel: '83 X', lokasi: 'PS. KEMIS', cetak: 'METER READING — DISTANCE MEASURING EQUIPMENT "CKG"' },
+  'dvor-dki':{ jenis: 'dvor-awa',   label: 'DVOR DKI', equip: 'DVOR "DKI"', merk: 'AWA VRB-52D',
+               freq: '114.6 MHz', lokasi: 'TJ. KARAWANG', cetak: 'METER READING — DVOR "DKI"' },
+  'dme-dki': { jenis: 'dme-awa',    label: 'DME DKI',  equip: 'DME AWA "DKI"', merk: 'AWA',
+               channel: '93 X', txfreq: '1180 MHz', rxfreq: '1117 MHz', lokasi: 'TJ. KARAWANG',
+               cetak: 'DME MAINTENANCE METER READING — "DKI"' }
 };
 const MR_URUT = Object.keys(MR_FORMS);
 
@@ -283,6 +298,150 @@ function mrSeksiOm(){
   ];
 }
 
+/* ---------- DVOR / DME (sheet DVOR CKG · DME CKG · DVOR DKI · DME DKI) ----------
+   Kolom LIMIT di lembar kertas duduk di tempat kolom UNIT — dipakai apa adanya
+   lewat `unit` baris (kepala kolomnya ditulis LIMIT). Baris yang di kertas tidak
+   punya limit dibiarkan kosong. */
+
+/** DVOR "CKG" — SELEX. Monitor 1 & 2 berbagi daftar parameter yang sama. */
+function mrSeksiDvorSelex(){
+  const monRows = [
+    R('1','Azimuth Angle','89.50 - 90.50 °'), R('2','30 Hz Modulation','28.5 - 31.5 %'),
+    R('3','9960 Hz Modulation','28.5 - 31.5 %'), R('4','9960 Deviation','15.20 - 16.30 Ratio'),
+    R('5','RF Level','-2.5 - 2.5 dB'), R('6','Ident Modulation','4.0 - 9.0 %'),
+    R('7','Tx Power','75.0 - 125.0 Watts')
+  ];
+  const monHead = [['NO','PARAMETER','TX 1','TX 2','LIMIT']];
+  return [
+    { title: 'MONITOR DATA — MONITOR 1', cols: ['tx1','tx2'], head: monHead, rows: monRows },
+    { title: 'MONITOR DATA — MONITOR 2', cols: ['tx1','tx2'], head: monHead, rows: monRows },
+    { title: 'TRANSMITTER DATA', cols: ['tx1','tx2'],
+      head: [['NO','PARAMETER','TX 1','TX 2','UNIT']], rows: [
+        G('POWER'),
+        R('1','Carrier','Watts'), R('2','Sideband 1','Watts'), R('3','Sideband 2','Watts'),
+        R('4','Sideband 3','Watts'), R('5','Sideband 4','Watts'),
+        G('VSWR'),
+        R('1','Carrier',': 1'), R('2','Sideband 1',': 1'), R('3','Sideband 2',': 1'),
+        R('4','Sideband 3',': 1'), R('5','Sideband 4',': 1'),
+        G('FREQUENCY'),
+        R('1','Carrier','MHz'), R('2','Tx Lower SB','MHz'), R('3','Tx Upper SB','MHz')
+      ] },
+    { title: 'GROUND CHECK (PIR)', unit: false, cols: ['tx1','tx2'],
+      head: [['NO','PARAMETER','TX1','TX2']], rows: [
+        R('1','Azimuth'), R('2','Deviation'), R('3','Audio Freq'),
+        G('4. Modulation'),
+        R('','9960'), R('','30'), R('','1020')
+      ] },
+    { title: 'BATTERY', unit: false, cols: ['arus','vdis','vchg'],
+      head: [['NO','PARAMETER','Current (AMP)','Volt (Discharge)','Volt (charge)']], rows: [
+        R('1','DVOR 1'), R('2','DVOR 2')
+      ] },
+    { title: 'CATATAN', type: 'note' }
+  ];
+}
+
+/** DME "CKG" — SELEX. Sama bentuk dengan TDME ILS (dua monitor, TX I/II
+    integral & stand by), tanpa dua baris Ident. */
+function mrSeksiDmeSelex(){
+  const monRows = [
+    R('1','Delay','49.68 - 50.32 µs'), R('2','Spacing','11.68 - 12.32 µs'),
+    R('3','Tx Power','550 - 1225 watts'), R('4','ERP','-2.7 - 0.9 dB'),
+    R('5','Efficiency','73.0 %'), R('6','PRF','730 - 6000 ppps'),
+    R('7','Tx Freq','1198.004 MHz'), R('8','Tx Freq.Error','-18 - 18 ppm'),
+    R('9','Rx LO Freq','109.004 MHz'), R('10','Rx LO Freq.Error','-18 - 18 ppm'),
+    R('11','Rx Freq.','1134.997 MHz'), R('12','VSWR','3.0 :1')
+  ];
+  const monHead = [
+    [['NO',1,2],['PARAMETER',1,2],['TX I',2],['TX II',2],['LIMIT',1,2]],
+    ['INTEGRAL','STAND BY','INTEGRAL','STAND BY']
+  ];
+  return [
+    { title: 'MONITOR DATA — MONITOR 1', cols: ['ti_int','ti_stby','tii_int','tii_stby'], head: monHead, rows: monRows },
+    { title: 'MONITOR DATA — MONITOR 2', cols: ['ti_int','ti_stby','tii_int','tii_stby'], head: monHead, rows: monRows },
+    { title: 'RMS DATA POWER SUPPLY', no: false, cols: ['nilai'],
+      head: [['PARAMETER','NILAI','LIMIT']], rows: [
+        R('','TX 1 48 Voltage','46.6 - 54.4 V'), R('','TX 1 Current','0.5 - 15.0 A'),
+        R('','TX 2 48 Voltage','46.6 - 54.4 V'), R('','TX 2 Current','0.5 - 15.0 A')
+      ] },
+    { title: 'BATTERY', no: false, unit: false, cols: ['current','voltage'],
+      head: [['PARAMETER','Current (Amp)','Voltage (Volt)']], rows: [
+        R('','CHARGE'), R('','DISCHARGE')
+      ] },
+    { title: 'CATATAN', type: 'note' }
+  ];
+}
+
+/** DVOR "DKI" — AWA VRB-52D. Di kertas satu tabel panjang TX 1 / TX 2 / LIMIT
+    dengan sub-judul; di sini tiap sub-judul jadi seksinya sendiri. */
+function mrSeksiDvorAwa(){
+  const head = [['NO','PARAMETER','TX 1','TX 2','LIMIT']];
+  return [
+    { title: 'TX PARAMETER', cols: ['tx1','tx2'], head, rows: [
+        R('1','CARRIER POWER','90 - 110 Watt'), R('2','CARRIER MOD','29 - 31 %'),
+        R('3','VSWR','< 1,25'), R('4','LSB POWER','5,4 - 8 Watt'), R('5','USB POWER','5,4 - 8 Watt')
+      ] },
+    { title: 'MONITOR PARAMETER', cols: ['tx1','tx2'], head, rows: [
+        R('1','BEARING','0 ° ± 0,5°'), R('2','30 Hz AM','1 ± 0,5'), R('3','30 Hz FM','1 ± 0,5'),
+        R('4','SUB CARRIER','1 ± 0,5'), R('5','IDENT','3 ± 0,5 Vpp'), R('6','RECEIVER CARRIER','1 ± 0,5')
+      ] },
+    { title: 'POWER SUPPLY VOLTAGE', cols: ['tx1','tx2'], head, rows: [
+        R('1','24 VOLT','23 - 27'), R('2','-40 VOLT','-35 to -45'), R('3','-45 VOLT','-45 to -50'),
+        R('4','5 VOLT','5 ± 0,5'), R('5','-15 VOLT','-15 ± 0,5'), R('6','15 VOLT','15 ± 0,5'),
+        R('7','-15 V MON','-15 ± 0,5'), R('8','15 V MON','15 ± 0,5'), R('9','5 V MON','5 ± 0,5')
+      ] },
+    { title: 'TRANSMITTER LEVEL', cols: ['tx1','tx2'], head, rows: [
+        R('1','30 Hz REF','19,0 - 21,0 Vpp'), R('2','TX DRIVE','3,5 - 5 Volt'),
+        R('3','TX BAL. I','< 0,7 Volt'), R('4','TX BAL. II','< 0,7 Volt'), R('5','COMB. BAL','< 1,2 Volt'),
+        R('6','CARRIER FWD','4,33 - 4,37 Volt'), R('7','CARRIER PEAK 30 Hz AM','5,6 - 5,7 Vpk'),
+        R('8','CARRIER REV.','< 0,45 Volt')
+      ] },
+    { title: 'SIDEBAND LEVEL', cols: ['tx1','tx2'], head, rows: [
+        R('1','BLEND. FUNCTION LSB','6 - 9 Vpk'), R('2','BLEND. FUNCTION USB','6 - 9 Vpk'),
+        R('3','FREQ. CONTROL LSB'), R('4','FREQ. CONTROL USB'), R('5','LSB LEVEL / USB LEVEL','3,3 ± 0,5')
+      ] },
+    { title: 'GROUND CHECK (PIR)', unit: false, cols: ['tx1','tx2'],
+      head: [['NO','PARAMETER','TX 1','TX 2']], rows: [
+        R('1','AZIMUTH'), R('2','DEVIATION'),
+        G('3. MODULATION'),
+        R('','9960 Hz'), R('','30 Hz'), R('','1020 Hz')
+      ] },
+    { title: 'POWER SUPPLY', unit: false, cols: ['tx1','tx2'],
+      head: [['NO','PARAMETER','TX 1','TX 2']], rows: [
+        R('1','BCPS CURRENT'), R('2','BCPS VOLTAGE')
+      ] },
+    { title: 'CATATAN', type: 'note' }
+  ];
+}
+
+/** DME "DKI" — AWA. Lima kelompok A–E, Transmitter 1 / 2 / UNIT. */
+function mrSeksiDmeAwa(){
+  const head = [['NO','PARAMETER','TRANSMITTER 1','TRANSMITTER 2','UNIT']];
+  return [
+    { title: 'A. PARAMETER', cols: ['tx1','tx2'], head, rows: [
+        R('1','DELAY','uS'), R('2','SPACING','uS'), R('3','POWER OUTPUT','KW'), R('4','EFFICIENCY','%'),
+        R('5','DECODER PULSE RATE','Hz'), R('6','TX. PULSE RATE','Hz'), R('7','PULSE WIDTH','uS'),
+        R('8','PULSE RISE TIME','uS'), R('9','PULSE FALL TIME','uS'), R('10','V.CAL','Volt'),
+        R('11','R.CAL','Hz'), R('12','T.CAL','uS')
+      ] },
+    { title: 'B. LEVEL', cols: ['tx1','tx2'], head, rows: [
+        R('1','RV.LOCAL OSC','Volt'), R('2','RV.TX DRIVE','Volt'), R('3','TD DRIVE','Vpk'),
+        R('4','TD MODULATION','Vpk'), R('5','PA MODULATION','Vpk'), R('6','PA DRIVE','Vpk'),
+        R('7','PA OUTPUT','Vpk'), R('8','TI INTERROGATION','Volt')
+      ] },
+    { title: 'C. POWER SUPPLY VOLTAGES', cols: ['tx1','tx2'], head, rows: [
+        R('1','AUXILIARY 24 V','Volt'), R('2','PA HT SUPPLY','Volt'), R('3','PS 15 V SUPPLY','Volt'),
+        R('4','PS 18 V SUPPLY','Vpk'), R('5','PS HT SUPPLY','Volt')
+      ] },
+    { title: 'D. AC POWER SUPPLY', cols: ['tx1','tx2'], head, rows: [
+        R('1','VOLT METER READING','VOLT'), R('2','AMMETER READING','AMP')
+      ] },
+    { title: 'E. BATTERY CHECK', cols: ['tx1','tx2'], head, rows: [
+        R('1','VOLTAGE','VDC'), R('2','CURRENT','AMPERE')
+      ] },
+    { title: 'CATATAN', type: 'note' }
+  ];
+}
+
 /** Seksi untuk sebuah lembar (dari jenisnya). */
 function mrSeksi(formId){
   const jenis = (MR_FORMS[formId] || {}).jenis;
@@ -290,6 +449,10 @@ function mrSeksi(formId){
   if(jenis === 'gp')  return mrSeksiGp();
   if(jenis === 'tdme')return mrSeksiTdme();
   if(jenis === 'om')  return mrSeksiOm();
+  if(jenis === 'dvor-selex') return mrSeksiDvorSelex();
+  if(jenis === 'dme-selex')  return mrSeksiDmeSelex();
+  if(jenis === 'dvor-awa')   return mrSeksiDvorAwa();
+  if(jenis === 'dme-awa')    return mrSeksiDmeAwa();
   return [];
 }
 
@@ -409,9 +572,13 @@ function openMrModal(form){
   const def = MR_FORMS[form];
   document.getElementById('mrModalJudul').textContent = 'Meter Reading — ' + def.label;
   const meta = [def.equip];
+  if(def.merk) meta.push(def.merk);
   if(def.freq) meta.push('FREQ: ' + def.freq);
   if(def.channel) meta.push('CH: ' + def.channel);
+  if(def.txfreq) meta.push('TX: ' + def.txfreq);
+  if(def.rxfreq) meta.push('RX: ' + def.rxfreq);
   if(def.ident) meta.push('IDENT: ' + def.ident);
+  if(def.lokasi) meta.push(def.lokasi);
   document.getElementById('mrModalMeta').textContent = meta.join('  ·  ');
   document.getElementById('mrTanggal').value = tanggalHariIni();
   // Jam terisi otomatis (picker HH:MM) supaya tak perlu ketik manual; tetap
@@ -521,8 +688,11 @@ function mrInfoBaris(d){
     ['Jam', h.jam || '-'],
     ['Equipment', def.equip || '-']
   ];
+  if(def.merk) info.push(['Merk', def.merk]);
   if(def.freq) info.push(['Frequency', def.freq]);
   if(def.channel) info.push(['Channel', def.channel]);
+  if(def.txfreq) info.push(['Tx Frequency', def.txfreq]);
+  if(def.rxfreq) info.push(['Rx Frequency', def.rxfreq]);
   if(def.ident) info.push(['Ident', def.ident]);
   if(def.lokasi) info.push(['Lokasi', def.lokasi]);
   return info;
@@ -558,8 +728,8 @@ function printMr(id){
   const info = mrInfoBaris(d).map(([k, v]) =>
     `<tr><td style="padding:0 6px 1px 0;white-space:nowrap;">${escapeHtml(k)}</td><td>: ${escapeHtml(v)}</td></tr>`).join('');
   doPrint(`
-    <div style="text-align:center;font-weight:bold;font-size:12pt;">METER READING — INSTRUMENT LANDING SYSTEM</div>
-    <div style="text-align:center;font-size:10pt;margin-bottom:6px;">SELEX-SI · ${escapeHtml(def.equip || def.label)}</div>
+    <div style="text-align:center;font-weight:bold;font-size:12pt;">${escapeHtml(def.cetak || 'METER READING — INSTRUMENT LANDING SYSTEM')}</div>
+    <div style="text-align:center;font-size:10pt;margin-bottom:6px;">${escapeHtml(def.merk || 'SELEX-SI')} · ${escapeHtml(def.equip || def.label)}</div>
     <table class="no-border" style="font-size:8pt;margin-bottom:8px;"><tbody>${info}</tbody></table>
     ${mrLembar(form, data, 'cetak')}
     <table class="no-border" style="font-size:9pt;margin-top:14px;">

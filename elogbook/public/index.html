@@ -764,9 +764,9 @@
     </section>
 
     <!-- ===== SUB-TAB: METER READING (bertingkat) =====
-         Level 2 jenis fasilitas: ILS (aktif) / DVOR-DME (form menyusul).
-         Level 3 ujung landas ILS: 07L / 07R / 25L / 25R.
-         Level 4 lembar per ujung: LLZ · GP · TDME (·OM di 25R).
+         Level 2 jenis fasilitas: ILS / DVOR-DME.
+         Level 3 ujung landas ILS: 07L / 07R / 25L / 25R; site DVOR-DME: CKG / DKI.
+         Level 4 lembar per ujung: LLZ · GP · TDME (·OM di 25R); per site: DVOR · DME.
          Isi lembar dibangun di modal #mrModalBg oleh openMrModal(id); tiap
          panel cuma riwayat + tombol "+ Form Baru". Lihat js/17f-meter-reading.js. -->
     <section class="subview" id="view-meter">
@@ -1016,10 +1016,90 @@
             </div>
           </div>
           <div class="lvl-panel" id="mr-dvor">
-            <div class="section-head">
-              <div><h2>Meter Reading DVOR / DME</h2><p>Formnya menyusul — CKG (DVOR + DME) dan DKI (DVOR + DME).</p></div>
+            <div class="lvl">
+              <div class="lvl-tabs sub">
+                <button class="lvl-btn active" data-target="mr-dvor-ckg">CKG</button>
+                <button class="lvl-btn" data-target="mr-dvor-dki">DKI</button>
+              </div>
+              <div class="lvl-body">
+              <div class="lvl-panel active" id="mr-dvor-ckg">
+                <div class="lvl">
+                  <div class="lvl-tabs sub2">
+                    <button class="lvl-btn active" data-target="mr-p-dvor-ckg">DVOR CKG</button>
+                    <button class="lvl-btn" data-target="mr-p-dme-ckg">DME CKG</button>
+                  </div>
+                  <div class="lvl-body">
+                    <div class="lvl-panel active" id="mr-p-dvor-ckg">
+                      <div class="section-head">
+                        <div><h2>Meter Reading DVOR "CKG"</h2><p>Lembar meter reading DVOR SELEX, Pasar Kemis — isi apa adanya sesuai pembacaan alat ukur.</p></div>
+                        <button class="btn btn-tambah" onclick="openMrModal('dvor-ckg')">+ Form Baru</button>
+                      </div>
+                      <div class="card">
+                        <div class="print-bar">
+                          <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariMrTanggal-dvor-ckg" onchange="renderMrList('dvor-ckg')"></div>
+                          <button class="btn ghost" onclick="resetCariMr('dvor-ckg')" data-t="resetCari">↺ Tampilkan Semua</button>
+                        </div>
+                        <div class="subtle-note" data-t="noteCariMr">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+                      </div>
+                      <div id="mrList-dvor-ckg"></div>
+                    </div>
+                    <div class="lvl-panel" id="mr-p-dme-ckg">
+                      <div class="section-head">
+                        <div><h2>Meter Reading DME "CKG"</h2><p>Lembar meter reading DME SELEX, Pasar Kemis — isi apa adanya sesuai pembacaan alat ukur.</p></div>
+                        <button class="btn btn-tambah" onclick="openMrModal('dme-ckg')">+ Form Baru</button>
+                      </div>
+                      <div class="card">
+                        <div class="print-bar">
+                          <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariMrTanggal-dme-ckg" onchange="renderMrList('dme-ckg')"></div>
+                          <button class="btn ghost" onclick="resetCariMr('dme-ckg')" data-t="resetCari">↺ Tampilkan Semua</button>
+                        </div>
+                        <div class="subtle-note" data-t="noteCariMr">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+                      </div>
+                      <div id="mrList-dme-ckg"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="lvl-panel" id="mr-dvor-dki">
+                <div class="lvl">
+                  <div class="lvl-tabs sub2">
+                    <button class="lvl-btn active" data-target="mr-p-dvor-dki">DVOR DKI</button>
+                    <button class="lvl-btn" data-target="mr-p-dme-dki">DME DKI</button>
+                  </div>
+                  <div class="lvl-body">
+                    <div class="lvl-panel active" id="mr-p-dvor-dki">
+                      <div class="section-head">
+                        <div><h2>Meter Reading DVOR "DKI"</h2><p>Lembar meter reading DVOR AWA VRB-52D, Tanjung Karawang — isi apa adanya sesuai pembacaan alat ukur.</p></div>
+                        <button class="btn btn-tambah" onclick="openMrModal('dvor-dki')">+ Form Baru</button>
+                      </div>
+                      <div class="card">
+                        <div class="print-bar">
+                          <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariMrTanggal-dvor-dki" onchange="renderMrList('dvor-dki')"></div>
+                          <button class="btn ghost" onclick="resetCariMr('dvor-dki')" data-t="resetCari">↺ Tampilkan Semua</button>
+                        </div>
+                        <div class="subtle-note" data-t="noteCariMr">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+                      </div>
+                      <div id="mrList-dvor-dki"></div>
+                    </div>
+                    <div class="lvl-panel" id="mr-p-dme-dki">
+                      <div class="section-head">
+                        <div><h2>Meter Reading DME "DKI"</h2><p>Lembar DME maintenance meter reading AWA, Tanjung Karawang — isi apa adanya sesuai pembacaan alat ukur.</p></div>
+                        <button class="btn btn-tambah" onclick="openMrModal('dme-dki')">+ Form Baru</button>
+                      </div>
+                      <div class="card">
+                        <div class="print-bar">
+                          <div class="field"><label data-t="cariTanggal">Tanggal</label><input type="date" id="cariMrTanggal-dme-dki" onchange="renderMrList('dme-dki')"></div>
+                          <button class="btn ghost" onclick="resetCariMr('dme-dki')" data-t="resetCari">↺ Tampilkan Semua</button>
+                        </div>
+                        <div class="subtle-note" data-t="noteCariMr">Menampilkan 7 hari terakhir; catatan lebih lama disembunyikan — pilih tanggal atau ↺ Tampilkan Semua untuk memanggilnya.</div>
+                      </div>
+                      <div id="mrList-dme-dki"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              </div>
             </div>
-            <div class="card"><div class="subtle-note">Lembar DVOR/DME belum diaktifkan. Kirimkan sheet-nya dan formnya langsung dibangun seperti ILS.</div></div>
           </div>
         </div>
       </div>
