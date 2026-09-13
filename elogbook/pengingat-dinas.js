@@ -182,6 +182,11 @@ export function usernameUntukPetak(petak, akunAktif) {
   }
   const nama = String(petak?.nama || '').trim().toLowerCase().replace(/\s+/g, ' ');
   if (!nama) return '';
+  // Kolom nama yang diisi username-nya langsung (akun uji, atau orang yang
+  // menulis NIK-nya di kolom nama) — sama seperti namaSaya() dashboard yang
+  // juga membandingkan dengan akun.user.
+  const sebagaiUser = daftar.find((x) => String(x.username || '').toLowerCase() === nama);
+  if (sebagaiUser) return sebagaiUser.username;
   const persis = daftar.filter((x) => String(x.nama || '').trim().toLowerCase().replace(/\s+/g, ' ') === nama);
   if (persis.length === 1) return persis[0].username;
   if (persis.length > 1) return '';

@@ -159,6 +159,9 @@ test('usernameUntukPetak: NIK dulu, nama persis, nama longgar hanya kalau tungga
   assert.equal(usernameUntukPetak({ nik: '10012550', nama: 'B. WIBOWO' }, akun), '10012550');
   // NIK yang tidak ada akunnya jatuh ke nama.
   assert.equal(usernameUntukPetak({ nik: '99999999', nama: 'bagus wibowo' }, akun), '10012550');
+  // Kolom nama berisi username (akun uji di jadwal, NIK ditulis di kolom nama).
+  assert.equal(usernameUntukPetak({ nik: '', nama: 'uji.teknisi' }, [...akun, { username: 'uji.teknisi', nama: 'Uji Teknisi' }]), 'uji.teknisi');
+  assert.equal(usernameUntukPetak({ nik: '', nama: '10012550' }, akun), '10012550');
   // Nama persis, beda huruf besar dan spasi ganda.
   assert.equal(usernameUntukPetak({ nik: '', nama: 'TONY  EDI   PURNOMO' }, akun), '10011111');
   // Longgar: yang satu memuat yang lain.
