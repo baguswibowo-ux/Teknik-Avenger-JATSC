@@ -214,6 +214,18 @@ export function pesanBelumTtd({ dokumen, unit, tanggal, dinas, menunggu, menit, 
   return baris.join('\n');
 }
 
+/** Pengingat ke teknisi: dinasnya mulai sebentar lagi. Jam dan tanggal sudah
+    dalam WIB — teks pesan dibaca sambil melihat jam dinding, bukan lembar UTC. */
+export function pesanDinasMendatang({ nama, unit, namaShift, kode, tanggal, jam, menit }) {
+  const baris = ['🕖 <b>Pengingat dinas</b>', ''];
+  baris.push(`${nama ? esc(nama) + ', ' : ''}Anda dijadwalkan dinas <b>${esc(namaShift || kode)}</b>`
+    + (unit ? ` di unit ${esc(unit)}` : '') + '.');
+  if (tanggal) baris.push(`Tanggal: ${esc(tanggal)}`);
+  if (jam) baris.push(`Mulai: <b>${esc(jam)}</b>`);
+  baris.push('', `Dinas dimulai ${esc(menit)} menit lagi.`);
+  return baris.join('\n');
+}
+
 /** Balasan saat akun berhasil ditautkan dari dalam Telegram. */
 export function pesanTautBerhasil(nama) {
   return `✅ Akun E-Logbook <b>${esc(nama)}</b> berhasil terhubung.\n\n`

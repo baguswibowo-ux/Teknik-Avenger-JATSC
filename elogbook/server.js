@@ -47,8 +47,13 @@ import {
   telegramAktif, telegramWebhookSecret, kirimPesan, botUsername,
   pasangWebhook, infoWebhook, bacaUpdate,
   telegramModePolling, mulaiPolling,
-  pesanPerluTtd, pesanSudahTtd, pesanBelumTtd, pesanTautBerhasil, pesanPerluTaut
+  pesanPerluTtd, pesanSudahTtd, pesanBelumTtd, pesanTautBerhasil, pesanPerluTaut,
+  pesanDinasMendatang
 } from './telegram.js';
+import {
+  dinasDalamRentang, usernameUntukPetak, kunciPengingat, jamWib, tanggalWib
+} from './pengingat-dinas.js';
+import { readFile as bacaBerkas } from 'node:fs/promises';
 
 /**
  * Lapisan data dipilih saat start:
@@ -88,6 +93,7 @@ const {
   buatTautanTelegram, tautkanTelegram, getChatIdTelegram, statusTautanTelegram,
   pelaksanaCatatan, usernameDariNama,
   catatanPerluPengingatTtd, tandaiPengingatTtd,
+  pengingatDinasTerkirim, tandaiPengingatDinas,
   getPh, setPh, listDiwakiliOleh, listCalonPh, ringkasCatatan,
   infoCatatan, catatAktivitas, listAktivitas
 } = await import(PAKAI_POSTGRES ? './db-pg.js' : './db.js');
@@ -540,6 +546,90 @@ async function periksaPengingatTtd() {
     console.error('[telegram pengingat]', err?.message || err);
   } finally {
     pengingatBerjalan = false;
+  }
+}
+
+/* ============== PENGINGAT DINAS (SEJAM SEBELUM MASUK) ==============
+ * Tiap orang yang tercantum di jadwal dinas dashboard diberi tahu lewat
+ * Telegram satu jam sebelum dinasnya mulai — "Anda dijadwalkan dinas PS JATSC,
+ * mulai 07:00 WIB". Sekali per orang per petak dinas.
+ *
+ * Jadwalnya milik dashboard (data/dinas.json di folder induk), bukan milik
+ * E-Logbook — tetapi bot, tabel tautan Telegram, dan pemeriksa berkala yang
+ * hidup terus semuanya ada di sini, jadi di sinilah ketiganya bertemu.
+ * Berkasnya dibaca ulang tiap putaran: kecil, dan suntingan jadwal hari itu
+ * (tukar dinas, SPKL dadakan) harus langsung berlaku tanpa restart.
+ * DINAS_JSON di .env mengganti letaknya kalau folder datanya dipindah.
+ *
+ * Aturan jam, pembakuan kode, dan pencocokan orang → akun ada di
+ * pengingat-dinas.js (murni, teruji). Yang di sini hanya: baca jadwal, saring
+ * yang jatuh tempo, cari chat-nya, kirim, tandai.
+ *
+ * JENDELANYA satu jam penuh sebelum mulai: dikirim begitu putaran pertama
+ * mendapati kini ≥ mulai − 60 menit, dan tidak lagi begitu dinasnya sudah
+ * mulai. Server yang sempat mati 20 menit tetap mengirim, 40 menit sebelum
+ * masuk; yang baru hidup setelah dinasnya mulai tidak mengirim apa-apa —
+ * pengingat untuk dinas yang sudah berjalan cuma gangguan.
+ *
+ * Yang belum menautkan Telegram, atau yang petaknya tidak bisa dicocokkan ke
+ * akun mana pun (NIK kosong DAN namanya tidak ketemu), dilewati tanpa ditandai
+ * — kalau ia menautkan masih di dalam jendela, pengingatnya tetap sampai.
+ * PENGINGAT_DINAS_MENIT di .env mengganti 60 menit, khusus untuk menguji. */
+const PENGINGAT_DINAS_MENIT = Math.max(1, Number(process.env.PENGINGAT_DINAS_MENIT) || 60);
+const DINAS_JSON = process.env.DINAS_JSON || path.join(ROOT, '..', 'data', 'dinas.json');
+
+let pengingatDinasBerjalan = false;
+
+async function periksaPengingatDinas() {
+  if (!telegramAktif() || pengingatDinasBerjalan) return;
+  pengingatDinasBerjalan = true;
+  try {
+    let jadwal;
+    try {
+      jadwal = JSON.parse(await bacaBerkas(DINAS_JSON, 'utf8'));
+    } catch (err) {
+      // Jadwal belum ada atau tidak terbaca: tidak ada yang bisa diingatkan,
+      // dan itu bukan galat yang perlu dicatat tiap lima menit.
+      if (err?.code !== 'ENOENT') console.error('[telegram pengingat dinas] jadwal:', err?.message || err);
+      return;
+    }
+    const kini = Date.now();
+    const jendela = PENGINGAT_DINAS_MENIT * 60000;
+    // Petak yang mulai dalam (kini, kini + jendela]: belum mulai, tapi sudah
+    // kurang dari PENGINGAT_DINAS_MENIT lagi.
+    const petak = dinasDalamRentang(jadwal, kini + 1, kini + jendela + 1);
+    if (!petak.length) return;
+
+    const akun = await listAkunAktif();
+    const calon = [];
+    for (const p of petak) {
+      const username = usernameUntukPetak(p, akun);
+      if (!username) continue;
+      calon.push({ p, username, kunci: kunciPengingat(p, username) });
+    }
+    if (!calon.length) return;
+    const sudah = await pengingatDinasTerkirim(calon.map((c) => c.kunci));
+
+    for (const { p, username, kunci } of calon) {
+      if (sudah.has(kunci)) continue;
+      const chatId = await getChatIdTelegram(username);
+      if (!chatId) continue;
+      const sisaMenit = Math.max(1, Math.round((p.mulaiMs - Date.now()) / 60000));
+      const teks = pesanDinasMendatang({
+        nama: (akun.find((a) => a.username === username) || {}).nama || p.nama,
+        unit: namaUnit(p.unit), namaShift: p.namaShift, kode: p.kode,
+        tanggal: tanggalWib(p.mulaiMs), jam: jamWib(p.mulaiMs), menit: sisaMenit
+      });
+      if (await kirimPesan(chatId, teks)) {
+        await tandaiPengingatDinas(kunci, new Date().toISOString());
+      }
+      // Gagal kirim: tidak ditandai, dicoba lagi putaran berikutnya selama
+      // masih di dalam jendela.
+    }
+  } catch (err) {
+    console.error('[telegram pengingat dinas]', err?.message || err);
+  } finally {
+    pengingatDinasBerjalan = false;
   }
 }
 
@@ -2229,6 +2319,15 @@ if (DIJALANKAN_LANGSUNG) {
   if (telegramAktif()) {
     setTimeout(periksaPengingatTtd, 60 * 1000).unref();
     setInterval(periksaPengingatTtd, 5 * 60 * 1000).unref();
+  }
+
+  /* Pengingat dinas — sejam sebelum masuk, dari jadwal dinas dashboard.
+     Putaran pertama setengah menit setelah menyala supaya restart di dalam
+     jendela tidak menunda pesannya, sesudahnya tiap 5 menit: pesan sampai
+     55–60 menit sebelum dinas. */
+  if (telegramAktif()) {
+    setTimeout(periksaPengingatDinas, 30 * 1000).unref();
+    setInterval(periksaPengingatDinas, 5 * 60 * 1000).unref();
   }
 
   app.listen(PORT, HOST, () => {

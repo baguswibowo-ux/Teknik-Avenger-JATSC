@@ -280,6 +280,15 @@ CREATE TABLE IF NOT EXISTS telegram_akun (
   dibuat_pada    TEXT NOT NULL DEFAULT ''
 );
 
+-- Pengingat dinas yang sudah terkirim: satu baris per orang per petak dinas
+-- (kuncinya tanggal|unit|kode|username, lihat kunciPengingat di
+-- pengingat-dinas.js). Pemeriksanya jalan tiap beberapa menit; tanpa tabel ini
+-- server yang restart di dalam jendela pengingat akan mengirim ulang.
+CREATE TABLE IF NOT EXISTS pengingat_dinas (
+  kunci        TEXT PRIMARY KEY,
+  dikirim_pada TEXT NOT NULL DEFAULT ''
+);
+
 -- Log aktivitas E-Logbook: siapa menambah, mengubah, atau menghapus apa —
 -- termasuk pengelolaan akun. Ditulis server.js (PENCATAT_AKTIVITAS), dibaca
 -- layar Aktivitas dashboard lewat getAktivitas. unit = kode unit dipisah koma,
@@ -2867,6 +2876,28 @@ export function tandaiPengingatTtd(jenis, id, waktuIso) {
   if (!t) return;
   db.prepare(`UPDATE ${t.tabel} SET pengingat_ttd_pada = ? WHERE id = ?`)
     .run(String(waktuIso), String(id));
+}
+
+/* ============== PENGINGAT DINAS ==============
+ * Penanda "sudah diingatkan" untuk pengingat sejam sebelum dinas — lihat
+ * periksaPengingatDinas di server.js. Baris yang lebih tua dari seminggu
+ * dibuang tiap kali menandai; kuncinya bertanggal, jadi tidak pernah dipakai
+ * lagi setelah harinya lewat. Cermin Postgres-nya di db-pg.js. */
+
+/** Kunci mana saja dari daftar ini yang sudah pernah dikirim. */
+export function pengingatDinasTerkirim(kunciList) {
+  const daftar = [...new Set((kunciList || []).map(String).filter(Boolean))];
+  if (!daftar.length) return new Set();
+  const tanda = daftar.map(() => '?').join(',');
+  return new Set(db.prepare(`SELECT kunci FROM pengingat_dinas WHERE kunci IN (${tanda})`)
+    .all(...daftar).map((r) => r.kunci));
+}
+
+export function tandaiPengingatDinas(kunci, waktuIso) {
+  db.prepare('INSERT OR REPLACE INTO pengingat_dinas (kunci, dikirim_pada) VALUES (?, ?)')
+    .run(String(kunci), String(waktuIso));
+  const batas = new Date(Date.parse(waktuIso) - 7 * 86400000).toISOString();
+  db.prepare('DELETE FROM pengingat_dinas WHERE dikirim_pada < ?').run(batas);
 }
 
 /* ============== RINGKASAN UNTUK NOTIFIKASI ==============
