@@ -10,7 +10,7 @@ function gambarSemua(){
     : T('Kartu bergembok = di luar wewenang akun ini.','A padlocked card is outside this account’s authority.');
   gambarCincin(); gambarUbin(); gambarTrouble(); gambarDinas();
   gambarPerhatian(); gambarLonceng(); gambarPersonel();
-  gambarPilihUnit(); gambarUnit();
+  gambarPilihUnit(); gambarUnit(); gambarNotam();
   // Log aktivitas ikut digambar ulang dari yang sudah ada di memori — tidak
   // diambil ulang ke server di sini, karena gambarSemua() juga dipanggil saat
   // bahasanya berganti, dan mengganti bahasa bukan alasan untuk satu perjalanan

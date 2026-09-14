@@ -47,6 +47,7 @@ const AKT_MODUL_NAMA = {
   peralatan:  ['Peralatan','Equipment'],
   sparepart:  ['Sparepart','Spare parts'],
   isr:        ['ISR','Radio licences'],
+  notam:      ['NOTAM','NOTAM'],
   sejarah:    ['Riwayat alat','Equipment history'],
   dokumen:    ['Dokumen','Documents'],
   logo:       ['Logo unit','Unit logo'],

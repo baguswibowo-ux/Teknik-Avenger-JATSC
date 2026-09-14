@@ -25,6 +25,8 @@ function pindahLayar(nama){
   // Log yang ditampilkan basi tidak menjawab pertanyaan "barusan siapa", jadi
   // diambil ulang tiap kali layarnya dibuka — bukan sekali saat masuk.
   if(nama === 'aktivitas') aktSegarkan();
+  // Status NOTAM dihitung dari jam sekarang — digambar ulang tiap dibuka.
+  if(nama === 'notam' && typeof gambarNotam === 'function') gambarNotam();
   // Admin unit yang membuka tab Kelola Akun — panel Hak-nya ikut coba ulang
   // memuat daftar akun kalau tarikan pertamanya gagal (mis. E-Logbook baru
   // di-restart). Tidak beban untuk admin utama: gambarAkun cukup ringan.

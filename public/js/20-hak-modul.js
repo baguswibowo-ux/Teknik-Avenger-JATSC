@@ -18,7 +18,7 @@
    ======================================================================= */
 
 const HAK_MODUL = ['dinas','dinas-ttd','dinas-cetak','berkala','personel','peralatan',
-                   'sparepart','sparepart-ttd','sejarah','sejarah-ttd','isr',
+                   'sparepart','sparepart-ttd','sejarah','sejarah-ttd','isr','notam',
                    'dokumen','galeri'];
 /* Peran yang selalu view-only di dashboard ini. Manajer Teknik (pejabat) memang
    perannya melihat & membubuhkan TTD di E-Logbook — tidak menyunting apa pun di
@@ -70,6 +70,7 @@ const HAK_NAMA  = {
   // lewat tombol "Ditunjuk" di baris ini. Kosong = semua pejabat unit boleh.
   'sejarah-ttd': ['TTD Sejarah Peralatan','Equipment History Signing'],
   isr:       ['Izin Stasiun Radio (ISR)','Radio Station Licence (ISR)'],
+  notam:     ['NOTAM Teknik','Technical NOTAM'],
   dokumen:   ['Dokumen','Documents'],
   galeri:    ['Galeri Foto','Photo Gallery']
 };
@@ -112,6 +113,8 @@ const hakBawaan = () => ({
   'sejarah-ttd': { peran:[],                                             petugas:[] },
   /* Izin Stasiun Radio — dibuka sampai teknisi (mirror server HAK_BAWAAN). */
   isr:       { peran:['admin','adminunit','teknisi'],                    petugas:[] },
+  /* NOTAM teknik — dibuka sampai teknisi (mirror server HAK_BAWAAN). */
+  notam:     { peran:['admin','adminunit','teknisi'],                    petugas:[] },
   dokumen:   { peran:['admin','adminunit','teknisi'],                    petugas:[] },
   galeri:    { peran:['admin','adminunit','teknisi'],                    petugas:[] }
 });

@@ -65,7 +65,7 @@ async function dokSiap(unit, f){
  * Batas waktunya panjang: 25 MB lewat jaringan kantor bisa memakan lebih dari
  * delapan detik yang jadi bawaan srvFetch.
  */
-async function dokKirim(unit, f, kategori, alat, isr){
+async function dokKirim(unit, f, kategori, alat, isr, notam){
   const siap = await dokSiap(unit, f);
 
   if(siap && siap.langsung){
@@ -80,7 +80,7 @@ async function dokKirim(unit, f, kategori, alat, isr){
 
     const r = await srvFetch('/dokumen/' + encodeURIComponent(unit) + '/catat', {
       method:'POST', headers:{ 'Content-Type':'application/json' },
-      body: JSON.stringify({ id:siap.id, nama:f.name, jenis:f.type || '', kategori, alat, isr })
+      body: JSON.stringify({ id:siap.id, nama:f.name, jenis:f.type || '', kategori, alat, isr, notam })
     }, 30000);
     const j = await r.json().catch(()=>({}));
     if(!r.ok) throw new Error(j.error || 'server menjawab ' + r.status);
@@ -90,7 +90,7 @@ async function dokKirim(unit, f, kategori, alat, isr){
   const isi = await berkasBase64(f);
   const r = await srvFetch('/dokumen/' + encodeURIComponent(unit), {
     method:'POST', headers:{ 'Content-Type':'application/json' },
-    body: JSON.stringify({ nama:f.name, jenis:f.type || '', kategori, alat, isr, isi })
+    body: JSON.stringify({ nama:f.name, jenis:f.type || '', kategori, alat, isr, notam, isi })
   }, 120000);
   const j = await r.json().catch(()=>({}));
   // 413 dari Vercel berbadan teks biasa, jadi j.error kosong dan pesannya akan

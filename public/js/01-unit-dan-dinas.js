@@ -92,6 +92,8 @@ const PERALATAN = {};
 /* Izin Stasiun Radio per unit — juga dari /unitdb, berkunci kode unit.
    { kode unit -> [ {id, nama, nomor, frek, kelas, lokasi, mulai, habis, ket} ] } */
 const ISR = {};
+/* NOTAM teknik per unit — diisi unitdbMuat() dari /unitdb, digambar 39-notam.js. */
+const NOTAM = {};
 
 /* Papan trouble, disusun dari isu E-Logbook oleh srvPasang(). */
 let TROUBLE = [];

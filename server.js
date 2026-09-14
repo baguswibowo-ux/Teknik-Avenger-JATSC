@@ -871,7 +871,7 @@ async function targetSuperadmin(username, req) {
 
 const MODUL_HAK = ['dinas', 'dinas-ttd', 'dinas-cetak', 'berkala', 'personel',
                    'peralatan', 'sparepart', 'sparepart-ttd',
-                   'sejarah', 'sejarah-ttd', 'isr',
+                   'sejarah', 'sejarah-ttd', 'isr', 'notam',
                    'dokumen', 'galeri'];
 
 const PERAN_SAH = ['admin', 'pejabat', 'adminunit', 'teknisi',
@@ -905,7 +905,7 @@ const PERAN_HAPUS = new Set(['admin', 'adminunit']);
    hak, misalnya — penjagaan unit tidak berlaku karena tidak ada unit yang
    bisa dijadikan pagar. */
 const MODUL_PER_UNIT = new Set(['dinas', 'berkala', 'peralatan', 'sparepart',
-                                'sejarah', 'isr', 'dokumen', 'galeri']);
+                                'sejarah', 'isr', 'notam', 'dokumen', 'galeri']);
 
 /* Bawaan kalau hak.json belum ada.
 
@@ -952,6 +952,9 @@ const HAK_BAWAAN = {
      yang mencatat pembaruan izin adalah orang yang mengurus stasiunnya. Yang
      menahannya tetap pagar unit dan pagar hapus (menghapus = admin/adminunit). */
   isr:       { peran: ['admin', 'adminunit', 'teknisi'],               petugas: [] },
+  /* NOTAM teknik — dicatat yang berdinas saat peralatannya off, jadi dibuka
+     sampai teknisi seperti ISR. Menghapus tetap admin/adminunit. */
+  notam:     { peran: ['admin', 'adminunit', 'teknisi'],               petugas: [] },
   /* Officer yang boleh membubuhkan TTD Sejarah Peralatan. Berbeda dari
      `sejarah` di atas: yang itu "siapa yang boleh MENULIS riwayat", ini
      "siapa yang boleh menandatangani LEMBAR CETAK-nya". Kolom peran tidak
@@ -2476,7 +2479,9 @@ const UNITDB_JSON = {
   peralatan: path.join(DATA_DIR, 'peralatan.json'),
   sparepart: path.join(DATA_DIR, 'sparepart.json'),
   // Izin Stasiun Radio — daftar lisensi frekuensi per unit, dengan masa berlaku.
-  isr: path.join(DATA_DIR, 'isr.json')
+  isr: path.join(DATA_DIR, 'isr.json'),
+  // NOTAM teknik — NOTAM yang terbit karena peralatan unit (off, maintenance).
+  notam: path.join(DATA_DIR, 'notam.json')
 };
 
 /* Baris peralatan yang tampil di kepala unit ("VCS Garex, Recording Neptuno"
@@ -2625,7 +2630,35 @@ function rapikanIsr(x, adaId) {
   };
 }
 
-const UNITDB_RAPI = { peralatan: rapikanAlat, sparepart: rapikanPart, isr: rapikanIsr };
+/* Satu NOTAM teknik. Jam semuanya UTC berbentuk "YYYY-MM-DDTHH:MM" — bentuk
+   isian datetime-local, tanpa zona, dan memang dibaca sebagai UTC di layar.
+   selesaiJenis: 'pasti' (jam selesai tetap), 'est' (perkiraan), 'perm'
+   (permanen, jam selesai dikosongkan). Status tidak disimpan — dihitung layar
+   dari jam sekarang, dicabut, dan gantiOleh, supaya tidak pernah basi. */
+const JAM_UTC_SAH = (t) => /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(String(t || '')) ? String(t) : '';
+const NOTAM_SELESAI = new Set(['pasti', 'est', 'perm']);
+function rapikanNotam(x, adaId) {
+  const nomor = String(x?.nomor || '').trim().toUpperCase().slice(0, 40);
+  if (!nomor) return null;
+  const selesaiJenis = NOTAM_SELESAI.has(x?.selesaiJenis) ? x.selesaiJenis : 'pasti';
+  return {
+    id: idBaris(x?.id, adaId, 'n'),
+    nomor,
+    alat:      String(x?.alat     || '').trim().slice(0, 40),
+    // Nama alat ikut disimpan: kalau barisnya kelak dibuang dari Daftar
+    // Peralatan, NOTAM lama tetap bisa dibaca alat apa yang dimaksud.
+    alatNama:  String(x?.alatNama || '').trim().slice(0, 120),
+    mulai:     JAM_UTC_SAH(x?.mulai),
+    selesai:   selesaiJenis === 'perm' ? '' : JAM_UTC_SAH(x?.selesai),
+    selesaiJenis,
+    isi:       String(x?.isi      || '').trim().slice(0, 2000),
+    dicabut:   JAM_UTC_SAH(x?.dicabut),
+    gantiOleh: String(x?.gantiOleh || '').trim().toUpperCase().slice(0, 40),
+    dibuat:    tglJamSah(x?.dibuat)
+  };
+}
+
+const UNITDB_RAPI = { peralatan: rapikanAlat, sparepart: rapikanPart, isr: rapikanIsr, notam: rapikanNotam };
 
 /** Seluruh database unit. Terbuka seperti kegiatan berkala — yang berdinas
     perlu melihat daftar peralatan unitnya tanpa harus masuk dulu. */
@@ -2634,6 +2667,7 @@ app.get('/unitdb', async (_req, res) => {
     peralatan: await bacaJson(UNITDB_JSON.peralatan, {}),
     sparepart: await bacaJson(UNITDB_JSON.sparepart, {}),
     isr:       await bacaJson(UNITDB_JSON.isr, {}),
+    notam:     await bacaJson(UNITDB_JSON.notam, {}),
     logo:      await bacaLogo(),
     // Baris peralatan pengganti — kosong berarti pakai bawaan dari E-Logbook.
     namaAlat:  await bacaJson(NAMA_ALAT_JSON, {})
@@ -2687,8 +2721,10 @@ app.put('/unitdb/:modul/:unit', badanDinas, async (req, res) => {
 
     // Baris mana yang ditambah, dibuang, disunting — dengan nama alatnya.
     // Yang lama dirapikan ulang dengan fungsi yang sama; lihat PUT /berkala.
+    // NOTAM tidak punya kolom nama — label lognya nomor NOTAM.
     const selisih = selisihDaftar(
-      (semua[unit] || []).map((x) => rapi(x, new Set())).filter(Boolean), daftar);
+      (semua[unit] || []).map((x) => rapi(x, new Set())).filter(Boolean), daftar,
+      modul === 'notam' ? { label: (x) => x?.nomor } : undefined);
     if (daftar.length) semua[unit] = daftar; else delete semua[unit];
     await tulisJson(UNITDB_JSON[modul], semua);
     const aksi = aksiSelisih(selisih);
@@ -3083,6 +3119,8 @@ const dokBaris = (b) => ({
   // Kaitan ke satu baris Izin Stasiun Radio (id ISR). Sama pola dengan `alat`:
   // berkasnya tinggal di rak dokumen unit, tapi dilampirkan ke satu ISR tertentu.
   isr:      String(b.isr || '').slice(0, 40),
+  // Kaitan ke satu NOTAM teknik (id NOTAM) — pola sama dengan isr.
+  notam:    String(b.notam || '').slice(0, 40),
   waktu:    String(b.waktu || ''),
   oleh:     String(b.oleh || ''),
   olehNama: String(b.olehNama || '')
@@ -3331,6 +3369,7 @@ app.post('/dokumen/:unit/catat', dokumenHidup, badanDinas, async (req, res) => {
       kategori: req.body?.kategori,
       alat: req.body?.alat,
       isr: req.body?.isr,
+      notam: req.body?.notam,
       waktu: new Date().toISOString(),
       oleh: user.username,
       olehNama: user.nama || user.username
@@ -3382,6 +3421,7 @@ app.post('/dokumen/:unit', dokumenHidup, badanGaleri, async (req, res) => {
       kategori: req.body?.kategori,
       alat: req.body?.alat,
       isr: req.body?.isr,
+      notam: req.body?.notam,
       waktu: new Date().toISOString(),
       oleh: user.username,
       olehNama: user.nama || user.username
@@ -3482,6 +3522,7 @@ app.post('/dokumen/:unit/tautan', badanDinas, async (req, res) => {
       kategori: String(req.body?.kategori || '').trim() || 'Lainnya',
       alat: req.body?.alat,
       isr: req.body?.isr,
+      notam: req.body?.notam,
       waktu: new Date().toISOString(),
       oleh: user.username,
       olehNama: user.nama || user.username
@@ -4536,7 +4577,7 @@ const URUTAN_JS = [
   '25-aktivitas.js', '26-perhatian-lonceng.js', '27-kotak-masuk.js',
   '28-database-unit.js', '29-sunting-unitdb.js', '30-papan-nama.js',
   '31-gambar-kartu.js', '32-dokumen-unit.js', '34-sejarah-alat.js',
-  '35-impor-sparepart.js', '36-cetak.js', '37-isr.js', '38-profil.js',
+  '35-impor-sparepart.js', '36-cetak.js', '37-isr.js', '38-profil.js', '39-notam.js',
   '33-mulai.js'   // terakhir: inilah yang menyalakan, bukan yang mendeklarasikan
 ];
 const URUTAN_CSS = [

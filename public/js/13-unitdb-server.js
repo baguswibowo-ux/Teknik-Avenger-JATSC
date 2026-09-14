@@ -38,6 +38,10 @@ async function unitdbMuat(){
     Object.keys(ISR).forEach(k=>delete ISR[k]);
     Object.assign(ISR, j.isr || {});
 
+    // NOTAM teknik — berkunci unit, sama bentuknya dengan ISR.
+    Object.keys(NOTAM).forEach(k=>delete NOTAM[k]);
+    Object.assign(NOTAM, j.notam || {});
+
     Object.keys(LOGO).forEach(k=>delete LOGO[k]);
     Object.assign(LOGO, j.logo || {});
 
@@ -67,6 +71,7 @@ async function dbSimpanUnit(jenis, unit){
   const modul = jenis;
   const isi = modul === 'peralatan' ? (PERALATAN[unit] || [])
             : modul === 'isr'       ? (ISR[unit] || [])
+            : modul === 'notam'     ? (NOTAM[unit] || [])
             : PART.filter(p=>p.unit === unit).map(({ unit:_buang, ...sisa })=>sisa);
   try{
     const r = await srvFetch(`/unitdb/${modul}/${encodeURIComponent(unit)}`, {

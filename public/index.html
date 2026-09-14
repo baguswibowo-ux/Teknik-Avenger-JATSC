@@ -255,6 +255,9 @@
   <button data-layar="kotak" data-en="Inbox<span class=&quot;lencana&quot; id=&quot;lencanaKotak&quot;>0</span>"
     >Kotak Masuk<span class="lencana" id="lencanaKotak">0</span></button>
   <button data-layar="unit" data-en="Unit Database">Database Unit</button>
+  <!-- Lencananya menghitung NOTAM yang sedang berlaku, seluruh unit. -->
+  <button data-layar="notam" data-en="NOTAM<span class=&quot;lencana&quot; id=&quot;lencanaNotam&quot;>0</span>"
+    >NOTAM<span class="lencana" id="lencanaNotam">0</span></button>
   <!-- Personel tidak lagi berdiri sendiri di sini: tempatnya subtab di dalam
        Database Unit, satu daftar per unit. Peringatan masa berlakunya tetap
        lintas unit, di beranda dan di lonceng. -->
@@ -353,6 +356,25 @@
     every row one by one.">
     <b>Yang baru di sini.</b> Kolom <i>umur</i> dan pengurutan dari yang paling tua tidak ada di tab Isu.
     Lewat 14 hari ditandai merah supaya kelihatan tanpa perlu dibaca satu per satu.
+  </div>
+</section>
+
+<!-- ============ NOTAM ============ -->
+<section class="layar" id="l-notam">
+  <div class="judul-seksi"><h2 data-en="Technical NOTAM — All Units">NOTAM Teknik — Semua Unit</h2>
+    <span class="ket" data-en="NOTAMs issued because of unit equipment. Times in UTC."
+      >NOTAM yang terbit karena peralatan unit. Semua jam dalam UTC.</span></div>
+  <div class="pemisah"></div>
+  <div class="ubin-baris" id="ubinNotam" style="margin-top:0"></div>
+  <div class="panel" style="margin-top:18px">
+    <div class="kepala"><h3 data-en="NOTAM List">Daftar NOTAM</h3>
+      <span class="ket" id="saringNotam"></span></div>
+    <div class="gulir" style="max-height:none"><table id="tblNotam"></table></div>
+  </div>
+  <div class="catatan" data-en="<b>Where to fill it in.</b> NOTAMs are added and edited in the <b>NOTAM</b>
+    tab of each unit under Unit Database. Click a row to open its unit.">
+    <b>Tempat mengisinya.</b> NOTAM ditambah dan disunting di subtab <b>NOTAM</b> tiap unit pada
+    Database Unit. Klik satu baris untuk membuka unitnya.
   </div>
 </section>
 
@@ -682,6 +704,21 @@
     <div class="kaki">
       <button class="btn garis" id="btnBatalIsr" data-en="Cancel">Batal</button>
       <button class="btn" id="btnSimpanIsr">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Kartu tambah/ubah NOTAM teknik. Isinya dibangun JS (39-notam.js). -->
+<div class="lapis-ubah" id="lapisNotam" role="dialog" aria-modal="true" aria-labelledby="judulNotam">
+  <div class="kartu-ubah data">
+    <div class="kepala">
+      <h3 id="judulNotam">NOTAM</h3>
+      <span class="ket" id="ketNotam"></span>
+    </div>
+    <div class="badan" id="badanNotam"></div>
+    <div class="kaki">
+      <button class="btn garis" id="btnBatalNotam" data-en="Cancel">Batal</button>
+      <button class="btn" id="btnSimpanNotam">Simpan</button>
     </div>
   </div>
 </div>
