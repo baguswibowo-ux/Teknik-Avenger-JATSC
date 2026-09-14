@@ -61,7 +61,10 @@ function kotakButir(){
     (daftar || []).forEach(k=>{
       bklKejadian(k).forEach(j=>{
         const tanggal = bklTgl(j);
-        const orang = dinasPadaTanggal(unit, j);
+        // Kegiatan yang menyebut Lokasi hanya tertuju ke yang berdinas di
+        // gedung itu: Daily Check JATSC bukan pekerjaan yang berdinas PSN.
+        const dinas = dinasPadaTanggal(unit, j);
+        const orang = dinas && dinas.filter(o=>gedungCocok(k, o.kode));
         keluar.push({
           unit, k, tanggal,
           hari:  j.getDay() || 7,
@@ -275,7 +278,10 @@ function kotakBaris(b){
     : orang.length
       ? orang.map(o=>`<span class="kmk-orang${namaSaya(o.nama) ? ' saya' : ''}">${esc(o.nama)}
           <span class="mono">${esc(o.kode)}</span></span>`).join('')
-      : `<span class="kmk-samar">${T('tidak ada yang berdinas hari itu','nobody is rostered that day')}</span>`;
+      : `<span class="kmk-samar">${k.lokasi
+          ? T(`tidak ada yang berdinas di ${k.lokasi === 'new-jatsc' ? 'New JATSC' : 'JATSC'} hari itu`,
+              `nobody is rostered at ${k.lokasi === 'new-jatsc' ? 'New JATSC' : 'JATSC'} that day`)
+          : T('tidak ada yang berdinas hari itu','nobody is rostered that day')}</span>`;
 
   return `<article class="kmk ${sudah ? 'beres' : ''}${untukSaya ? ' saya' : ''}">
     <div class="kmk-kiri">

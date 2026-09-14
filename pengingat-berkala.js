@@ -17,6 +17,8 @@
  * dinas itu. Aturannya:
  *   - kejadian di periode berjalan (bklKejadian) yang tanggalnya ≤ hari ini;
  *   - kegiatan yang menyebut rombongan (PS / M) hanya untuk rombongan itu;
+ *   - kegiatan yang menyebut Lokasi (jatsc / new-jatsc) hanya untuk yang kode
+ *     dinasnya di gedung itu — PSJ tidak diingatkan Daily Check New JATSC;
  *   - yang sudah dikerjakan dilewati. Sudahnya dijawab LEMBAR E-Logbook untuk
  *     kegiatan bersumber E-Logbook (bklSudahTgl: ada baris lembar bertanggal
  *     sama), dan catatan berkala-selesai.json untuk yang dicentang manual.
@@ -185,6 +187,12 @@ export const rombongan = (kunci) => {
   return !s || s.libur ? '' : s.malam ? 'M' : 'PS';
 };
 
+/** Gedung sebuah kunci SHIFT — cermin gedungShift(): 'jatsc', 'new-jatsc', atau ''. */
+export const gedung = (kunci) => {
+  const nama = (SHIFT_MULAI[kunci] || {}).nama || '';
+  return /New JATSC/.test(nama) ? 'new-jatsc' : /JATSC/.test(nama) ? 'jatsc' : '';
+};
+
 /**
  * Kegiatan berkala satu unit yang harus dikerjakan orang yang berdinas dengan
  * kunci SHIFT `kunci`, pada saat `saatMs`.
@@ -199,11 +207,15 @@ export const rombongan = (kunci) => {
 export function kegiatanUntukDinas({ unit, kunci, saatMs, kegiatan, selesai, bukti }) {
   const hari = hariWib(saatMs);
   const punya = rombongan(kunci);
+  const gedungSaya = gedung(kunci);
   const keluar = [];
   for (const k of Array.isArray(kegiatan) ? kegiatan : []) {
     if (!k || !k.id) continue;
     const shift = k.shift === 'PS' || k.shift === 'M' ? k.shift : '';
     if (shift && punya && shift !== punya) continue;
+    // Kegiatan yang menyebut Lokasi hanya untuk yang berdinas di gedung itu
+    // (cermin gedungCocok dashboard); kode tanpa gedung tetap diingatkan.
+    if (k.lokasi && gedungSaya && gedungSaya !== k.lokasi) continue;
     const sumber = SUMBER_BUKTI[k.sumber];
     for (const j of kejadian(k, hari)) {
       const sisa = Math.round((j - hari) / HARI_MS);

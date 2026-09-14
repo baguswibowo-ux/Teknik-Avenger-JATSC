@@ -24,7 +24,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 import {
-  SUMBER_BUKTI, paketDibutuhkan, kejadian, kunciSelesai, rombongan,
+  SUMBER_BUKTI, paketDibutuhkan, kejadian, kunciSelesai, rombongan, gedung,
   kegiatanUntukDinas, kunciPengingatBerkala
 } from '../pengingat-berkala.js';
 import { SHIFT_MULAI } from '../pengingat-dinas.js';
@@ -44,7 +44,7 @@ function muatDashboard() {
   });
   const kode = baca('public', 'js', '02-kode-dinas.js') + '\n;' + baca('public', 'js', '23-berkala.js');
   vm.runInContext(kode, ctx);
-  return vm.runInContext('({ BERKALA_SUMBER, bklKejadian, bklKunciTgl, bklTgl, rombonganShift, SHIFT })', ctx);
+  return vm.runInContext('({ BERKALA_SUMBER, bklKejadian, bklKunciTgl, bklTgl, rombonganShift, gedungShift, SHIFT })', ctx);
 }
 
 /* Baris buatan yang menyentuh semua cabang saringan. */
@@ -138,13 +138,23 @@ test('rombongan sama dengan rombonganShift dashboard', () => {
   for (const k of Object.keys(SHIFT_MULAI)) assert.equal(rombongan(k), dash.rombonganShift(k), k);
 });
 
+test('gedung sama dengan gedungShift dashboard', () => {
+  const dash = muatDashboard();
+  for (const k of Object.keys(SHIFT_MULAI)) assert.equal(gedung(k), dash.gedungShift(k), k);
+  assert.equal(gedung('PSJ'), 'jatsc');
+  assert.equal(gedung('PNJ'), 'new-jatsc');
+  assert.equal(gedung('SPKLMN'), 'new-jatsc');
+  assert.equal(gedung('P'), '');
+  assert.equal(gedung('IJIN'), '');
+});
+
 /* Senin 14 September 2026, 08:00 WIB. */
 const SENIN_08 = Date.UTC(2026, 8, 14, 1);
 
 test('kegiatanUntukDinas: bukti lembar, catatan manual, rombongan, lewat, belum waktunya', () => {
   const kegiatan = [
-    { id: 'dc', nama: 'Daily Check', jenis: 'harian', sumber: 'dailycheck-jatsc', shift: '' },
-    { id: 'dcN', nama: 'Daily Check New', jenis: 'harian', sumber: 'dailycheck-newjatsc', shift: '' },
+    { id: 'dc', nama: 'Daily Check', jenis: 'harian', sumber: 'dailycheck-jatsc', shift: '', lokasi: 'jatsc' },
+    { id: 'dcN', nama: 'Daily Check New', jenis: 'harian', sumber: 'dailycheck-newjatsc', shift: '', lokasi: 'new-jatsc' },
     { id: 'nep', nama: 'Neptuno', jenis: 'mingguan', hari: [1], sumber: 'bk-neptuno', shift: 'PS' },
     { id: 'mlm', nama: 'Malam saja', jenis: 'mingguan', hari: [1], sumber: '', shift: 'M' },
     { id: 'rab', nama: 'Tiap Rabu', jenis: 'mingguan', hari: [3], sumber: '', shift: '' },
@@ -165,13 +175,16 @@ test('kegiatanUntukDinas: bukti lembar, catatan manual, rombongan, lewat, belum 
   const pilih = (kunci) => kegiatanUntukDinas({ unit: 'radtel', kunci, saatMs: SENIN_08, kegiatan, selesai, bukti })
     .map((x) => [x.k.id, x.sisa]);
 
-  assert.deepEqual(pilih('PSJ'), [['blt', -4], ['dcN', 0], ['nep', 0], ['aneh', 0]]);
+  // PSJ di JATSC: Daily Check New JATSC bukan pekerjaannya (laporan Bagus 14 Sep).
+  assert.deepEqual(pilih('PSJ'), [['blt', -4], ['nep', 0], ['aneh', 0]]);
   assert.deepEqual(pilih('MN'), [['blt', -4], ['dcN', 0], ['mlm', 0], ['aneh', 0]]);
+  // Kode tanpa gedung tetap diingatkan kegiatan berlokasi.
+  assert.deepEqual(pilih('P'), [['blt', -4], ['dcN', 0], ['nep', 0], ['aneh', 0]]);
 
   // Rabu sudah lewat pekan lalu tidak ikut: kejadian hanya di pekan berjalan.
   const rabu = kegiatanUntukDinas({ unit: 'radtel', kunci: 'PSJ', saatMs: Date.UTC(2026, 8, 18, 1), kegiatan, selesai, bukti });
   assert.ok(rabu.some((x) => x.k.id === 'rab' && x.sisa === -2));
-  assert.equal(pilih('PSJ').length, 4);
+  assert.equal(pilih('PSJ').length, 3);
 
   // Sebutan lembar ikut untuk yang bersumber E-Logbook, kosong untuk manual.
   const semua = kegiatanUntukDinas({ unit: 'radtel', kunci: 'MJ', saatMs: SENIN_08, kegiatan, selesai, bukti });

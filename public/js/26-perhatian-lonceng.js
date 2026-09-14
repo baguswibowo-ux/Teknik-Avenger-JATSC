@@ -70,6 +70,14 @@ function rombonganSaya(unit){
   return punya;
 }
 
+/** Kode dinas akun ini hari ini di satu unit — untuk mencocokkan gedung
+    kegiatan yang menyebut Lokasi (gedungCocok). */
+function kodeDinasSaya(unit){
+  return dinasUnit(unit)
+    .filter(s=>berdinasShift(s.k) && s.o.some(o=>namaSaya(o.n)))
+    .map(s=>s.k);
+}
+
 /** Pemberitahuan pribadi untuk akun yang sedang masuk. */
 function notifSaya(){
   const keluar = [];
@@ -97,6 +105,7 @@ function notifSaya(){
 
   unitDinasSaya().forEach(unit=>{
     const punya = rombonganSaya(unit);
+    const kodeSaya = kodeDinasSaya(unit);
     bklJatuhTempo(unit).forEach(({ k, sisa })=>{
       if(sisa > 1) return;      // yang masih jauh bukan urusan dinas hari ini
       // Pekerjaan yang menyebut rombongan hanya dibunyikan ke rombongan itu.
@@ -104,6 +113,9 @@ function notifSaya(){
       // itu perilaku sejak awal, dan seluruh kegiatan lama ada di keadaan itu.
       const shift = bklShift(k);
       if(shift && punya.size && !punya.has(shift)) return;
+      // Begitu juga Lokasi: Daily Check JATSC tidak dibunyikan ke yang
+      // berdinas di New JATSC. Kode tanpa gedung (P, S, M) tetap dibunyikan.
+      if(kodeSaya.length && !kodeSaya.some(kode=>gedungCocok(k, kode))) return;
       keluar.push({
         rupa: sisa < 0 ? 'bahaya' : 'awas',
         judul: sisa < 0

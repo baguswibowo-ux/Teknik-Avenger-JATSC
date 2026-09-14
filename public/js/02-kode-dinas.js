@@ -92,10 +92,36 @@ const URUT_PITA = ['PS','M','P','S'];
    sama dengan hari yang utuh PS, cuma dibagi dua. Karena itu P dan S ikut PS,
    bukan berdiri sendiri.
 
-   Huruf gedungnya sengaja tidak ikut. Pekerjaan berkala melekat pada peralatan
-   di unitnya, bukan pada gedung tempat orangnya duduk — memisahkan PSJ dari PSN
-   akan membuat satu pekerjaan yang sama harus ditulis dua kali. */
+   Huruf gedungnya tidak ikut di rombongan — gedung dibaca terpisah lewat
+   gedungShift() di bawah, dan hanya dipakai kalau kegiatannya sendiri menyebut
+   Lokasi. Kegiatan tanpa Lokasi tetap untuk seluruh unit. */
 const ROMBONGAN_NAMA = { PS:['PS','Day'], M:['Malam','Night'] };
+
+/**
+ * Gedung satu kode dinas: 'jatsc', 'new-jatsc', atau '' kalau kodenya tidak
+ * menyebut gedung (P, S, PS, M, nama lama) atau tidak dikenal.
+ *
+ * Dibaca dari nama di SHIFT, bukan dari huruf terakhir kodenya: PNJ berakhiran
+ * J padahal New JATSC, dan IJIN berakhiran N padahal bukan gedung apa pun.
+ *
+ * Dipakai untuk mengalamatkan kegiatan berkala yang menyebut Lokasi — Daily
+ * Check JATSC milik yang berdinas PSJ/MJ, bukan yang berdinas PSN/MN walau
+ * unitnya sama. Kode tanpa gedung dijawab '' dan yang memanggil TIDAK
+ * menyaringnya: pekerjaan yang terkirim ke dua gedung masih bisa dibetulkan,
+ * pekerjaan yang tidak terkirim ke siapa pun tidak ada yang tahu.
+ */
+const gedungShift = (kode) => {
+  const b = kodeBaku(kode);
+  const nama = b ? SHIFT[b].nama : '';
+  return /New JATSC/.test(nama) ? 'new-jatsc' : /JATSC/.test(nama) ? 'jatsc' : '';
+};
+
+/** Orang berkode dinas ini termasuk tujuan kegiatan `k`, menurut gedungnya? */
+const gedungCocok = (k, kode) => {
+  const lokasi = k && k.lokasi;
+  const g = gedungShift(kode);
+  return !lokasi || !g || g === lokasi;
+};
 
 /* =======================================================================
    PEMBAKU KODE — dari tulisan di lembar ke kunci SHIFT
