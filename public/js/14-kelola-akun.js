@@ -55,6 +55,9 @@ const akuSuperadmin  = () => !!akun && akun.superadmin === true;
 const bolehAturHak = () => !!akun && (akun.role === 'admin' || akun.role === 'adminunit' || akun.superadmin === true);
 
 const SEMUA_UNIT_PERAN = ['admin', 'pejabat', 'pic-dinas', 'pic-sparepart', 'pic-isr'];
+/* PIC membaca seluruh unit, tapi mengisi logbook hanya di unit yang dicentang
+   untuknya — centang unitnya pagar tulis sungguhan, bukan sekadar saran nama. */
+const PIC_PERAN = ['pic-dinas', 'pic-sparepart', 'pic-isr'];
 const samaIsi = (a, b) => a.length === b.length && a.every(k => b.includes(k));
 
 /** Cakupan unit orang yang sedang membuka layar.
@@ -202,6 +205,9 @@ const SARING_SEMUA_UNIT = '*';    // akun yang memegang seluruh unit
 const SARING_TANPA_UNIT = '-';    // akun yang belum diberi unit apa pun
 
 const punyaSemuaUnit = (u) => SEMUA_UNIT_PERAN.includes(u.role);
+/** Centang unitnya berarti sesuatu untuk hak: teknisi/adminunit (pagar buka) dan
+    PIC (pagar isi). Untuk admin/pejabat centang itu cuma saran nama teknisi. */
+const unitnyaPagar = (u) => !punyaSemuaUnit(u) || PIC_PERAN.includes(u.role);
 
 function akunLolosSaring(u){
   const unit  = el('fUnitAkun').value;
@@ -212,8 +218,8 @@ function akunLolosSaring(u){
   if(kata && !`${u.username} ${u.nama || ''}`.toLowerCase().includes(kata)) return false;
   if(!unit) return true;
   if(unit === SARING_SEMUA_UNIT) return punyaSemuaUnit(u);
-  if(unit === SARING_TANPA_UNIT) return !punyaSemuaUnit(u) && !(u.unit || []).length;
-  return !punyaSemuaUnit(u) && (u.unit || []).includes(unit);
+  if(unit === SARING_TANPA_UNIT) return unitnyaPagar(u) && !(u.unit || []).length;
+  return unitnyaPagar(u) && (u.unit || []).includes(unit);
 }
 
 /** Isi kedua pemilih dan petak sebaran. Nilai yang sedang dipilih dipertahankan
@@ -241,12 +247,12 @@ function gambarSaringAkun(){
 
   const dipilih = el('fUnitAkun').value;
   const petak = UNIT.map(u=>{
-    const n = USERS.filter(x=>!punyaSemuaUnit(x) && (x.unit || []).includes(u.kode)).length;
+    const n = USERS.filter(x=>unitnyaPagar(x) && (x.unit || []).includes(u.kode)).length;
     return [u.kode, n, u.nama, ''];
   });
   petak.push([SARING_SEMUA_UNIT, USERS.filter(punyaSemuaUnit).length,
     T('semua unit','all units'), '']);
-  const buntu = USERS.filter(x=>!punyaSemuaUnit(x) && !(x.unit || []).length).length;
+  const buntu = USERS.filter(x=>unitnyaPagar(x) && !(x.unit || []).length).length;
   if(buntu) petak.push([SARING_TANPA_UNIT, buntu, T('tanpa unit','no unit'), 'awas']);
 
   el('ringkasUnitAkun').innerHTML = petak.map(([kode, n, nama, rupa])=>
@@ -292,7 +298,7 @@ function gambarAkun(){
   const total = USERS.length;
   const hidup = USERS.filter(u=>u.aktif).length;
   const admin = USERS.filter(u=>u.role === 'admin' && u.aktif).length;
-  const buntu = USERS.filter(u=>u.aktif && !SEMUA_UNIT_PERAN.includes(u.role) && !(u.unit||[]).length).length;
+  const buntu = USERS.filter(u=>u.aktif && unitnyaPagar(u) && !(u.unit||[]).length).length;
 
   el('ubinAkun').innerHTML = [
     [T('Akun terdaftar','Accounts Registered'), total, T('seluruh peran','all roles'), 'biru'],
@@ -323,7 +329,7 @@ function gambarAkun(){
     (tampil.length ? '' : `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:22px">${
       T('Tidak ada akun yang cocok dengan saringan ini.','No account matches this filter.')}</td></tr>`) +
     tampil.map(u=>{
-      const semua = SEMUA_UNIT_PERAN.includes(u.role);
+      const semua = !unitnyaPagar(u);
       const unit = semua
         ? `<span class="pil">${T('seluruh unit','all units')}</span>`
         : (u.unit || []).length
@@ -800,12 +806,16 @@ const unitTercentang = () =>
 
 function segarkanUnitKartu(){
   const semua = SEMUA_UNIT_PERAN.includes(el('aRole').value);
+  const pic = PIC_PERAN.includes(el('aRole').value);
   // Administrator dan pejabat memegang seluruh unit lewat perannya, jadi kotak
   // ini bukan pagar akses buat mereka — melainkan tanda "tampilkan nama saya
   // sebagai teknisi di unit ini" pada isian nama teknisi di formulir. Kotak
   // tetap boleh diklik supaya opt-in itu bisa diatur dari sini.
   el('aUnit').classList.toggle('mati', false);
-  el('aUnitKet').textContent = semua
+  el('aUnitKet').textContent = pic
+    ? T('PIC melihat seluruh unit, tapi hanya bisa mengisi logbook di unit yang dicentang di sini — unit tempat ia berdinas. Tanpa centang, PIC hanya bisa melihat.',
+        'A PIC can view every unit but can only fill in logbooks for the units ticked here — the unit they work in. With none ticked, the PIC can only view.')
+    : semua
     ? T('Administrator dan pejabat sudah otomatis membuka seluruh unit lewat perannya. Centang di sini hanya berarti “tampilkan nama saya sebagai saran teknisi di unit ini” — dipakai pada isian nama teknisi di formulir. Kosong berarti tidak tampil sebagai saran di unit mana pun; akses tetap penuh.',
         'Administrators and officers already hold every unit through their role. Ticks here only mean “show my name as a technician suggestion in this unit” — used on the technician-name field in forms. Empty means no suggestions anywhere; access stays full.')
     : T('Teknisi harus punya minimal satu unit. Tanpa itu akunnya bisa masuk tapi tidak bisa membuka apa pun.',
