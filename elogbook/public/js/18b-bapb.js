@@ -35,7 +35,8 @@ const mapBapb = b => ({
   petugasTtd: b.PetugasTTD || '',
   diinputOleh: b.DiinputOleh || '', dibuatOlehUsername: b.DibuatOlehUsername || '', dibuatPada: b.DibuatPada || '',
   // Slot Manager Teknik dirutekan & dibubuhkan susulan — sejajar form lain.
-  ttdOleh: b.TtdOleh || '', ttdPada: b.TtdPada || '', ttdUntuk: b.TtdUntuk || ''
+  ttdOleh: b.TtdOleh || '', ttdPada: b.TtdPada || '', ttdUntuk: b.TtdUntuk || '',
+  lampiran: Array.isArray(b.Lampiran) ? b.Lampiran : []
 });
 
 /* ---------- Baris item dinamis ---------- */
@@ -116,6 +117,7 @@ function openBapbModal(){
   // Akun mantek tujuan TTD susulan — dikosongkan tiap membuka form baru.
   const akunSel = document.getElementById('bapbTeknikAkun');
   if (akunSel) akunSel.value = '';
+  resetLampiran('bapbLampiran');
 
   bapbItems = []; bapbItemSeq = 0;
   for (let i = 0; i < 2; i++) tambahBarisBapb();
@@ -139,7 +141,10 @@ function openBapbModal(){
   setTimeout(() => ['sigBapbPemakai','sigBapbPetugas'].forEach(resizeSigCanvas), 60);
 }
 
-function closeBapbModal(){ document.getElementById('bapbModalBg').classList.remove('show'); }
+function closeBapbModal(){
+  document.getElementById('bapbModalBg').classList.remove('show');
+  resetLampiran('bapbLampiran');
+}
 
 async function saveBapb(){
   const v = id => document.getElementById(id).value.trim();
@@ -153,6 +158,8 @@ async function saveBapb(){
   if (items.length === 0) { toast(T('bapbItemsKosong')); return; }
 
   const btn = document.getElementById('bapbSaveBtn'); btn.disabled = true;
+  const lampiran = kirimLampiran('bapbLampiran');
+  if (lampiran.length) toast(T('mengunggahLampiran'));
   try {
     const saved = await gsRun('addBapb', {
       unit: unitAktif,
@@ -169,7 +176,8 @@ async function saveBapb(){
       // Daftar nama teknisi pelaksana dibersihkan dan dikirim sebagai larik;
       // server yang merangkumnya menjadi kolom `petugas_nama` versi koma.
       petugasNamaList: bapbPetugasRows.map(t => (t.nama || '').trim()).filter(Boolean),
-      petugasTtd: getSigDataUrl('sigBapbPetugas')
+      petugasTtd: getSigDataUrl('sigBapbPetugas'),
+      lampiran
     });
     bapbList.unshift(mapBapb(saved));
     renderBapbList();
@@ -259,6 +267,9 @@ function openBapbDetail(id){
           : (escapeHtml(b.petugasNama) || '-')
       }${sigThumbHtml(b.petugasTtd)}</div>
     </div>
+    ${lampiranGaleriHtml(b.lampiran)}
+    ${bolehKelolaLampiranBapb(b) ? `<div style="margin-top:10px;"><button class="btn ghost" style="padding:6px 10px;"
+      onclick="openBapbLampiranModal('${b.id}')">${T('bapbKelolaLampiran')}</button></div>` : ''}
     <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line);">${diinputOlehHtml(b.diinputOleh, b.dibuatPada, String(b.tanggal || '').slice(0, 10))}</div>`;
   // Cetakan resmi masih di langkah 4 — tombol print disembunyikan dulu.
   const pb = document.getElementById('formDetailPrintBtn');
@@ -319,6 +330,84 @@ async function simpanBapbPemakai(){
     renderBapbList();
     closeBapbPemakaiModal();
     // Buka lagi detailnya supaya hasilnya langsung terlihat di tempat yang sama.
+    openBapbDetail(id);
+    toast(T('bapbTersimpan'));
+  } catch (e) {
+    toast(T('gagalSimpan') + ' — ' + (e.message || T('coba')));
+  }
+  btn.disabled = false;
+}
+
+/* ---------- Kelola lampiran ----------
+   Pembuat lembar atau admin, kapan pun — juga sesudah Manager Teknik tanda
+   tangan: lampiran (foto pemasangan, scan) bukan isi lembar yang disahkan.
+   Server menjaga hal yang sama di suntingLampiranBapb. */
+
+function bolehKelolaLampiranBapb(b){
+  if (!b) return false;
+  if (typeof adminAktif === 'function' && adminAktif()) return true;
+  if (typeof bolehMenulis === 'function' && !bolehMenulis()) return false;
+  return !!(userSaatIni && b.dibuatOlehUsername && userSaatIni.username === b.dibuatOlehUsername);
+}
+
+let bapbLampiranTargetId = null;
+let bapbLampiranBuang = [];
+
+function renderBapbLampiranAda(){
+  const wrap = document.getElementById('bapbLampiranAda');
+  const b = bapbList.find(x => x.id === bapbLampiranTargetId);
+  if (!wrap || !b) return;
+  if (!b.lampiran.length) { wrap.innerHTML = `<div class="subtle-note">${T('bapbLampiranKosong')}</div>`; return; }
+  wrap.innerHTML = b.lampiran.map(l => {
+    const buang = bapbLampiranBuang.includes(l.ID);
+    return `
+    <div class="lampiran-item${buang ? ' dibuang' : ''}">
+      <span>${String(l.Mime||'').startsWith('image/') ? '🖼' : '📄'}</span>
+      <a class="nama" href="${l.Path}" target="_blank" rel="noopener" title="${escapeHtml(l.Nama)}">${escapeHtml(l.Nama)}</a>
+      <span class="ukuran">${ukuranTeks(l.Ukuran||0)}</span>
+      <button class="icon-btn" title="${buang ? T('batalBuangLampiran') : T('buangLampiran')}" onclick="toggleBuangLampiranBapb('${l.ID}')">${buang ? '↺' : '✕'}</button>
+    </div>`;
+  }).join('');
+}
+
+function toggleBuangLampiranBapb(id){
+  bapbLampiranBuang = bapbLampiranBuang.includes(id)
+    ? bapbLampiranBuang.filter(x => x !== id)
+    : bapbLampiranBuang.concat(id);
+  renderBapbLampiranAda();
+}
+
+function openBapbLampiranModal(id){
+  const b = bapbList.find(x => x.id === id);
+  if (!b) return;
+  bapbLampiranTargetId = id;
+  bapbLampiranBuang = [];
+  resetLampiran('bapbLampiranBaru');
+  renderBapbLampiranAda();
+  document.getElementById('bapbLampiranBg').classList.add('show');
+}
+
+function closeBapbLampiranModal(){
+  document.getElementById('bapbLampiranBg').classList.remove('show');
+  bapbLampiranTargetId = null;
+  bapbLampiranBuang = [];
+  resetLampiran('bapbLampiranBaru');
+}
+
+async function simpanBapbLampiran(){
+  if (!bapbLampiranTargetId) return;
+  const id = bapbLampiranTargetId;
+  const tambah = kirimLampiran('bapbLampiranBaru');
+  const buang = bapbLampiranBuang.slice();
+  if (!tambah.length && !buang.length) { toast(T('bapbLampiranTakBerubah')); return; }
+  const btn = document.getElementById('bapbLampiranSaveBtn'); btn.disabled = true;
+  if (tambah.length) toast(T('mengunggahLampiran'));
+  try {
+    const saved = await gsRun('suntingLampiranBapb', id, tambah, buang);
+    const i = bapbList.findIndex(x => x.id === id);
+    if (i >= 0) bapbList[i] = mapBapb(saved);
+    renderBapbList();
+    closeBapbLampiranModal();
     openBapbDetail(id);
     toast(T('bapbTersimpan'));
   } catch (e) {

@@ -229,6 +229,21 @@ CREATE TABLE IF NOT EXISTS bapb (
 );
 CREATE INDEX IF NOT EXISTS idx_bapb_unit ON bapb(unit, tanggal);
 
+-- Lampiran BAPB (foto pemasangan, scan berita acara). Sepola lampiran_ltk.
+-- Boleh ditambah/dibuang sesudah tersimpan oleh pembuat lembar atau admin —
+-- juga sesudah Manager Teknik tanda tangan, karena lampiran bukan isi lembar
+-- yang ditandatangani (lihat suntingLampiranBapb).
+CREATE TABLE IF NOT EXISTS lampiran_bapb (
+  id           TEXT PRIMARY KEY,
+  bapb_id      TEXT NOT NULL REFERENCES bapb(id) ON DELETE CASCADE,
+  nama         TEXT NOT NULL DEFAULT '',
+  path         TEXT NOT NULL DEFAULT '',
+  mime         TEXT NOT NULL DEFAULT '',
+  ukuran       INTEGER NOT NULL DEFAULT 0,
+  dibuat_pada  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_lampiran_bapb ON lampiran_bapb(bapb_id);
+
 -- DS Test: uji sambungan direct speech ke tiap site, satu lembar per sesi uji.
 CREATE TABLE IF NOT EXISTS dstest (
   id                TEXT PRIMARY KEY,
@@ -1370,6 +1385,61 @@ function hapusBerkasLampiranLtk(ltkId) {
   for (const l of rows) removeSignatureFile(l.path);
 }
 
+/* ---------- Lampiran BAPB ---------- */
+
+function lampiranBapbUntuk(bapbIds) {
+  const hasil = new Map();
+  if (!bapbIds.length) return hasil;
+  const tanda = bapbIds.map(() => '?').join(',');
+  const rows = db.prepare(
+    `SELECT * FROM lampiran_bapb WHERE bapb_id IN (${tanda}) ORDER BY dibuat_pada`
+  ).all(...bapbIds);
+  for (const l of rows) {
+    if (!hasil.has(l.bapb_id)) hasil.set(l.bapb_id, []);
+    hasil.get(l.bapb_id).push(rowToLampiran(l));
+  }
+  return hasil;
+}
+
+function tambahLampiranBapb(bapbId, daftar) {
+  if (!Array.isArray(daftar) || daftar.length === 0) return [];
+  const ins = db.prepare(`INSERT INTO lampiran_bapb (id, bapb_id, nama, path, mime, ukuran, dibuat_pada)
+                          VALUES (?, ?, ?, ?, ?, ?, ?)`);
+  const hasil = [];
+  for (const f of daftar) {
+    const row = tulisBerkasLampiran(f);
+    if (!row) continue;
+    ins.run(row.id, bapbId, row.nama, row.path, row.mime, row.ukuran, nowIso());
+    hasil.push(rowToLampiran(row));
+  }
+  return hasil;
+}
+
+/**
+ * Tambah dan/atau buang lampiran satu BAPB sekaligus. Hanya pembuat lembar
+ * atau administrator. Jatah dihitung sesudah yang dibuang, jadi mengganti
+ * satu berkas di BAPB yang lampirannya sudah penuh tetap bisa sekali simpan.
+ */
+export function suntingLampiranBapb(bapbId, tambah, buang, { username = '', admin = false } = {}) {
+  const r = db.prepare('SELECT dibuat_oleh FROM bapb WHERE id = ?').get(String(bapbId));
+  if (!r) throw new Error('BAPB tidak ditemukan — mungkin sudah dihapus.');
+  if (!admin && String(r.dibuat_oleh || '') !== String(username || '')) {
+    throw new Error('Hanya pembuat lembar ini atau administrator yang boleh mengubah lampirannya.');
+  }
+  const daftarTambah = Array.isArray(tambah) ? tambah : [];
+  const idBuang = (Array.isArray(buang) ? buang : []).map(String);
+  const milik = db.prepare('SELECT id, path FROM lampiran_bapb WHERE bapb_id = ?').all(String(bapbId));
+  const dibuang = milik.filter((l) => idBuang.includes(String(l.id)));
+  const sisa = milik.length - dibuang.length;
+  if (sisa + daftarTambah.length > LAMPIRAN_MAKS_JUMLAH) {
+    throw new Error(`Maksimal ${LAMPIRAN_MAKS_JUMLAH} lampiran per BAPB. Sesudah yang dibuang tinggal ${sisa}.`);
+  }
+  tambahLampiranBapb(String(bapbId), daftarTambah);
+  const del = db.prepare('DELETE FROM lampiran_bapb WHERE id = ? AND bapb_id = ?');
+  for (const l of dibuang) { del.run(l.id, String(bapbId)); removeSignatureFile(l.path); }
+  return getBapb(String(bapbId));
+}
+
 /* ============== LOGBOOK ============== */
 
 /**
@@ -2400,7 +2470,8 @@ const rowToBapb = (r, extra = {}) => {
     DibuatOlehUsername: r.dibuat_oleh || '',
     DibuatPada: r.dibuat_pada || '',
     // Keterangan susulan slot Manager Teknik — sejajar form lain.
-    TtdOleh: extra.ttdOleh ?? (r.ttd_oleh || ''), TtdPada: r.ttd_pada || '', TtdUntuk: r.ttd_untuk || ''
+    TtdOleh: extra.ttdOleh ?? (r.ttd_oleh || ''), TtdPada: r.ttd_pada || '', TtdUntuk: r.ttd_untuk || '',
+    Lampiran: extra.lampiran || []
   };
 };
 
@@ -2408,15 +2479,22 @@ export function listBapb(unit = 'radkom', limit = 200) {
   const rows = db.prepare(`SELECT * FROM bapb WHERE unit = ?
                            ORDER BY tanggal DESC, dibuat_pada DESC LIMIT ?`).all(unit, limit);
   const nama = petaNamaPengguna();
+  const lamp = lampiranBapbUntuk(rows.map((r) => r.id));
   return rows.map((r) => rowToBapb(r, {
     diinputOleh: namaTampil(nama, r.dibuat_oleh),
-    ttdOleh: namaTampil(nama, r.ttd_oleh)
+    ttdOleh: namaTampil(nama, r.ttd_oleh),
+    lampiran: lamp.get(r.id) || []
   }));
 }
 
 export function insertBapb(rec = {}, olehUsername = '', olehNama = '') {
   const teks = (v) => String(v ?? '').trim();
   const items = Array.isArray(rec.items) ? rec.items.map(bapbItemBersih) : [];
+  // Jatah lampiran diperiksa sebelum barisnya masuk — kalau ditolak sesudahnya,
+  // BAPB-nya terlanjur tersimpan tanpa lampiran padahal layar bilang gagal.
+  if (Array.isArray(rec.lampiran) && rec.lampiran.length > LAMPIRAN_MAKS_JUMLAH) {
+    throw new Error(`Maksimal ${LAMPIRAN_MAKS_JUMLAH} lampiran per BAPB.`);
+  }
 
   // Nama teknisi pelaksana bisa jamak. Yang datang: `petugasNamaList` (larik).
   // `petugas_nama` diisi rangkumannya (dipisah koma) supaya kolom aslinya tetap
@@ -2454,7 +2532,11 @@ export function insertBapb(rec = {}, olehUsername = '', olehNama = '') {
     .run(row.id, row.unit, row.nomor, row.tanggal, row.untuk_pekerjaan, row.lokasi, row.items_json,
          row.pemakai_nama, row.pemakai_ttd, row.teknik_nama, row.teknik_ttd, row.ttd_untuk,
          row.petugas_nama, row.petugas_nama_list, row.petugas_ttd, row.dibuat_pada, olehUsername);
-  return rowToBapb(row, { diinputOleh: olehNama || olehUsername });
+  const lampiran = tambahLampiranBapb(row.id, rec.lampiran);
+  // dibuat_oleh ikut disertakan: tanpanya DibuatOlehUsername kosong di jawaban
+  // ini, dan tombol yang khusus pembuat (ubah TTD pemakai, kelola lampiran)
+  // baru muncul setelah halaman dimuat ulang.
+  return rowToBapb({ ...row, dibuat_oleh: olehUsername }, { diinputOleh: olehNama || olehUsername, lampiran });
 }
 
 /**
@@ -2495,12 +2577,17 @@ export function getBapb(id) {
   const nama = petaNamaPengguna();
   return rowToBapb(r, {
     diinputOleh: namaTampil(nama, r.dibuat_oleh),
-    ttdOleh: namaTampil(nama, r.ttd_oleh)
+    ttdOleh: namaTampil(nama, r.ttd_oleh),
+    lampiran: lampiranBapbUntuk([id]).get(id) || []
   });
 }
 
 export function removeBapb(id) {
   const r = db.prepare('SELECT pemakai_ttd, teknik_ttd, petugas_ttd FROM bapb WHERE id = ?').get(id);
+  // Berkas lampirannya dibuang dulu; barisnya ikut terhapus lewat ON DELETE CASCADE.
+  for (const l of db.prepare('SELECT path FROM lampiran_bapb WHERE bapb_id = ?').all(id)) {
+    removeSignatureFile(l.path);
+  }
   db.prepare('DELETE FROM bapb WHERE id = ?').run(id);
   if (r) {
     removeSignatureFile(r.pemakai_ttd);

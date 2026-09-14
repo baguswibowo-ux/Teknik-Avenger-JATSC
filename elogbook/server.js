@@ -77,7 +77,7 @@ const {
   LOKASI,
   tambahLampiranLtk, hapusLampiranLtk, getLtk,
   listLtk, insertLtk, removeLtk,
-  listBapb, insertBapb, updateBapb, removeBapb,
+  listBapb, insertBapb, updateBapb, removeBapb, suntingLampiranBapb,
   getUserByUsername, verifyPassword, createUser, countUsers, hapusUser,
   jenisTtdSah, unitCatatan, tandaTanganiCatatan, listPejabatAktif, listPejabatUnit, listTeknisiUnit, listAkunAktif, getInboxTtd,
   getTtdTersimpan, simpanTtdTersimpan, hapusTtdTersimpan, pilihTtdTersimpanAktif, rekapMentah,
@@ -782,7 +782,7 @@ async function unitDanHakAkses(user, unit) {
 /** Fungsi yang menambah atau mengubah data. Pejabat ditolak di sini. */
 const API_TULIS = new Set([
   'addEntry', 'addDailyCheck', 'addIssue', 'addMonitoring', 'addLtk', 'addDsTest', 'addBerkala',
-  'addBapb', 'updateBapb',
+  'addBapb', 'updateBapb', 'suntingLampiranBapb',
   'updateEntry', 'updateDailyCheck', 'updateDsTest', 'updateTtdRouting',
   // Menutup isu dan menempel bukti penutup bukan admin-only: teknisi
   // yang menyelesaikan gangguan boleh menandai isunya selesai.
@@ -1218,6 +1218,16 @@ const API = {
 
   /** Sunting susulan panel Manager Pemakai — hanya pembuat lembar atau admin,
       dan hanya selama Manager Teknik belum menandatangani (dijaga updateBapb). */
+  /** Tambah/buang lampiran BAPB — pembuat lembar atau admin, juga sesudah
+      Manager Teknik tanda tangan (dijaga suntingLampiranBapb di db.js). */
+  suntingLampiranBapb: async (id, tambah, buang, user) => {
+    const unit = await unitCatatan('bapb', String(id));
+    if (!unit) throw new Error('Catatan tidak ditemukan — mungkin sudah dihapus.');
+    await pastikanUnit(user, unit);
+    return suntingLampiranBapb(String(id), tambah || [], buang || [],
+                               { username: user.username, admin: isAdmin(user) });
+  },
+
   updateBapb: async (id, patch, user) => {
     const unit = await unitCatatan('bapb', String(id));
     if (!unit) throw new Error('Catatan tidak ditemukan — mungkin sudah dihapus.');
@@ -1860,6 +1870,8 @@ const DOKUMEN_FN = {
                          tambahan: (a) => `${(a[1] || []).length} berkas` },
   deleteLtkLampiran:   { jenis: 'ltk',        aksi: 'lampiran-hapus' },
   updateBapb:          { jenis: 'bapb',       aksi: 'ubah' },
+  suntingLampiranBapb: { jenis: 'bapb',       aksi: 'lampiran-ubah',
+                         tambahan: (a) => `+${(a[1] || []).length} / −${(a[2] || []).length} berkas` },
   deleteBapb:          { jenis: 'bapb',       aksi: 'hapus' },
   updateIssueField:    { jenis: 'isu',        aksi: 'ubah',
                          tambahan: (a) => `${String(a[1] || '')}: ${potong(String(a[2] ?? ''), 60) || '(kosong)'}` },
