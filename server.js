@@ -4641,26 +4641,75 @@ function gabung(dir, daftar) {
      gabungan js yang 717 KB mentah butuh tiga detik penuh di sana tiap kali
      tepiannya menarik ulang. Sebagai gzip ia sekitar seperlima. */
   const gz = zlib.gzipSync(isi, { level: 9 });
-  gabungTersimpan.set(dir, { kunci, isi, gz });
-  return { isi, gz };
+  // Sidik isi: ikut di alamat yang disebut index.html (?v=), dan jadi ETag.
+  const sidik = crypto.createHash('sha1').update(isi).digest('hex').slice(0, 12);
+  const paket = { kunci, isi, gz, sidik };
+  gabungTersimpan.set(dir, paket);
+  return paket;
 }
 
+/* UMUR SIMPAN GABUNGAN — kenapa bukan 60 detik lagi
+ *
+ * Diukur 14 Sep 2026 dari peramban: refresh halaman depan 9,5 s, dan 8,6 s
+ * di antaranya menunggu semua.css + semua.js. Server menjawab dalam 2 ms.
+ * Dengan umur 60 detik, tepian Cloudflare sudah basi hampir tiap kali ada
+ * yang membuka (pemakainya sedikit), lalu menarik ULANG seluruh isinya naik
+ * tunnel ~1,6 Mbps yang tidak stabil — tanpa ETag ia bahkan tidak bisa cuma
+ * bertanya "masih sama?".
+ *
+ * Sekarang index.html menyebut `semua.js?v=<sidik isi>`. Alamat bersidik
+ * isinya tidak akan pernah berubah, jadi disimpan setahun (immutable): tepian
+ * dan peramban tidak perlu bertanya lagi. Begitu satu berkas sumber disunting,
+ * sidiknya berganti, index.html (no-cache) menyebut alamat baru, dan semua
+ * orang mendapat isi baru pada refresh berikutnya — tetap tanpa Ctrl+F5.
+ *
+ * Alamat tanpa ?v= atau dengan sidik lama tetap dijawab isi terkini dengan
+ * umur 60 detik seperti dulu, supaya halaman yang terlanjur terbuka tidak
+ * menyimpan isi basi setahun. */
 function kirimGabungan(req, res, dir, daftar, tipe) {
   const paket = gabung(dir, daftar);
   const pakaiGzip = /\bgzip\b/.test(req.headers['accept-encoding'] || '');
   const badan = pakaiGzip ? paket.gz : paket.isi;
   res.type(tipe);
-  res.setHeader('Cache-Control', 'public, max-age=60');
+  res.setHeader('Cache-Control', req.query.v === paket.sidik
+    ? 'public, max-age=31536000, immutable'
+    : 'public, max-age=60');
+  res.setHeader('ETag', `"${paket.sidik}${pakaiGzip ? '-gz' : ''}"`);
   // Tanpa Vary, tepian bisa menyimpan jawaban terkompresi lalu menyodorkannya
   // ke peminta yang tidak menyebut gzip - dan yang sampai ke sana sampah.
   res.setHeader('Vary', 'Accept-Encoding');
   if (pakaiGzip) res.setHeader('Content-Encoding', 'gzip');
+  if (req.fresh) return res.status(304).end();
   res.setHeader('Content-Length', badan.length);
   res.end(badan);
 }
 
 app.get('/js/semua.js',   (req, res) => kirimGabungan(req, res, 'js',  URUTAN_JS,  'application/javascript; charset=utf-8'));
 app.get('/css/semua.css', (req, res) => kirimGabungan(req, res, 'css', URUTAN_CSS, 'text/css; charset=utf-8'));
+
+/* Halaman induk dengan alamat gabungan bersidik (lihat UMUR SIMPAN GABUNGAN).
+   Berkas index.html di cakram tidak diubah - sidiknya ditempel saat disajikan,
+   jadi yang menyunting js/css tidak perlu ingat apa pun. Gagal menempel =
+   alamat polos, yang tetap berjalan seperti sebelumnya. */
+function kirimIndex(req, res, next) {
+  let html;
+  try { html = fs.readFileSync(path.join(ROOT, 'public', 'index.html'), 'utf8'); }
+  catch { return next(); }
+  try {
+    const js = gabung('js', URUTAN_JS), css = gabung('css', URUTAN_CSS);
+    html = html
+      .replace('src="/js/semua.js"', `src="/js/semua.js?v=${js.sidik}"`)
+      .replace('href="/css/semua.css"', `href="/css/semua.css?v=${css.sidik}"`);
+  } catch (e) {
+    console.error('[gabung] sidik index.html gagal, alamat polos dipakai:', e.message);
+  }
+  res.type('html');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('ETag', `"${crypto.createHash('sha1').update(html).digest('hex').slice(0, 16)}"`);
+  if (req.fresh) return res.status(304).end();
+  res.send(html);
+}
+app.get(['/', '/index.html', '/index'], kirimIndex);
 
 /* Berkas statis.
  *
