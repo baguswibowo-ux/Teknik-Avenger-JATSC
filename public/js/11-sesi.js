@@ -111,7 +111,7 @@ async function pulihkanSesi(){
 
 /** Kembali ke layar dan unit yang terbuka sebelum halaman disegarkan. */
 function pulihkanLayar(s){
-  if(s.unit && bolehBuka(s.unit)) bukaUnit(s.unit);
+  if(s.unit && bolehMasukUnit(s.unit)) bukaUnit(s.unit);
   // Layar yang tombolnya sedang tersembunyi tidak ikut dipulihkan — Kelola Akun
   // milik akun yang sebelumnya administrator, dan yang masuk sekarang belum
   // tentu orang yang sama.

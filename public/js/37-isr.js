@@ -39,11 +39,12 @@ function isrStatusTeks(sisa){
 }
 
 /** Seluruh ISR yang perlu diperhatikan, lintas unit yang boleh dibuka akun ini —
-    dipakai gambarPerhatian() di beranda. Terdesak di atas. */
+    dipakai gambarPerhatian() di beranda. Terdesak di atas. PIC ISR memegang ISR
+    seluruh unit, jadi ISR unit lain ikut untuknya. */
 function isrPerhatian(){
   const keluar = [];
   Object.entries(ISR).forEach(([unit, baris])=>{
-    if(!bolehBuka(unit)) return;
+    if(!bolehBuka(unit) && !modulPicSemuaUnit('isr')) return;
     (Array.isArray(baris) ? baris : []).forEach(row=>{
       const sisa = isrSisa(row);
       if(sisa == null || sisa > ISR_AWAS) return;

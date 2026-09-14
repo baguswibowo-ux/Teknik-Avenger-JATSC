@@ -24,7 +24,8 @@ const HAK_MODUL = ['dinas','dinas-ttd','dinas-cetak','berkala','personel','peral
    perannya melihat & membubuhkan TTD di E-Logbook — tidak menyunting apa pun di
    sini. Sama persis dengan PERAN_HANYA_LIHAT di server.js. */
 const PERAN_HANYA_LIHAT = new Set(['pejabat']);
-/* PIC dokumen: peran → satu modul yang boleh diisinya, di semua unit. Sama
+/* PIC dokumen: pada dasarnya teknisi di unit yang dicentang untuknya, ditambah
+   satu modul yang terbuka di SEMUA unit. Peta peran → modul tambahan itu; sama
    persis dengan PERAN_PIC di server.js. pic-dinas ikut 'dinas-cetak' (boleh
    menekan Cetak Jadwal Dinas). Ini cuma tebakan pra-jawaban server — gerbang
    sebenarnya tetap BOLEH[modul] dari /dinas/saya. */
@@ -33,10 +34,15 @@ const PERAN_PIC_MODUL = {
   'pic-sparepart': ['sparepart'],
   'pic-isr': ['isr']
 };
-/** Modul tunggal database yang dibuka peran PIC ini ('dinas'|'sparepart'|'isr'),
-    atau null kalau bukan PIC. Dipakai layar Database Unit untuk menampilkan
-    hanya satu subtab. */
+/** Modul semua-unit milik peran PIC ini ('dinas'|'sparepart'|'isr'), atau null
+    kalau bukan PIC. */
 const modulPicAkun = () => (akun && PERAN_PIC_MODUL[akun.role]) ? PERAN_PIC_MODUL[akun.role][0] : null;
+/** Satu-satunya subtab yang tampil di unit ini, atau null kalau semua subtab
+    tampil. Terisi hanya untuk PIC yang membuka unit di luar unitnya sendiri —
+    di unitnya sendiri PIC melihat semuanya seperti teknisi. */
+const modulPicDi = (kode) => bolehBuka(kode) ? null : modulPicAkun();
+/** Modul ini modul semua-unit milik PIC yang sedang masuk? */
+const modulPicSemuaUnit = (modul) => !!akun && (PERAN_PIC_MODUL[akun.role] || []).includes(modul);
 /* Peran yang dipertimbangkan di layar Hak Akses. Peran view-only sengaja tidak
    dimasukkan — centangnya toh tidak berpengaruh; menyingkirkannya menghindarkan
    janji palsu. Server sudah menyaring peranSah untuk alasan yang sama. */
@@ -133,7 +139,8 @@ const hakHapusHitung = (modul) =>
  * Ini soal tombol digambar atau tidak. Yang menolak sungguhan tetap server,
  * dan halaman tidak pernah jadi tempat penjagaannya.
  */
-const bolehSuntingDb = (modul) => !!BOLEH[modul] && bolehBuka(unitDibuka);
+const bolehSuntingDb = (modul) => !!BOLEH[modul]
+  && (bolehBuka(unitDibuka) || modulPicSemuaUnit(modul));
 
 function hakRapi(mentah){
   const bawaan = hakBawaan();
@@ -158,11 +165,11 @@ const hakHitung = (modul) => {
   // Peran view-only tidak pernah lolos, biar tombol simpan/tambah/hapus tidak
   // sempat digambar sekilas sebelum jawaban server datang.
   if(PERAN_HANYA_LIHAT.has(akun.role)) return false;
-  // PIC dokumen: hanya modulnya sendiri (hak.json tidak memuat peran ini).
-  const picModul = PERAN_PIC_MODUL[akun.role];
-  if(picModul) return picModul.includes(modul);
+  // PIC dokumen: modul PIC-nya selalu boleh; modul lain dibaca seperti teknisi.
+  if(modulPicSemuaUnit(modul)) return true;
+  const peran = PERAN_PIC_MODUL[akun.role] ? 'teknisi' : akun.role;
   const h = HAK[modul] || { peran:[], petugas:[] };
-  return h.peran.includes(akun.role)
+  return h.peran.includes(peran)
       || h.petugas.includes(String(akun.user || '').toLowerCase());
 };
 

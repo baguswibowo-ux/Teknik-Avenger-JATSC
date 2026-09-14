@@ -31,7 +31,7 @@ function gambarCincin(){
               : t.length ? `<span class="cip awas">${t.length} ${T('proses','in progress')}</span>`
               : `<span class="cip aman">normal</span>`;
     const minim = PART.filter(p=>p.unit === u.kode && p.stok < p.min).length;
-    const buka = bolehBuka(u.kode);
+    const buka = bolehMasukUnit(u.kode);
     /* Gambar pengenal unit — yang dipilih admin di kepala layar Database Unit
        (LOGO, lihat ikonUnitHtml) — dipakai di sini juga, supaya kartunya
        memperlihatkan unit yang sebenarnya, bukan menara karangan. Ilustrasinya
@@ -95,7 +95,7 @@ function gambarCincin(){
     });
     k.addEventListener('click', ()=>{
       const kode = k.dataset.unit;
-      if(!bolehBuka(kode)){ pesan(T('Akun '+akun.user+' tidak berhak membuka unit '+namaUnit(kode)+'.',
+      if(!bolehMasukUnit(kode)){ pesan(T('Akun '+akun.user+' tidak berhak membuka unit '+namaUnit(kode)+'.',
     'Account '+akun.user+' may not open the '+namaUnit(kode)+' unit.')); return; }
       bukaUnit(kode);
     });

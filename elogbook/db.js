@@ -751,17 +751,6 @@ export function unitUntukUser(user) {
   return KODE_UNIT.filter((k) => punya.has(k));
 }
 
-/** Unit yang boleh DIISI sebuah akun. Sama dengan unitUntukUser, kecuali PIC:
-    PIC membaca seluruh unit, tetapi mengisi logbook hanya di unit yang
-    dicentang untuknya — unit tempat ia sendiri berdinas, seperti teknisi. */
-export function unitTulisUser(user) {
-  if (!user) return [];
-  if (!PIC_ROLE.includes(user.role)) return unitUntukUser(user);
-  const rows = db.prepare('SELECT unit FROM user_unit WHERE user_id = ?').all(user.id);
-  const punya = new Set(rows.map((r) => r.unit));
-  return KODE_UNIT.filter((k) => punya.has(k));
-}
-
 export function setUnitUser(userId, daftar) {
   const bersih = [...new Set((Array.isArray(daftar) ? daftar : []).filter(unitSah))];
   db.prepare('DELETE FROM user_unit WHERE user_id = ?').run(userId);
@@ -771,18 +760,18 @@ export function setUnitUser(userId, daftar) {
 }
 
 // Peran PIC dokumen — penanggung-jawab satu jenis dokumen (jadwal dinas,
-// sparepart, atau ISR) LINTAS seluruh unit. Didefinisikan di sini, di atas
-// pemakaian pertamanya (loop bootstrap unit di bawah tidak boleh menaruh baris
-// user_unit untuk peran semua-unit). Dipakai lagi di ROLE_VALID dan SEMUA_UNIT.
+// sparepart, atau ISR). Di E-Logbook ia teknisi unit yang dicentang untuknya;
+// modul semua-unitnya hanya di dashboard. Didefinisikan di sini, di atas
+// pemakaian pertamanya (loop bootstrap unit di bawah) dan dipakai di ROLE_VALID.
 export const PIC_ROLE = ['pic-dinas', 'pic-sparepart', 'pic-isr'];
 
 // Akun yang sudah ada dibuat sebelum unit dikenal — beri akses Radtel supaya
 // tidak ada yang mendadak kehilangan logbook yang selama ini dipakainya.
-// Peran lintas-unit (admin, pejabat, dan PIC) sengaja dilewat: akses mereka
-// sudah lintas unit lewat peran, jadi baris user_unit di sini bukan pagar akses
-// melainkan opt-in tampil sebagai teknisi di unit itu (lihat listTeknisiUnit).
-// Menaruh 'radtel' otomatis untuk mereka berarti nama mereka muncul di daftar
-// saran teknisi Radtel tanpa pernah memintanya.
+// Admin dan pejabat sengaja dilewat: akses mereka sudah lintas unit lewat
+// peran, jadi baris user_unit di sini bukan pagar akses melainkan opt-in tampil
+// sebagai teknisi di unit itu (lihat listTeknisiUnit). PIC juga dilewat, tapi
+// alasannya lain: unit PIC adalah unit tempat ia berdinas, dan itu harus dipilih
+// administrator — bukan ditebak Radtel.
 const LEWAT_BOOTSTRAP_UNIT = ['admin', 'pejabat', ...PIC_ROLE];
 const qLewat = LEWAT_BOOTSTRAP_UNIT.map(() => '?').join(',');
 for (const u of db.prepare(`SELECT id FROM users WHERE role NOT IN (${qLewat})`).all(...LEWAT_BOOTSTRAP_UNIT)) {
@@ -819,11 +808,10 @@ db.prepare(
  * jadi tetap dibatasi unit yang diberikan kepadanya.
  *
  * pic-dinas / pic-sparepart / pic-isr — PIC (penanggung-jawab) satu jenis
- * dokumen LINTAS seluruh unit. Dipakai Dashboard Fasilitas Teknik: di sana
- * mereka hanya membuka satu database (jadwal dinas / sparepart / ISR) untuk
- * semua unit, boleh menyunting dan mencetak. Di E-Logbook mereka SEMUA_UNIT
- * (membaca seluruh unit) tetapi bukan pengisi — dashboard yang menegakkan
- * batas "satu modul saja". Lihat PIC_ROLE di atas.
+ * dokumen. Pada dasarnya teknisi di unit yang dicentang untuknya: di E-Logbook
+ * persis teknisi (hanya unitnya, boleh mengisi). Tambahannya hanya di
+ * Dashboard Fasilitas Teknik: satu database (jadwal dinas / sparepart / ISR)
+ * terbuka untuk SEMUA unit — dashboard yang menegakkan tambahan itu. Lihat PIC_ROLE di atas.
  *
  * Peran `pic` (lama, tanpa akhiran) sudah dihapus. Akun lama dengan role='pic'
  * dimigrasikan otomatis jadi `adminunit` di blok migrasi cold start di bawah.
@@ -832,8 +820,9 @@ export const ROLE_VALID = ['admin', 'pejabat', 'adminunit', 'teknisi', ...PIC_RO
 
 /** Peran yang boleh membuka seluruh unit tanpa perlu diberi satu per satu.
     adminunit sengaja TIDAK di sini: seluruh gunanya justru terletak pada
-    wilayahnya yang satu unit. PIC ikut — jangkauannya memang seluruh unit. */
-export const SEMUA_UNIT = ['admin', 'pejabat', ...PIC_ROLE];
+    wilayahnya yang satu unit. PIC juga tidak: di E-Logbook ia teknisi unitnya
+    sendiri; jangkauan semua-unitnya cuma untuk satu modul di dashboard. */
+export const SEMUA_UNIT = ['admin', 'pejabat'];
 
 /* ---------- Migrasi role: pic → adminunit ----------
    Peran `pic` dihapus. Akun lama diubah jadi `adminunit` — peran terdekat

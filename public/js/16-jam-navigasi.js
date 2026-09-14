@@ -52,7 +52,7 @@ function pindahLayar(nama){
   if(nama === 'unit' && !unitDibuka){
     const boleh = unitBoleh();
     if(boleh.length === 1){
-      unitDibuka = boleh[0].kode; subtabAktif = modulPicAkun() || 'peralatan';
+      unitDibuka = boleh[0].kode; subtabAktif = modulPicDi(unitDibuka) || 'peralatan';
       alatDipilih = (PERALATAN[unitDibuka] || [])[0]?.id || null;
       gambarPilihUnit(); gambarUnit();
     }

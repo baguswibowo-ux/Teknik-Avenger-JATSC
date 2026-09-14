@@ -13,7 +13,12 @@
 function gambarPilihUnit(){
   const boleh = unitBoleh();
   const semua = akun.unit === 'semua';
-  el('ketAkses').textContent = semua
+  const picModul = modulPicAkun();
+  const unitPenuh = UNIT.filter(u=>bolehBuka(u.kode));
+  el('ketAkses').textContent = picModul
+    ? T(`Peran ${peranAkun()} — ${unitPenuh.length ? 'unit ' + unitPenuh.map(u=>u.nama).join(', ') + ' terbuka penuh; ' : ''}${HAK_NAMA[picModul][0]} di seluruh ${UNIT.length} unit.`,
+        `Role ${peranAkun()} — ${unitPenuh.length ? unitPenuh.map(u=>u.nama).join(', ') + ' fully open; ' : ''}${HAK_NAMA[picModul][1]} across all ${UNIT.length} units.`)
+    : semua
     ? T(`Peran ${peranAkun()} — seluruh ${UNIT.length} unit terbuka.`,
         `Role ${peranAkun()} — all ${UNIT.length} units are open.`)
     : boleh.length === 1
@@ -40,9 +45,9 @@ function gambarPilihUnit(){
 }
 
 function bukaUnit(kode){
-  // PIC dokumen langsung mendarat di satu-satunya subtab yang dibukanya —
-  // subtab Peralatan tidak digambar untuk mereka.
-  unitDibuka = kode; subtabAktif = modulPicAkun() || 'peralatan';
+  // PIC dokumen di unit yang bukan unitnya langsung mendarat di satu-satunya
+  // subtab yang dibukanya — subtab Peralatan tidak digambar di sana.
+  unitDibuka = kode; subtabAktif = modulPicDi(kode) || 'peralatan';
   alatDipilih = (PERALATAN[kode] || [])[0] ? PERALATAN[kode][0].id : null;
   subDipilih = null;
   // Grup lokasi milik unit — waktu pindah unit tab aktifnya balik ke Semua,
@@ -193,9 +198,11 @@ async function ikonUnitBuang(unit){
 
 function gambarUnit(){
   if(!unitDibuka){
-    const boleh = unitBoleh();
+    // Yang disebut unit yang dipegang PENUH — untuk PIC, unit lain cuma
+    // membuka modul PIC-nya dan sudah diterangkan di baris ketAkses di atas.
+    const boleh = UNIT.filter(u=>bolehBuka(u.kode));
     const daftar = boleh.length === UNIT.length
-      ? T('seluruh unit','all units') : boleh.map(u=>esc(u.nama)).join(', ');
+      ? T('seluruh unit','all units') : boleh.map(u=>esc(u.nama)).join(', ') || T('belum ada unit','no unit yet');
     el('isiUnit').innerHTML = `<div class="panel"><div class="badan" style="color:var(--muted);font-size:13px;line-height:1.7">
       ${T('Pilih unit di atas untuk membuka databasenya. Akun','Pick a unit above to open its database. Account')}
       <b style="color:var(--text)">${esc(akun.user)}</b>
@@ -219,11 +226,11 @@ function gambarUnit(){
   const radkom = unitDibuka === 'radkom';
   const foto = FOTO[unitDibuka] || [];
 
-  // PIC dokumen hanya membuka satu subtab, di semua unit. Dipaksa di sini —
-  // bukan cuma disembunyikan tombolnya — supaya jalan pintas dari beranda /
-  // kotak masuk yang menyetel subtabAktif ke modul lain tidak sempat menampilkan
-  // panelnya (subisi yang subtabAktif-nya cocok akan tetap tergambar 'aktif').
-  const pic = modulPicAkun();
+  // PIC dokumen di unit yang bukan unitnya hanya membuka satu subtab. Dipaksa
+  // di sini — bukan cuma disembunyikan tombolnya — supaya jalan pintas dari
+  // beranda / kotak masuk yang menyetel subtabAktif ke modul lain tidak sempat
+  // menampilkan panelnya. Di unitnya sendiri PIC melihat semua subtab.
+  const pic = modulPicDi(unitDibuka);
   if(pic) subtabAktif = pic;
 
   // Untuk PIC, hanya tombol subtab miliknya yang digambar; sisanya '' (hilang).
@@ -251,7 +258,7 @@ function gambarUnit(){
         <!-- Bukan "unit ini": E-Logbook tidak membaca satu pun parameter URL,
              dan unit aktifnya cuma ada di memori — tidak ada cara menunjuknya
              dari luar. Yang dijanjikan tombol ini hanya membuka aplikasinya. -->
-        <a class="btn" href="#" data-elogbook>${T('Buka E-Logbook','Open E-Logbook')}</a>
+        ${pic ? '' : `<a class="btn" href="#" data-elogbook>${T('Buka E-Logbook','Open E-Logbook')}</a>`}
       </div>
     </div>
 

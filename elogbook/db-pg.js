@@ -632,11 +632,10 @@ export async function hapusUser(username, opts = {}) {
  * unit lamanya.
  *
  * pic-dinas / pic-sparepart / pic-isr — PIC (penanggung-jawab) satu jenis
- * dokumen LINTAS seluruh unit. Dipakai Dashboard Fasilitas Teknik: di sana
- * mereka hanya membuka satu database (jadwal dinas / sparepart / ISR) untuk
- * semua unit, boleh menyunting dan mencetak. Di E-Logbook mereka SEMUA_UNIT
- * (membaca seluruh unit) tetapi bukan pengisi — dashboard yang menegakkan
- * batas "satu modul saja". WAJIB sama persis dengan PIC_ROLE di db.js.
+ * dokumen. Pada dasarnya teknisi di unit yang dicentang untuknya: di E-Logbook
+ * persis teknisi (hanya unitnya, boleh mengisi). Tambahannya hanya di
+ * Dashboard Fasilitas Teknik: satu database (jadwal dinas / sparepart / ISR)
+ * terbuka untuk SEMUA unit. WAJIB sama persis dengan PIC_ROLE di db.js.
  *
  * Peran `pic` (lama, tanpa akhiran) sudah dihapus. Akun lama dengan role='pic'
  * dimigrasikan otomatis jadi `adminunit` di blok migrasi cold start di bawah.
@@ -646,8 +645,8 @@ export const ROLE_VALID = ['admin', 'pejabat', 'adminunit', 'teknisi', ...PIC_RO
 
 /** Peran yang boleh membuka seluruh unit tanpa perlu diberi satu per satu.
     adminunit sengaja TIDAK di sini: seluruh gunanya justru terletak pada
-    wilayahnya yang satu unit. PIC ikut — jangkauannya memang seluruh unit. */
-export const SEMUA_UNIT = ['admin', 'pejabat', ...PIC_ROLE];
+    wilayahnya yang satu unit. PIC juga tidak — lihat catatan PIC_ROLE di atas. */
+export const SEMUA_UNIT = ['admin', 'pejabat'];
 
 export async function setRole(username, role) {
   if (!ROLE_VALID.includes(role)) return false;
@@ -1009,15 +1008,6 @@ export async function unitUntukUser(user) {
   const rows = await q('SELECT unit FROM user_unit WHERE user_id = $1', [user.id]);
   const punya = new Set(rows.map((r) => r.unit));
   // Urutkan mengikuti urutan baku UNIT, bukan urutan baris database.
-  return KODE_UNIT.filter((k) => punya.has(k));
-}
-
-/** Unit yang boleh DIISI sebuah akun — lihat unitTulisUser di db.js. */
-export async function unitTulisUser(user) {
-  if (!user) return [];
-  if (!PIC_ROLE.includes(user.role)) return unitUntukUser(user);
-  const rows = await q('SELECT unit FROM user_unit WHERE user_id = $1', [user.id]);
-  const punya = new Set(rows.map((r) => r.unit));
   return KODE_UNIT.filter((k) => punya.has(k));
 }
 

@@ -877,12 +877,12 @@ const MODUL_HAK = ['dinas', 'dinas-ttd', 'dinas-cetak', 'berkala', 'personel',
 const PERAN_SAH = ['admin', 'pejabat', 'adminunit', 'teknisi',
                    'pic-dinas', 'pic-sparepart', 'pic-isr'];
 
-/* PIC dokumen — penanggung-jawab satu jenis dokumen LINTAS seluruh unit. Peta
-   peran → modul yang boleh diisinya. Bedanya dengan peran biasa: haknya TIDAK
-   datang dari hak.json (rapikanHak membuang peran di luar HAK_BAWAAN toh), tapi
-   dari peta ini — satu modul saja, di semua unit. Jangkauan semua-unit datang
-   dari E-Logbook (SEMUA_UNIT), jadi unitDipegang() sudah balas null untuknya.
-   PIC bukan penghapus (tidak masuk PERAN_HAPUS) dan bukan penanda-tangan. */
+/* PIC dokumen — penanggung-jawab satu jenis dokumen. Pada dasarnya TEKNISI di
+   unit yang dicentang untuknya (E-Logbook mengirim unit itu, jadi
+   unitDipegang() membalas unitnya, bukan null), ditambah SATU modul dari peta
+   ini yang terbuka di SEMUA unit. Untuk modul lain hak.json dibaca seolah
+   perannya teknisi (hakPeran). PIC bukan penghapus (tidak masuk PERAN_HAPUS)
+   dan bukan penanda-tangan. */
 const PERAN_PIC = { 'pic-dinas': 'dinas', 'pic-sparepart': 'sparepart', 'pic-isr': 'isr' };
 /** Modul yang boleh diisi sebuah peran PIC. pic-dinas ikut 'dinas-cetak' supaya
     lolos gerbang cetak Jadwal Dinas di POST /cetak-antrian. Kosong = bukan PIC. */
@@ -1008,6 +1008,9 @@ async function bacaHak() {
 }
 
 const peranUser = (user) => String((user && user.role) || '').toLowerCase();
+/** Peran yang dicocokkan ke hak.json. PIC dibaca sebagai teknisi — di luar
+    modul PIC-nya ia memang teknisi unitnya sendiri. */
+const hakPeran = (user) => (PERAN_PIC[peranUser(user)] ? 'teknisi' : peranUser(user));
 
 /**
  * Unit yang dipegang sebuah akun, menurut E-Logbook.
@@ -1058,15 +1061,14 @@ async function bolehIsi(user, modul, unit = '') {
   // Peran view-only tidak pernah lolos, walaupun hak.json terlanjur mencantumkannya.
   // rapikanHak() sudah membuang pejabat dari daftar, tapi ini palang keduanya.
   if (PERAN_HANYA_LIHAT.has(peranUser(user))) return false;
-  if (MODUL_PER_UNIT.has(modul) && !bolehUnit(user, unit)) return false;
-  // PIC dokumen: hanya satu modul (peta PERAN_PIC), di semua unit. hak.json
-  // tidak berlaku untuknya — haknya seluruhnya dari peta ini. Gerbang unit di
-  // atas sudah dilewati mulus karena PIC semua-unit (unitDipegang() = null).
+  // PIC dokumen: modul PIC-nya terbuka di SEMUA unit, jadi diperiksa sebelum
+  // pagar unit. Modul lain jatuh ke aturan teknisi di bawah — unitnya sendiri.
   const picBoleh = modulPicBoleh(peranUser(user));
-  if (picBoleh) return picBoleh.has(modul);
+  if (picBoleh && picBoleh.has(modul)) return true;
+  if (MODUL_PER_UNIT.has(modul) && !bolehUnit(user, unit)) return false;
   const hak = (await bacaHak())[modul];
   if (!hak) return false;
-  if (hak.peran.includes(peranUser(user))) return true;
+  if (hak.peran.includes(hakPeran(user))) return true;
   return hak.petugas.includes(String(user.username || '').toLowerCase());
 }
 
@@ -4127,28 +4129,28 @@ app.get('/cetak-antrian', async (req, res) => {
          tangannya (deputyUser=saya, status='menunggu-deputy')
        · permintaan lain yang sudah selesai / ditolak dengan Anda sebagai
          MT atau Deputy — supaya arsipnya tetap terlihat di sana. */
-  /* PIC dokumen (pic-dinas / pic-sparepart) menjangkau seluruh unit, jadi
-     kotak masuknya berisi permintaan jenis dokumennya dari SEMUA unit — bukan
-     hanya yang ditujukan namanya. Yang ditampilkan HANYA yang sudah 'disetujui':
-     PIC menerima HASIL akhirnya untuk dicetak (kartu inbox menggambar "Cetak
-     lagi" untuk status ini), bukan permintaan yang masih menunggu TTD. Alur TTD
-     pejabat tidak berubah; PIC bukan penanda-tangan, hanya pencetak. pic-isr
-     tidak punya jalur cetak — tidak ada jenis 'isr' di antrian. */
+  /* PIC dokumen (pic-dinas / pic-sparepart) menjangkau seluruh unit untuk
+     jenis dokumennya, jadi kotak masuknya DITAMBAH permintaan jenis itu dari
+     SEMUA unit — di atas yang memang ditujukan namanya seperti akun lain.
+     Tambahannya HANYA yang sudah 'disetujui': PIC menerima HASIL akhirnya untuk
+     dicetak (kartu inbox menggambar "Cetak lagi" untuk status ini), bukan
+     permintaan yang masih menunggu TTD. PIC bukan penanda-tangan, hanya
+     pencetak. pic-isr tidak punya jalur cetak — tidak ada jenis 'isr'. */
   const picJenis = PERAN_PIC[peranUser(user)];   // 'dinas' | 'sparepart' | 'isr' | undefined
-  const untukSaya  = picJenis
-    ? daftar.filter((b) => b.jenis === picJenis && b.status === 'disetujui')
-    : daftar.filter((b) => (
-        (b.pejabatUser === saya) || (b.deputyUser && b.deputyUser === saya)
-      ) && jenisLolos(b));
+  const ditujukan = (b) => ((b.pejabatUser === saya) || (b.deputyUser && b.deputyUser === saya))
+                           && jenisLolos(b);
+  const untukSaya  = daftar.filter((b) => ditujukan(b)
+    || (picJenis && b.jenis === picJenis && b.status === 'disetujui'));
   const dariSaya   = daftar.filter((b) => b.pembuatUser === saya);
   const semuanya   = superAtauAdmin ? daftar : [];
 
   res.json({
     untukSaya, dariSaya, semua: semuanya,
-    // Ringkasan untuk lencana rel di dashboard. Untuk PIC sengaja 0: yang
-    // masuk kotaknya adalah hasil untuk dicetak, bukan tugas menanti tanda
-    // tangan — lencana yang tak bisa dikosongkan siapa pun akan berhenti dibaca.
-    menungguSaya: picJenis ? 0 : untukSaya.filter((b) =>
+    // Ringkasan untuk lencana rel di dashboard. Tambahan PIC (hasil untuk
+    // dicetak, status 'disetujui') sengaja tidak terhitung: itu bukan tugas
+    // menanti tanda tangan, dan lencana yang tak bisa dikosongkan siapa pun
+    // akan berhenti dibaca.
+    menungguSaya: untukSaya.filter((b) =>
       (b.status === 'menunggu' && b.pejabatUser === saya)
       || (b.status === 'menunggu-deputy' && b.deputyUser === saya)).length
   });

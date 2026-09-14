@@ -54,10 +54,9 @@ const akuSuperadmin  = () => !!akun && akun.superadmin === true;
  *  dimatikan), dan server melakukan validasi ulang. */
 const bolehAturHak = () => !!akun && (akun.role === 'admin' || akun.role === 'adminunit' || akun.superadmin === true);
 
-const SEMUA_UNIT_PERAN = ['admin', 'pejabat', 'pic-dinas', 'pic-sparepart', 'pic-isr'];
-/* PIC membaca seluruh unit, tapi mengisi logbook hanya di unit yang dicentang
-   untuknya — centang unitnya pagar tulis sungguhan, bukan sekadar saran nama. */
-const PIC_PERAN = ['pic-dinas', 'pic-sparepart', 'pic-isr'];
+/* PIC tidak di sini: unitnya dipilih seperti teknisi — modul semua-unitnya
+   datang dari perannya, bukan dari daftar unit. */
+const SEMUA_UNIT_PERAN = ['admin', 'pejabat'];
 const samaIsi = (a, b) => a.length === b.length && a.every(k => b.includes(k));
 
 /** Cakupan unit orang yang sedang membuka layar.
@@ -121,28 +120,8 @@ function pasangTabAkun(){
   const bagAkt = el('bagianAktivasiUnit');
   if(bagAkt) bagAkt.hidden = !(bolehAturHak() && !bolehKelolaAkun());
 
-  // PIC dokumen: rel navigasi dipangkas ke yang relevan. Beranda & Database Unit
-  // selalu ada. pic-dinas/pic-sparepart menyimpan Kotak Masuk (menerima hasil
-  // cetak jenis dokumennya); pic-dinas juga menyimpan Dinas Hari Ini. Selebihnya
-  // (Trouble Semua Unit, dan Dinas Hari Ini untuk PIC non-dinas) disembunyikan.
-  const picModul = (typeof modulPicAkun === 'function') ? modulPicAkun() : null;
-  const setRel = (layar, tampil) => {
-    const b = document.querySelector(`#rel button[data-layar="${layar}"]`);
-    if(b) b.hidden = !tampil;
-  };
-  setRel('trouble', !picModul);
-  setRel('dinas',   !picModul || picModul === 'dinas');
-  setRel('kotak',   !picModul || picModul === 'dinas' || picModul === 'sparepart');
-  // Kalau layar yang sedang terbuka baru saja disembunyikan untuk PIC, mundur
-  // ke beranda supaya ia tidak menatap layar yang tombolnya sudah hilang.
-  if(picModul){
-    const aktif = document.querySelector('.layar.aktif');
-    const layarAktif = aktif ? aktif.id.replace(/^l-/, '') : '';
-    const bolehLayar = new Set(['beranda', 'unit', 'akun', 'aktivitas',
-      ...(picModul === 'dinas' ? ['dinas'] : []),
-      ...((picModul === 'dinas' || picModul === 'sparepart') ? ['kotak'] : [])]);
-    if(layarAktif && !bolehLayar.has(layarAktif)) pindahLayar('beranda');
-  }
+  // PIC dokumen dulu dipangkas rel navigasinya. Sekarang PIC teknisi di unitnya
+  // sendiri, jadi relnya sama dengan teknisi — tidak ada yang disembunyikan.
 }
 
 /** Dijaga supaya dua panggilan yang tumpang tindih tidak jadi dua perjalanan
@@ -205,9 +184,6 @@ const SARING_SEMUA_UNIT = '*';    // akun yang memegang seluruh unit
 const SARING_TANPA_UNIT = '-';    // akun yang belum diberi unit apa pun
 
 const punyaSemuaUnit = (u) => SEMUA_UNIT_PERAN.includes(u.role);
-/** Centang unitnya berarti sesuatu untuk hak: teknisi/adminunit (pagar buka) dan
-    PIC (pagar isi). Untuk admin/pejabat centang itu cuma saran nama teknisi. */
-const unitnyaPagar = (u) => !punyaSemuaUnit(u) || PIC_PERAN.includes(u.role);
 
 function akunLolosSaring(u){
   const unit  = el('fUnitAkun').value;
@@ -218,8 +194,8 @@ function akunLolosSaring(u){
   if(kata && !`${u.username} ${u.nama || ''}`.toLowerCase().includes(kata)) return false;
   if(!unit) return true;
   if(unit === SARING_SEMUA_UNIT) return punyaSemuaUnit(u);
-  if(unit === SARING_TANPA_UNIT) return unitnyaPagar(u) && !(u.unit || []).length;
-  return unitnyaPagar(u) && (u.unit || []).includes(unit);
+  if(unit === SARING_TANPA_UNIT) return !punyaSemuaUnit(u) && !(u.unit || []).length;
+  return !punyaSemuaUnit(u) && (u.unit || []).includes(unit);
 }
 
 /** Isi kedua pemilih dan petak sebaran. Nilai yang sedang dipilih dipertahankan
@@ -247,12 +223,12 @@ function gambarSaringAkun(){
 
   const dipilih = el('fUnitAkun').value;
   const petak = UNIT.map(u=>{
-    const n = USERS.filter(x=>unitnyaPagar(x) && (x.unit || []).includes(u.kode)).length;
+    const n = USERS.filter(x=>!punyaSemuaUnit(x) && (x.unit || []).includes(u.kode)).length;
     return [u.kode, n, u.nama, ''];
   });
   petak.push([SARING_SEMUA_UNIT, USERS.filter(punyaSemuaUnit).length,
     T('semua unit','all units'), '']);
-  const buntu = USERS.filter(x=>unitnyaPagar(x) && !(x.unit || []).length).length;
+  const buntu = USERS.filter(x=>!punyaSemuaUnit(x) && !(x.unit || []).length).length;
   if(buntu) petak.push([SARING_TANPA_UNIT, buntu, T('tanpa unit','no unit'), 'awas']);
 
   el('ringkasUnitAkun').innerHTML = petak.map(([kode, n, nama, rupa])=>
@@ -298,7 +274,7 @@ function gambarAkun(){
   const total = USERS.length;
   const hidup = USERS.filter(u=>u.aktif).length;
   const admin = USERS.filter(u=>u.role === 'admin' && u.aktif).length;
-  const buntu = USERS.filter(u=>u.aktif && unitnyaPagar(u) && !(u.unit||[]).length).length;
+  const buntu = USERS.filter(u=>u.aktif && !SEMUA_UNIT_PERAN.includes(u.role) && !(u.unit||[]).length).length;
 
   el('ubinAkun').innerHTML = [
     [T('Akun terdaftar','Accounts Registered'), total, T('seluruh peran','all roles'), 'biru'],
@@ -329,7 +305,7 @@ function gambarAkun(){
     (tampil.length ? '' : `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:22px">${
       T('Tidak ada akun yang cocok dengan saringan ini.','No account matches this filter.')}</td></tr>`) +
     tampil.map(u=>{
-      const semua = !unitnyaPagar(u);
+      const semua = SEMUA_UNIT_PERAN.includes(u.role);
       const unit = semua
         ? `<span class="pil">${T('seluruh unit','all units')}</span>`
         : (u.unit || []).length
@@ -806,15 +782,15 @@ const unitTercentang = () =>
 
 function segarkanUnitKartu(){
   const semua = SEMUA_UNIT_PERAN.includes(el('aRole').value);
-  const pic = PIC_PERAN.includes(el('aRole').value);
+  const pic = typeof PERAN_PIC_MODUL === 'object' && !!PERAN_PIC_MODUL[el('aRole').value];
   // Administrator dan pejabat memegang seluruh unit lewat perannya, jadi kotak
   // ini bukan pagar akses buat mereka — melainkan tanda "tampilkan nama saya
   // sebagai teknisi di unit ini" pada isian nama teknisi di formulir. Kotak
   // tetap boleh diklik supaya opt-in itu bisa diatur dari sini.
   el('aUnit').classList.toggle('mati', false);
   el('aUnitKet').textContent = pic
-    ? T('PIC melihat seluruh unit, tapi hanya bisa mengisi logbook di unit yang dicentang di sini — unit tempat ia berdinas. Tanpa centang, PIC hanya bisa melihat.',
-        'A PIC can view every unit but can only fill in logbooks for the units ticked here — the unit they work in. With none ticked, the PIC can only view.')
+    ? T('PIC bekerja seperti teknisi di unit yang dicentang di sini: dashboard dan E-Logbook unit itu terbuka penuh. Di unit lain PIC hanya membuka modul PIC-nya (Jadwal Dinas, Sparepart, atau ISR). Pilih minimal satu unit.',
+        'A PIC works like a technician in the units ticked here: that unit\'s dashboard and E-Logbook are fully open. In other units the PIC only opens their PIC module (Duty Roster, Spare Parts, or ISR). Pick at least one unit.')
     : semua
     ? T('Administrator dan pejabat sudah otomatis membuka seluruh unit lewat perannya. Centang di sini hanya berarti “tampilkan nama saya sebagai saran teknisi di unit ini” — dipakai pada isian nama teknisi di formulir. Kosong berarti tidak tampil sebagai saran di unit mana pun; akses tetap penuh.',
         'Administrators and officers already hold every unit through their role. Ticks here only mean “show my name as a technician suggestion in this unit” — used on the technician-name field in forms. Empty means no suggestions anywhere; access stays full.')
@@ -914,12 +890,12 @@ function isiKartuAkun(u){
           'Technician — edits their own unit database, cannot delete')}</option>
         <option value="adminunit">${T('Admin Unit — menyunting DAN menghapus, serta membaca log aktivitas, di unitnya saja',
           'Unit Admin — edits AND deletes, and reads the activity log, in their own unit only')}</option>
-        <option value="pic-dinas">${T('PIC Jadwal Dinas — hanya Jadwal Dinas semua unit; edit & cetak, tidak menghapus',
-          'Duty Roster PIC — Duty Roster only, all units; edit & print, cannot delete')}</option>
-        <option value="pic-sparepart">${T('PIC Sparepart — hanya Sparepart semua unit; edit & cetak, tidak menghapus',
-          'Spare Parts PIC — Spare Parts only, all units; edit & print, cannot delete')}</option>
-        <option value="pic-isr">${T('PIC ISR — hanya ISR semua unit; edit, tidak menghapus',
-          'ISR PIC — ISR only, all units; edit, cannot delete')}</option>
+        <option value="pic-dinas">${T('PIC Jadwal Dinas — teknisi di unitnya + Jadwal Dinas semua unit; edit & cetak, tidak menghapus',
+          'Duty Roster PIC — technician in own unit + Duty Roster in all units; edit & print, cannot delete')}</option>
+        <option value="pic-sparepart">${T('PIC Sparepart — teknisi di unitnya + Sparepart semua unit; edit & cetak, tidak menghapus',
+          'Spare Parts PIC — technician in own unit + Spare Parts in all units; edit & print, cannot delete')}</option>
+        <option value="pic-isr">${T('PIC ISR — teknisi di unitnya + ISR semua unit; edit, tidak menghapus',
+          'ISR PIC — technician in own unit + ISR in all units; edit, cannot delete')}</option>
         <option value="pejabat">${T('Pejabat — melihat seluruh unit, hanya membubuhkan tanda tangan',
           'Officer — sees every unit, may only sign')}</option>
         <option value="admin">${T('Administrator — kendali penuh, termasuk mengelola akun',

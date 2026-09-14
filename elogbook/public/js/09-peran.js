@@ -10,14 +10,7 @@ function pejabatAktif(){ return userSaatIni?.role === 'pejabat'; }
 /* Sepadan dengan PERAN_TULIS di server.js — kalau keduanya berselisih, yang
    kalah adalah layar: tombolnya tampil lalu permintaannya ditolak 403. */
 const PERAN_TULIS = new Set(['admin', 'adminunit', 'teknisi', 'pic-dinas', 'pic-sparepart', 'pic-isr']);
-/* Unit yang boleh diisi, dari getAllData. Null = belum tahu (anggap semua unit
-   yang terbuka). Untuk PIC lebih sempit dari unitSaya: PIC melihat seluruh
-   unit tapi mengisi hanya di unit tempatnya berdinas. */
-let unitTulis = null;
-function bolehMenulis(){
-  if(!PERAN_TULIS.has(userSaatIni?.role)) return false;
-  return !Array.isArray(unitTulis) || !unitAktif || unitTulis.includes(unitAktif);
-}
+function bolehMenulis(){ return PERAN_TULIS.has(userSaatIni?.role); }
 
 /** Menyunting catatan yang sudah tersimpan: admin, atau pembuat aslinya
     sendiri — bukan sekadar siapa saja yang boleh menulis di unit itu. */

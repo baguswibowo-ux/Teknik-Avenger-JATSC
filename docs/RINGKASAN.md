@@ -200,8 +200,15 @@ berlaku umum. Setiap unit juga membawa bentuk barisnya sendiri: daftar dinas
 | Bubuhkan TTD susulan | ✓ | ✓ | – |
 | Ubah/hapus catatan, kelola akun | ✓ | – | – |
 
-`SEMUA_UNIT = ['admin', 'pejabat', ...PIC_ROLE]` — peran ini melihat seluruh
-unit tanpa baris `user_unit`.
+`SEMUA_UNIT = ['admin', 'pejabat']` — peran ini melihat seluruh unit tanpa
+baris `user_unit`.
+
+**PIC** (`pic-dinas`, `pic-sparepart`, `pic-isr`) = teknisi di unit yang
+dicentang untuknya: E-Logbook hanya unit itu (boleh mengisi), dashboard unit itu
+terbuka penuh seperti teknisi. Tambahannya satu modul di **semua** unit
+dashboard — Jadwal Dinas / Sparepart / ISR — dan di unit lain hanya subtab itu
+yang tampil. Tidak menghapus, bukan penanda-tangan. Aturannya di `PERAN_PIC` +
+`bolehIsi` (server.js) dan `modulPicDi` (public/js/20-hak-modul.js).
 
 **Peran Avenger** — matriks per modul di tab **Kelola Akun** / `data/hak.json`:
 Administrator, Pejabat, Admin Unit, Teknisi, plus kolom **Ditunjuk** untuk

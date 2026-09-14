@@ -63,8 +63,14 @@ let subDipilih = null;
 // dan alatnya langsung masuk grup itu.
 let grupDipilih = '';
 
+/** Unit yang dipegang PENUH akun ini — semua isinya terbuka. */
 const bolehBuka = (kode) => !!akun && (akun.unit === 'semua' || akun.unit.includes(kode));
-const unitBoleh = () => UNIT.filter(u=>bolehBuka(u.kode));
+/** Boleh masuk ke layar unit ini: unit penuh, atau PIC dokumen — modul PIC-nya
+    terbuka di semua unit, dan di unit yang bukan unitnya hanya subtab itu yang
+    tampil (modulPicDi di 20-hak-modul.js). */
+const bolehMasukUnit = (kode) => bolehBuka(kode)
+  || (typeof modulPicAkun === 'function' && !!modulPicAkun());
+const unitBoleh = () => UNIT.filter(u=>bolehMasukUnit(u.kode));
 
 /**
  * Petak dinas hari ini untuk satu unit.
