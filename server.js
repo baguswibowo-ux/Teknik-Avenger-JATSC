@@ -904,7 +904,10 @@ const PERAN_HAPUS = new Set(['admin', 'adminunit']);
 /* Modul yang isinya milik satu unit tertentu. Untuk yang tidak ada di sini —
    hak, misalnya — penjagaan unit tidak berlaku karena tidak ada unit yang
    bisa dijadikan pagar. */
-const MODUL_PER_UNIT = new Set(['dinas', 'berkala', 'peralatan', 'sparepart',
+/* dinas-cetak ikut dipagari unit: yang boleh mencetak (admin unit, atau yang
+   ditunjuk di Hak Akses) hanya mencetak jadwal unit yang dipegangnya. PIC
+   Jadwal Dinas lolos sebelum pagar ini — modulnya memang semua unit. */
+const MODUL_PER_UNIT = new Set(['dinas', 'dinas-cetak', 'berkala', 'peralatan', 'sparepart',
                                 'sejarah', 'isr', 'dokumen', 'galeri']);
 
 /* Bawaan kalau hak.json belum ada.
@@ -1066,6 +1069,9 @@ async function bolehIsi(user, modul, unit = '') {
   const picBoleh = modulPicBoleh(peranUser(user));
   if (picBoleh && picBoleh.has(modul)) return true;
   if (MODUL_PER_UNIT.has(modul) && !bolehUnit(user, unit)) return false;
+  // Admin unit selalu boleh mencetak Jadwal Dinas unitnya sendiri, tanpa
+  // perlu ditunjuk satu per satu — pagar unit di atas sudah menahannya.
+  if (modul === 'dinas-cetak' && peranUser(user) === 'adminunit') return true;
   const hak = (await bacaHak())[modul];
   if (!hak) return false;
   if (hak.peran.includes(hakPeran(user))) return true;
