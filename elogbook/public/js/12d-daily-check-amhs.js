@@ -839,7 +839,7 @@ function renderDcAmhsHistory(){
         <button class="btn ghost" style="padding:6px 10px;" onclick="openDcDetail('${r.id}')">${(typeof T==='function')?T('detail'):'Detail'}</button>
         ${amhsBolehEdit(r) ? `<button class="btn ghost" style="padding:6px 10px;" title="Lanjutkan / edit untuk dinas berikutnya" onclick="openEditDcAmhs('${r.id}')">✎ Edit</button>` : ''}
         <button class="icon-btn" title="Cetak" onclick="printSavedDailyCheck('${r.id}')">🖨</button>
-        <button class="icon-btn hanya-admin" title="Hapus" onclick="deleteDcRecord('${r.id}')">✕</button>
+        <button class="icon-btn hanya-hapus" title="Hapus" onclick="deleteDcRecord('${r.id}')">✕</button>
       </div>
     </div>`;
   }).join('');

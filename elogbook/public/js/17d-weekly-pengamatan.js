@@ -481,7 +481,7 @@ function renderWkList(form){
       <div style="display:flex;gap:4px;">
         <button class="btn ghost" style="padding:6px 10px;" onclick="openWkDetail('${d.id}')">${T('detail')}</button>
         <button class="icon-btn" title="${T('cetak')}" onclick="printWk('${d.id}')">🖨</button>
-        <button class="icon-btn hanya-admin" title="${T('hapus')}" onclick="hapusWk('${d.id}')">✕</button>
+        <button class="icon-btn hanya-hapus" title="${T('hapus')}" onclick="hapusWk('${d.id}')">✕</button>
       </div>
     </div>`;
   }).join('');
@@ -491,7 +491,7 @@ function renderWkList(form){
 function renderSemuaWkList(){ WK_URUT.forEach(renderWkList); }
 
 async function hapusWk(id){
-  if(!adminAktif()){ toast(T('hanyaAdminHapus')); return; }
+  if(!bolehHapusCatatan()){ toast(T('hanyaAdminHapus')); return; }
   const d = dsList.find(x=>x.id===id);
   if(!confirm(`${T('konfirmasiHapus')} ${d ? d.tanggal : ''}?`)) return;
   const form = (d && d.state && d.state.__wForm) || 'ckg3';

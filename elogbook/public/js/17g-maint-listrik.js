@@ -1014,7 +1014,7 @@ function renderMlList(form){
         ${(!d.managerTtd && bolehSuntingCatatan(d.dibuatOlehUsername))
           ? `<button class="icon-btn" title="${T('mlSunting')}" onclick="openMlEdit('${d.id}')">✎</button>` : ''}
         <button class="icon-btn" title="${T('cetak')}" onclick="printMl('${d.id}')">🖨</button>
-        <button class="icon-btn hanya-admin" title="${T('hapus')}" onclick="hapusMl('${d.id}')">✕</button>
+        <button class="icon-btn hanya-hapus" title="${T('hapus')}" onclick="hapusMl('${d.id}')">✕</button>
       </div>
     </div>`;
   }).join('');
@@ -1024,7 +1024,7 @@ function renderMlList(form){
 function renderSemuaMlList(){ ML_URUT.forEach(renderMlList); }
 
 async function hapusMl(id){
-  if(!adminAktif()){ toast(T('hanyaAdminHapus')); return; }
+  if(!bolehHapusCatatan()){ toast(T('hanyaAdminHapus')); return; }
   const d = dsList.find(x=>x.id === id);
   if(!confirm(`${T('konfirmasiHapus')} ${d ? d.tanggal : ''}?`)) return;
   const form = (d && d.state && d.state.__mlForm) || ML_URUT[0];

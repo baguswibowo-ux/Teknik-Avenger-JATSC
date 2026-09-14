@@ -110,14 +110,14 @@ function renderLtkList(){
       <div style="display:flex;gap:4px;">
         <button class="btn ghost" style="padding:6px 10px;" onclick="openLtkDetail('${l.id}')">${T('detail')}</button>
         <button class="icon-btn" title="${T('cetak')}" onclick="printLtk('${l.id}')">🖨</button>
-        <button class="icon-btn hanya-admin" title="${T('hapus')}" onclick="hapusLtk('${l.id}')">✕</button>
+        <button class="icon-btn hanya-hapus" title="${T('hapus')}" onclick="hapusLtk('${l.id}')">✕</button>
       </div>
     </div>`;
   }).join('');
 }
 
 async function hapusLtk(id){
-  if(!adminAktif()){ toast(T('hanyaAdminHapus')); return; }
+  if(!bolehHapusCatatan()){ toast(T('hanyaAdminHapus')); return; }
   const l = ltkList.find(x=>x.id===id);
   if(!confirm(`${T('konfirmasiHapus')} ${l ? l.peralatan : ''}?`)) return;
   const salinan = ltkList.slice();

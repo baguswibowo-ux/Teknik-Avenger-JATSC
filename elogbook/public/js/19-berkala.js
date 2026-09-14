@@ -690,7 +690,7 @@ function renderBerkalaList(){
         <div style="display:flex;gap:4px;">
           <button class="btn ghost" style="padding:6px 10px;" onclick="openBerkalaDetail('${b.id}')">${T('detail')}</button>
           <button class="icon-btn" title="${T('cetak')}" onclick="printBerkala('${b.id}')">🖨</button>
-          <button class="icon-btn hanya-admin" title="${T('hapus')}" onclick="hapusBerkala('${b.id}')">✕</button>
+          <button class="icon-btn hanya-hapus" title="${T('hapus')}" onclick="hapusBerkala('${b.id}')">✕</button>
         </div>
       </div>`;
     }).join('');
@@ -698,7 +698,7 @@ function renderBerkalaList(){
 }
 
 async function hapusBerkala(id){
-  if(!adminAktif()){ toast(T('hanyaAdminHapus')); return; }
+  if(!bolehHapusCatatan()){ toast(T('hanyaAdminHapus')); return; }
   const b = berkalaList.find(x=>x.id===id);
   if(!confirm(`${T('konfirmasiHapus')} ${b ? b.tanggal : ''}?`)) return;
   const salinan = berkalaList.slice();

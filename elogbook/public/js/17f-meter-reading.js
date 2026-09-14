@@ -682,7 +682,7 @@ function renderMrList(form){
       <div style="display:flex;gap:4px;">
         <button class="btn ghost" style="padding:6px 10px;" onclick="openMrDetail('${d.id}')">${T('detail')}</button>
         <button class="icon-btn" title="${T('cetak')}" onclick="printMr('${d.id}')">🖨</button>
-        <button class="icon-btn hanya-admin" title="${T('hapus')}" onclick="hapusMr('${d.id}')">✕</button>
+        <button class="icon-btn hanya-hapus" title="${T('hapus')}" onclick="hapusMr('${d.id}')">✕</button>
       </div>
     </div>`;
   }).join('');
@@ -692,7 +692,7 @@ function renderMrList(form){
 function renderSemuaMrList(){ MR_URUT.forEach(renderMrList); }
 
 async function hapusMr(id){
-  if(!adminAktif()){ toast(T('hanyaAdminHapus')); return; }
+  if(!bolehHapusCatatan()){ toast(T('hanyaAdminHapus')); return; }
   const d = dsList.find(x => x.id === id);
   if(!confirm(`${T('konfirmasiHapus')} ${d ? d.tanggal : ''}?`)) return;
   const form = (d && d.state && d.state.__mrForm) || MR_URUT[0];

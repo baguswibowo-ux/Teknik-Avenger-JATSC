@@ -118,13 +118,13 @@ function renderMonList(){
       <div style="display:flex;gap:4px;">
         <button class="btn ghost" style="padding:6px 10px;" onclick="openMonDetail('${m.id}')">${T('detail')}</button>
         <button class="icon-btn" title="${T('cetak')}" onclick="printMon('${m.id}')">🖨</button>
-        <button class="icon-btn hanya-admin" title="${T('hapus')}" onclick="hapusMon('${m.id}')">✕</button>
+        <button class="icon-btn hanya-hapus" title="${T('hapus')}" onclick="hapusMon('${m.id}')">✕</button>
       </div>
     </div>`).join('');
 }
 
 async function hapusMon(id){
-  if(!adminAktif()){ toast(T('hanyaAdminHapus')); return; }
+  if(!bolehHapusCatatan()){ toast(T('hanyaAdminHapus')); return; }
   const m = monitoring.find(x=>x.id===id);
   if(!confirm(`${T('konfirmasiHapus')} ${m ? m.tanggal : ''}?`)) return;
   const salinan = monitoring.slice();

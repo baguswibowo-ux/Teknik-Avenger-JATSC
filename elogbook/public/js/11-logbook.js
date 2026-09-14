@@ -122,7 +122,7 @@ async function saveEntry(){
 }
 
 async function deleteEntry(id){
-  if(!adminAktif()){ toast(T('hanyaAdminHapus')); return; }
+  if(!bolehHapusCatatan()){ toast(T('hanyaAdminHapus')); return; }
   const e = entries.find(x=>x.id===id);
   if(!confirm(`Hapus catatan ${e ? (e.tanggal+' '+e.jam+' UTC') : 'ini'}? Lampirannya ikut terhapus dan tidak bisa dikembalikan.`)) return;
   const salinan = entries.slice();
@@ -218,7 +218,7 @@ function renderEntries(){
                di bilah atas, dan itu pun menolak selama ada catatan yang TTD-nya belum
                lengkap — teknisi yang bernama di baris itu dapat peringatan lewat lonceng
                di Dashboard Fasilitas Teknik untuk membubuhkan TTD-nya lebih dulu. -->
-          <button class="icon-btn hanya-admin" title="Hapus" onclick="deleteEntry('${e.id}')">✕</button>
+          <button class="icon-btn hanya-hapus" title="Hapus" onclick="deleteEntry('${e.id}')">✕</button>
         </div>
       </div>
       <div class="entry-main">
