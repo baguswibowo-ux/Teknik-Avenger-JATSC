@@ -214,6 +214,10 @@ td select.brk-kat{background:var(--panel-2);color:var(--text);border:1px solid v
 /* Baris akun nonaktif diredupkan, bukan disembunyikan — yang dinonaktifkan
    justru yang paling perlu terlihat saat memutuskan siapa yang boleh dihapus. */
 tr.akun-mati td:not(:last-child){opacity:.55;}
+/* Kepala kelompok peran di tabel akun (kelompokAkun di 14-kelola-akun.js). */
+tr.kelompok-akun td{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--accent);padding-top:16px;border-bottom:1px solid rgba(41,182,246,.3);}
+tr.kelompok-akun .jumlah{color:var(--muted);margin-left:8px;letter-spacing:.04em;text-transform:none;}
 .unit-pil{display:flex;flex-wrap:wrap;gap:4px;}
 
 .lapis-ubah{position:fixed;inset:0;z-index:180;display:none;place-items:center;padding:24px;

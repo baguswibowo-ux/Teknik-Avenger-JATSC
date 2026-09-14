@@ -185,6 +185,22 @@ const SARING_TANPA_UNIT = '-';    // akun yang belum diberi unit apa pun
 
 const punyaSemuaUnit = (u) => SEMUA_UNIT_PERAN.includes(u.role);
 
+/* Tabel akun dikelompokkan per peran, PIC di atas dan tiap jenis PIC sendiri —
+   supaya siapa PIC Jadwal Dinas, siapa PIC Sparepart, siapa PIC ISR terbaca
+   sekilas tanpa menyaring. Peran di luar daftar ini (kalau kelak ada) ditaruh
+   paling bawah, tidak dibuang. Urutan di dalam kelompok tetap urutan server. */
+const URUT_KELOMPOK_AKUN = ['pic-dinas', 'pic-sparepart', 'pic-isr',
+                            'admin', 'pejabat', 'adminunit', 'teknisi'];
+function kelompokAkun(daftar){
+  const peta = new Map();
+  daftar.forEach(u=>{
+    if(!peta.has(u.role)) peta.set(u.role, []);
+    peta.get(u.role).push(u);
+  });
+  const urut = (r) => { const i = URUT_KELOMPOK_AKUN.indexOf(r); return i < 0 ? 99 : i; };
+  return [...peta.entries()].sort((a,b)=>urut(a[0]) - urut(b[0]));
+}
+
 function akunLolosSaring(u){
   const unit  = el('fUnitAkun').value;
   const peran = el('fPeranAkun').value;
@@ -304,7 +320,10 @@ function gambarAkun(){
       <th>Status</th><th></th></tr></thead><tbody>` +
     (tampil.length ? '' : `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:22px">${
       T('Tidak ada akun yang cocok dengan saringan ini.','No account matches this filter.')}</td></tr>`) +
-    tampil.map(u=>{
+    kelompokAkun(tampil).map(([role, anggota])=>
+      `<tr class="kelompok-akun"><td colspan="6">${esc(peranTampil(role))}
+        <span class="jumlah">${anggota.length} ${T('akun','accounts')}</span></td></tr>` +
+    anggota.map(u=>{
       const semua = SEMUA_UNIT_PERAN.includes(u.role);
       const unit = semua
         ? `<span class="pil">${T('seluruh unit','all units')}</span>`
@@ -322,7 +341,7 @@ function gambarAkun(){
         <td style="text-align:right"><button class="btn garis kecil" data-ubah="${esc(u.username)}">${
           T('Ubah','Edit')}</button></td>
       </tr>`;
-    }).join('') + '</tbody>';
+    }).join('')).join('') + '</tbody>';
 
   gambarHak();
 
