@@ -2116,9 +2116,40 @@
       </div>
     </div>
 
+    <!-- Lampiran BAPB — foto pemasangan, scan berita acara. Bisa ditambah atau
+         dibuang lagi sesudah tersimpan lewat "Kelola lampiran" di detail. -->
+    <div class="field" style="margin-top:12px;">
+      <label data-t-html="labelLampiranBapb">Lampiran — Foto / Dokumen Pendukung <span style="text-transform:none;letter-spacing:0;">(opsional)</span></label>
+      <input type="file" id="bapbLampiran" multiple accept="image/jpeg,image/png,image/webp,application/pdf" onchange="pilihLampiran(this, 'bapbLampiran')">
+      <div class="lampiran-hint" id="bapbLampiranHint" data-t="hintLampiranPanjang">Maksimal 6 berkas, 8 MB per berkas. JPG, PNG, WEBP, atau PDF. Foto berukuran besar dikecilkan otomatis sebelum dikirim.</div>
+      <div id="bapbLampiranList"></div>
+    </div>
+
     <div class="modal-footer">
       <button class="btn ghost" onclick="closeBapbModal()" data-t="batal">Batal</button>
       <button class="btn" id="bapbSaveBtn" onclick="saveBapb()" data-t="simpanBapb">💾 Simpan BAPB</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL KELOLA LAMPIRAN BAPB — pembuat lembar / admin menambah atau membuang
+     lampiran BAPB yang sudah tersimpan (lihat suntingLampiranBapb di db.js). -->
+<div class="modal-bg" id="bapbLampiranBg">
+  <div class="modal" style="max-width:520px;">
+    <h3 data-t="bapbKelolaLampiranJudul">Lampiran BAPB</h3>
+    <div class="field">
+      <label data-t="bapbLampiranTersimpan">Lampiran tersimpan</label>
+      <div id="bapbLampiranAda"></div>
+    </div>
+    <div class="field" style="margin-top:8px;">
+      <label data-t="bapbLampiranTambah">Tambah berkas</label>
+      <input type="file" id="bapbLampiranBaru" multiple accept="image/jpeg,image/png,image/webp,application/pdf" onchange="pilihLampiran(this, 'bapbLampiranBaru')">
+      <div class="lampiran-hint" id="bapbLampiranBaruHint" data-t="hintLampiranPanjang">Maksimal 6 berkas, 8 MB per berkas. JPG, PNG, WEBP, atau PDF. Foto berukuran besar dikecilkan otomatis sebelum dikirim.</div>
+      <div id="bapbLampiranBaruList"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn ghost" onclick="closeBapbLampiranModal()" data-t="batal">Batal</button>
+      <button class="btn" id="bapbLampiranSaveBtn" onclick="simpanBapbLampiran()" data-t="simpan">💾 Simpan</button>
     </div>
   </div>
 </div>

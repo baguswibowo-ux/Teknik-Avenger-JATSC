@@ -95,6 +95,7 @@ const AKT_AKSI_NAMA = {
   'rute-ttd':        ['tujuan TTD-nya diubah','signing route changed'],
   'lampiran-tambah': ['lampiran ditambahkan','attachment added'],
   'lampiran-hapus':  ['lampiran dihapus','attachment removed'],
+  'lampiran-ubah':   ['lampirannya diubah','attachments changed'],
   peran:             ['perannya diubah','role changed'],
   unit:              ['unitnya diubah','units changed'],
   nama:              ['namanya diubah','renamed'],
