@@ -120,7 +120,9 @@ function gambarNotam(){
 
   const hitung = (s) => semua.filter(r=>r.status === s).length;
   const berlaku = semua.filter(r=>notamBerlaku(r.status)).length;
-  if(el('lencanaNotam')) el('lencanaNotam').textContent = berlaku;
+  // Lencana hanya tampil kalau ada NOTAM berlaku — angka 0 cuma bikin ramai.
+  const lencana = el('lencanaNotam');
+  if(lencana){ lencana.textContent = berlaku; lencana.hidden = !berlaku; }
   if(!el('tblNotam')) return;
 
   el('ubinNotam').innerHTML =
