@@ -267,7 +267,7 @@ function gambarUnit(){
       ${tab('trouble','Trouble',trouble.length)}
       ${tab('sparepart',T('Sparepart','Spare Parts'),part.length)}
       ${tab('isr','ISR', isrAwasUnit(unitDibuka) || (ISR[unitDibuka] || []).length || '')}
-      ${tab('notam','NOTAM', notamAktifUnit(unitDibuka) || '')}
+      ${typeof panelNotamHtml === 'function' ? tab('notam','NOTAM', notamAktifUnit(unitDibuka) || '') : ''}
       ${tab('dinas',T('Jadwal Dinas','Duty Roster'))}
       ${tab('berkala',T('Kegiatan Berkala','Recurring Jobs'),
             bklJatuhTempo(unitDibuka).filter(x=>x.sisa <= 0).length || '')}
@@ -441,7 +441,7 @@ function gambarUnit(){
     <div class="subisi ${subtabAktif==='isr'?'aktif':''}" id="s-isr">${panelIsrHtml(unitDibuka)}</div>
     <!-- NOTAM TEKNIK — NOTAM yang terbit karena peralatan unit. Isinya
          digambar panelNotamHtml() di 39-notam.js. -->
-    <div class="subisi ${subtabAktif==='notam'?'aktif':''}" id="s-notam">${panelNotamHtml(unitDibuka)}</div>
+    <div class="subisi ${subtabAktif==='notam'?'aktif':''}" id="s-notam">${typeof panelNotamHtml === 'function' ? panelNotamHtml(unitDibuka) : ''}</div>
 
     <!-- DINAS — isinya digambar jdwGambar() setelah kerangka ini terpasang,
          karena subtab ini menggambar ulang dirinya sendiri saat disunting. -->
