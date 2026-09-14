@@ -170,6 +170,8 @@ const hakHitung = (modul) => {
   if(PERAN_HANYA_LIHAT.has(akun.role)) return false;
   // PIC dokumen: modul PIC-nya selalu boleh; modul lain dibaca seperti teknisi.
   if(modulPicSemuaUnit(modul)) return true;
+  // Admin unit selalu boleh mencetak Jadwal Dinas unitnya (mirror bolehIsi server).
+  if(modul === 'dinas-cetak' && akun.role === 'adminunit') return true;
   const peran = PERAN_PIC_MODUL[akun.role] ? 'teknisi' : akun.role;
   const h = HAK[modul] || { peran:[], petugas:[] };
   return h.peran.includes(peran)
