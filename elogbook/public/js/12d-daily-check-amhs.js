@@ -53,7 +53,10 @@ AMHS:{judul:'AMHS ( AUTOMATIC MESSAGE HANDLING SYSTEM ) — INDRA AVITECH',block
     AmG('TCP'),AmC('A-SMGCS'),AmC('AIIS'),AmC('ATIS'),AmC('AWOS'),AmC('BASARNAS'),AmC('DUMMY1'),AmC('LOMAN'),AmC('TJ. PINANG'),AmC('TNI_AU'),
     AmG('UA LOCAL'),AmC('UA1 (DBM)'),AmC('UA2 (FDO)'),AmC('UA3 (FIC)'),AmC('UA4 (BMKG)'),AmC('UA5 (COMM/AMHS)'),AmC('UA6 (COMM/AMHS)'),AmC('UA7 (MANKOM)'),AmC('UA8'),AmC('UA9'),AmC('UA10 (ARO)'),AmC('UA11 (ARO)'),AmC('UA12 (PIA)'),
     AmG('Operator Supervisor'),AmC('TECH 1'),AmC('SMC TECH'),
-    AmG('JMX -HEAP (NAGIOS) — Nilai %'),AmV('MCU-SRV'),AmV('MOM'),AmV('MTU-SRV'),AmV('SCI'),
+  ]),
+  // Di Excel JMX-HEAP tabel sendiri (header P/S/M sendiri) di bawah Line Status WIII.
+  amBlk('JMX-HEAP (NAGIOS) — Nilai %',[
+    AmV('MCU-SRV'),AmV('MOM'),AmV('MTU-SRV'),AmV('SCI'),
     AmN('Service Critical :'),
   ]),
   amBlk('Line Status — WAAA',[
@@ -183,7 +186,7 @@ function amhsOptCell(key,opt){
   return `<td style="padding:3px 4px;white-space:nowrap;"><span class="am-opt" data-amk="${key}">${chips}</span></td>`;
 }
 function amhsValCell(key,sat){
-  return `<td style="padding:3px 4px;white-space:nowrap;"><input type="text" inputmode="decimal" data-amk="${key}" placeholder="–" style="width:48px;background:var(--panel-2);border:1px solid var(--line);color:var(--text);border-radius:5px;padding:4px 5px;font-size:12px;text-align:right;"><span style="color:var(--muted);font-size:10px;margin-left:3px;">${escapeHtml(sat)}</span></td>`;
+  return `<td style="padding:3px 4px;white-space:nowrap;"><input type="text" inputmode="decimal" data-amk="${key}" placeholder="–" style="width:42px;background:var(--panel-2);border:1px solid var(--line);color:var(--text);border-radius:5px;padding:4px 5px;font-size:12px;text-align:right;"><span style="color:var(--muted);font-size:10px;margin-left:3px;">${escapeHtml(sat)}</span></td>`;
 }
 function amhsRenderBlock(sys, b, bi){
   let rows = '';
@@ -199,9 +202,11 @@ function amhsRenderBlock(sys, b, bi){
     if(r.t==='opt'){ c1=amhsOptCell(k('P'),r.opt);c2=amhsOptCell(k('S'),r.opt);c3=amhsOptCell(k('M'),r.opt); }
     else if(r.t==='val'){ c1=amhsValCell(k('P'),r.sat);c2=amhsValCell(k('S'),r.sat);c3=amhsValCell(k('M'),r.sat); }
     else { c1=amhsStatusCell(k('P'));c2=amhsStatusCell(k('S'));c3=amhsStatusCell(k('M')); }
+    // Label boleh turun baris: kalau nowrap, label panjang + 3 kotak isian
+    // melebihi lebar kartu dan kolom M terdorong keluar (terpotong).
     const namaGaya = r.t==='grp'
-      ? 'text-align:left;background:rgba(41,182,246,.08);color:var(--accent);font-weight:700;font-family:var(--font-mono);font-size:11.5px;white-space:nowrap;'
-      : 'text-align:left;font-family:var(--font-mono);font-size:11.5px;white-space:nowrap;';
+      ? 'text-align:left;background:rgba(41,182,246,.08);color:var(--accent);font-weight:700;font-family:var(--font-mono);font-size:11.5px;'
+      : 'text-align:left;font-family:var(--font-mono);font-size:11.5px;';
     rows += `<tr><td style="${namaGaya}">${escapeHtml(r.label)}</td>${c1}${c2}${c3}</tr>`;
   });
   return `<div style="background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;">
