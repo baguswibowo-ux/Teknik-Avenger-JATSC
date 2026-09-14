@@ -751,6 +751,17 @@ export function unitUntukUser(user) {
   return KODE_UNIT.filter((k) => punya.has(k));
 }
 
+/** Unit yang boleh DIISI sebuah akun. Sama dengan unitUntukUser, kecuali PIC:
+    PIC membaca seluruh unit, tetapi mengisi logbook hanya di unit yang
+    dicentang untuknya — unit tempat ia sendiri berdinas, seperti teknisi. */
+export function unitTulisUser(user) {
+  if (!user) return [];
+  if (!PIC_ROLE.includes(user.role)) return unitUntukUser(user);
+  const rows = db.prepare('SELECT unit FROM user_unit WHERE user_id = ?').all(user.id);
+  const punya = new Set(rows.map((r) => r.unit));
+  return KODE_UNIT.filter((k) => punya.has(k));
+}
+
 export function setUnitUser(userId, daftar) {
   const bersih = [...new Set((Array.isArray(daftar) ? daftar : []).filter(unitSah))];
   db.prepare('DELETE FROM user_unit WHERE user_id = ?').run(userId);

@@ -1012,6 +1012,15 @@ export async function unitUntukUser(user) {
   return KODE_UNIT.filter((k) => punya.has(k));
 }
 
+/** Unit yang boleh DIISI sebuah akun — lihat unitTulisUser di db.js. */
+export async function unitTulisUser(user) {
+  if (!user) return [];
+  if (!PIC_ROLE.includes(user.role)) return unitUntukUser(user);
+  const rows = await q('SELECT unit FROM user_unit WHERE user_id = $1', [user.id]);
+  const punya = new Set(rows.map((r) => r.unit));
+  return KODE_UNIT.filter((k) => punya.has(k));
+}
+
 export async function setUnitUser(userId, daftar) {
   const bersih = [...new Set((Array.isArray(daftar) ? daftar : []).filter(unitSah))];
   await jalankan('DELETE FROM user_unit WHERE user_id = $1', [userId]);

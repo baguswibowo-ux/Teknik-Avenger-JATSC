@@ -82,7 +82,7 @@ const {
   jenisTtdSah, unitCatatan, tandaTanganiCatatan, listPejabatAktif, listPejabatUnit, listTeknisiUnit, listAkunAktif, getInboxTtd,
   getTtdTersimpan, simpanTtdTersimpan, hapusTtdTersimpan, pilihTtdTersimpanAktif, rekapMentah,
   listUsers, setPassword, setAktif, setRole, setNama, setUsername, ROLE_VALID, SEMUA_UNIT, jumlahAdminAktif,
-  UNIT, KODE_UNIT, unitSah, unitUntukUser, setUnitUser,
+  UNIT, KODE_UNIT, unitSah, unitUntukUser, unitTulisUser, setUnitUser,
   createSession, getSessionUser, deleteSession, purgeExpiredSessions,
   ambilBerkas,
   buatTautanTelegram, tautkanTelegram, getChatIdTelegram, statusTautanTelegram,
@@ -248,8 +248,12 @@ const isAdmin = (user) => user?.role === 'admin';
  * teknisi — yang membedakannya adalah haknya di Dashboard Fasilitas Teknik,
  * bukan di sini. Lihat catatan ROLE_VALID di db.js. Peran `pic` sudah
  * dihapus (dimigrasikan ke adminunit di cold start).
+ *
+ * PIC (pic-dinas/pic-sparepart/pic-isr) ikut: mereka juga teknisi yang berdinas
+ * di unitnya sendiri. Bedanya dengan teknisi cuma jangkauan bacanya (seluruh
+ * unit); menulisnya tetap dipagari unit yang dicentang — lihat pastikanUnitTulis.
  */
-const PERAN_TULIS = new Set(['admin', 'adminunit', 'teknisi']);
+const PERAN_TULIS = new Set(['admin', 'adminunit', 'teknisi', 'pic-dinas', 'pic-sparepart', 'pic-isr']);
 const bolehMenulis = (user) => PERAN_TULIS.has(user?.role);
 
 /**
@@ -270,6 +274,19 @@ async function pastikanUnit(user, unit) {
   if (!unitSah(kode)) throw new Error('Unit logbook tidak dikenal: ' + kode);
   if (!(await unitUntukUser(user)).includes(kode)) {
     throw new Error('Akun Anda tidak diberi akses ke logbook ' + kode + '.');
+  }
+  return kode;
+}
+
+/**
+ * Pagar unit untuk MENULIS. Untuk hampir semua peran sama dengan pastikanUnit;
+ * yang berbeda PIC — boleh membaca seluruh unit, tapi mengisi hanya di unit
+ * yang dicentang untuk akunnya (unitTulisUser).
+ */
+async function pastikanUnitTulis(user, unit) {
+  const kode = await pastikanUnit(user, unit);
+  if (!(await unitTulisUser(user)).includes(kode)) {
+    throw new Error('Akun Anda hanya dapat melihat logbook ' + kode + ', tidak mengisinya.');
   }
   return kode;
 }
@@ -752,6 +769,15 @@ async function unitDiminta(user, unit) {
   return pastikanUnit(user, unit);
 }
 
+/** unitDiminta untuk fungsi yang menambah data: unit kosong jatuh ke unit
+    pertama yang boleh DIISI, bukan yang boleh dibuka. */
+async function unitDimintaTulis(user, unit) {
+  const boleh = await unitTulisUser(user);
+  if (boleh.length === 0) throw new Error('Akun Anda belum diberi unit untuk diisi.');
+  if (!unit) return boleh[0];
+  return pastikanUnitTulis(user, unit);
+}
+
 /**
  * Unit yang dibuka saat memuat layar, beserta daftar unit yang boleh dibuka
  * akun itu. Berbeda dari unitDiminta: unit yang tidak (lagi) boleh dibuka bukan
@@ -1053,6 +1079,9 @@ const API = {
     return {
       unit: u,
       unitSaya: UNIT.filter((x) => bolehUnit.includes(x.kode)),
+      // Kode unit yang boleh DIISI akun ini — untuk PIC lebih sempit dari
+      // unitSaya. Layar memakainya supaya tombol tambah hanya tampil di sana.
+      unitTulis: await unitTulisUser(user),
       /**
        * Seluruh unit yang dikenal, bukan cuma yang dipegang akun ini.
        *
@@ -1102,7 +1131,7 @@ const API = {
   },
 
   addEntry: async (entry, user) => {
-    const unit = await unitDiminta(user, entry?.unit);
+    const unit = await unitDimintaTulis(user, entry?.unit);
     const ttdUntuk = await ttdUntukSah(entry?.ttdUntuk);
     const rec = await insertEntry({ ...(entry || {}), unit, ttdUntuk }, user.username, user.nama);
     notifPerluTtd('logbook', ttdUntuk, { unit, tanggal: entry?.tanggal }, user.nama || user.username, rec?.ID);
@@ -1119,12 +1148,12 @@ const API = {
   updateEntry: async (id, patch, user) => {
     const unit = await unitCatatan('logbook', String(id));
     if (!unit) throw new Error('Catatan tidak ditemukan — mungkin sudah dihapus.');
-    await pastikanUnit(user, unit);
+    await pastikanUnitTulis(user, unit);
     return updateEntry(String(id), patch || {}, { username: user.username, admin: isAdmin(user) });
   },
 
   addDailyCheck: async (rec, user) => {
-    const unit = await unitDiminta(user, rec?.unit);
+    const unit = await unitDimintaTulis(user, rec?.unit);
     const ttdUntuk = await ttdUntukSah(rec?.ttdUntuk);
     const hasil = await insertDailyCheck({ ...(rec || {}), unit, ttdUntuk }, user.username, user.nama);
     notifPerluTtd('dailycheck', ttdUntuk, { unit, tanggal: rec?.tanggal }, user.nama || user.username, hasil?.ID);
@@ -1135,7 +1164,7 @@ const API = {
   updateDailyCheck: async (id, patch, user) => {
     const unit = await unitCatatan('dailycheck', String(id));
     if (!unit) throw new Error('Catatan tidak ditemukan — mungkin sudah dihapus.');
-    await pastikanUnit(user, unit);
+    await pastikanUnitTulis(user, unit);
     // `role` dibawa supaya updateDailyCheck bisa menolak Officer (pejabat) ikut
     // menyunting checklist AMHS — tugasnya hanya melihat & menandatangani.
     return updateDailyCheck(String(id), patch || {}, { username: user.username, admin: isAdmin(user), role: user.role });
@@ -1147,7 +1176,7 @@ const API = {
   // Isu dari teknisi selalu masuk berstatus Open, apa pun yang dikirim klien.
   // Lampiran fase closed pun ikut dibuang, karena isunya belum boleh ditutup.
   addMonitoring: async (rec, user) => {
-    const unit = await unitDiminta(user, rec?.unit);
+    const unit = await unitDimintaTulis(user, rec?.unit);
     const ttdUntuk = await ttdUntukSah(rec?.ttdUntuk);
     const hasil = await insertMonitoring({ ...(rec || {}), unit, ttdUntuk }, user.username, user.nama);
     notifPerluTtd('monitoring', ttdUntuk, { unit, tanggal: rec?.tanggal }, user.nama || user.username, hasil?.ID);
@@ -1155,7 +1184,7 @@ const API = {
   },
 
   addDsTest: async (rec, user) => {
-    const unit = await unitDiminta(user, rec?.unit);
+    const unit = await unitDimintaTulis(user, rec?.unit);
     const ttdUntuk = await ttdUntukSah(rec?.ttdUntuk);
     const hasil = await insertDsTest({ ...(rec || {}), unit, ttdUntuk }, user.username, user.nama);
     notifPerluTtd('dstest', ttdUntuk, { unit, tanggal: rec?.tanggal }, user.nama || user.username, hasil?.ID);
@@ -1178,14 +1207,14 @@ const API = {
   updateDsTest: async (id, patch, user) => {
     const unit = await unitCatatan('dstest', String(id));
     if (!unit) throw new Error('Catatan tidak ditemukan — mungkin sudah dihapus.');
-    await pastikanUnit(user, unit);
+    await pastikanUnitTulis(user, unit);
     const ttdUntuk = await ttdUntukSah(patch?.ttdUntuk);
     return updateDsTest(String(id), { ...(patch || {}), ttdUntuk },
                         { username: user.username, admin: isAdmin(user) });
   },
 
   addBerkala: async (rec, user) => {
-    const unit = await unitDiminta(user, rec?.unit);
+    const unit = await unitDimintaTulis(user, rec?.unit);
     const ttdUntuk = await ttdUntukSah(rec?.ttdUntuk);
     const hasil = await insertBerkala({ ...(rec || {}), unit, ttdUntuk }, user.username, user.nama);
     notifPerluTtd('berkala', ttdUntuk, { unit, tanggal: rec?.tanggal }, user.nama || user.username, hasil?.ID);
@@ -1193,7 +1222,7 @@ const API = {
   },
 
   addLtk: async (rec, user) => {
-    const unit = await unitDiminta(user, rec?.unit);
+    const unit = await unitDimintaTulis(user, rec?.unit);
     const ttdUntuk = await ttdUntukSah(rec?.ttdUntuk);
     const hasil = await insertLtk({ ...(rec || {}), unit, ttdUntuk }, user.username, user.nama);
     notifPerluTtd('ltk', ttdUntuk, { unit, tanggal: rec?.tanggalLapor || rec?.tanggal }, user.nama || user.username, hasil?.ID);
@@ -1206,7 +1235,7 @@ const API = {
      dibubuhkan di form saat mengisi (dan masih bisa disunting belakangan lewat
      updateBapb selama mantek belum tanda tangan). */
   addBapb: async (rec, user) => {
-    const unit = await unitDiminta(user, rec?.unit);
+    const unit = await unitDimintaTulis(user, rec?.unit);
     const ttdUntuk = await ttdUntukSah(rec?.ttdUntuk);
     const hasil = await insertBapb({ ...(rec || {}), unit, ttdUntuk }, user.username, user.nama);
     notifPerluTtd('bapb', ttdUntuk, { unit, tanggal: rec?.tanggal }, user.nama || user.username, hasil?.ID);
@@ -1218,7 +1247,7 @@ const API = {
   updateBapb: async (id, patch, user) => {
     const unit = await unitCatatan('bapb', String(id));
     if (!unit) throw new Error('Catatan tidak ditemukan — mungkin sudah dihapus.');
-    await pastikanUnit(user, unit);
+    await pastikanUnitTulis(user, unit);
     return updateBapb(String(id), patch || {}, { username: user.username, admin: isAdmin(user) });
   },
 
@@ -1477,7 +1506,7 @@ const API = {
   addIssue: async (isu, user) => insertIssue(
     {
       ...(isAdmin(user) ? (isu || {}) : { ...(isu || {}), status: 'Open', lampiranClosed: [] }),
-      unit: await unitDiminta(user, isu?.unit)
+      unit: await unitDimintaTulis(user, isu?.unit)
     },
     user.username,
     user.nama

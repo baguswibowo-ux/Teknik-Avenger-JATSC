@@ -22,6 +22,7 @@ function tampilkanUser(user){
   // yang tadi sampai data baru datang.
   unitAktif = '';
   unitSaya = [];
+  unitTulis = null;
   document.getElementById('userChipNama').textContent =
     (user.nama || user.username) + ' · ' + T('peran_' + user.role);
   document.getElementById('userChip').style.display = '';

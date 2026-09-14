@@ -32,6 +32,9 @@ async function init(){
   }
   unitAktif = data.unit || unitAktif;
   unitSaya = data.unitSaya || [];
+  unitTulis = Array.isArray(data.unitTulis) ? data.unitTulis : null;
+  // Boleh-tidaknya mengisi bergantung pada unit yang dibuka (PIC) — segarkan.
+  terapkanPeran();
   // Tanda tangan tersimpan milik akun ini. Baru diketahui sekarang, jadi tombol
   // "pakai TTD tersimpan" di tiap papan baru muncul di sini — bukan di atas.
   // Server sekarang mengirim struktur { slots, aktif, maks }; peramban lama yang
