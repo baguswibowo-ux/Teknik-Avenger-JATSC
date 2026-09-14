@@ -10,7 +10,9 @@ function gambarSemua(){
     : T('Kartu bergembok = di luar wewenang akun ini.','A padlocked card is outside this account’s authority.');
   gambarCincin(); gambarUbin(); gambarTrouble(); gambarDinas();
   gambarPerhatian(); gambarLonceng(); gambarPersonel();
-  gambarPilihUnit(); gambarUnit(); gambarNotam();
+  // typeof: sesudah berkas statis berganti tapi server belum restart, gabungan
+  // js masih dari daftar lama tanpa 39-notam.js — NOTAM absen, dashboard tetap jalan.
+  gambarPilihUnit(); gambarUnit(); if(typeof gambarNotam === 'function') gambarNotam();
   // Log aktivitas ikut digambar ulang dari yang sudah ada di memori — tidak
   // diambil ulang ke server di sini, karena gambarSemua() juga dipanggil saat
   // bahasanya berganti, dan mengganti bahasa bukan alasan untuk satu perjalanan
