@@ -5,10 +5,12 @@
 
 /* Peran: elemen ini disembunyikan sampai peran pemakai diketahui, supaya
    tombol administrator tidak sempat berkedip di layar teknisi. */
-.hanya-admin, .hanya-teknisi, .hanya-ttd-susulan, .hanya-tulis{display:none;}
+.hanya-admin, .hanya-teknisi, .hanya-ttd-susulan, .hanya-tulis, .hanya-hapus{display:none;}
 /* Peran yang hanya boleh melihat: seluruh tombol penambah data disembunyikan. */
 body.tanpa-tulis .btn-tambah{display:none !important;}
 body.peran-admin .hanya-admin{display:revert;}
+/* Tombol hapus catatan: administrator dan admin unit (unitnya sendiri). */
+body.boleh-hapus .hanya-hapus{display:revert;}
 body.peran-teknisi .hanya-teknisi{display:revert;}
 /* Kotak masuk TTD: sama seperti tombol bubuhkan TTD susulan, admin dan pejabat. */
 body.peran-admin .hanya-ttd-susulan, body.peran-pejabat .hanya-ttd-susulan{display:revert;}

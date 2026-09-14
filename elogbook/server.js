@@ -79,7 +79,7 @@ const {
   listLtk, insertLtk, removeLtk,
   listBapb, insertBapb, updateBapb, removeBapb,
   getUserByUsername, verifyPassword, createUser, countUsers, hapusUser,
-  jenisTtdSah, unitCatatan, tandaTanganiCatatan, listPejabatAktif, listPejabatUnit, listTeknisiUnit, listAkunAktif, getInboxTtd,
+  jenisTtdSah, unitCatatan, unitHapus, tandaTanganiCatatan, listPejabatAktif, listPejabatUnit, listTeknisiUnit, listAkunAktif, getInboxTtd,
   getTtdTersimpan, simpanTtdTersimpan, hapusTtdTersimpan, pilihTtdTersimpanAktif, rekapMentah,
   listUsers, setPassword, setAktif, setRole, setNama, setUsername, ROLE_VALID, SEMUA_UNIT, jumlahAdminAktif,
   UNIT, KODE_UNIT, unitSah, unitUntukUser, setUnitUser,
@@ -1807,6 +1807,26 @@ const API_ADMIN = {
 
    getAktivitas ikut karena admin unit memang membaca log aktivitas unitnya;
    saringan unitnya dikerjakan di dalam handler. */
+/**
+ * Penghapusan catatan yang juga boleh dilakukan admin unit — HANYA untuk
+ * catatan milik unit yang dipegangnya. Nilai = [jenis untuk unitHapus, posisi
+ * argumen yang memuat id-nya]. Lampiran dicari lewat id lampirannya sendiri
+ * (argumen kedua), bukan id catatan yang dikirim klien: id catatan itu bisa
+ * saja milik unit sendiri sementara lampirannya milik unit lain.
+ */
+const HAPUS_ADMINUNIT = {
+  deleteEntry:         ['logbook', 0],
+  deleteDcRecord:      ['dailycheck', 0],
+  deleteIssue:         ['isu', 0],
+  deleteMonitoring:    ['monitoring', 0],
+  deleteDsTest:        ['dstest', 0],
+  deleteBerkala:       ['berkala', 0],
+  deleteLtk:           ['ltk', 0],
+  deleteBapb:          ['bapb', 0],
+  deleteLtkLampiran:   ['lampiran-ltk', 1],
+  deleteIssueLampiran: ['lampiran-isu', 1]
+};
+
 const API_ADMIN_UNTUK_ADMINUNIT = new Set([
   'listUsers', 'setUserAktif', 'setUserPassword', 'setUserNama', 'setUserUsername',
   'getAktivitas'
@@ -2093,9 +2113,20 @@ app.post('/api/:fn', requireAuth, async (req, res) => {
 
   if (adminOnly && !isAdmin(req.user)) {
     const peran = String(req.user?.role || '').toLowerCase();
-    const bolehAdminUnit = peran === 'adminunit' && API_ADMIN_UNTUK_ADMINUNIT.has(fn);
+    const hapusUnit = Object.prototype.hasOwnProperty.call(HAPUS_ADMINUNIT, fn);
+    const bolehAdminUnit = peran === 'adminunit' && (API_ADMIN_UNTUK_ADMINUNIT.has(fn) || hapusUnit);
     if (!bolehAdminUnit) {
       return res.status(403).json({ error: 'Hanya administrator yang boleh melakukan ini.' });
+    }
+    // Admin unit menghapus: catatannya harus milik unit yang dipegangnya.
+    if (hapusUnit) {
+      const [jenis, posisi] = HAPUS_ADMINUNIT[fn];
+      const argsHapus = Array.isArray(req.body?.args) ? req.body.args : [];
+      const unit = await unitHapus(jenis, argsHapus[posisi]);
+      if (!unit) return res.status(404).json({ error: 'Catatan tidak ditemukan — mungkin sudah dihapus.' });
+      if (!(await unitUntukUser(req.user)).includes(unit)) {
+        return res.status(403).json({ error: 'Admin unit hanya boleh menghapus catatan di unit yang dipegangnya.' });
+      }
     }
   }
   // Peran pejabat sengaja hanya bisa melihat: seluruh unit terbuka baginya,

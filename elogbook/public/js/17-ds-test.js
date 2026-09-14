@@ -479,14 +479,14 @@ function renderDsList(){
       <div style="display:flex;gap:4px;">
         <button class="btn ghost" style="padding:6px 10px;" onclick="openDsDetail('${d.id}')">${T('detail')}</button>
         <button class="icon-btn" title="${T('cetak')}" onclick="printDs('${d.id}')">🖨</button>
-        <button class="icon-btn hanya-admin" title="${T('hapus')}" onclick="hapusDs('${d.id}')">✕</button>
+        <button class="icon-btn hanya-hapus" title="${T('hapus')}" onclick="hapusDs('${d.id}')">✕</button>
       </div>
     </div>`;
   }).join('');
 }
 
 async function hapusDs(id){
-  if(!adminAktif()){ toast(T('hanyaAdminHapus')); return; }
+  if(!bolehHapusCatatan()){ toast(T('hanyaAdminHapus')); return; }
   const d = dsList.find(x=>x.id===id);
   if(!confirm(`${T('konfirmasiHapus')} ${d ? d.tanggal : ''}?`)) return;
   const salinan = dsList.slice();

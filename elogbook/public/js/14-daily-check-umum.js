@@ -394,13 +394,13 @@ function renderDcHistory(){
         <button class="btn ghost" style="padding:6px 10px;" onclick="openDcDetail('${r.id}')">${T('detail')}</button>
         ${(!r.managerTtd && bolehSuntingCatatan(r.dibuatOlehUsername)) ? `<button class="icon-btn" title="${T('suntingTanggalDc')}" onclick="openDcEditModal('${r.id}')">✎</button>` : ''}
         <button class="icon-btn" title="Cetak" onclick="printSavedDailyCheck('${r.id}')">🖨</button>
-        <button class="icon-btn hanya-admin" title="Hapus" onclick="deleteDcRecord('${r.id}')">✕</button>
+        <button class="icon-btn hanya-hapus" title="Hapus" onclick="deleteDcRecord('${r.id}')">✕</button>
       </div>
     </div>`;
   }).join('');
 }
 async function deleteDcRecord(id){
-  if(!adminAktif()){ toast(T('hanyaAdminHapus')); return; }
+  if(!bolehHapusCatatan()){ toast(T('hanyaAdminHapus')); return; }
   const r = dcHistory.find(x=>x.id===id);
   if(!confirm(`Hapus daily check ${r ? r.tanggal : 'ini'}? Tindakan ini tidak bisa dibatalkan.`)) return;
   const salinan = dcHistory.slice();

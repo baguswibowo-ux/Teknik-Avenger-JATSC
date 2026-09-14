@@ -690,7 +690,7 @@ function renderRkList(form){
         ${(!d.managerTtd && bolehSuntingCatatan(d.dibuatOlehUsername))
           ? `<button class="icon-btn" title="${T('rkSunting')}" onclick="openRkEdit('${d.id}')">✎</button>` : ''}
         <button class="icon-btn" title="${T('cetak')}" onclick="printRk('${d.id}')">🖨</button>
-        <button class="icon-btn hanya-admin" title="${T('hapus')}" onclick="hapusRk('${d.id}')">✕</button>
+        <button class="icon-btn hanya-hapus" title="${T('hapus')}" onclick="hapusRk('${d.id}')">✕</button>
       </div>
     </div>`;
   }).join('');
@@ -700,7 +700,7 @@ function renderRkList(form){
 function renderSemuaRkList(){ RK_URUT.forEach(renderRkList); }
 
 async function hapusRk(id){
-  if(!adminAktif()){ toast(T('hanyaAdminHapus')); return; }
+  if(!bolehHapusCatatan()){ toast(T('hanyaAdminHapus')); return; }
   const d = dsList.find(x=>x.id === id);
   if(!confirm(`${T('konfirmasiHapus')} ${d ? d.tanggal : ''}?`)) return;
   const form = rkFormTersimpan(d && d.state);

@@ -208,7 +208,7 @@ function renderBapbList(){
       ${diinputOlehHtml(b.diinputOleh, b.dibuatPada, String(b.tanggal || '').slice(0, 10))}
       <div style="display:flex;gap:4px;">
         <button class="btn ghost" style="padding:6px 10px;" onclick="openBapbDetail('${b.id}')">${T('detail')}</button>
-        <button class="icon-btn hanya-admin" title="${T('hapus')}" onclick="hapusBapb('${b.id}')">✕</button>
+        <button class="icon-btn hanya-hapus" title="${T('hapus')}" onclick="hapusBapb('${b.id}')">✕</button>
       </div>
     </div>`).join('');
 }
@@ -330,7 +330,7 @@ async function simpanBapbPemakai(){
 /* ---------- Hapus ---------- */
 
 async function hapusBapb(id){
-  if (!adminAktif()) { toast(T('hanyaAdminHapus')); return; }
+  if (!bolehHapusCatatan()) { toast(T('hanyaAdminHapus')); return; }
   const b = bapbList.find(x => x.id === id);
   const nama = b ? (b.nomor || b.untukPekerjaan || '') : '';
   if (!confirm(`${T('konfirmasiHapus')} ${nama}?`)) return;

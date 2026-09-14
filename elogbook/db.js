@@ -1310,6 +1310,24 @@ export function tambahLampiranIsu(issueId, fase, daftar) {
   return hasil;
 }
 
+/**
+ * Unit pemilik sebuah catatan untuk pagar hapus admin unit. Menjangkau yang
+ * tidak dikenal unitCatatan (hanya jenis ber-TTD): isu, dan lampiran LTK/isu
+ * yang unitnya diambil dari catatan induknya. '' = tidak ditemukan.
+ */
+export function unitHapus(jenis, id) {
+  const kunci = String(id || '');
+  const satu = (sql) => { const r = db.prepare(sql).get(kunci); return r ? (r.unit || '') : ''; };
+  if (jenis === 'isu') return satu('SELECT unit FROM issues WHERE id = ?');
+  if (jenis === 'lampiran-isu') {
+    return satu('SELECT i.unit FROM lampiran_isu l JOIN issues i ON i.id = l.issue_id WHERE l.id = ?');
+  }
+  if (jenis === 'lampiran-ltk') {
+    return satu('SELECT t.unit FROM lampiran_ltk l JOIN ltk t ON t.id = l.ltk_id WHERE l.id = ?');
+  }
+  return unitCatatan(jenis, kunci);
+}
+
 export function hapusLampiranIsu(lampiranId) {
   const r = db.prepare('SELECT path FROM lampiran_isu WHERE id = ?').get(lampiranId);
   if (!r) return false;

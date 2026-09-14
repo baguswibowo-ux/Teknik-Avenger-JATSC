@@ -334,7 +334,7 @@ function bagianBuktiHtml(it, fase, judul){
   const kartu = daftar.length ? daftar.map(l=>{
     const gambar = String(l.Mime||'').startsWith('image/');
     const isi = gambar ? `<img src="${l.Path}" alt="${escapeHtml(l.Nama)}" loading="lazy">` : `<div class="berkas">📄</div>`;
-    const hapus = adminAktif()
+    const hapus = bolehHapusCatatan()
       ? `<button class="icon-btn" style="position:absolute;top:2px;right:2px;background:var(--tirai);border-radius:4px;"
                  title="Hapus lampiran ini" onclick="event.preventDefault();hapusBuktiIsu('${l.ID}')">✕</button>` : '';
     return `<div style="position:relative;">
@@ -389,7 +389,7 @@ function gantiIsuDiDaftar(dariServer){
 }
 
 async function deleteIssue(id){
-  if(!adminAktif()){ toast(T('hanyaAdminHapus')); return; }
+  if(!bolehHapusCatatan()){ toast(T('hanyaAdminHapus')); return; }
   const it = issues.find(i=>i.id===id);
   if(!confirm(`Hapus isu "${it ? (it.jenis||'tanpa jenis') : 'ini'}"? Tindakan ini tidak bisa dibatalkan.`)) return;
   const salinan = issues.slice();
@@ -571,6 +571,7 @@ function barisIsuBaca(it, idx){
       ${selBuktiHtml(it)}
       <td style="display:flex;gap:4px;align-items:center;">
         ${selDetailIsu(it)}
+        ${bolehHapusCatatan() ? `<button class="icon-btn" title="Hapus isu" onclick="deleteIssue('${it.id}')">✕</button>` : ''}
       </td>
     </tr>`;
 }
