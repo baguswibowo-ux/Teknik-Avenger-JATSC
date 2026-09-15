@@ -1243,6 +1243,38 @@ const API = {
    * Yang disimpan sebagai nama pada formulir tetap tulisan teknisi; identitas
    * ini hanya dicatat sebagai keterangan siapa yang membubuhkan.
    */
+  /**
+   * Satu catatan untuk dibuka dari Kotak Masuk TTD, walau unitnya tidak
+   * dipegang akun ini. Kasus khususnya PH: teknisi satu unit bisa mewakili
+   * pejabat yang dokumennya datang dari delapan unit, dan getAllData hanya
+   * mengirim unit miliknya — jadi dokumen yang mau ia tanda tangani tidak
+   * pernah ada di layarnya.
+   *
+   * Boleh kalau unitnya dipegang, atau catatan itu ditujukan (ttd_untuk) ke
+   * pejabat yang sedang ia wakili. Hanya catatan itu, bukan isi unitnya.
+   * Bentuk barisnya sama persis dengan daftar getAllData.
+   */
+  getTitipanPh: async (jenis, id, user) => {
+    const j = String(jenis || '');
+    if (!jenisTtdSah(j)) throw new Error('Jenis catatan tidak dikenal: ' + j);
+    const unit = await unitCatatan(j, String(id));
+    if (!unit) throw new Error('Catatan tidak ditemukan — mungkin sudah dihapus.');
+    const daftar = {
+      logbook: listEntries, dailycheck: listDailyChecks, monitoring: listMonitoring,
+      dstest: listDsTest, berkala: listBerkala, ltk: listLtk, bapb: listBapb
+    }[j];
+    const baris = (await daftar(unit, 2000)).find((r) => String(r.ID) === String(id));
+    if (!baris) throw new Error('Catatan terlalu lama untuk dibuka dari kotak masuk.');
+    const pegangUnit = (await unitUntukUser(user)).includes(unit);
+    const diwakili = (await listDiwakiliOleh(user.username, hariIniUtc()))
+      .filter((p) => !sameUser(p.username, user.username));
+    const sebagaiPh = !!baris.TtdUntuk && diwakili.some((p) => sameUser(p.username, baris.TtdUntuk));
+    if (!pegangUnit && !sebagaiPh) {
+      throw new Error('Catatan ini bukan untuk Anda atau pejabat yang sedang Anda wakili.');
+    }
+    return { unit, baris: isAdmin(user) ? baris : tanpaJejakInput([baris])[0] };
+  },
+
   tandaTangani: async (jenis, id, ttd, mode, user) => {
     // Argumen mode dulu menandai stempel QR dan sekarang tidak berarti apa-apa,
     // tetapi tetap diterima: peramban yang masih memegang berkas js lama dari

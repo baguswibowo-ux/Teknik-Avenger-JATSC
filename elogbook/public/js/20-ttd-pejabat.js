@@ -373,15 +373,20 @@ async function kirimTtdPejabat(data, btnId){
   const btn = document.getElementById(btnId);
   if(btn) btn.disabled = true;
   try{
+    const titipan = !!titipanTerbuka && titipanTerbuka.jenis === jenis && titipanTerbuka.id === id;
     const hasil = await gsRun('tandaTangani', jenis, id, data);
-    if(hasil && TTD_TERAP[jenis]) TTD_TERAP[jenis](hasil);
+    // Dokumen titipan unit lain dilepas dulu — kalau tidak, TTD_TERAP ikut
+    // menggambarnya di daftar unit si PH.
+    if(titipan) lepasTitipan();
+    else if(hasil && TTD_TERAP[jenis]) TTD_TERAP[jenis](hasil);
     hapusDariInboxTtd(jenis, id);
     closeTtdModal();
     tutupSemuaDetail();
     toast(T('ttdTersimpan'));
     // Buka lagi jendela detailnya, supaya hasilnya langsung kelihatan di tempat
     // yang sama — bukan sekadar pesan bahwa katanya tersimpan.
-    if(TTD_BUKA_ULANG[jenis]) TTD_BUKA_ULANG[jenis](id);
+    if(titipan) bukaDetailTitipan(jenis, id);
+    else if(TTD_BUKA_ULANG[jenis]) TTD_BUKA_ULANG[jenis](id);
   }catch(e){
     toast(e.message || T('ttdGagal'));
   }
@@ -394,6 +399,53 @@ function tutupSemuaDetail(){
     const el = document.getElementById(id);
     if(el) el.classList.remove('show');
   });
+  lepasTitipan();
+}
+
+/* ============== DOKUMEN TITIPAN DARI UNIT LAIN ==============
+   PH bisa mewakili pejabat yang dokumennya datang dari unit mana saja,
+   sedangkan layar E-Logbook hanya memuat unit milik akunnya. Dokumen seperti
+   itu diambil sendiri (getTitipanPh), dititipkan SEMENTARA ke daftar jenisnya
+   supaya jendela detail yang biasa bisa menampilkannya, lalu dilepas lagi saat
+   jendela ditutup — tidak pernah ikut tergambar di daftar unit si PH.
+   Selama digambar, unitAktif dipinjamkan ke unit dokumen: bentuk detail
+   (mis. daily check Radkom) mengikuti unit. Cetak/sunting/buat isu
+   disembunyikan — yang dibutuhkan PH hanya membaca dan menandatangani. */
+const TITIPAN_DAFTAR = {
+  logbook:    { daftar: ()=>entries,     map: r=>mapEntry(r) },
+  dailycheck: { daftar: ()=>dcHistory,   map: r=>mapDc(r) },
+  monitoring: { daftar: ()=>monitoring,  map: r=>mapMon(r) },
+  dstest:     { daftar: ()=>dsList,      map: r=>mapDs(r) },
+  berkala:    { daftar: ()=>berkalaList, map: r=>mapBerkala(r) },
+  ltk:        { daftar: ()=>ltkList,     map: r=>mapLtk(r) },
+  bapb:       { daftar: ()=>bapbList,    map: r=>mapBapb(r) }
+};
+const TOMBOL_BUKAN_TITIPAN = ['dcDetailPrintBtn','formDetailPrintBtn','entryDetailIsuBtn'];
+let titipanTerbuka = null;   // { jenis, id } yang sedang dititipkan
+
+function lepasTitipan(){
+  if(!titipanTerbuka) return;
+  const { jenis, id } = titipanTerbuka;
+  titipanTerbuka = null;
+  const arr = TITIPAN_DAFTAR[jenis].daftar();
+  const i = arr.findIndex(x => x.id === id && x.__titipan);
+  if(i >= 0) arr.splice(i, 1);
+  TOMBOL_BUKAN_TITIPAN.forEach(b=>{ const el = document.getElementById(b); if(el) el.style.display = ''; });
+}
+
+async function bukaDetailTitipan(jenis, id){
+  lepasTitipan();
+  let r;
+  try{ r = await gsRun('getTitipanPh', jenis, id); }
+  catch(e){ toast((e && e.message) || 'Dokumen gagal dibuka.'); return; }
+  const cfg = TITIPAN_DAFTAR[jenis];
+  cfg.daftar().push({ ...cfg.map(r.baris), __titipan: true });
+  titipanTerbuka = { jenis, id };
+  const asli = unitAktif;
+  unitAktif = r.unit;
+  try{ await TTD_BUKA_ULANG[jenis](id); }
+  finally{ unitAktif = asli; }
+  TOMBOL_BUKAN_TITIPAN.forEach(b=>{ const el = document.getElementById(b); if(el) el.style.display = 'none'; });
 }
 
 /* ============== TUNJUK AKUN UNTUK TTD SUSULAN ==============
@@ -556,27 +608,27 @@ function openInboxModal(){
 }
 function closeInboxModal(){ document.getElementById('inboxModalBg').classList.remove('show'); }
 
-/** Klik satu baris kotak masuk: papan TTD langsung terbuka. Kalau unit
-    catatannya dipegang akun ini, pindah ke unit & tab itu dan buka jendela
-    detailnya di belakang papan TTD, supaya isinya tetap bisa dibaca.
+/** Klik satu baris kotak masuk: buka jendela detailnya — tempat yang sama
+    untuk membaca dan membubuhkan TTD.
 
-    PH yang mewakili pejabat sering tidak memegang unit catatannya (teknisi
-    unit lain): server hanya mengirim data unit miliknya, jadi detailnya
-    memang tidak ada di layar. Dulu klik mencoba pindah unit, gagal diam-diam,
-    dan tidak ada yang terbuka — sekaligus menimpa ingatan unit akunnya.
-    Papan TTD tidak butuh data unit: nama tercetak lewat PH datang dari server. */
+    Unit yang dipegang akun ini: pindah ke unit & tab itu seperti biasa.
+    Unit yang TIDAK dipegang — PH yang mewakili pejabat dari unit mana saja:
+    dokumennya diambil sendiri dan ditampilkan tanpa pindah unit (lihat
+    bukaDetailTitipan). Dulu klik mencoba pindah unit, server menolak diam-diam,
+    dan tidak ada yang terbuka. Dokumen lama yang tidak ikut termuat di daftar
+    unitnya diambil lewat jalur yang sama. */
 async function bukaInboxItem(jenis, unit, id){
   closeInboxModal();
   const unitDipegang = !unit || unit === unitAktif || unitSaya.some(u => u.kode === unit);
-  if(unitDipegang){
-    if(unit && unit !== unitAktif){
-      unitAktif = unit;
-      simpanUnit(unit);
-      tutupPratinjau();
-      await init();
-    }
-    bukaTabInbox(jenis, id);
-    if(TTD_BUKA_ULANG[jenis]) TTD_BUKA_ULANG[jenis](id);
+  if(!unitDipegang){ await bukaDetailTitipan(jenis, id); return; }
+  if(unit && unit !== unitAktif){
+    unitAktif = unit;
+    simpanUnit(unit);
+    tutupPratinjau();
+    await init();
   }
-  openTtdModal(jenis, id);
+  bukaTabInbox(jenis, id);
+  const cfg = TITIPAN_DAFTAR[jenis];
+  if(cfg && !cfg.daftar().some(x => x.id === id)){ await bukaDetailTitipan(jenis, id); return; }
+  if(TTD_BUKA_ULANG[jenis]) TTD_BUKA_ULANG[jenis](id);
 }

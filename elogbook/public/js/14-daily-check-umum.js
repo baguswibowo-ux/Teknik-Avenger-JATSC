@@ -411,7 +411,7 @@ async function deleteDcRecord(id){
 }
 
 /* ---------- Lihat detail daily check tersimpan ---------- */
-function closeDcDetail(){ document.getElementById('dcDetailBg').classList.remove('show'); }
+function closeDcDetail(){ document.getElementById('dcDetailBg').classList.remove('show'); if(typeof lepasTitipan === 'function') lepasTitipan(); }
 
 function dcDetailTable(leftItems, rightItems, state){
   const sym = s => s==='ok' ? '✓' : (s==='warn' ? '!' : '✕');

@@ -234,7 +234,7 @@ function renderEntries(){
 }
 
 /* ---------- Lihat detail satu catatan logbook ---------- */
-function closeEntryDetail(){ document.getElementById('entryDetailBg').classList.remove('show'); }
+function closeEntryDetail(){ document.getElementById('entryDetailBg').classList.remove('show'); if(typeof lepasTitipan === 'function') lepasTitipan(); }
 
 function openEntryDetail(id){
   const e = entries.find(x=>x.id===id);

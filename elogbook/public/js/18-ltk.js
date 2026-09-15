@@ -204,4 +204,4 @@ function printLtk(id){
     </table>`, 'landscape');
 }
 
-function closeFormDetail(){ document.getElementById('formDetailBg').classList.remove('show'); }
+function closeFormDetail(){ document.getElementById('formDetailBg').classList.remove('show'); if(typeof lepasTitipan === 'function') lepasTitipan(); }
