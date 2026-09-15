@@ -22,6 +22,13 @@ set "PORT_ELOG=3000"
 if exist .env for /f "usebackq tokens=1,* delims==" %%a in (`findstr /b /c:"PORT=" .env`) do set "PORT=%%b"
 if exist .env for /f "usebackq tokens=1,* delims==" %%a in (`findstr /b /c:"ELOGBOOK_PORT=" .env`) do set "PORT_ELOG=%%b"
 
+rem MATIKAN SERVER UJI TANPA ADMIN. Server uji (uji.ps1, port 3900 e-logbook
+rem dan 3910 dashboard) yang pernah dinyalakan dari PowerShell admin tidak bisa
+rem dimatikan akun biasa. Buat berkas kosong matikan-uji.minta di akar
+rem aplikasi; dalam 10 menit penjaga (SYSTEM) mematikan dua port itu saja,
+rem lalu uji.ps1 bisa dijalankan dari PowerShell biasa. Produksi tidak disentuh.
+if exist matikan-uji.minta call :matikanuji
+
 if exist restart.minta goto restart
 
 netstat -ano | findstr /r /c:":%PORT% .*LISTENING" >nul
@@ -47,4 +54,15 @@ ping -n 6 127.0.0.1 >nul
 echo [%date% %time%] jaga-server: restart.minta ditemukan, server dinyalakan ulang >> server.log
 schtasks /Run /TN "Avenger\Server" >nul 2>&1
 if errorlevel 1 call "%~dp0server.cmd"
+exit /b 0
+
+:matikanuji
+del /f /q matikan-uji.minta
+rem Log sendiri: server.log dikunci server.cmd selama produksi hidup.
+for %%t in (3900 3910) do (
+  for /f "tokens=5" %%p in ('netstat -ano ^| findstr /r /c:":%%t .*LISTENING"') do (
+    taskkill /f /pid %%p >nul 2>&1
+    echo [%date% %time%] jaga-server: matikan-uji.minta - port %%t PID %%p dimatikan >> jaga-uji.log
+  )
+)
 exit /b 0
