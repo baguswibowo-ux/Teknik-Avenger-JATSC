@@ -335,7 +335,20 @@ const BKL_LEMBAR_MR = [
   ['llz-07l','LLZ 07L'], ['llz-07r','LLZ 07R'], ['llz-25l','LLZ 25L'], ['llz-25r','LLZ 25R'],
   ['gp-07l','GP 07L'],   ['gp-07r','GP 07R'],   ['gp-25l','GP 25L'],   ['gp-25r','GP 25R'],
   ['tdme-07l','TDME 07L'], ['tdme-07r','TDME 07R'], ['tdme-25l','TDME 25L'], ['tdme-25r','TDME 25R'],
-  ['om-25r','OM 25R']
+  ['om-25r','OM 25R'],
+  ['dvor-ckg','DVOR CKG'], ['dme-ckg','DME CKG'], ['dvor-dki','DVOR DKI'], ['dme-dki','DME DKI']
+];
+/* Preventive Maintenance Radkom (RK_FORMS di E-Logbook 17h): [id __rkForm,
+   sebutan, sub-tab tujuan]. Mingguan dan Bulanan satu sub-tab bertingkat
+   berisi empat lembar, jadi tautannya menuju sub-tab induknya. */
+const BKL_LEMBAR_RK = [
+  ['ming-710','Meter Reading Mingguan Gedung 710','rk-ming'], ['ming-720','Meter Reading Mingguan Gedung 720','rk-ming'],
+  ['ming-mer','Meter Reading Mingguan MER','rk-ming'],        ['ming-ter','Meter Reading Mingguan TER','rk-ming'],
+  ['bul-710','Meter Reading Bulanan Gedung 710','rk-bul'],    ['bul-720','Meter Reading Bulanan Gedung 720','rk-bul'],
+  ['bul-mer','Meter Reading Bulanan MER','rk-bul'],           ['bul-ter','Meter Reading Bulanan TER','rk-bul'],
+  ['rstx','Meter Reading Radio R&S TX','rk-rstx'], ['rsrx','Meter Reading Radio R&S RX','rk-rsrx'],
+  ['battery','Pengukuran Battery & Charger','rk-battery'],
+  ['txvhf','Preventive Maintenance TX VHF','rk-txvhf'], ['antvhf','Preventive Maintenance Antena VHF','rk-antvhf']
 ];
 const BKL_LEMBAR_ML = [
   ['paneldist','Panel Distribusi'], ['sts','STS Tower'], ['ups','UPS'],
@@ -377,8 +390,46 @@ Object.assign(BERKALA_SUMBER, {
     'ml-' + k,
     bklSumberPm('listrikmekanik', 'maintlistrik', '__mlForm', k, 'Pemeliharaan ' + nama,
                 'PEMELIHARAAN · ' + nama.toUpperCase(), 'ml-' + k)
+  ])),
+  ...Object.fromEntries(BKL_LEMBAR_RK.map(([k, nama, tab])=>[
+    'rk-' + k,
+    bklSumberPm('radkom', 'mrradkom', '__rkForm', k, nama, nama.toUpperCase(), tab)
   ]))
 });
+
+/**
+ * Ulangan bawaan waktu sebuah lembar dijadikan kegiatan lewat tombol "Tambah
+ * dari lembar E-Logbook". Hanya tebakan awal dari nama/judul lembarnya —
+ * Mingguan, Bulanan, (SEMESTERAN), (TAHUNAN) — dan tetap bisa diubah di baris
+ * drafnya sebelum disimpan. Lembar yang tidak menyebut periodenya jatuh ke
+ * mingguan Senin.
+ */
+function bklUlanganBawaan(sumber){
+  const s = String(sumber || '');
+  const minggu = (hari)=>({ jenis:'mingguan', hari, bulan:null, tanggal:null });
+  const bulanan = { jenis:'bulanan', hari:null, bulan:null, tanggal:1 };
+  if(s === 'dailycheck' || s.startsWith('dailycheck-') || s.startsWith('dc-')) {
+    return { jenis:'harian', hari:null, bulan:null, tanggal:null };
+  }
+  if(s === 'dstest') return minggu([1, 3, 6]);          // Senin, Rabu, Sabtu
+  if(s === 'rk-txvhf')  return { jenis:'semesteran', hari:null, bulan:1, tanggal:1 };
+  if(s === 'rk-antvhf') return { jenis:'tahunan',    hari:null, bulan:1, tanggal:1 };
+  if(s.startsWith('rk-bul-') || s.startsWith('gc-llz-') || s.startsWith('ml-')
+     || s === 'pm-radio' || s === 'bk-cleaning' || s === 'bk-restart') return bulanan;
+  return minggu([1]);
+}
+
+/**
+ * Lembar Daily Check & Preventive yang dimiliki unit ini di E-Logbook tapi
+ * belum dipakai satu kegiatan pun di `daftar`. Monitoring Frekuensi tidak
+ * ikut: itu formulir kejadian, bukan pekerjaan berputar.
+ */
+function bklLembarBelumDipakai(unit, daftar){
+  if(!UNIT_FORM[unit]) return [];
+  const dipakai = new Set((daftar || []).map(k=>k.sumber).filter(Boolean));
+  return Object.keys(BERKALA_SUMBER)
+    .filter(s=>s && s !== 'monitoring' && !dipakai.has(s) && bklFormAda(unit, { sumber:s }));
+}
 
 /** Baris registri untuk satu kegiatan. Sumber yang tidak dikenal — kegiatan
     lama, atau berkas yang disunting tangan — dibaca sebagai tanda manual,
@@ -717,6 +768,13 @@ function bklIsi(unit){
       <span class="tombol">
         ${BKL.sunting
           ? `<button class="btn garis kecil" id="bklBatal">${T('Batal','Cancel')}</button>
+             ${(()=>{
+               const n = bklLembarBelumDipakai(unit, daftar).length;
+               return n ? `<button class="btn garis kecil" id="bklTambahLembar" title="${esc(T(
+                 'Jadikan kegiatan semua lembar Daily Check & Preventive unit ini di E-Logbook yang belum ada di daftar',
+                 'Turn every E-Logbook Daily Check & Preventive sheet of this unit not yet in the list into a job'))}">${
+                 T(`Tambah dari lembar E-Logbook (${n})`, `Add from E-Logbook sheets (${n})`)}</button>` : '';
+             })()}
              <button class="btn garis kecil" id="bklTambah">${T('Tambah kegiatan','Add a job')}</button>
              <button class="btn kecil" id="bklSimpan">${T('Simpan kegiatan','Save jobs')}</button>`
           : boleh
@@ -975,6 +1033,32 @@ function bklPasang(unit){
   if(tambah) tambah.addEventListener('click', ()=>{
     BKL.draf.push({ id:'', nama:'', jenis:'mingguan', hari:[1], bulan:1, tanggal:1, sumber:'', shift:'', ket:'', alat:'', lokasi:'' });
     bklGambar();
+  });
+
+  /* Semua lembar E-Logbook unit ini yang belum jadi kegiatan masuk ke DRAF
+     sekaligus, bernama judul lembarnya dan berulangan bawaan. Belum ada yang
+     tersimpan: orangnya memeriksa hari/tanggalnya dulu, lalu Simpan kegiatan.
+     Draf yang masih satu baris kosong (daftar baru) diganti, bukan ditambah. */
+  const tambahLembar = kotak.querySelector('#bklTambahLembar');
+  if(tambahLembar) tambahLembar.addEventListener('click', ()=>{
+    const baru = bklLembarBelumDipakai(unit, BKL.draf);
+    if(!baru.length) return;
+    if(BKL.draf.length === 1 && !String(BKL.draf[0].nama || '').trim()) BKL.draf = [];
+    const idAda = new Set(BKL.draf.map(k=>k.id).filter(Boolean));
+    for(const s of baru){
+      const f = BERKALA_SUMBER[s];
+      const u = bklUlanganBawaan(s);
+      BKL.draf.push({
+        id: idAda.has(s) ? '' : s,
+        nama: f.judul || T(...f.label),
+        jenis: u.jenis, hari: u.hari || [1], bulan: u.bulan || 1, tanggal: u.tanggal || 1,
+        sumber: s, shift:'', ket:'', alat:'',
+        lokasi: s === 'dailycheck-jatsc' ? 'jatsc' : s === 'dailycheck-newjatsc' ? 'new-jatsc' : ''
+      });
+    }
+    bklGambar();
+    pesan(T(`${baru.length} lembar masuk draf. Periksa hari/tanggalnya, lalu tekan Simpan kegiatan.`,
+            `${baru.length} sheet(s) added to the draft. Check their days/dates, then press Save jobs.`));
   });
 
   /* Membetulkan kegiatan yang menunggu lembar yang tidak dimiliki unit ini.

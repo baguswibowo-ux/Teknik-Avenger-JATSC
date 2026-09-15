@@ -2044,13 +2044,31 @@ const BERKALA_SUMBER = new Map([
   ['mr-tdme-25l',     'lembar Meter Reading TDME 25L'],
   ['mr-tdme-25r',     'lembar Meter Reading TDME 25R'],
   ['mr-om-25r',       'lembar Meter Reading OM 25R'],
+  ['mr-dvor-ckg',     'lembar Meter Reading DVOR CKG'],
+  ['mr-dme-ckg',      'lembar Meter Reading DME CKG'],
+  ['mr-dvor-dki',     'lembar Meter Reading DVOR DKI'],
+  ['mr-dme-dki',      'lembar Meter Reading DME DKI'],
   ['ml-paneldist',    'lembar Pemeliharaan Panel Distribusi'],
   ['ml-sts',          'lembar Pemeliharaan STS Tower'],
   ['ml-ups',          'lembar Pemeliharaan UPS'],
   ['ml-chiller',      'lembar Pemeliharaan Chiller & Pompa'],
   ['ml-ahu',          'lembar Pemeliharaan AHU'],
   ['ml-genset',       'lembar Pemeliharaan Genset'],
-  ['ml-grounding',    'lembar Pemeliharaan Grounding']
+  ['ml-grounding',    'lembar Pemeliharaan Grounding'],
+  /* Preventive Maintenance Radkom (17h-meter-radkom.js, state.__rkForm). */
+  ['rk-ming-710',     'lembar Meter Reading Mingguan Gedung 710'],
+  ['rk-ming-720',     'lembar Meter Reading Mingguan Gedung 720'],
+  ['rk-ming-mer',     'lembar Meter Reading Mingguan MER'],
+  ['rk-ming-ter',     'lembar Meter Reading Mingguan TER'],
+  ['rk-bul-710',      'lembar Meter Reading Bulanan Gedung 710'],
+  ['rk-bul-720',      'lembar Meter Reading Bulanan Gedung 720'],
+  ['rk-bul-mer',      'lembar Meter Reading Bulanan MER'],
+  ['rk-bul-ter',      'lembar Meter Reading Bulanan TER'],
+  ['rk-rstx',         'lembar Meter Reading Radio R&S TX'],
+  ['rk-rsrx',         'lembar Meter Reading Radio R&S RX'],
+  ['rk-battery',      'lembar Pengukuran Battery & Charger'],
+  ['rk-txvhf',        'lembar Preventive Maintenance TX VHF'],
+  ['rk-antvhf',       'lembar Preventive Maintenance Antena VHF']
 ]);
 
 /* Berapa bulan panjang satu putaran, untuk jenis yang lebih panjang dari

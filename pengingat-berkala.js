@@ -66,7 +66,19 @@ const LEMBAR_MR = [
   ['llz-07l', 'LLZ 07L'], ['llz-07r', 'LLZ 07R'], ['llz-25l', 'LLZ 25L'], ['llz-25r', 'LLZ 25R'],
   ['gp-07l', 'GP 07L'], ['gp-07r', 'GP 07R'], ['gp-25l', 'GP 25L'], ['gp-25r', 'GP 25R'],
   ['tdme-07l', 'TDME 07L'], ['tdme-07r', 'TDME 07R'], ['tdme-25l', 'TDME 25L'], ['tdme-25r', 'TDME 25R'],
-  ['om-25r', 'OM 25R']
+  ['om-25r', 'OM 25R'],
+  ['dvor-ckg', 'DVOR CKG'], ['dme-ckg', 'DME CKG'], ['dvor-dki', 'DVOR DKI'], ['dme-dki', 'DME DKI']
+];
+/* Preventive Maintenance Radkom — [id __rkForm, sebutan]. Kembaran
+   BKL_LEMBAR_RK di public/js/23-berkala.js dan RK_FORMS di E-Logbook 17h. */
+const LEMBAR_RK = [
+  ['ming-710', 'Meter Reading Mingguan Gedung 710'], ['ming-720', 'Meter Reading Mingguan Gedung 720'],
+  ['ming-mer', 'Meter Reading Mingguan MER'],        ['ming-ter', 'Meter Reading Mingguan TER'],
+  ['bul-710', 'Meter Reading Bulanan Gedung 710'],   ['bul-720', 'Meter Reading Bulanan Gedung 720'],
+  ['bul-mer', 'Meter Reading Bulanan MER'],          ['bul-ter', 'Meter Reading Bulanan TER'],
+  ['rstx', 'Meter Reading Radio R&S TX'], ['rsrx', 'Meter Reading Radio R&S RX'],
+  ['battery', 'Pengukuran Battery & Charger'],
+  ['txvhf', 'Preventive Maintenance TX VHF'], ['antvhf', 'Preventive Maintenance Antena VHF']
 ];
 const LEMBAR_ML = [
   ['paneldist', 'Panel Distribusi'], ['sts', 'STS Tower'], ['ups', 'UPS'],
@@ -111,7 +123,9 @@ export const SUMBER_BUKTI = {
   ...Object.fromEntries(LEMBAR_MR.map(([k, nama]) =>
     ['mr-' + k, pm('mrreading', '__mrForm', k, 'Meter Reading ' + nama)])),
   ...Object.fromEntries(LEMBAR_ML.map(([k, nama]) =>
-    ['ml-' + k, pm('maintlistrik', '__mlForm', k, 'Pemeliharaan ' + nama)]))
+    ['ml-' + k, pm('maintlistrik', '__mlForm', k, 'Pemeliharaan ' + nama)])),
+  ...Object.fromEntries(LEMBAR_RK.map(([k, nama]) =>
+    ['rk-' + k, pm('mrradkom', '__rkForm', k, nama)]))
 };
 
 /** Larik lembar E-Logbook yang dibutuhkan untuk menjawab kegiatan-kegiatan ini. */
