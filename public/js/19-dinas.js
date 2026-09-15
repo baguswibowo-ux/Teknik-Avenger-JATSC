@@ -33,10 +33,20 @@ function kartuShift(s, kodeHari){
 }
 
 function gambarDinas(){
-  const tgl = HARI_INI.toLocaleDateString(LOKAL(),{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-  el('ketTanggal').textContent = tgl;
-  el('ketTanggal2').textContent = tgl + T(' — seluruh unit, terlihat oleh semua akun.',
-                                          ' — all units, visible to every account.');
+  /* Tanggal HARI DINAS, bukan tanggal peramban: harinya berganti 00:00 UTC
+     (07:00 WIB), jadi dari tengah malam sampai jam tujuh pagi yang berjalan
+     masih tanggal kemarin — lihat catatan di 21-jadwal-dinas.js. Selama jam
+     itu tanggalnya disebut apa adanya, dengan alasannya, supaya tidak terbaca
+     sebagai layar yang lupa menyegarkan diri. */
+  const hariDinas = tanggalDinasKini();
+  const tgl = hariDinas.toLocaleDateString(LOKAL(),
+    { weekday:'long', day:'numeric', month:'long', year:'numeric', timeZone:'UTC' });
+  const beda = hariDinas.getUTCDate() !== new Date().getDate();
+  const ket = beda ? T(' — hari dinas berjalan, berganti pukul 07:00 WIB',
+                       ' — the running duty day, it changes at 00:00 UTC') : '';
+  el('ketTanggal').textContent = tgl + ket;
+  el('ketTanggal2').textContent = tgl + ket + T(' — seluruh unit, terlihat oleh semua akun.',
+                                                ' — all units, visible to every account.');
 
   // Pita beranda memuat seluruh personel yang berdinas hari ini, lintas unit,
   // dengan yang sedang bertugas jam ini didahulukan. Sempat hanya menampilkan

@@ -17,6 +17,34 @@
 
 
 const bulanKode = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+
+/* =======================================================================
+   HARI DINAS — pergantiannya 00:00 UTC (07:00 WIB), bukan tengah malam WIB
+
+   Kolom tanggal di lembar jadwal adalah hari UTC, sama seperti jam shiftnya
+   (lihat 02-kode-dinas.js). Malam tanggal 15 berangkat 12:00 UTC dan baru
+   selesai 00:00 UTC tanggal 16 — jam 05:00 WIB tanggal 16, yang berdinas
+   masih orang dari kolom tanggal 15, dan PS/P tanggal 16 baru mulai pukul
+   07:00 WIB.
+
+   Kalau petak dinas memakai tanggal peramban (WIB), setiap hari dari tengah
+   malam sampai jam tujuh pagi ia menampilkan kolom yang salah: malam yang
+   sedang berjalan hilang, diganti PS yang belum berangkat. Karena itu seluruh
+   tampilan "hari ini" di layar dinas memakai tanggal UTC.
+
+   Yang TIDAK ikut: umur peralatan, tanggal dokumen, dan sebagainya — itu
+   tanggal kalender biasa, bukan hari dinas. Pengingat Telegram di server
+   (pengingat-dinas.js) memang sudah menghitung dengan hari UTC sejak awal.
+   ======================================================================= */
+
+/** Bulan hari dinas yang sedang berjalan, 'YYYY-MM'. */
+const bulanDinasKini = (d = new Date()) =>
+  `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}`;
+/** Tanggal hari dinas yang sedang berjalan, 1–31. */
+const hariDinasKini = (d = new Date()) => d.getUTCDate();
+/** Hari dinas berjalan sebagai Date tengah malam UTC — untuk label tanggal. */
+const tanggalDinasKini = (d = new Date()) =>
+  new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
 const jumlahHari = (bulan) =>
   new Date(Number(bulan.slice(0,4)), Number(bulan.slice(5,7)), 0).getDate();
 const namaBulan = (bulan) => new Date(Number(bulan.slice(0,4)), Number(bulan.slice(5,7))-1, 1)
@@ -26,8 +54,8 @@ const namaBulan = (bulan) => new Date(Number(bulan.slice(0,4)), Number(bulan.sli
    bisa saja tergambar lebih dulu — sesi yang dipulihkan langsung membuka unit
    terakhir — dan bulan kosong membuat jumlahHari('') jadi NaN. */
 const JDW = {
-  bulanIni: bulanKode(new Date()),   // yang mengisi kartu "berdinas hari ini"
-  lihat:    bulanKode(new Date()),   // bulan yang sedang dibuka di subtab
+  bulanIni: bulanDinasKini(),        // yang mengisi kartu "berdinas hari ini"
+  lihat:    bulanDinasKini(),        // bulan yang sedang dibuka di subtab
   jadwal:   {},      // { unit: [orang] } untuk JDW.bulanIni
   jadwalLihat: {},   // { unit: [orang] } untuk JDW.lihat
   bisaTulis:true,    // server punya penyimpanan tetap?
@@ -51,9 +79,9 @@ async function jdwAmbil(bulan){
 
 /** Muat jadwal bulan berjalan. Dipanggil sekali setelah masuk. */
 async function jdwMuatAwal(){
-  // Bulannya bisa berganti kalau halaman ini terbuka melewati tengah malam
-  // pergantian bulan, jadi disetel ulang di sini — bukan hanya saat lahir.
-  JDW.bulanIni = bulanKode(new Date());
+  // Bulannya bisa berganti kalau halaman ini terbuka melewati pergantian bulan
+  // (00:00 UTC tanggal 1), jadi disetel ulang di sini — bukan hanya saat lahir.
+  JDW.bulanIni = bulanDinasKini();
   JDW.lihat = JDW.bulanIni;
   await hakMuat();
   if(!JDW.sebab && !BOLEH.dinas) JDW.sebab = hakSebab('dinas');
@@ -125,7 +153,7 @@ function petakBaku(kode){
 function dinasHariIni(kode){
   const daftar = JDW.jadwal[kode];
   if(!Array.isArray(daftar) || !daftar.length) return null;
-  const hari = new Date().getDate();
+  const hari = hariDinasKini();
   const dipakai = kodeDipakaiUnit(kode);
   const petak = (dipakai.length ? dipakai.map(k=>({ k, o:[] })) : petakBaku(kode));
   daftar.forEach(o=>{
@@ -138,6 +166,24 @@ function dinasHariIni(kode){
     if(!s){ s = { k, o:[] }; petak.push(s); }
     s.o.push({ n:o.nama, p:o.peran || T('Teknisi','Technician') });
   });
+
+  /* Yang SEDANG berjalan jam ini didahulukan — sisanya tetap urut jam mulai.
+     Satu hari dinas memuat dua giliran yang jamnya berbeda (PS lalu M, atau P,
+     S, lalu M), dan yang dicari orang waktu membuka layar ini adalah giliran
+     yang sedang bertugas. Urut jam mulai saja membuat malam yang sedang jaga
+     berdiri paling kanan, di belakang PS yang sudah pulang tujuh jam lalu.
+     Pita beranda sudah lama berlaku begitu; petak unit menyusul.
+
+     Diurutkan di sini, bukan di kodeDipakaiUnit(): jam malam bergantung pada
+     kode yang dipakai HARI INI (aturan `geser`), dan daftar kode di sana
+     dikumpulkan dari seluruh bulan. sort() JavaScript stabil, jadi kelompok
+     yang tidak sedang berjalan tidak berubah urutannya. */
+  const kodeHari = petak.filter(s=>s.o.length).map(s=>s.k);
+  const libur  = (k)=> !!(SHIFT[k] && SHIFT[k].libur);
+  const sedang = (k)=> !!SHIFT[k] && !libur(k) && sedangShift(jamShift(k, kodeHari));
+  /* CUTI/CAP/IJIN/DL selalu paling belakang: mereka bukan giliran, dan berdiri
+     di antara dua giliran hanya memotong urutan jamnya. */
+  petak.sort((a,b)=>(sedang(b.k) - sedang(a.k)) || (libur(a.k) - libur(b.k)));
   return petak;
 }
 
@@ -296,7 +342,7 @@ function jdwTabel(unit){
   const kodeShift = infoUnit(unit).dinas || [];
   const baris = JDW.sunting ? JDW.draf : jdwBaris(unit);
   const iniBulanIni = bulan === JDW.bulanIni;
-  const hariIni = iniBulanIni ? new Date().getDate() : 0;
+  const hariIni = iniBulanIni ? hariDinasKini() : 0;
 
   const kepala = `<tr><th class="jdw-no">${T('No','No')}</th><th class="jdw-nama">${T('Nama','Name')}</th><th class="jdw-nik">NIK</th>` +
     Array.from({length:hariN}, (_,i)=>`<th class="${i+1===hariIni?'jdw-hari-ini':''}">${i+1}</th>`).join('') +
