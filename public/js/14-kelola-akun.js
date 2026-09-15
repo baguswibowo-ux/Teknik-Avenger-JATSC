@@ -917,8 +917,8 @@ function isiKartuAkun(u){
           'ISR PIC — technician in own unit + ISR in all units; edit, cannot delete')}</option>
         <option value="pejabat">${T('Pejabat — melihat seluruh unit, hanya membubuhkan tanda tangan',
           'Officer — sees every unit, may only sign')}</option>
-        <option value="pejabatnonop">${T('Pejabat Non-Operasional — melihat seluruh unit saja; tanpa TTD E-Logbook. TTD Spare Part / Jadwal Dinas / Sejarah Peralatan hanya yang dicentang di Wewenang Detail',
-          'Non-Operational Officer — views every unit only; no E-Logbook signatures. Spare Parts / Duty Roster / Equipment History signatures only as ticked under Detailed Permissions')}</option>
+        <option value="pejabatnonop">${T('Pejabat Non-Operasional — melihat seluruh unit saja; tanpa TTD E-Logbook',
+          'Non-Operational Officer — views every unit only; no E-Logbook signatures')}</option>
         <option value="admin">${T('Administrator — kendali penuh, termasuk mengelola akun',
           'Administrator — full control, including account management')}</option>
       </select>
