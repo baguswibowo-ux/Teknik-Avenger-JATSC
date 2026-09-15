@@ -176,53 +176,15 @@ async function cetakBuka(mode, unit, opts){
         : Promise.resolve([])
     ]);
     CETAK.picSaran = Array.isArray(teknisiUnit) ? teknisiUnit : [];
-    CETAK.pejabat = Array.isArray(pejabat) ? pejabat : [];
     CETAK.ttdSaya = ttdSaya || { ada:false };
-    /* Kalau unit itu tidak punya pejabat yang opt-in, jatuh balik ke
-       daftar pejabat aktif keseluruhan — supaya lembar tetap bisa
-       ditandatangani tanpa memaksa admin mengubah user_unit pejabat
-       satu per satu dulu. */
-    if(!CETAK.pejabat.length){
-      const semua = await srvApi('listPejabatAktif').catch(e=>{
-        console.warn('[cetak] listPejabatAktif gagal:', e && e.message || e);
-        return [];
-      });
-      CETAK.pejabat = Array.isArray(semua) ? semua : [];
-    }
-    /* Saring dropdown pejabat berdasarkan jenis yang sedang dicetak. Dua
-       lapis, dan urutannya penting — whitelist per jenis dulu (baru bolehTtd
-       per akun), supaya kalau whitelist sudah menyaring habis, tidak
-       terpangkas lagi jadi kosong oleh saringan kedua. Setiap saringan
-       menyisakan minimal satu; kalau habis, dilewati (fallback ke daftar
-       sebelumnya) supaya alur cetak tidak macet karena setup admin belum
-       lengkap. */
     if(hakCetak){
       const petaBolehSaya = (hakCetak.pejabatTtd && typeof hakCetak.pejabatTtd === 'object')
         ? hakCetak.pejabatTtd[String(akun.user || '').toLowerCase()] : null;
       CETAK.nonopBoleh = Array.isArray(petaBolehSaya) && petaBolehSaya.includes(CETAK.mode);
-      const modeKeModulTtd = { dinas:'dinas-ttd', sparepart:'sparepart-ttd', peralatan:'sejarah-ttd' };
-      const modulTtd = modeKeModulTtd[CETAK.mode];
-      const ditunjuk = (modulTtd && Array.isArray(hakCetak.ditunjuk?.[modulTtd])) ? hakCetak.ditunjuk[modulTtd] : [];
-      if(ditunjuk.length){
-        const set = new Set(ditunjuk.map(n=>String(n).toLowerCase()));
-        const saring = CETAK.pejabat.filter(p=>set.has(String(p.username).toLowerCase()));
-        if(saring.length) CETAK.pejabat = saring;
-        else console.warn(`[cetak] Whitelist ${modulTtd} tidak menghasilkan pejabat aktif di unit ini — memakai daftar penuh.`);
-      }
-      /* Lapis kedua: bolehTtd per-akun, aturan KETAT — pejabat hanya lolos
-         kalau jenis ini dicentang untuknya di Kelola Akun. Tanpa entri =
-         tidak boleh. Kalau tidak ada satu pun yang lolos, daftar sengaja
-         dibiarkan kosong (bukan jatuh ke daftar penuh): server toh akan
-         menolak pengiriman ke pejabat tanpa hak, jadi lebih jujur memberi
-         tahu di sini bahwa admin belum mencentang siapa pun. */
-      const petaBoleh = (hakCetak.pejabatTtd && typeof hakCetak.pejabatTtd === 'object') ? hakCetak.pejabatTtd : {};
-      CETAK.pejabat = CETAK.pejabat.filter(p=>{
-        const b = petaBoleh[String(p.username).toLowerCase()];
-        return Array.isArray(b) && b.includes(CETAK.mode);
-      });
-      CETAK.pejabatTanpaHak = !CETAK.pejabat.length;
-      if(CETAK.pejabatTanpaHak) console.warn(`[cetak] belum ada pejabat yang dicentang boleh TTD jenis ${CETAK.mode}.`);
     }
+    CETAK.pejabat = await cetakPejabatBerhak(pejabat, hakCetak, CETAK.mode);
+    CETAK.pejabatTanpaHak = !!hakCetak && !CETAK.pejabat.length;
+    if(CETAK.pejabatTanpaHak) console.warn(`[cetak] belum ada pejabat yang dicentang boleh TTD jenis ${CETAK.mode}.`);
     /* Kalau hasilnya tinggal satu pejabat, ia otomatis terpilih tanpa perlu
        diklik — mengirim langsung ke satu-satunya penerima yang boleh. */
     if(CETAK.pejabat.length) CETAK.pejabatDipilih = CETAK.pejabat[0].username;
@@ -232,6 +194,51 @@ async function cetakBuka(mode, unit, opts){
     console.warn('[cetak] kartu cetak gagal memuat:', e && e.message || e);
     cetakKartuGambar();
   }
+}
+
+/**
+ * Saring daftar pejabat untuk satu jenis dokumen. Dua lapis:
+ *   1. whitelist per jenis (`ditunjuk` di hak modul *-ttd) — kalau
+ *      menyaring habis, dilewati supaya alur tidak macet karena setup admin;
+ *   2. bolehTtd per akun, aturan KETAT — hanya yang dicentang jenis ini.
+ * Tanpa hakCetak (endpointnya gagal) daftar dikembalikan apa adanya.
+ */
+function cetakSaringPejabat(daftar, hakCetak, jenis){
+  let hasil = Array.isArray(daftar) ? daftar : [];
+  if(!hakCetak) return hasil;
+  const modeKeModulTtd = { dinas:'dinas-ttd', sparepart:'sparepart-ttd', peralatan:'sejarah-ttd' };
+  const modulTtd = modeKeModulTtd[jenis];
+  const ditunjuk = (modulTtd && Array.isArray(hakCetak.ditunjuk?.[modulTtd])) ? hakCetak.ditunjuk[modulTtd] : [];
+  if(ditunjuk.length){
+    const set = new Set(ditunjuk.map(n=>String(n).toLowerCase()));
+    const saring = hasil.filter(p=>set.has(String(p.username).toLowerCase()));
+    if(saring.length) hasil = saring;
+  }
+  const petaBoleh = (hakCetak.pejabatTtd && typeof hakCetak.pejabatTtd === 'object') ? hakCetak.pejabatTtd : {};
+  return hasil.filter(p=>{
+    const b = petaBoleh[String(p.username).toLowerCase()];
+    return Array.isArray(b) && b.includes(jenis);
+  });
+}
+
+/**
+ * Pejabat penerima yang berhak: pejabat yang terdaftar di unit itu lebih
+ * dulu; kalau TIDAK ADA satu pun dari mereka yang berhak, seluruh pejabat
+ * aktif (termasuk Pejabat Non-Operasional) disaring dengan aturan yang sama.
+ *
+ * Dulu seluruh pejabat hanya dilihat kalau unit itu sama sekali tidak punya
+ * pejabat terdaftar. Unit yang punya satu pejabat tanpa centang dokumen itu
+ * (mis. uji.pejabat di Radtel) berakhir dengan dropdown KOSONG, padahal
+ * pejabat lain yang dicentang — Deputy GM, Manager Teknik — ada.
+ */
+async function cetakPejabatBerhak(daftarUnit, hakCetak, jenis){
+  const dariUnit = cetakSaringPejabat(daftarUnit, hakCetak, jenis);
+  if(dariUnit.length) return dariUnit;
+  const semua = await srvApi('listPejabatAktif').catch(e=>{
+    console.warn('[cetak] listPejabatAktif gagal:', e && e.message || e);
+    return [];
+  });
+  return cetakSaringPejabat(semua, hakCetak, jenis);
 }
 
 async function cetakMuatTtdPejabat(){
@@ -1180,31 +1187,10 @@ async function cetakBukaPermintaan(permintaan){
     CETAK.ttdPejabat = ttdPejabat;
     CETAK.ttdDeputy = ttdDeputy;
     CETAK.ttdSaya = ttdSaya;
-    CETAK.pejabat = Array.isArray(pejabatList) ? pejabatList : [];
-    if(!CETAK.pejabat.length){
-      const semua = await srvApi('listPejabatAktif').catch(()=>[]);
-      CETAK.pejabat = Array.isArray(semua) ? semua : [];
-    }
-    /* Saring CETAK.pejabat dengan pola yang sama seperti cetakBuka:
-       whitelist per jenis dulu, lalu bolehTtd per akun (aturan ketat).
-       Kalau tidak ada Deputy yang berhak, dropdown Deputy hanya berisi
-       "belum dipilih" — MT masih bisa finalisasi tanpa Deputy. */
-    if(hakCetak){
-      const modeKeModulTtd = { dinas:'dinas-ttd', sparepart:'sparepart-ttd', peralatan:'sejarah-ttd' };
-      const modulTtd = modeKeModulTtd[permintaan.jenis];
-      const ditunjuk = (modulTtd && Array.isArray(hakCetak.ditunjuk?.[modulTtd])) ? hakCetak.ditunjuk[modulTtd] : [];
-      if(ditunjuk.length){
-        const set = new Set(ditunjuk.map(n=>String(n).toLowerCase()));
-        const saring = CETAK.pejabat.filter(p=>set.has(String(p.username).toLowerCase()));
-        if(saring.length) CETAK.pejabat = saring;
-        else console.warn(`[cetak] Whitelist ${modulTtd} tidak menyisakan pejabat aktif di unit ini — memakai daftar penuh.`);
-      }
-      const petaBoleh = (hakCetak.pejabatTtd && typeof hakCetak.pejabatTtd === 'object') ? hakCetak.pejabatTtd : {};
-      CETAK.pejabat = CETAK.pejabat.filter(p=>{
-        const b = petaBoleh[String(p.username).toLowerCase()];
-        return Array.isArray(b) && b.includes(permintaan.jenis);
-      });
-    }
+    /* Dropdown Deputy MT memakai saringan yang sama dengan kartu kirim.
+       Kalau tidak ada Deputy yang berhak, dropdown hanya berisi "belum
+       dipilih" — MT masih bisa finalisasi tanpa Deputy. */
+    CETAK.pejabat = await cetakPejabatBerhak(pejabatList, hakCetak, permintaan.jenis);
     cetakKartuReviewGambar();
   }catch(e){ console.warn('[cetak] gagal memuat TTD review:', e); }
 }
