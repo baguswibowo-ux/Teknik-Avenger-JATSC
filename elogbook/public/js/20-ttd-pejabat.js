@@ -446,6 +446,16 @@ async function bukaDetailTitipan(jenis, id){
   try{ await TTD_BUKA_ULANG[jenis](id); }
   finally{ unitAktif = asli; }
   TOMBOL_BUKAN_TITIPAN.forEach(b=>{ const el = document.getElementById(b); if(el) el.style.display = 'none'; });
+  // Layar ini milik unit si PH, jadi sebutkan dokumen apa dan dari unit mana.
+  const badan = document.getElementById(
+    jenis === 'logbook' ? 'entryDetailBody' : jenis === 'dailycheck' ? 'dcDetailBody' : 'formDetailBody');
+  if(badan){
+    const pita = document.createElement('div');
+    pita.className = 'subtle-note';
+    pita.style.cssText = 'margin-bottom:10px;padding:7px 10px;border:1px dashed var(--accent-dim);border-radius:8px;background:rgba(41,182,246,.06);';
+    pita.innerHTML = `📄 <b>${escapeHtml(r.judul || '')}</b> &middot; Unit <b>${escapeHtml(r.unitNama || r.unit)}</b>`;
+    badan.prepend(pita);
+  }
 }
 
 /* ============== TUNJUK AKUN UNTUK TTD SUSULAN ==============
@@ -585,8 +595,9 @@ function renderInboxBody(){
   if(inboxTtd.length === 0){ wrap.innerHTML = '<div class="empty">' + T('inboxKosong') + '</div>'; return; }
   wrap.innerHTML = inboxTtd.map(it=>`
     <div class="dc-history-item" style="cursor:pointer;flex-direction:column;align-items:stretch;gap:2px;" onclick="bukaInboxItem('${it.jenis}','${it.unit}','${it.id}')">
-      <div><b>${escapeHtml(it.label)}</b> &middot; ${escapeHtml(it.tanggal)||'-'}</div>
-      <div style="font-size:11.5px;color:var(--muted);">${escapeHtml(it.nama)||'-'}</div>
+      <div><b>${escapeHtml(it.judul || it.label)}</b> &middot; ${escapeHtml(it.tanggal)||'-'}</div>
+      <div style="font-size:11.5px;color:var(--muted);">Unit <b>${escapeHtml(it.unitNama || it.unit || '-')}</b> &middot; ${escapeHtml(it.label)}: ${escapeHtml(it.nama)||'-'}</div>
+      ${it.cuplikan ? `<div style="font-size:11.5px;color:var(--muted);font-style:italic;">${escapeHtml(it.cuplikan)}</div>` : ''}
       ${it.atasNama ? `<div style="font-size:11.5px;color:var(--muted);">Sebagai PH untuk <b>${escapeHtml(it.atasNama)}</b></div>` : ''}
     </div>`).join('');
 }

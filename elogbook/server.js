@@ -347,7 +347,15 @@ async function inboxTtdDenganPh(user) {
     if (sameUser(p.username, user.username)) continue;
     for (const it of await getInboxTtd(p.username)) titipan.push({ ...it, atasNama: p.nama || p.username, atasUsername: p.username });
   }
-  return [...milikSendiri, ...titipan].sort((a, b) => (a.dibuatPada < b.dibuatPada ? 1 : -1));
+  // Tiap butir disebut dokumen apa dan dari unit mana — "Weekly Check
+  // Pengamatan · Pengamatan", bukan cuma "Manager Teknik · tanggal". Terasa
+  // sekali bagi PH yang menandatangani dokumen dari banyak unit sekaligus.
+  const semua = await Promise.all([...milikSendiri, ...titipan].map(async (it) => {
+    const rk = await ringkasUntukNotif(it.jenis, it.id);
+    const u = UNIT.find((x) => x.kode === it.unit);
+    return { ...it, judul: rk.judul, cuplikan: rk.cuplikan, unitNama: u ? u.nama : it.unit };
+  }));
+  return semua.sort((a, b) => (a.dibuatPada < b.dibuatPada ? 1 : -1));
 }
 
 /** Benar kalau akun ini sedang menjadi PH bagi setidaknya satu pejabat —
@@ -1272,7 +1280,11 @@ const API = {
     if (!pegangUnit && !sebagaiPh) {
       throw new Error('Catatan ini bukan untuk Anda atau pejabat yang sedang Anda wakili.');
     }
-    return { unit, baris: isAdmin(user) ? baris : tanpaJejakInput([baris])[0] };
+    const u = UNIT.find((x) => x.kode === unit);
+    return {
+      unit, unitNama: u ? u.nama : unit, judul: (await ringkasUntukNotif(j, String(id))).judul,
+      baris: isAdmin(user) ? baris : tanpaJejakInput([baris])[0]
+    };
   },
 
   tandaTangani: async (jenis, id, ttd, mode, user) => {
