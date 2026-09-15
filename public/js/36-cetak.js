@@ -100,7 +100,7 @@ const bolehBubuhkanTtdOrang = () =>
    wajib mengirim lewat antrian ke pejabat supaya lembar final tetap
    ditandatangani pengesah, bukan pembuatnya. */
 const bolehCetakLangsung = () =>
-  !!akun && akun.role === 'pejabat';
+  !!akun && (akun.role === 'pejabat' || akun.role === 'pejabatnonop');
 
 /* ---------- Titik masuk: dipanggil tombol Cetak di ketiga tab ---------- */
 async function cetakBuka(mode, unit, opts){

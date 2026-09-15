@@ -440,7 +440,7 @@ export async function saveSignature(dataUrl, prefix) {
  * catatan tidak melenyapkan tanda tangan orang itu dari catatan yang lain. */
 
 /* ---------- Slot TTD tersimpan: cermin dari db.js ---------- */
-const MAKS_SLOT_TTD_PER_PERAN = { admin: 5, pejabat: 5 };
+const MAKS_SLOT_TTD_PER_PERAN = { admin: 5, pejabat: 5, pejabatnonop: 5 };
 function batasSlotTtd(role) { return MAKS_SLOT_TTD_PER_PERAN[role] || 1; }
 
 function parseSlotsTtd(raw) {
@@ -641,12 +641,12 @@ export async function hapusUser(username, opts = {}) {
  * dimigrasikan otomatis jadi `adminunit` di blok migrasi cold start di bawah.
  */
 export const PIC_ROLE = ['pic-dinas', 'pic-sparepart', 'pic-isr'];
-export const ROLE_VALID = ['admin', 'pejabat', 'adminunit', 'teknisi', ...PIC_ROLE];
+export const ROLE_VALID = ['admin', 'pejabat', 'pejabatnonop', 'adminunit', 'teknisi', ...PIC_ROLE];
 
 /** Peran yang boleh membuka seluruh unit tanpa perlu diberi satu per satu.
     adminunit sengaja TIDAK di sini: seluruh gunanya justru terletak pada
     wilayahnya yang satu unit. PIC juga tidak — lihat catatan PIC_ROLE di atas. */
-export const SEMUA_UNIT = ['admin', 'pejabat'];
+export const SEMUA_UNIT = ['admin', 'pejabat', 'pejabatnonop'];
 
 export async function setRole(username, role) {
   if (!ROLE_VALID.includes(role)) return false;
@@ -1536,7 +1536,7 @@ export async function updateDailyCheck(id, patch = {}, actor = {}) {
     if (row.unit === 'amhsadps') {
       // Kolaboratif lintas dinas (pagi/siang/malam akun sendiri), tapi Officer
       // (pejabat) hanya melihat & menandatangani — tidak menyunting checklist.
-      if (actor.role === 'pejabat') {
+      if (actor.role === 'pejabat' || actor.role === 'pejabatnonop') {
         throw new Error('Officer hanya bisa melihat dan menandatangani, tidak menyunting checklist.');
       }
     } else if (row.dibuat_oleh && row.dibuat_oleh !== actor.username) {
@@ -2447,9 +2447,10 @@ export async function rekapMentah(unit, dari, sampai) {
  * penandatangan formulir). Dikirim ke seluruh pengguna yang login, bukan
  * cuma admin.
  */
-export async function listPejabatAktif() {
+export async function listPejabatAktif(sertakanNonOp = false) {
+  // Pejabat Non-Operasional hanya untuk kartu cetak dashboard — lihat db.js.
   return q(`SELECT username, nama FROM users
-            WHERE aktif = true AND role = 'pejabat'
+            WHERE aktif = true AND role IN ('pejabat'${sertakanNonOp ? ", 'pejabatnonop'" : ''})
             ORDER BY nama`);
 }
 
@@ -2475,7 +2476,7 @@ export async function listPejabatUnit(unitKode) {
   return q(`
     SELECT u.username, u.nama
       FROM users u
-     WHERE u.aktif = true AND u.role = 'pejabat'
+     WHERE u.aktif = true AND u.role IN ('pejabat', 'pejabatnonop')
        AND EXISTS (SELECT 1 FROM user_unit uu WHERE uu.user_id = u.id AND uu.unit = $1)
      ORDER BY u.nama`, [kode]);
 }

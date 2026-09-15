@@ -192,7 +192,7 @@ function terapkanUnit(){
   // yang sama (renderDcAmhsHistory). Filter tanggalnya juga berlaku.
   // Officer (pejabat) hanya melihat & menandatangani: form input AMHS
   // disembunyikan untuknya — cukup Riwayat (read-only) + detail untuk TTD.
-  const amhsOfficer = amhs && typeof pejabatAktif === 'function' && pejabatAktif();
+  const amhsOfficer = amhs && typeof pejabatAktif === 'function' && (pejabatAktif() || pejabatNonOpAktif());
   const dcFormCard = document.getElementById('dcFormCard');
   const dcAmhsWrap = document.getElementById('dcAmhsWrap');
   const dcRiwayatWrap = document.getElementById('dcRiwayatWrap');

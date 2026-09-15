@@ -1503,7 +1503,7 @@ const API = {
     }
     const t = await getUserByUsername(target);
     if (!t) throw new Error(`Pengguna "${target}" tidak ditemukan.`);
-    if (t.role !== 'pejabat') {
+    if (t.role !== 'pejabat' && t.role !== 'pejabatnonop') {
       throw new Error('TTD atas nama akun lain hanya boleh dibubuhkan pada akun berperan pejabat.');
     }
     // Slot 0 dan set aktif — pejabat masih punya 4 slot cadangan lain untuk
@@ -1523,7 +1523,9 @@ const API = {
      dari unit (mis. kartu cetak dashboard yang jatuh balik saat listPejabatUnit
      kosong). Data yang sama sudah ikut getAllData, tapi memaksa pemanggilnya
      menunggu getAllData hanya untuk daftar pendek ini boros. */
-  listPejabatAktif: async () => listPejabatAktif(),
+  // Dipanggil kartu cetak dashboard saja: Pejabat Non-Operasional ikut. Daftar
+  // untuk formulir E-Logbook datang lewat getAllData, tanpa mereka.
+  listPejabatAktif: async () => listPejabatAktif(true),
 
   /* Daftar ringkas seluruh akun aktif (username + nama). Dipakai dashboard
      untuk melengkapi nama dari daftar petugas di hak.json — yang isinya

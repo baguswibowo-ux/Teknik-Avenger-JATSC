@@ -787,7 +787,7 @@ export const PIC_ROLE = ['pic-dinas', 'pic-sparepart', 'pic-isr'];
 // sebagai teknisi di unit itu (lihat listTeknisiUnit). PIC juga dilewat, tapi
 // alasannya lain: unit PIC adalah unit tempat ia berdinas, dan itu harus dipilih
 // administrator — bukan ditebak Radtel.
-const LEWAT_BOOTSTRAP_UNIT = ['admin', 'pejabat', ...PIC_ROLE];
+const LEWAT_BOOTSTRAP_UNIT = ['admin', 'pejabat', 'pejabatnonop', ...PIC_ROLE];
 const qLewat = LEWAT_BOOTSTRAP_UNIT.map(() => '?').join(',');
 for (const u of db.prepare(`SELECT id FROM users WHERE role NOT IN (${qLewat})`).all(...LEWAT_BOOTSTRAP_UNIT)) {
   const punya = db.prepare('SELECT COUNT(*) AS n FROM user_unit WHERE user_id = ?').get(u.id).n;
@@ -831,13 +831,13 @@ db.prepare(
  * Peran `pic` (lama, tanpa akhiran) sudah dihapus. Akun lama dengan role='pic'
  * dimigrasikan otomatis jadi `adminunit` di blok migrasi cold start di bawah.
  */
-export const ROLE_VALID = ['admin', 'pejabat', 'adminunit', 'teknisi', ...PIC_ROLE];
+export const ROLE_VALID = ['admin', 'pejabat', 'pejabatnonop', 'adminunit', 'teknisi', ...PIC_ROLE];
 
 /** Peran yang boleh membuka seluruh unit tanpa perlu diberi satu per satu.
     adminunit sengaja TIDAK di sini: seluruh gunanya justru terletak pada
     wilayahnya yang satu unit. PIC juga tidak: di E-Logbook ia teknisi unitnya
     sendiri; jangkauan semua-unitnya cuma untuk satu modul di dashboard. */
-export const SEMUA_UNIT = ['admin', 'pejabat'];
+export const SEMUA_UNIT = ['admin', 'pejabat', 'pejabatnonop'];
 
 /* ---------- Migrasi role: pic → adminunit ----------
    Peran `pic` dihapus. Akun lama diubah jadi `adminunit` — peran terdekat
@@ -1035,7 +1035,7 @@ function removeSignatureFile(webPath) {
    kali memakai TTD tersimpan — sampai pemiliknya berganti pilihan, atau slot
    itu ia hapus dan gambar ulang. Kolom disimpan sebagai JSON larik untuk
    multi-slot; nilai polos lama (satu path) tetap dibaca sebagai satu slot. */
-const MAKS_SLOT_TTD_PER_PERAN = { admin: 5, pejabat: 5 };
+const MAKS_SLOT_TTD_PER_PERAN = { admin: 5, pejabat: 5, pejabatnonop: 5 };
 function batasSlotTtd(role) { return MAKS_SLOT_TTD_PER_PERAN[role] || 1; }
 
 function parseSlotsTtd(raw) {
@@ -1792,7 +1792,7 @@ export function updateDailyCheck(id, patch = {}, actor = {}) {
       // malam melanjutkan lewat Edit (tiap dinas akun sendiri) — jadi batasan
       // "hanya pembuat" tidak berlaku. TAPI Officer (pejabat) hanya melihat &
       // menandatangani, tidak menyunting checklist.
-      if (actor.role === 'pejabat') {
+      if (actor.role === 'pejabat' || actor.role === 'pejabatnonop') {
         throw new Error('Officer hanya bisa melihat dan menandatangani, tidak menyunting checklist.');
       }
     } else if (row.dibuat_oleh && row.dibuat_oleh !== actor.username) {
@@ -2746,9 +2746,11 @@ export function rekapMentah(unit, dari, sampai) {
  * penandatangan formulir). Dikirim ke SELURUH pengguna yang login (bukan
  * cuma admin), karena teknisi di form-lah yang memilih siapa yang dituju.
  */
-export function listPejabatAktif() {
+export function listPejabatAktif(sertakanNonOp = false) {
+  // Pejabat Non-Operasional hanya ikut untuk kartu cetak dashboard — daftar
+  // Manager Teknik / Kirim TTD di E-Logbook tidak pernah menyertakannya.
   return db.prepare(`SELECT username, nama FROM users
-                      WHERE aktif = 1 AND role = 'pejabat'
+                      WHERE aktif = 1 AND role IN ('pejabat'${sertakanNonOp ? ", 'pejabatnonop'" : ''})
                       ORDER BY nama COLLATE NOCASE`).all();
 }
 
@@ -2777,7 +2779,7 @@ export function listPejabatUnit(unitKode) {
   return db.prepare(`
     SELECT u.username, u.nama
       FROM users u
-     WHERE u.aktif = 1 AND u.role = 'pejabat'
+     WHERE u.aktif = 1 AND u.role IN ('pejabat', 'pejabatnonop')
        AND EXISTS (SELECT 1 FROM user_unit uu WHERE uu.user_id = u.id AND uu.unit = ?)
      ORDER BY u.nama COLLATE NOCASE`).all(kode);
 }

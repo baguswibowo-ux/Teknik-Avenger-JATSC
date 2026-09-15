@@ -23,7 +23,7 @@ const HAK_MODUL = ['dinas','dinas-ttd','dinas-cetak','berkala','personel','peral
 /* Peran yang selalu view-only di dashboard ini. Manajer Teknik (pejabat) memang
    perannya melihat & membubuhkan TTD di E-Logbook — tidak menyunting apa pun di
    sini. Sama persis dengan PERAN_HANYA_LIHAT di server.js. */
-const PERAN_HANYA_LIHAT = new Set(['pejabat']);
+const PERAN_HANYA_LIHAT = new Set(['pejabat', 'pejabatnonop']);
 /* PIC dokumen: pada dasarnya teknisi di unit yang dicentang untuknya, ditambah
    satu modul yang terbuka di SEMUA unit. Peta peran → modul tambahan itu; sama
    persis dengan PERAN_PIC di server.js. pic-dinas ikut 'dinas-cetak' (boleh

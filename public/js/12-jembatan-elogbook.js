@@ -53,10 +53,12 @@ const SRV = {
 };
 
 const PERAN_SERVER    = { admin:'Administrator', pejabat:'Pejabat / Manager',
+                          pejabatnonop:'Pejabat Non-Operasional',
                           adminunit:'Admin Unit', teknisi:'Teknisi',
                           'pic-dinas':'PIC Jadwal Dinas', 'pic-sparepart':'PIC Sparepart',
                           'pic-isr':'PIC ISR' };
 const PERAN_SERVER_EN = { admin:'Administrator', pejabat:'Officer / Manager',
+                          pejabatnonop:'Non-Operational Officer',
                           adminunit:'Unit Admin', teknisi:'Technician',
                           'pic-dinas':'Duty Roster PIC', 'pic-sparepart':'Spare Parts PIC',
                           'pic-isr':'ISR PIC' };
@@ -65,7 +67,7 @@ const PERAN_SERVER_EN = { admin:'Administrator', pejabat:'Officer / Manager',
     tempat — dan tidak ada peran yang tertinggal di salah satunya. PIC dokumen
     ditaruh setelah teknisi: jangkauannya lintas unit tapi hanya satu modul. */
 const PERAN_URUT = ['teknisi', 'pic-dinas', 'pic-sparepart', 'pic-isr',
-                    'adminunit', 'pejabat', 'admin'];
+                    'adminunit', 'pejabatnonop', 'pejabat', 'admin'];
 /** Sebutan peran menurut bahasa yang sedang dipilih. */
 const peranTampil = (role) => (BHS === 'en' ? PERAN_SERVER_EN : PERAN_SERVER)[role] || role;
 /** Sebutan peran akun yang sedang masuk. */

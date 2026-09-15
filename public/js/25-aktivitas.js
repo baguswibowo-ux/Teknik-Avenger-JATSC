@@ -230,7 +230,7 @@ function aktHakBerkaitDenganUnit(a, lingkup){
       const u = peta.get(String(nama).toLowerCase());
       if(!u) return false;
       const peran = String(u.role || '').toLowerCase();
-      if(peran === 'admin' || peran === 'pejabat') return true;
+      if(peran === 'admin' || peran === 'pejabat' || peran === 'pejabatnonop') return true;
       return (u.unit || []).some(k => lingkup.includes(String(k).toLowerCase()));
     });
   });

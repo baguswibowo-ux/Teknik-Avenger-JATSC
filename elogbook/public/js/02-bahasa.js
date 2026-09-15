@@ -28,7 +28,7 @@ const KAMUS = {
     /* chrome */
     orientasiAuto:'Otomatis', orientasiPortrait:'Portrait', orientasiLandscape:'Landscape',
     orientasiJudul:'Orientasi kertas saat mencetak',
-    peran_admin:'Administrator', peran_pejabat:'Pejabat', peran_teknisi:'Teknisi',
+    peran_admin:'Administrator', peran_pejabat:'Pejabat', peran_pejabatnonop:'Pejabat Non-Operasional', peran_teknisi:'Teknisi',
     peran_adminunit:'Admin Unit',
     'peran_pic-dinas':'PIC Jadwal Dinas', 'peran_pic-sparepart':'PIC Sparepart',
     'peran_pic-isr':'PIC ISR',
@@ -410,7 +410,7 @@ const KAMUS = {
   en: {
     orientasiAuto:'Automatic', orientasiPortrait:'Portrait', orientasiLandscape:'Landscape',
     orientasiJudul:'Paper orientation when printing',
-    peran_admin:'Administrator', peran_pejabat:'Officer', peran_teknisi:'Technician',
+    peran_admin:'Administrator', peran_pejabat:'Officer', peran_pejabatnonop:'Non-Operational Officer', peran_teknisi:'Technician',
     peran_adminunit:'Unit Admin',
     'peran_pic-dinas':'Duty Roster PIC', 'peran_pic-sparepart':'Spare Parts PIC',
     'peran_pic-isr':'ISR PIC',
@@ -778,7 +778,7 @@ const KAMUS = {
     /* chrome */
     orientasiAuto:'Automática', orientasiPortrait:'Vertical', orientasiLandscape:'Horizontal',
     orientasiJudul:'Orientación del papel al imprimir',
-    peran_admin:'Administrador', peran_pejabat:'Directivo', peran_teknisi:'Técnico',
+    peran_admin:'Administrador', peran_pejabat:'Directivo', peran_pejabatnonop:'Directivo no operativo', peran_teknisi:'Técnico',
     peran_adminunit:'Administrador de Unidad',
     'peran_pic-dinas':'PIC Rol de Turnos', 'peran_pic-sparepart':'PIC Repuestos',
     'peran_pic-isr':'PIC ISR',

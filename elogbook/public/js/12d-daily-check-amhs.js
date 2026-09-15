@@ -432,7 +432,7 @@ const dcAmhsAktif = () => (typeof unitAktif !== 'undefined') && unitAktif === 'a
 const amVal = id => (document.getElementById(id)?.value || '').trim();
 
 /** Officer (pejabat) hanya melihat & menandatangani — tidak menyunting. */
-const amhsOfficer = () => typeof pejabatAktif === 'function' && pejabatAktif();
+const amhsOfficer = () => typeof pejabatAktif === 'function' && (pejabatAktif() || pejabatNonOpAktif());
 /** Boleh menyunting catatan AMHS? Tidak, kalau sudah di-TTD Manager atau Officer. */
 function amhsBolehEdit(r){
   if(r && r.managerTtd) return false;   // terkunci setelah TTD Manager Teknik

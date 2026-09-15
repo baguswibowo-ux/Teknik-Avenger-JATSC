@@ -874,7 +874,7 @@ const MODUL_HAK = ['dinas', 'dinas-ttd', 'dinas-cetak', 'berkala', 'personel',
                    'sejarah', 'sejarah-ttd', 'isr', 'notam',
                    'dokumen', 'galeri'];
 
-const PERAN_SAH = ['admin', 'pejabat', 'adminunit', 'teknisi',
+const PERAN_SAH = ['admin', 'pejabat', 'pejabatnonop', 'adminunit', 'teknisi',
                    'pic-dinas', 'pic-sparepart', 'pic-isr'];
 
 /* PIC dokumen — penanggung-jawab satu jenis dokumen. Pada dasarnya TEKNISI di
@@ -973,7 +973,8 @@ const HAK_BAWAAN = {
    Teknik memang perannya melihat & membubuhkan TTD di E-Logbook — tidak boleh
    menyunting apa pun di dashboard ini. Aturan ini disandingkan dengan pagar
    E-Logbook: pejabat di sana pun tidak menambah data. */
-const PERAN_HANYA_LIHAT = new Set(['pejabat']);
+// Pejabat Non-Operasional (pejabat fasilitas di perkantoran) sama view-only-nya.
+const PERAN_HANYA_LIHAT = new Set(['pejabat', 'pejabatnonop']);
 
 const namaSah = (u) => /^[a-z0-9._-]{3,32}$/.test(String(u || '').trim().toLowerCase());
 
@@ -1036,7 +1037,7 @@ function unitDipegang(user) {
   const peran = peranUser(user);
   if (peran === 'admin' || user.semuaUnit === true) return null;
   if (!Array.isArray(user.unit)) {
-    if (peran === 'pejabat') return null;
+    if (peran === 'pejabat' || peran === 'pejabatnonop') return null;
     console.warn('[hak] E-Logbook tidak mengirim unit untuk akun', user.username,
                  '— akun ini diperlakukan sebagai belum punya unit.');
     return [];
@@ -1348,7 +1349,7 @@ function gabungHakAdminUnit(hakLama, hakBaru, unitPemanggil, daftarAkun) {
     const u = daftarAkun && daftarAkun.get(String(nama || '').toLowerCase());
     if (!u || !u.aktif) return false;
     // Pejabat tidak boleh disentuh admin unit (mereka bukan ranah admin unit).
-    if (u.role === 'pejabat' || u.role === 'admin') return false;
+    if (u.role === 'pejabat' || u.role === 'pejabatnonop' || u.role === 'admin') return false;
     return (u.unit || []).some((k) => lingkup.has(k));
   };
 
@@ -4052,7 +4053,7 @@ async function tulisAntrianCetak(daftar) {
 /** Kalau user boleh cetak langsung (admin/super-admin/pejabat sendiri).
     Peran itu tidak perlu antrian karena mereka pengesahnya sendiri. */
 const bolehCetakLangsung = (user) =>
-  !!user && (user.role === 'admin' || user.role === 'pejabat' || user.superadmin === true);
+  !!user && (user.role === 'admin' || user.role === 'pejabat' || user.role === 'pejabatnonop' || user.superadmin === true);
 
 /** Kirim permintaan cetak — dipanggil dari layar cetak dashboard oleh
     teknisi/adminunit. */

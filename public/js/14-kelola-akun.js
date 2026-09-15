@@ -56,7 +56,7 @@ const bolehAturHak = () => !!akun && (akun.role === 'admin' || akun.role === 'ad
 
 /* PIC tidak di sini: unitnya dipilih seperti teknisi — modul semua-unitnya
    datang dari perannya, bukan dari daftar unit. */
-const SEMUA_UNIT_PERAN = ['admin', 'pejabat'];
+const SEMUA_UNIT_PERAN = ['admin', 'pejabat', 'pejabatnonop'];
 const samaIsi = (a, b) => a.length === b.length && a.every(k => b.includes(k));
 
 /** Cakupan unit orang yang sedang membuka layar.
@@ -190,7 +190,7 @@ const punyaSemuaUnit = (u) => SEMUA_UNIT_PERAN.includes(u.role);
    sekilas tanpa menyaring. Peran di luar daftar ini (kalau kelak ada) ditaruh
    paling bawah, tidak dibuang. Urutan di dalam kelompok tetap urutan server. */
 const URUT_KELOMPOK_AKUN = ['pic-dinas', 'pic-sparepart', 'pic-isr',
-                            'admin', 'pejabat', 'adminunit', 'teknisi'];
+                            'admin', 'pejabat', 'pejabatnonop', 'adminunit', 'teknisi'];
 function kelompokAkun(daftar){
   const peta = new Map();
   daftar.forEach(u=>{
@@ -636,13 +636,13 @@ function gambarPetugasDinas(){
   // Untuk lainnya, minimal satu unit orang itu harus jatuh di cakupan saya.
   const dalamLingkup = (u) => {
     if(lingkup === null) return true;
-    if(bukanAdminUtama && u.role === 'pejabat') return false;
+    if(bukanAdminUtama && (u.role === 'pejabat' || u.role === 'pejabatnonop')) return false;
     if(punyaSemuaUnit(u)) return true;
     const uu = u.unit || [];
     return lingkup.some(k => uu.includes(k));
   };
   const calon = USERS.filter(u=>u.aktif && (modulTtd
-    ? u.role === 'pejabat'
+    ? (u.role === 'pejabat' || u.role === 'pejabatnonop')
     : u.role !== 'admin') && dalamLingkup(u));
   el('ketPetugasPilih').textContent = modulTtd
     ? T(`Pejabat yang berhak menandatangani ${HAK_NAMA[m][0]}. Kosongkan semua = seluruh pejabat unit boleh (perilaku lama).`,
@@ -917,6 +917,8 @@ function isiKartuAkun(u){
           'ISR PIC — technician in own unit + ISR in all units; edit, cannot delete')}</option>
         <option value="pejabat">${T('Pejabat — melihat seluruh unit, hanya membubuhkan tanda tangan',
           'Officer — sees every unit, may only sign')}</option>
+        <option value="pejabatnonop">${T('Pejabat Non-Operasional — seperti Pejabat, tapi tidak menerima TTD E-Logbook; hanya TTD cetak Spare Part, Jadwal Dinas, Sejarah Peralatan',
+          'Non-Operational Officer — like Officer, but receives no E-Logbook signatures; only Spare Parts, Duty Roster and Equipment History print signatures')}</option>
         <option value="admin">${T('Administrator — kendali penuh, termasuk mengelola akun',
           'Administrator — full control, including account management')}</option>
       </select>

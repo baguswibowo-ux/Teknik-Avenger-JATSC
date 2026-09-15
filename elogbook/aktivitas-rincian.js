@@ -20,6 +20,7 @@ import { ringkasDokumen } from './ringkas-dokumen.js';
 export const NAMA_PERAN = {
   admin: 'Administrator',
   pejabat: 'Pejabat',
+  pejabatnonop: 'Pejabat Non-Operasional',
   adminunit: 'Admin Unit',
   teknisi: 'Teknisi',
   'pic-dinas': 'PIC Jadwal Dinas',

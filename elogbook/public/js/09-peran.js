@@ -7,6 +7,9 @@
 function adminAktif(){ return userSaatIni?.role === 'admin'; }
 /** Pejabat hanya melihat: seluruh unit terbuka, tapi tidak ada tombol menambah. */
 function pejabatAktif(){ return userSaatIni?.role === 'pejabat'; }
+/** Pejabat Non-Operasional: melihat seperti pejabat, tetapi bukan penanda tangan
+    E-Logbook — tanpa Kotak Masuk TTD (kelas peran-pejabat tidak dipasang). */
+function pejabatNonOpAktif(){ return userSaatIni?.role === 'pejabatnonop'; }
 /* Sepadan dengan PERAN_TULIS di server.js — kalau keduanya berselisih, yang
    kalah adalah layar: tombolnya tampil lalu permintaannya ditolak 403. */
 const PERAN_TULIS = new Set(['admin', 'adminunit', 'teknisi', 'pic-dinas', 'pic-sparepart', 'pic-isr']);
@@ -26,7 +29,7 @@ function bolehSuntingCatatan(dibuatOlehUsername){
 
 function terapkanPeran(){
   document.body.classList.toggle('peran-admin', adminAktif());
-  document.body.classList.toggle('peran-teknisi', !!userSaatIni && !adminAktif() && !pejabatAktif());
+  document.body.classList.toggle('peran-teknisi', !!userSaatIni && !adminAktif() && !pejabatAktif() && !pejabatNonOpAktif());
   document.body.classList.toggle('peran-pejabat', pejabatAktif());
   document.body.classList.toggle('boleh-hapus', !!userSaatIni && bolehHapusCatatan());
   // Tombol penambah data disembunyikan dari pejabat. Yang menahan sebenarnya
