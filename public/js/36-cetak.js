@@ -99,8 +99,11 @@ const bolehBubuhkanTtdOrang = () =>
    di lembar final. Peran lain — termasuk admin dan super-admin —
    wajib mengirim lewat antrian ke pejabat supaya lembar final tetap
    ditandatangani pengesah, bukan pembuatnya. */
+/* Pejabat Non-Operasional hanya melihat: ia baru mengesahkan (cetak langsung)
+   jenis yang dicentang untuknya di Kelola Akun → "Boleh menandatangani
+   dokumen jenis" — CETAK.nonopBoleh, diisi cetakBuka dari /pejabat-hak-cetak. */
 const bolehCetakLangsung = () =>
-  !!akun && (akun.role === 'pejabat' || akun.role === 'pejabatnonop');
+  !!akun && (akun.role === 'pejabat' || (akun.role === 'pejabatnonop' && CETAK.nonopBoleh === true));
 
 /* ---------- Titik masuk: dipanggil tombol Cetak di ketiga tab ---------- */
 async function cetakBuka(mode, unit, opts){
@@ -129,6 +132,7 @@ async function cetakBuka(mode, unit, opts){
   CETAK.picNama2 = '';
   CETAK.picSaran = [];
   CETAK.pejabatTanpaHak = false;
+  CETAK.nonopBoleh = false;
   CETAK.tanggalCetak = new Date().toISOString().slice(0, 10);
 
   /* Kartu digambar dulu dengan status "memuat" supaya orangnya lihat
@@ -193,6 +197,9 @@ async function cetakBuka(mode, unit, opts){
        sebelumnya) supaya alur cetak tidak macet karena setup admin belum
        lengkap. */
     if(hakCetak){
+      const petaBolehSaya = (hakCetak.pejabatTtd && typeof hakCetak.pejabatTtd === 'object')
+        ? hakCetak.pejabatTtd[String(akun.user || '').toLowerCase()] : null;
+      CETAK.nonopBoleh = Array.isArray(petaBolehSaya) && petaBolehSaya.includes(CETAK.mode);
       const modeKeModulTtd = { dinas:'dinas-ttd', sparepart:'sparepart-ttd', peralatan:'sejarah-ttd' };
       const modulTtd = modeKeModulTtd[CETAK.mode];
       const ditunjuk = (modulTtd && Array.isArray(hakCetak.ditunjuk?.[modulTtd])) ? hakCetak.ditunjuk[modulTtd] : [];
@@ -584,6 +591,13 @@ async function cetakLakukan(){
      final harus keluar dengan tanda tangan pengesah. Peralatan pun ikut
      jalur ini sekarang; form Sejarah Peralatan (docx) menuntut tanda
      tangan Mengetahui, jadi tidak bisa keluar tanpa lewat pejabat dulu. */
+  // Pejabat Non-Operasional tanpa centang untuk jenis ini: hanya melihat —
+  // tidak mencetak dan tidak mengirim permintaan.
+  if(akun && akun.role === 'pejabatnonop' && !CETAK.nonopBoleh){
+    pesan(T('Anda belum diberi hak menandatangani dokumen jenis ini. Minta administrator mencentangnya di Kelola Akun → akun Anda → "Boleh menandatangani dokumen jenis".',
+            'You have not been granted the right to sign this document type. Ask an administrator to tick it under Manage Accounts → your account → "May sign document types".'));
+    return;
+  }
   if(!bolehCetakLangsung()){
     await cetakKirimKePejabat();
     return;

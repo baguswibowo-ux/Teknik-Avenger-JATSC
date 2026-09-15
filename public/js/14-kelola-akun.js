@@ -917,8 +917,8 @@ function isiKartuAkun(u){
           'ISR PIC — technician in own unit + ISR in all units; edit, cannot delete')}</option>
         <option value="pejabat">${T('Pejabat — melihat seluruh unit, hanya membubuhkan tanda tangan',
           'Officer — sees every unit, may only sign')}</option>
-        <option value="pejabatnonop">${T('Pejabat Non-Operasional — seperti Pejabat, tapi tidak menerima TTD E-Logbook; hanya TTD cetak Spare Part, Jadwal Dinas, Sejarah Peralatan',
-          'Non-Operational Officer — like Officer, but receives no E-Logbook signatures; only Spare Parts, Duty Roster and Equipment History print signatures')}</option>
+        <option value="pejabatnonop">${T('Pejabat Non-Operasional — melihat seluruh unit saja; tanpa TTD E-Logbook. TTD Spare Part / Jadwal Dinas / Sejarah Peralatan hanya yang dicentang di Wewenang Detail',
+          'Non-Operational Officer — views every unit only; no E-Logbook signatures. Spare Parts / Duty Roster / Equipment History signatures only as ticked under Detailed Permissions')}</option>
         <option value="admin">${T('Administrator — kendali penuh, termasuk mengelola akun',
           'Administrator — full control, including account management')}</option>
       </select>
@@ -1012,8 +1012,8 @@ function kotakLanjut(baru, u){
         `<label><input type="checkbox" value="${esc(kode)}"${
           bolehTtd.includes(kode) ? ' checked' : ''}>${esc(T(id, en))}</label>`).join('')}</div>
       <div class="bantu">${T(
-        'Hanya berlaku untuk peran pejabat. Centang jenis dokumen yang boleh ditandatangani akun ini — mis. Sparepart untuk officer Sparepart, Jadwal Dinas untuk Manajer Teknik, Sejarah Peralatan untuk officer Peralatan. Tidak dicentang sama sekali = tidak boleh menandatangani jenis apa pun: akun ini tidak muncul di dropdown "Kirim untuk disetujui oleh" dan kotak masuk TTD-nya kosong.',
-        'Applies to the officer role. Tick the document types this account may sign — e.g. Spare Parts for a Spare-Parts officer, Duty Roster for the Technical Manager, Equipment History for an Equipment officer. Nothing ticked = may not sign any type: the account is left out of the "Send for approval by" dropdown and its signing inbox stays empty.')}</div>
+        'Hanya berlaku untuk peran Pejabat dan Pejabat Non-Operasional. Centang jenis dokumen yang boleh ditandatangani akun ini — mis. Sparepart untuk officer Sparepart, Jadwal Dinas untuk Manajer Teknik, Sejarah Peralatan untuk officer Peralatan. Tidak dicentang sama sekali = tidak boleh menandatangani jenis apa pun: akun ini tidak muncul di dropdown "Kirim untuk disetujui oleh" dan kotak masuk TTD-nya kosong.',
+        'Applies to the Officer and Non-Operational Officer roles. Tick the document types this account may sign — e.g. Spare Parts for a Spare-Parts officer, Duty Roster for the Technical Manager, Equipment History for an Equipment officer. Nothing ticked = may not sign any type: the account is left out of the "Send for approval by" dropdown and its signing inbox stays empty.')}</div>
     </div>`;
 }
 
