@@ -468,10 +468,12 @@ function gambarBerkas(){
   // menghapus juga administrator, jadi keputusan mengelolanya berhenti di satu
   // peran. Server juga menolak PATCH kategori dari non-admin; ini hanya supaya
   // dropdown-nya tidak terlihat aktif untuk peran yang pasti ditolak.
-  const bolehUbahKat = !!(akun && akun.role === 'admin');
+  // Admin unit ikut boleh, di unitnya sendiri (adminDiUnit di server.js).
+  const bolehUbahKat = !!(akun && (akun.role === 'admin'
+    || (akun.role === 'adminunit' && bolehBuka(unitDibuka))));
   const katTitle = bolehUbahKat ? ''
-    : ` disabled title="${T('Hanya administrator yang boleh mengubah kategori.',
-                            'Only an administrator may change the category.')}"`;
+    : ` disabled title="${T('Hanya administrator atau admin unit ini yang boleh mengubah kategori.',
+                            'Only an administrator or this unit’s admin may change the category.')}"`;
 
   // Pembungkus yang bisa digulir: enam kolom tidak muat di lebar HP, dan .panel
   // memotong apa pun yang lewat. Tanpa ini kolom Keluarkan hilang di layar kecil.

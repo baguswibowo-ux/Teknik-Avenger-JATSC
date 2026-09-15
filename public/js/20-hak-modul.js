@@ -128,6 +128,10 @@ const BOLEH_HAPUS = Object.fromEntries(HAK_MODUL.map(m=>[m, false]));
 
 /** Boleh menghapus di modul ini, menurut yang diketahui halaman. Tebakan awal
     saja; jawaban server menimpanya. */
+/* Sama dengan MODUL_PER_UNIT di server.js — modul yang dimiliki satu unit. */
+const MODUL_PER_UNIT_KLIEN = new Set(['dinas', 'dinas-cetak', 'berkala', 'peralatan', 'sparepart',
+                                      'sejarah', 'isr', 'notam', 'dokumen', 'galeri']);
+
 const hakHapusHitung = (modul) =>
   !!akun && HAK_PERAN_HAPUS.includes(akun.role) && hakHitung(modul);
 
@@ -170,8 +174,9 @@ const hakHitung = (modul) => {
   if(PERAN_HANYA_LIHAT.has(akun.role)) return false;
   // PIC dokumen: modul PIC-nya selalu boleh; modul lain dibaca seperti teknisi.
   if(modulPicSemuaUnit(modul)) return true;
-  // Admin unit selalu boleh mencetak Jadwal Dinas unitnya (mirror bolehIsi server).
-  if(modul === 'dinas-cetak' && akun.role === 'adminunit') return true;
+  // Admin unit = administrator di unitnya: seluruh modul per-unit terbuka
+  // (mirror bolehIsi server). Unitnya dijaga bolehSuntingDb lewat bolehBuka.
+  if(akun.role === 'adminunit' && MODUL_PER_UNIT_KLIEN.has(modul)) return true;
   const peran = PERAN_PIC_MODUL[akun.role] ? 'teknisi' : akun.role;
   const h = HAK[modul] || { peran:[], petugas:[] };
   return h.peran.includes(peran)

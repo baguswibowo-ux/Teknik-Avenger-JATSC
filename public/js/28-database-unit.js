@@ -69,14 +69,15 @@ function bukaUnit(kode){
    /logo/:unit, berkasnya di public/foto/_logo/), cuma belum pernah ada jalan
    menekannya dari layar. Ini jalannya.
 
-   Hanya administrator, dan itu diputuskan server — bukan hak.json: mengganti
-   gambar unit mengubah layar semua orang sekaligus, dan tidak ada centang di
-   layar hak yang pantas membukanya tanpa sengaja. Tombol di sini cuma tidak
-   digambar untuk yang pasti ditolak.
+   Administrator, atau admin unit di unitnya sendiri — diputuskan server
+   (adminDiUnit), bukan hak.json: mengganti gambar unit mengubah layar semua
+   orang sekaligus, dan tidak ada centang di layar hak yang pantas membukanya
+   tanpa sengaja. Tombol di sini cuma tidak digambar untuk yang pasti ditolak.
    ======================================================================= */
 
 const bolehGantiIkon = () =>
-  KEMAMPUAN.galeriTulis && !!akun && akun.role === 'admin';
+  KEMAMPUAN.galeriTulis && !!akun
+  && (akun.role === 'admin' || (akun.role === 'adminunit' && bolehBuka(unitDibuka)));
 
 /** Kotak gambar unit: yang diunggah kalau ada, ilustrasi kalau belum. */
 function ikonUnitHtml(u){

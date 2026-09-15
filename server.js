@@ -1047,6 +1047,18 @@ function unitDipegang(user) {
 
 /** Akun ini memegang unit tersebut? Unit kosong berarti pertanyaannya tidak
     tentang unit tertentu, dan pagar unit tidak punya apa-apa untuk dijaga. */
+/** Administrator, atau admin unit yang memegang `unit` ini. Untuk hal yang
+    mengubah tampilan satu unit bagi semua orang (logo, baris peralatan,
+    kategori dokumen) — dulu administrator saja. */
+function adminDiUnit(user, unit) {
+  if (!user) return false;
+  const peran = peranUser(user);
+  if (peran === 'admin') return true;
+  if (peran !== 'adminunit') return false;
+  const u = String(unit || '').toLowerCase();
+  return !!u && bolehUnit(user, u);
+}
+
 function bolehUnit(user, unit) {
   const punya = unitDipegang(user);
   if (punya === null) return true;
@@ -1073,9 +1085,12 @@ async function bolehIsi(user, modul, unit = '') {
   const picBoleh = modulPicBoleh(peranUser(user));
   if (picBoleh && picBoleh.has(modul)) return true;
   if (MODUL_PER_UNIT.has(modul) && !bolehUnit(user, unit)) return false;
-  // Admin unit selalu boleh mencetak Jadwal Dinas unitnya sendiri, tanpa
-  // perlu ditunjuk satu per satu — pagar unit di atas sudah menahannya.
-  if (modul === 'dinas-cetak' && peranUser(user) === 'adminunit') return true;
+  // Admin unit = administrator di unitnya sendiri: seluruh modul per-unit
+  // (dinas, berkala, peralatan, sparepart, sejarah, ISR, NOTAM, dokumen,
+  // galeri) terbuka tanpa perlu dicentang di hak.json. Pagar unit di atas
+  // sudah menahannya di unit lain. Modul TTD tetap urusan pejabat, dan hak
+  // yang sifatnya global (Hak Akses, akun) tetap administrator.
+  if (MODUL_PER_UNIT.has(modul) && peranUser(user) === 'adminunit') return true;
   const hak = (await bacaHak())[modul];
   if (!hak) return false;
   if (hak.peran.includes(hakPeran(user))) return true;
@@ -2988,8 +3003,8 @@ app.post('/logo/:unit', galeriHidup, badanGaleri, async (req, res) => {
 
   const user = await siapa(req);
   if (!user) return res.status(401).json({ error: 'Masuk dengan akun E-Logbook Anda dulu.' });
-  if (peranUser(user) !== 'admin') {
-    return res.status(403).json({ error: 'Hanya administrator yang boleh mengganti logo unit.' });
+  if (!adminDiUnit(user, unit)) {
+    return res.status(403).json({ error: 'Hanya administrator atau admin unit ini yang boleh mengganti logo unit.' });
   }
 
   // Nama berkasnya ditentukan di sini, bukan diambil dari kiriman: yang perlu
@@ -3030,8 +3045,8 @@ app.delete('/logo/:unit', galeriHidup, async (req, res) => {
 
   const user = await siapa(req);
   if (!user) return res.status(401).json({ error: 'Masuk dengan akun E-Logbook Anda dulu.' });
-  if (peranUser(user) !== 'admin') {
-    return res.status(403).json({ error: 'Hanya administrator yang boleh menghapus logo unit.' });
+  if (!adminDiUnit(user, unit)) {
+    return res.status(403).json({ error: 'Hanya administrator atau admin unit ini yang boleh menghapus logo unit.' });
   }
 
   try {
@@ -3070,8 +3085,8 @@ app.put('/nama-alat/:unit', badanDinas, async (req, res) => {
 
   const user = await siapa(req);
   if (!user) return res.status(401).json({ error: 'Masuk dengan akun E-Logbook Anda dulu.' });
-  if (peranUser(user) !== 'admin') {
-    return res.status(403).json({ error: 'Hanya administrator yang boleh mengganti baris peralatan unit.' });
+  if (!adminDiUnit(user, unit)) {
+    return res.status(403).json({ error: 'Hanya administrator atau admin unit ini yang boleh mengganti baris peralatan unit.' });
   }
 
   const alat = String(req.body?.alat || '').trim().slice(0, 200);
@@ -3618,14 +3633,14 @@ app.patch('/dokumen/:unit/:id', badanGaleri, async (req, res) => {
   if (!(await bolehIsi(user, 'dokumen', unit))) {
     return res.status(403).json({ error: 'Akun Anda tidak berhak mengubah dokumen unit ini.' });
   }
-  // Mengubah kategori dijaga lebih ketat — hanya administrator. Kategori adalah
-  // bagaimana berkas dicari orang lain (SOP, Manual, Sertifikat), dan salah
-  // kategori bisa membuat dokumen "hilang" tanpa terhapus. Peran lain masih
-  // boleh menaruh berkas baru dan mengaitkannya ke peralatan; yang dikunci hanya
-  // menimpa kategori berkas yang sudah tersimpan.
-  if (req.body?.kategori !== undefined && String(user.role || '').toLowerCase() !== 'admin') {
+  // Mengubah kategori dijaga lebih ketat — administrator, atau admin unit di
+  // unitnya sendiri. Kategori adalah bagaimana berkas dicari orang lain (SOP,
+  // Manual, Sertifikat), dan salah kategori bisa membuat dokumen "hilang" tanpa
+  // terhapus. Peran lain masih boleh menaruh berkas baru dan mengaitkannya ke
+  // peralatan; yang dikunci hanya menimpa kategori berkas yang sudah tersimpan.
+  if (req.body?.kategori !== undefined && !adminDiUnit(user, unit)) {
     return res.status(403).json({
-      error: 'Mengubah kategori dokumen hanya bisa dilakukan administrator.'
+      error: 'Mengubah kategori dokumen hanya bisa dilakukan administrator atau admin unit ini.'
     });
   }
 

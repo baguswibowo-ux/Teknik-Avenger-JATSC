@@ -5,7 +5,9 @@
 
 /* Peran: elemen ini disembunyikan sampai peran pemakai diketahui, supaya
    tombol administrator tidak sempat berkedip di layar teknisi. */
-.hanya-admin, .hanya-teknisi, .hanya-ttd-susulan, .hanya-tulis, .hanya-hapus{display:none;}
+.hanya-admin, .hanya-teknisi, .hanya-ttd-susulan, .hanya-tulis, .hanya-hapus, .hanya-kelola{display:none;}
+/* Pengelola catatan: administrator dan admin unit (unitnya sendiri). */
+body.boleh-kelola .hanya-kelola{display:revert;}
 /* Peran yang hanya boleh melihat: seluruh tombol penambah data disembunyikan. */
 body.tanpa-tulis .btn-tambah{display:none !important;}
 body.peran-admin .hanya-admin{display:revert;}

@@ -143,7 +143,7 @@ async function salinLampiranLogbookKeIsu(e){
 /** Bukti "saat selesai" hanya masuk akal kalau isunya memang ditutup. */
 function toggleLampiranClosed(){
   const wrap = document.getElementById('isLampiranClosedWrap');
-  const closed = adminAktif() && document.getElementById('isStatus').value === 'Closed';
+  const closed = kelolaUnitAktif() && document.getElementById('isStatus').value === 'Closed';
   wrap.style.display = closed ? '' : 'none';
   if(!closed) resetLampiran('isLampiranClosed');
 }
@@ -163,8 +163,8 @@ async function saveIssue(){
     lokasi: document.getElementById('isLokasi').value.trim(),
     tanggalReport: tglGabung,
     dilaporkanOleh: document.getElementById('isDilaporkanOleh').value.trim(),
-    // Status hanya dikirim admin; server tetap memaksa isu baru dari teknisi jadi Open.
-    status: adminAktif() ? document.getElementById('isStatus').value : 'Open',
+    // Status hanya dikirim pengelola (admin / admin unit); server tetap memaksa isu baru dari teknisi jadi Open.
+    status: kelolaUnitAktif() ? document.getElementById('isStatus').value : 'Open',
     lampiranOpen: kirimLampiran('isLampiranOpen'),
     lampiranClosed: kirimLampiran('isLampiranClosed'),
     unit: unitAktif
@@ -205,7 +205,7 @@ function renderIssueDetail(){
      kolomnya ditinggalkan. Peran lain hanya membaca. Ditampilkan hanya saat isu
      memang tertutup — mengetik alasan menutup untuk isu yang masih terbuka cuma
      membingungkan (belum ada yang menutup). */
-  const ketArea = closed && adminAktif()
+  const ketArea = closed && kelolaUnitAktif()
     ? `<textarea id="isDetailKetClosed" rows="3"
          style="width:100%;background:var(--panel-2);color:var(--text);border:1px solid var(--line);
                 border-radius:5px;padding:6px 8px;font-family:var(--font-body);font-size:13px;
@@ -342,8 +342,8 @@ function bagianBuktiHtml(it, fase, judul){
         ${isi}<span class="label">${escapeHtml(l.Nama)}</span></a>${hapus}</div>`;
   }).join('') : '<span class="diinput-oleh">' + T('belumAdaBukti') + '</span>';
 
-  // Menempel bukti ke isu yang sudah tersimpan sama dengan mengubahnya — admin saja.
-  const unggah = adminAktif() ? `
+  // Menempel bukti ke isu yang sudah tersimpan sama dengan mengubahnya — pengelola unit saja.
+  const unggah = kelolaUnitAktif() ? `
     <div style="margin-top:8px;">
       <input type="file" id="${kotak}" multiple accept="image/jpeg,image/png,image/webp,application/pdf" onchange="pilihLampiran(this, '${kotak}')">
       <div class="lampiran-hint" id="${kotak}Hint">${PESAN_LAMPIRAN}</div>
@@ -399,7 +399,7 @@ async function deleteIssue(id){
   catch(e){ issues = salinan; renderIssues(); toast('Gagal menghapus — ' + (e.message||'coba lagi.')); }
 }
 async function updateIssueField(id, field, value){
-  if(!adminAktif()){ toast(T('hanyaAdminUbah')); renderIssues(); return; }
+  if(!kelolaUnitAktif()){ toast(T('hanyaAdminUbah')); renderIssues(); return; }
   const it = issues.find(i=>i.id===id);
   if(it) it[field] = value;
   try{
@@ -464,7 +464,7 @@ function renderIssues(){
     body.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:20px;">' + T('takAdaIsuFilter') + '</td></tr>';
     return;
   }
-  body.innerHTML = daftar.map((it,idx)=> adminAktif() ? barisIsuAdmin(it, idx) : barisIsuBaca(it, idx)).join('');
+  body.innerHTML = daftar.map((it,idx)=> kelolaUnitAktif() ? barisIsuAdmin(it, idx) : barisIsuBaca(it, idx)).join('');
 }
 
 /* Bulk-close ("🔒 Tutup Semua Terbuka") sudah dihilangkan — sekarang setiap
