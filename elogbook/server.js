@@ -1262,16 +1262,19 @@ const API = {
     // tandaTanganiCatatan (lewat ttd-hak.js) memastikan catatan ini memang
     // ditujukan ke pejabat itu, jadi tidak ada catatan lain yang tersentuh.
     if (bolehTtdSusulan(user)) await pastikanUnit(user, unit);
-    const wakilDari = (await listDiwakiliOleh(user.username, hariIniUtc()))
-      .map((p) => p.username)
-      .filter((u) => !sameUser(u, user.username));
+    // diwakili membawa nama pejabatnya juga: yang tercetak lewat PH
+    // "Nama PH (PH Nama Pejabat)".
+    const diwakili = (await listDiwakiliOleh(user.username, hariIniUtc()))
+      .filter((p) => !sameUser(p.username, user.username));
+    const wakilDari = diwakili.map((p) => p.username);
 
     const hasil = await tandaTanganiCatatan(j, String(id), {
       nama: user.nama || user.username,
       username: user.username,
       role: user.role,
       ttd: String(ttd || ''),
-      wakilDari
+      wakilDari,
+      diwakili
     });
     // Kabari pembuat lembar bahwa dokumennya sudah ditandatangani. "Kirim kalau
     // bisa": jangan menautkannya ke keberhasilan pembubuhan TTD. Lewat PH,

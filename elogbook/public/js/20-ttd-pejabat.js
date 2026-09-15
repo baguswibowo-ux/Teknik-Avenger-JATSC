@@ -267,7 +267,7 @@ function openTtdModal(jenis, id){
   const titipan = inboxTtd.find(it => it.jenis === jenis && it.id === id && it.atasNama);
   if(titipan){
     const namaSaya = (userSaatIni && (userSaatIni.nama || userSaatIni.username)) || '';
-    document.getElementById('ttdSbgNama').textContent = `${namaSaya} (PH ${titipan.label})`;
+    document.getElementById('ttdSbgNama').textContent = `${namaSaya} (PH ${titipan.atasNama})`;
     document.getElementById('ttdSbgNama').classList.remove('kosong');
     document.getElementById('ttdCatatanNama').textContent =
       `Anda menandatangani sebagai PH untuk ${titipan.atasNama}. Nama di atas yang tercetak pada dokumen.`;

@@ -2381,7 +2381,7 @@ export async function unitCatatan(jenis, id) {
  * keterangan status. Hanya kalau nama pada formulir memang masih kosong, nama
  * akun penandatangan dipakai supaya petaknya tidak tercetak tanpa nama.
  */
-export async function tandaTanganiCatatan(jenis, id, { nama, username, role, ttd, wakilDari }) {
+export async function tandaTanganiCatatan(jenis, id, { nama, username, role, ttd, wakilDari, diwakili }) {
   if (!jenisTtdSah(jenis)) throw new Error('Jenis catatan tidak dikenal: ' + jenis);
   const t = JENIS_TTD[jenis];
   const row = await q1(
@@ -2400,11 +2400,12 @@ export async function tandaTanganiCatatan(jenis, id, { nama, username, role, ttd
   const path = await saveSignature(ttd, t.prefix);
   if (!path) throw new Error('Tanda tangannya kosong.');
 
-  // Lewat PH, yang tercetak nama PH sendiri berikut keterangannya — bukan nama
-  // pejabat yang diketik teknisi di formulir. TTD si PH di atas nama orang
-  // lain sama saja dengan memalsu arsip.
+  // Lewat PH, yang tercetak nama PH sendiri berikut nama pejabat yang ia wakili
+  // ("Uji Teknisi (PH Uji Pejabat)") — bukan nama pejabat saja seperti yang
+  // diketik teknisi di formulir. TTD si PH di atas nama orang lain sama saja
+  // dengan memalsu arsip.
   const namaTetap = sebagaiPh
-    ? namaCetakPh(nama || username, t.label)
+    ? namaCetakPh(nama || username, row.ttd_untuk, diwakili)
     : (String(row.nama || '').trim() ? row.nama : String(nama || ''));
   const pada = nowIso();
   await jalankan(

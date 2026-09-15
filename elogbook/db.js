@@ -2668,7 +2668,7 @@ export function unitCatatan(jenis, id) {
  * Satu-satunya kalau nama pada formulir memang masih kosong, barulah nama akun
  * penandatangan dipakai supaya petaknya tidak tercetak tanpa nama sama sekali.
  */
-export function tandaTanganiCatatan(jenis, id, { nama, username, role, ttd, wakilDari }) {
+export function tandaTanganiCatatan(jenis, id, { nama, username, role, ttd, wakilDari, diwakili }) {
   if (!jenisTtdSah(jenis)) throw new Error('Jenis catatan tidak dikenal: ' + jenis);
   const t = JENIS_TTD[jenis];
   const row = db.prepare(`SELECT ${t.nama} AS nama, ${t.ttd} AS ttd, ttd_untuk,
@@ -2686,11 +2686,12 @@ export function tandaTanganiCatatan(jenis, id, { nama, username, role, ttd, waki
   const path = saveSignature(ttd, t.prefix);
   if (!path) throw new Error('Tanda tangannya kosong.');
 
-  // Lewat PH, yang tercetak nama PH sendiri berikut keterangannya — bukan nama
-  // pejabat yang diketik teknisi di formulir. TTD si PH di atas nama orang
-  // lain sama saja dengan memalsu arsip.
+  // Lewat PH, yang tercetak nama PH sendiri berikut nama pejabat yang ia wakili
+  // ("Uji Teknisi (PH Uji Pejabat)") — bukan nama pejabat saja seperti yang
+  // diketik teknisi di formulir. TTD si PH di atas nama orang lain sama saja
+  // dengan memalsu arsip.
   const namaTetap = sebagaiPh
-    ? namaCetakPh(nama || username, t.label)
+    ? namaCetakPh(nama || username, row.ttd_untuk, diwakili)
     : (String(row.nama || '').trim() ? row.nama : String(nama || ''));
   const pada = nowIso();
   db.prepare(`UPDATE ${t.tabel} SET ${t.nama} = ?, ${t.ttd} = ?, ttd_oleh = ?, ttd_pada = ? WHERE id = ?`)

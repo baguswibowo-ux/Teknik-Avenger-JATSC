@@ -39,8 +39,13 @@ export function hakTtd({ role, username, ttdUntuk, dibuatOleh, wakilDari }) {
   return { sebagaiPh };
 }
 
-/** Nama yang tercetak di bawah TTD kalau PH yang membubuhkan:
-    "Budi Santoso (PH Manager Teknik)". */
-export function namaCetakPh(nama, label) {
-  return `${String(nama || '').trim()} (PH ${String(label || '').trim()})`;
+/** Nama yang tercetak di bawah TTD kalau PH yang membubuhkan: nama PH berikut
+    nama pejabat yang ia wakili — "Budi Santoso (PH Arya Gunawan)".
+    `diwakili` = [{ username, nama }] pengalihan PH yang masih berlaku (disusun
+    server.js); pejabatnya dicari lewat `ttdUntuk` catatan. Nama kosong jatuh
+    ke username-nya. */
+export function namaCetakPh(nama, ttdUntuk, diwakili) {
+  const p = (diwakili || []).find((w) => kecil(w && w.username) === kecil(ttdUntuk));
+  const atas = (p && String(p.nama || '').trim()) || String(ttdUntuk || '').trim();
+  return `${String(nama || '').trim()} (PH ${atas})`;
 }
