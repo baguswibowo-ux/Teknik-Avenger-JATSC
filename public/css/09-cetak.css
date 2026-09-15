@@ -538,12 +538,10 @@
   font-family: 'Consolas', 'Courier New', monospace;
   font-size: 9pt;
 }
-/* Lembar Sparepart: dua belas kolom berbentuk lembar SAP, sedikit dirapatkan. */
-.cetak-lembar table.data.spr-cetak { font-size: 8.5pt; }
-/* Lembar Sparepart dicetak lanskap (lihat pasangOrientasiCetak), jadi
-   lembarnya boleh lebih lebar dari 190mm bawaan potret: A4 lanskap 297mm
-   dikurangi margin 8mm dan padding lembar. */
-.cetak-lembar:has(table.spr-cetak) { max-width: 265mm; }
+/* Lembar Sparepart: dua belas kolom lembar SAP dimuatkan ke A4 POTRET.
+   Huruf dan jarak dirapatkan; nama barang dan keterangan boleh melipat,
+   kode/angka/tanggal tidak. Judul kolom boleh melipat dua baris. */
+.cetak-lembar table.data.spr-cetak { font-size: 7.5pt; }
 .cetak-lembar .spr-cetak-judul {
   font-weight: 600;
   font-size: 10pt;
@@ -552,8 +550,22 @@
   break-after: avoid;
 }
 .cetak-lembar table.data.spr-cetak th,
-.cetak-lembar table.data.spr-cetak td { padding: 2pt 4pt; }
-.cetak-lembar table.data.spr-cetak td.mono { font-size: 8pt; white-space: nowrap; }
+.cetak-lembar table.data.spr-cetak td { padding: 1.5pt 2.5pt; }
+/* Aturan th umum (05-ubin-panel-tabel.css) memberi huruf mono berjarak lebar
+   dan nowrap — di sini judul kolom harus boleh melipat, kalau tidak "KODE
+   GUDANG" memakan 21mm untuk isi satu angka. */
+.cetak-lembar table.data.spr-cetak th {
+  font-size: 7pt;
+  font-family: inherit;
+  letter-spacing: 0;
+  text-transform: none;
+  color: #000;
+  white-space: normal;
+  line-height: 1.15;
+  vertical-align: middle;
+  position: static;
+}
+.cetak-lembar table.data.spr-cetak td.mono { font-size: 7pt; white-space: nowrap; }
 .cetak-lembar table.data td.tengah { text-align: center; }
 .cetak-lembar table.data td.kanan  { text-align: right; }
 

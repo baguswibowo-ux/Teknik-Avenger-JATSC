@@ -661,9 +661,7 @@ async function cetakLakukan(){
      bekerja untuk element ber-position:absolute+visibility seperti ini.
      Mode lain (peralatan, sparepart) tetap potret bawaan. */
   area.classList.toggle('lanskap', CETAK.mode === 'dinas');
-  // Sparepart juga lanskap (dua belas kolom, seperti lembar SAP-nya) tapi
-  // tanpa .lanskap: daftarnya boleh bersambung ke halaman berikutnya.
-  pasangOrientasiCetak(['dinas','sparepart'].includes(CETAK.mode) ? 'landscape' : null);
+  pasangOrientasiCetak(CETAK.mode === 'dinas' ? 'landscape' : null);
   /* Kalau TTD-nya digambar putih di E-Logbook, ubah jadi hitam untuk
      kertas putih. Piksel bergaris (alpha > 0) dipaksa hitam pekat. */
   const imgs = Array.from(area.querySelectorAll('img[data-perlu-hitam]'));
@@ -854,6 +852,13 @@ function htmlSparepart(){
   return tabelSparepartCetak(rows) + tabelRiwayatPartCetak(PART_RIWAYAT[CETAK.unit] || []);
 }
 
+/** Tanggal ringkas untuk kertas potret: 21/08/26. Yang cuma bulan atau
+    tahun (dari rekap SAP) tetap 'Des 2025' / '2021'. */
+function tglCetakRingkas(t){
+  const m = String(t || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? `${m[3]}/${m[2]}/${m[1].slice(2)}` : tglRiwayat(t);
+}
+
 /** Riwayat pemakaian (keluar) dan pengadaan (masuk) di bawah daftar
     sparepart — urut waktu dari yang terlama, seperti lembar Rekap orang
     sparepart. Kosong = tidak digambar sama sekali. */
@@ -880,7 +885,7 @@ function tabelRiwayatPartCetak(riwayat){
       <tbody>${baris.map((r, i)=>`
         <tr>
           <td class="tengah mono">${i+1}</td>
-          <td class="mono">${esc(tglRiwayat(r.tgl))}</td>
+          <td class="mono">${esc(tglCetakRingkas(r.tgl))}</td>
           <td class="mono">${esc(r.pn || '')}</td>
           <td>${esc(r.nama || '')}</td>
           <td class="tengah mono">${r.keluar || ''}</td>
@@ -933,8 +938,8 @@ function tabelSparepartCetak(rows){
           <td class="tengah">${kosong(p.satuan)}</td>
           <td class="tengah mono">${Number(p.stok)||0}</td>
           <td class="kanan mono">${partRupiah(p.nilai)}</td>
-          <td class="mono">${esc(tglRiwayat(partTambah(p)))}</td>
-          <td class="mono">${esc(tglRiwayat(partPakai(p)))}</td>
+          <td class="mono">${esc(tglCetakRingkas(partTambah(p)))}</td>
+          <td class="mono">${esc(tglCetakRingkas(partPakai(p)))}</td>
           <td>${esc(p.ket || '')}</td>
         </tr>`).join('')}
       </tbody>
@@ -1647,7 +1652,7 @@ async function cetakDariPermintaan(p){
   // Snapshot dinas juga lanskap satu halaman — sepadan dengan cetak
   // langsung (lakukanCetak). Snapshot lain (peralatan/sparepart) tetap potret.
   area.classList.toggle('lanskap', p.jenis === 'dinas');
-  pasangOrientasiCetak(['dinas','sparepart'].includes(p.jenis) ? 'landscape' : null);
+  pasangOrientasiCetak(p.jenis === 'dinas' ? 'landscape' : null);
   const imgs = Array.from(area.querySelectorAll('img[data-perlu-hitam]'));
   await Promise.all(imgs.map(async img=>{
     try{
