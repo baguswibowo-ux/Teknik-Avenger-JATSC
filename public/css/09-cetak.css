@@ -327,7 +327,6 @@
      Kotak TTD 46pt cukup untuk tanda tangan; gambar diskalakan turun. */
   #printArea.lanskap .kotak-ttd { height: 46pt; }
   #printArea.lanskap .kotak-ttd img { max-height: 42pt; }
-  #printArea.lanskap .dinas-pic td { padding: 2pt 8pt; }
   #printArea.lanskap table.dinas-cuti { font-size: 8pt; }
   #printArea.lanskap table.dinas-cuti th,
   #printArea.lanskap table.dinas-cuti td { padding: 1pt 4pt; }
@@ -367,27 +366,6 @@
   margin-top: 10pt;
   page-break-inside: avoid;
   break-inside: avoid;
-}
-.cetak-lembar .dinas-pic {
-  border-collapse: collapse;
-  margin-bottom: 8pt;
-  font-size: 9pt;
-}
-.cetak-lembar .dinas-pic td {
-  border: 1px solid #000;
-  padding: 3pt 8pt;
-  vertical-align: top;
-}
-.cetak-lembar .dinas-pic .pic-lab {
-  width: 46pt;
-  font-weight: 600;
-  text-align: center;
-  background: #f4f4f4;
-}
-.cetak-lembar .dinas-pic .pic-nama {
-  min-width: 220pt;
-  font-weight: 600;
-  line-height: 1.4;
 }
 .cetak-lembar table.dinas-cuti {
   width: 100%;

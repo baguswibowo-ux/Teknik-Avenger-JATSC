@@ -52,9 +52,6 @@ const CETAK = {
      Jadwal Dinas menentukan nilainya waktu tombolnya ditekan. */
   formatDinas: 'teknik',
   pejabat: [],      // hasil listPejabatUnit — [{username,nama}]
-  picSaran: [],     // hasil /pic-cetak-dinas/:unit — irisan akun terdaftar di unit
-                    // ini dan ditunjuk di hak modul `dinas` (Jadwal Dinas); jadi
-                    // saran dropdown PIC 1/PIC 2 di modal Jadwal Dinas
   pejabatDipilih: null,   // username yang dipilih di dropdown
   ttdPejabat: null,       // { ada, nama, path, ... } untuk yang terpilih
   ttdSaya:    null,       // idem untuk pengguna dashboard sekarang
@@ -63,12 +60,10 @@ const CETAK = {
      TTD-nya bertuliskan "Menunggu TTD" di lembar cetak. */
   deputyDipilih: null,
   ttdDeputy:  null,
-  /* Isian footer Jadwal Dinas — diisi PIC (pembuat) di modal kirim.
-     picNama1/picNama2  = dua PIC unit yang tercantum di kepala footer.
-     tanggalCetak       = tanggal "Tangerang, __ Agustus 2026" di atas kanan;
-                          bawaannya hari ini, boleh disunting. */
-  picNama1: '',
-  picNama2: '',
+  /* Isian footer Jadwal Dinas — diisi pengirim di modal kirim.
+     tanggalCetak = tanggal "Tangerang, __ Agustus 2026" di atas kanan;
+                    bawaannya hari ini, boleh disunting. Nama PIC tidak lagi
+                    tercantum di lembar (permintaan Bagus, 15 Sep 2026). */
   tanggalCetak: '',
   kanvas:     { el:null, ctx:null, ada:false },  // kanvas TTD pejabat
   kanvasSaya: { el:null, ctx:null, ada:false },  // kanvas TTD saya (kalau saya belum punya)
@@ -125,12 +120,7 @@ async function cetakBuka(mode, unit, opts){
   CETAK.kanvas = { el:null, ctx:null, ada:false };
   CETAK.kanvasSaya = { el:null, ctx:null, ada:false };
   CETAK.serahkanKePejabat = true;   // bawaan: TTD pejabat diserahkan ke akun mereka
-  /* PIC & tanggal — reset tiap buka modal. Tanggal default hari ini
-     (YYYY-MM-DD). PIC boleh kosong; kalau tetap kosong, footer menampilkan
-     "—" untuk PIC-nya. */
-  CETAK.picNama1 = '';
-  CETAK.picNama2 = '';
-  CETAK.picSaran = [];
+  /* Tanggal — reset tiap buka modal, bawaannya hari ini (YYYY-MM-DD). */
   CETAK.pejabatTanpaHak = false;
   CETAK.nonopBoleh = false;
   CETAK.tanggalCetak = new Date().toISOString().slice(0, 10);
@@ -145,7 +135,7 @@ async function cetakBuka(mode, unit, opts){
   el('lapisCetak').classList.add('buka');
 
   try{
-    const [pejabat, ttdSaya, hakCetak, teknisiUnit] = await Promise.all([
+    const [pejabat, ttdSaya, hakCetak] = await Promise.all([
       /* Galat listPejabatUnit tidak dibungkam — cukup diubah jadi larik
          kosong supaya UI tetap hidup, tapi tetap ke console.warn supaya
          jelas kalau endpointnya belum terpasang (E-Logbook belum di-restart). */
@@ -163,19 +153,8 @@ async function cetakBuka(mode, unit, opts){
          menampilkan pejabat yang tidak berhak. */
       srvFetch('/pejabat-hak-cetak', {}, 8000)
         .then(r=>r.ok ? r.json() : null)
-        .catch(e=>{ console.warn('[cetak] /pejabat-hak-cetak gagal:', e && e.message || e); return null; }),
-      /* Saran nama PIC 1/PIC 2 di footer Jadwal Dinas — nama akun yang
-         terdaftar di unit ini DAN yang ditunjuk di hak modul `dinas`
-         (Jadwal Dinas). Pemfilteran dilakukan di server (dashboard) karena
-         hak.json tidak diekspos ke non-admin. Hanya dipetik untuk mode
-         'dinas' — footer PIC cuma dipakai di lembar dinas. */
-      mode === 'dinas'
-        ? srvFetch('/pic-cetak-dinas/' + encodeURIComponent(CETAK.unit), {}, 8000)
-            .then(r=>r.ok ? r.json() : [])
-            .catch(e=>{ console.warn('[cetak] /pic-cetak-dinas gagal:', e && e.message || e); return []; })
-        : Promise.resolve([])
+        .catch(e=>{ console.warn('[cetak] /pejabat-hak-cetak gagal:', e && e.message || e); return null; })
     ]);
-    CETAK.picSaran = Array.isArray(teknisiUnit) ? teknisiUnit : [];
     CETAK.ttdSaya = ttdSaya || { ada:false };
     if(hakCetak){
       const petaBolehSaya = (hakCetak.pejabatTtd && typeof hakCetak.pejabatTtd === 'object')
@@ -378,46 +357,18 @@ function cetakKartuGambar(){
      PDF-nya dari Kotak Masuk setelahnya. Blok Pembuat + kanvas TTD saya
      yang dulu ada di sini dilepas: kolom Dibuat oleh yang selalu kosong
      di tangan pejabat cuma menambah ruang tanpa menambah informasi. */
-  /* Isian tambahan untuk Jadwal Dinas: dua PIC (nama personel yang
-     bertanggung jawab menyusun jadwal) + tanggal pembuatan lembar. Ketiganya
-     tampil di kaki lembar cetak, jadi PIC yang mengirim mengisinya di sini.
-     Tanggal bawaannya hari ini — bisa disunting.
-
-     Nama PIC memakai <select> — daftar akun auto-generate dari
-     /pic-cetak-dinas/:unit (irisan akun terdaftar di unit ini dan yang
-     dipilih di hak `dinas-cetak`). Tidak ada isian bebas: PIC harus
-     salah satu nama yang tercantum, supaya lembar cetak konsisten dengan
-     daftar akun yang berhak. */
-  const opsiPic = (nilai) => {
-    const nama = Array.from(new Set((CETAK.picSaran || [])
-      .map(u => String(u && u.nama || u && u.username || '').trim())
-      .filter(Boolean))).sort((a,b)=>a.localeCompare(b,'id'));
-    return nama.map(n=>`<option value="${esc(n)}"${
-      n === (nilai || '') ? ' selected' : ''}>${esc(n)}</option>`).join('');
-  };
+  /* Isian tambahan untuk Jadwal Dinas: tanggal pembuatan lembar, tampil di
+     kaki lembar cetak. Bawaannya hari ini — bisa disunting. Nama PIC 1/PIC 2
+     yang dulu dipilih di sini dihapus: tidak perlu tertera di lembar. */
   const isianDinas = (kirimSaja && CETAK.mode === 'dinas') ? `
     <div class="cetak-baris" style="margin-top:10px">
-      <label>${T('PIC 1 (nama)','PIC 1 (name)')}</label>
-      <select id="cetakPic1" style="flex:1;min-width:0">
-        <option value="">${T('— pilih nama PIC 1 —','— pick PIC 1 name —')}</option>
-        ${opsiPic(CETAK.picNama1)}
-      </select>
-    </div>
-    <div class="cetak-baris" style="margin-top:8px">
-      <label>${T('PIC 2 (nama)','PIC 2 (name)')}</label>
-      <select id="cetakPic2" style="flex:1;min-width:0">
-        <option value="">${T('— pilih nama PIC 2 —','— pick PIC 2 name —')}</option>
-        ${opsiPic(CETAK.picNama2)}
-      </select>
-    </div>
-    <div class="cetak-baris" style="margin-top:8px">
       <label>${T('Tanggal (Tangerang)','Date (Tangerang)')}</label>
       <input type="date" id="cetakTanggal" style="flex:1;min-width:0"
         value="${esc(CETAK.tanggalCetak || '')}">
     </div>
     <div class="cetak-ket" style="margin-top:6px">${T(
-      'PIC 1 & 2 dan tanggal ini tampil di kaki lembar cetak. Daftar auto-generate: akun yang ditunjuk di Hak Akses → Jadwal Dinas → Ditunjuk DAN terdaftar di unit ini (UNIT LOGBOOK di Daftar Akun). Tanggal boleh disunting; bawaannya hari ini.',
-      'PIC 1 & 2 and this date appear at the foot of the printed sheet. Auto-generated: accounts named under Access Rights → Duty Roster → Named AND registered to this unit (UNIT LOGBOOK column in Account List). Date is editable; defaults to today.')}</div>
+      'Tanggal ini tampil di kaki lembar cetak. Boleh disunting; bawaannya hari ini.',
+      'This date appears at the foot of the printed sheet. Editable; defaults to today.')}</div>
   ` : '';
 
   const badanHtml = kirimSaja ? `
@@ -489,13 +440,8 @@ function cetakPasangKartu(){
     cetakKartuGambar();
   });
 
-  /* Isian footer Jadwal Dinas — dua PIC (dropdown <select>) + tanggal.
-     Ditulis langsung ke state supaya cetakSnapshot() dan htmlDinas() bisa
-     membacanya waktu tombol kirim/cetak ditekan. */
-  const pic1 = el('cetakPic1');
-  if(pic1) pic1.addEventListener('change', ()=>{ CETAK.picNama1 = pic1.value; });
-  const pic2 = el('cetakPic2');
-  if(pic2) pic2.addEventListener('change', ()=>{ CETAK.picNama2 = pic2.value; });
+  /* Isian footer Jadwal Dinas — tanggal. Ditulis langsung ke state supaya
+     cetakSnapshot() dan htmlDinas() bisa membacanya waktu tombol ditekan. */
   const tgl = el('cetakTanggal');
   if(tgl) tgl.addEventListener('change', ()=>{ CETAK.tanggalCetak = tgl.value; });
 
@@ -814,17 +760,14 @@ async function cetakLembarHtml(){
   else if(CETAK.mode === 'dinas')     isi = htmlDinas();
 
   if(CETAK.mode === 'dinas'){
-    /* Footer Dinas mengganti blokTtd standar — memuat PIC + tabel cuti +
-       note 5 poin + tanggal + dua kolom TTD (di mode PUM, PIC dan note
-       dibuang — lihat dinasFooterHtml). Data untuk footer dikumpulkan
-       dari state CETAK yang di-set modal kirim (pic1/pic2/tanggalCetak)
-       dan JDW live (untuk daftar cuti). */
+    /* Footer Dinas mengganti blokTtd standar — memuat tabel cuti + note
+       5 poin + tanggal + dua kolom TTD (di mode PUM, note dibuang — lihat
+       dinasFooterHtml). Data untuk footer dikumpulkan dari state CETAK yang
+       di-set modal kirim (tanggalCetak) dan JDW live (untuk daftar cuti). */
     const bulan = JDW.lihat || JDW.bulanIni || bulanKode(new Date());
     const orang = (JDW.jadwalLihat && JDW.jadwalLihat[CETAK.unit]) || [];
     const foot = dinasFooterHtml({
       pum: CETAK.formatDinas === 'pum',
-      pic1: CETAK.picNama1 || '',
-      pic2: CETAK.picNama2 || '',
       tanggalIso: CETAK.tanggalCetak || '',
       cutiRows: dinasBarisCuti(orang, bulan),
       ttdMengertUrl:  (CETAK.ttdDeputy  && CETAK.ttdDeputy.ada)  ? CETAK.ttdDeputy.url  : '',
@@ -1025,15 +968,13 @@ function cetakSnapshot(){
     const orang = (JDW.jadwalLihat && JDW.jadwalLihat[CETAK.unit]) || [];
     /* format, PIC, tanggal ikut dibekukan supaya lembar yang dibuka
        pejabat dari Kotak Masuk tampil persis seperti yang dikirim.
-       Perubahan PIC/tanggal setelah kirim tidak boleh mengubah lembar
+       Perubahan tanggal setelah kirim tidak boleh mengubah lembar
        yang sudah antre — itu bagian dari "snapshot", bukan draf. */
     return {
       jenis:  'dinas',
       unit:   CETAK.unit,
       bulan, orang,
       format: CETAK.formatDinas || 'teknik',
-      pic1:   CETAK.picNama1 || '',
-      pic2:   CETAK.picNama2 || '',
       tanggalCetak: CETAK.tanggalCetak || ''
     };
   }
@@ -1775,17 +1716,16 @@ async function cetakLembarPermintaanHtml(p, snap){
   const mengertUrl = CETAK.ttdPejabat && CETAK.ttdPejabat.ada ? CETAK.ttdPejabat.url : '';
   let blok;
   if(p.jenis === 'dinas'){
-    /* Snapshot Dinas: footer penuh (PIC + cuti + note + TTD); mode PUM
-       (snap.format === 'pum') membuang PIC dan note. Data tambahan
-       (pic1/pic2/tanggalCetak/format) datang dari snap yang dibekukan
-       waktu pengirim menekan tombol Kirim. */
+    /* Snapshot Dinas: footer penuh (cuti + note + TTD); mode PUM
+       (snap.format === 'pum') membuang note. Data tambahan
+       (tanggalCetak/format) datang dari snap yang dibekukan waktu pengirim
+       menekan tombol Kirim. Snapshot lama yang masih membawa pic1/pic2
+       sengaja tidak mencetaknya lagi. */
     const bulan = snap.bulan || p.bulan;
     const orang = Array.isArray(snap.orang) ? snap.orang : [];
     const deputyUrl = CETAK.ttdDeputy && CETAK.ttdDeputy.ada ? CETAK.ttdDeputy.url : '';
     blok = dinasFooterHtml({
       pum: snap.format === 'pum',
-      pic1: snap.pic1 || '',
-      pic2: snap.pic2 || '',
       tanggalIso: snap.tanggalCetak || '',
       cutiRows: dinasBarisCuti(orang, bulan),
       ttdMengertUrl:  deputyUrl,
@@ -1926,23 +1866,24 @@ const DINAS_NOTE = [
 ];
 
 /**
- * Bangun footer lembar Dinas: PIC di kiri atas, tanggal di kanan atas,
+ * Bangun footer lembar Dinas: tanggal di kanan atas,
  * tabel cuti/SAP di tengah, note 5 poin di kiri bawah, dua blok TTD di
  * kanan bawah (Mengetahui Deputy General Manager Teknik + Dibuat Oleh
  * Manager Teknik). Semua data yang berbeda per lembar diterima lewat
  * ctx supaya fungsi ini bisa dipanggil dari htmlDinas() maupun
  * cetakLembarPermintaanHtml().
  *
- * Kalau ctx.pum true, blok PIC dan daftar Note dibuang — lembar PUM tinggal
- * tabel cuti bulan itu + tanggal + dua blok TTD.
+ * Kalau ctx.pum true, daftar Note dibuang — lembar PUM tinggal tabel cuti
+ * bulan itu + tanggal + dua blok TTD. Blok PIC (nama PIC 1/PIC 2) sudah
+ * tidak ada di kedua ragam.
  *
  * ctx: {
- *   pum, pic1, pic2, tanggalIso, cutiRows,
+ *   pum, tanggalIso, cutiRows,
  *   ttdMengertUrl, ttdMengertNama, ttdManagerUrl, ttdManagerNama
  * }
  */
 function dinasFooterHtml(ctx){
-  /* Lembar PUM disederhanakan: blok PIC dan daftar Note dibuang, menyisakan
+  /* Lembar PUM disederhanakan: daftar Note dibuang, menyisakan
      tabel cuti/SAP/ijin/DL bulan itu plus tanggal dan dua kolom TTD. Note
      lima poin (rating, pemenuhan jam) urusan internal Teknik, bukan hal yang
      perlu ikut ke lembar PUM. */
@@ -1984,14 +1925,6 @@ function dinasFooterHtml(ctx){
       <div class="nama-ttd">${esc(nama || '—')}</div>
     </td>`;
 
-  const picBlok = pum ? '' : `
-      <table class="dinas-pic">
-        <tr>
-          <td class="pic-lab">PIC</td>
-          <td class="pic-nama">${esc(ctx.pic1 || '—')}${ctx.pic2 ? `<br>${esc(ctx.pic2)}` : ''}</td>
-        </tr>
-      </table>`;
-
   const noteBlok = pum ? '' : `
         <div class="dinas-note">
           <div class="dinas-note-jd">Note :</div>
@@ -2000,8 +1933,6 @@ function dinasFooterHtml(ctx){
 
   return `
     <div class="dinas-footer">
-      ${picBlok}
-
       <table class="data dinas-cuti">
         <thead>
           <tr>
