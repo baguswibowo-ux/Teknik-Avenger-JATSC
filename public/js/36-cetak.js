@@ -737,16 +737,27 @@ function blokTtd(){
      kanan. Yang menyusunnya dinasFooterHtml(); jalur ini cuma dilewati oleh
      mode lain (peralatan, sparepart). */
 
+  return ttdTunggalHtml(mengertUrl, mengertNama, kosongTeks);
+}
+
+/**
+ * Blok TTD satu kolom (lembar sparepart & peralatan), bentuknya disamakan
+ * dengan cetakan E-Logbook: "Mengetahui," dan "Manager Teknik" di atas,
+ * gambar TTD, lalu nama dengan SATU garis pendek di atasnya. Dulu jabatan di
+ * bawah nama dan sel tabelnya ikut bergaris — terbaca sebagai garis
+ * bertumpuk.
+ */
+function ttdTunggalHtml(url, nama, kosongTeks){
   return `
     <table class="ttd-blok ttd-blok-tunggal">
       <tr>
         <td>
           <div class="peran-ttd">${T('Mengetahui,','Approved by,')}</div>
-          <div class="kotak-ttd">${mengertUrl
-            ? `<img src="${mengertUrl}" data-perlu-hitam alt="">`
+          <div class="jabatan-ttd">${esc(T('Manager Teknik','Technical Manager'))}</div>
+          <div class="kotak-ttd">${url
+            ? `<img src="${url}" data-perlu-hitam alt="">`
             : `<span class="kosong-ket">${esc(kosongTeks)}</span>`}</div>
-          <div class="nama-ttd">${esc(mengertNama || '—')}</div>
-          <div class="jabatan-ttd">${esc(T('Manajer Teknik','Technical Manager'))}</div>
+          <div class="nama-ttd"><span>${esc(nama || ' ')}</span></div>
         </td>
       </tr>
     </table>
@@ -781,37 +792,113 @@ async function cetakLembarHtml(){
 }
 
 function htmlSparepart(){
-  const rows = PART.filter(p=>p.unit === CETAK.unit)
-                   .sort((a,b)=>(a.nama||'').localeCompare(b.nama||''));
+  // Urutan simpan — sama dengan nomor di lembar SAP gudang dan di layar unit.
+  const rows = PART.filter(p=>p.unit === CETAK.unit);
   if(!rows.length){
     return `<div style="text-align:center;font-style:italic;padding:12pt 0">${
       T('Belum ada sparepart terdaftar untuk unit ini.',
         'No spare parts registered for this unit yet.')}</div>`;
   }
+  return tabelSparepartCetak(rows) + tabelRiwayatPartCetak(PART_RIWAYAT[CETAK.unit] || []);
+}
+
+/** Tanggal ringkas untuk kertas potret: 21/08/26. Yang cuma bulan atau
+    tahun (dari rekap SAP) tetap 'Des 2025' / '2021'. */
+function tglCetakRingkas(t){
+  const m = String(t || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? `${m[3]}/${m[2]}/${m[1].slice(2)}` : tglRiwayat(t);
+}
+
+/** Riwayat pemakaian (keluar) dan pengadaan (masuk) di bawah daftar
+    sparepart — urut waktu dari yang terlama, seperti lembar Rekap orang
+    sparepart. Kosong = tidak digambar sama sekali. */
+function tabelRiwayatPartCetak(riwayat){
+  const baris = (Array.isArray(riwayat) ? riwayat : []).map((r, i)=>({ r, i }))
+    .sort((a,b)=> a.r.tgl < b.r.tgl ? -1 : a.r.tgl > b.r.tgl ? 1 : a.i - b.i).map(x=>x.r);
+  if(!baris.length) return '';
+  const jumlah = (k) => baris.reduce((n, r)=> n + (Number(r[k]) || 0), 0);
   return `
-    <table class="data">
+    <div class="spr-cetak-judul">${T('Riwayat Pemakaian & Pengadaan','Usage & Procurement History')}</div>
+    <table class="data spr-cetak">
       <thead><tr>
-        <th style="width:32px">${T('No','No')}</th>
-        <th>${T('Sparepart','Spare Part')}</th>
-        <th style="width:32%">Part Number</th>
-        <th style="width:70px">${T('Rak','Rack')}</th>
-        <th style="width:60px" class="tengah">${T('Stok','Stock')}</th>
-        <th style="width:52px" class="tengah">${T('Min','Min')}</th>
-        <th style="width:60px">${T('Satuan','Unit')}</th>
-        <th style="width:82px">${T('Dipakai','Last used')}</th>
+        <th style="width:22px">No</th>
+        <th>${T('Tanggal','Date')}</th>
+        <th>${T('Kode Material','Material Code')}</th>
+        <th>${T('Nama Barang','Item Name')}</th>
+        <th>${T('Keluar','Out')}</th>
+        <th>${T('Masuk','In')}</th>
+        <th>${T('Sisa','Left')}</th>
+        <th>IDR</th>
+        <th>GI/GR</th>
+        <th>${T('Keterangan','Note')}</th>
+      </tr></thead>
+      <tbody>${baris.map((r, i)=>`
+        <tr>
+          <td class="tengah mono">${i+1}</td>
+          <td class="mono">${esc(tglCetakRingkas(r.tgl))}</td>
+          <td class="mono">${esc(r.pn || '')}</td>
+          <td>${esc(r.nama || '')}</td>
+          <td class="tengah mono">${r.keluar || ''}</td>
+          <td class="tengah mono">${r.masuk || ''}</td>
+          <td class="tengah mono">${r.sisa === '' || r.sisa == null ? '' : r.sisa}</td>
+          <td class="kanan mono">${r.nilai ? partRupiah(r.nilai) : ''}</td>
+          <td class="tengah">${esc(r.kode || '')}</td>
+          <td>${esc(r.ket || '')}</td>
+        </tr>`).join('')}
+      </tbody>
+      <tfoot><tr>
+        <td colspan="4" class="kanan"><b>${T('Jumlah','Total')}</b></td>
+        <td class="tengah mono"><b>${jumlah('keluar')}</b></td>
+        <td class="tengah mono"><b>${jumlah('masuk')}</b></td>
+        <td colspan="4"></td>
+      </tr></tfoot>
+    </table>`;
+}
+
+/** Tabel lembar Sparepart, berkolom seperti lembar SAP gudang ditambah
+    tanggal ditambahkan & dipakai. Dipakai cetak langsung dan snapshot yang
+    dikirim ke pejabat, supaya keduanya persis sama. Snapshot lama (sebelum
+    kolom SAP ada) tetap tergambar — kolom yang tidak dimilikinya bertanda —. */
+function tabelSparepartCetak(rows){
+  const kosong = (v) => esc(v == null || v === '' ? '—' : v);
+  return `
+    <table class="data spr-cetak">
+      <thead><tr>
+        <th style="width:22px">${T('No','No')}</th>
+        <th>${T('Kode Material','Material Code')}</th>
+        <th>${T('Nama Barang','Item Name')}</th>
+        <th>SLOC</th>
+        <th>${T('Kode Gudang','Warehouse')}</th>
+        <th>Status</th>
+        <th>${T('Satuan','Unit')}</th>
+        <th>${T('Jumlah','Qty')}</th>
+        <th>Value (IDR)</th>
+        <th>${T('Ditambahkan','Added')}</th>
+        <th>${T('Dipakai','Used')}</th>
+        <th>${T('Ket','Note')}</th>
       </tr></thead>
       <tbody>${rows.map((p,i)=>`
         <tr>
           <td class="tengah mono">${i+1}</td>
-          <td>${esc(p.nama || '')}</td>
           <td class="mono">${esc(p.pn || '')}</td>
-          <td class="mono">${esc(p.rak || '')}</td>
+          <td>${esc(p.nama || '')}</td>
+          <td class="tengah mono">${kosong(p.sloc)}</td>
+          <td class="tengah mono">${kosong(p.gudang)}</td>
+          <td class="tengah">${kosong(p.status)}</td>
+          <td class="tengah">${kosong(p.satuan)}</td>
           <td class="tengah mono">${Number(p.stok)||0}</td>
-          <td class="tengah mono">${Number(p.min)||0}</td>
-          <td>${esc(p.satuan || '')}</td>
-          <td class="mono">${esc(tglRingkas(p.pakai) || '—')}</td>
+          <td class="kanan mono">${partRupiah(p.nilai)}</td>
+          <td class="mono">${esc(tglCetakRingkas(partTambah(p)))}</td>
+          <td class="mono">${esc(tglCetakRingkas(partPakai(p)))}</td>
+          <td>${esc(p.ket || '')}</td>
         </tr>`).join('')}
       </tbody>
+      <tfoot><tr>
+        <td colspan="7" class="kanan"><b>${T('Jumlah','Total')}</b></td>
+        <td class="tengah mono"><b>${rows.reduce((n,p)=>n+(Number(p.stok)||0),0)}</b></td>
+        <td class="kanan mono"><b>${partRupiah(rows.reduce((n,p)=>n+(Number(p.nilai)||0),0))}</b></td>
+        <td colspan="3"></td>
+      </tr></tfoot>
     </table>`;
 }
 
@@ -959,9 +1046,14 @@ function htmlPeralatan(){
     walau data di database berubah setelahnya. */
 function cetakSnapshot(){
   if(CETAK.mode === 'sparepart'){
+    /* Tanggal ditambahkan/dipakai dihitung sekarang dan dibekukan ke barisnya
+       (tanpa kode unit, supaya riwayat yang bertambah sesudahnya tidak ikut
+       mengubah lembar yang sudah dikirim). */
     const rows = PART.filter(p=>p.unit === CETAK.unit)
-                     .sort((a,b)=>(a.nama||'').localeCompare(b.nama||''));
-    return { jenis:'sparepart', unit:CETAK.unit, rows };
+      .map(({ unit:_u, ...p })=>({ ...p, tambah: partTambah({ ...p, unit:_u }), pakai: partPakai({ ...p, unit:_u }) }));
+    // Riwayat ikut dibekukan: pejabat menandatangani lembar beserta riwayatnya.
+    const riwayat = (PART_RIWAYAT[CETAK.unit] || []).map(r=>({ ...r }));
+    return { jenis:'sparepart', unit:CETAK.unit, rows, riwayat };
   }
   if(CETAK.mode === 'dinas'){
     const bulan = JDW.lihat || JDW.bulanIni || bulanKode(new Date());
@@ -1519,29 +1611,7 @@ async function cetakDariPermintaan(p){
 function cetakIsiSnapshotHtml(p, snap){
   if(p.jenis === 'sparepart'){
     const rows = Array.isArray(snap.rows) ? snap.rows : [];
-    return rows.length ? `
-      <table class="data">
-        <thead><tr>
-          <th style="width:32px">${T('No','No')}</th>
-          <th>${T('Sparepart','Spare Part')}</th>
-          <th style="width:32%">Part Number</th>
-          <th style="width:70px">${T('Rak','Rack')}</th>
-          <th style="width:60px" class="tengah">${T('Stok','Stock')}</th>
-          <th style="width:52px" class="tengah">${T('Min','Min')}</th>
-          <th style="width:60px">${T('Satuan','Unit')}</th>
-          <th style="width:82px">${T('Dipakai','Last used')}</th>
-        </tr></thead>
-        <tbody>${rows.map((r,i)=>`
-          <tr>
-            <td class="tengah mono">${i+1}</td>
-            <td>${esc(r.nama || '')}</td>
-            <td class="mono">${esc(r.pn || '')}</td>
-            <td class="mono">${esc(r.rak || '')}</td>
-            <td class="tengah mono">${Number(r.stok)||0}</td>
-            <td class="tengah mono">${Number(r.min)||0}</td>
-            <td>${esc(r.satuan || '')}</td>
-            <td class="mono">${esc(tglRingkas(r.pakai) || '—')}</td>
-          </tr>`).join('')}</tbody></table>`
+    return rows.length ? tabelSparepartCetak(rows) + tabelRiwayatPartCetak(snap.riwayat)
       : `<div style="text-align:center;font-style:italic;padding:12pt 0">${
         T('Belum ada sparepart terdaftar.','No spare parts registered.')}</div>`;
   }
@@ -1734,18 +1804,8 @@ async function cetakLembarPermintaanHtml(p, snap){
       ttdManagerNama: (CETAK.ttdPejabat && CETAK.ttdPejabat.nama) || p.pejabatNama || p.pejabatUser || ''
     });
   }else{
-    blok = `
-      <table class="ttd-blok ttd-blok-tunggal">
-        <tr>
-          <td>
-            <div class="peran-ttd">${T('Mengetahui,','Approved by,')}</div>
-            <div class="kotak-ttd">${mengertUrl
-              ? `<img src="${mengertUrl}" data-perlu-hitam alt="">`
-              : `<span class="kosong-ket">${esc(T('(belum ada TTD tersimpan)','(no saved signature)'))}</span>`}</div>
-            <div class="nama-ttd">${esc(p.pejabatNama || p.pejabatUser || '—')}</div>
-            <div class="jabatan-ttd">${esc(T('Manajer Teknik','Technical Manager'))}</div>
-          </td>
-        </tr></table>`;
+    blok = ttdTunggalHtml(mengertUrl, p.pejabatNama || p.pejabatUser || '',
+      T('(belum ada TTD tersimpan)','(no saved signature)'));
   }
 
   return `<div class="cetak-lembar">${kop}${isi}${blok}</div>`;

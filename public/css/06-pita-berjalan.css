@@ -147,4 +147,9 @@ html[data-tema="gelap"] .atur-data input[type=month]::-webkit-calendar-picker-in
 .stok-bar i{display:block;height:100%;}
 .rak-kode{font-family:var(--font-mono);font-size:10.5px;color:var(--muted);border:1px solid var(--line);
   border-radius:5px;padding:1px 6px;}
+/* Tabel berkolom lembar SAP — dua belas kolom, jadi lebih rapat dari tabel
+   biasa dan tanggal/angka tidak dipatahkan; yang tidak muat digeser .gulir. */
+table.tabel-spr td,table.tabel-spr th{padding:8px 9px;}
+table.tabel-spr td.mono,table.tabel-spr td .mono,table.tabel-spr td .rak-kode{white-space:nowrap;}
+table.tabel-spr tfoot td{border-top:2px solid var(--line);border-bottom:none;}
 

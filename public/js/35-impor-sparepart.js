@@ -40,15 +40,22 @@
 const SPR_JUDUL = {
   nama:   ['nama sparepart','nama barang','nama part','nama','sparepart','spare part',
            'spartpart','barang','item','material','uraian','deskripsi','description'],
-  pn:     ['part number','partnumber','part no','no part','nomor part','kode barang',
-           'kode part','pn','p n','partno','kode'],
+  pn:     ['kode material','material code','material number','part number','partnumber',
+           'part no','no part','nomor part','kode barang','kode part','pn','p n','partno','kode'],
+  // Kolom lembar SAP gudang (Albanav SAP Navigasi.xlsx dan sejenisnya).
+  sloc:   ['sloc','storage location','s loc'],
+  gudang: ['kode gudang','gudang','warehouse','plant'],
+  status: ['status','kondisi','condition'],
   stok:   ['stok','stock','jumlah','qty','quantity','sisa','saldo','on hand','ada'],
+  nilai:  ['value','nilai','harga','price','nilai barang'],
   min:    ['stok minimum','minimum','min stok','min','reorder point','reorder','rop',
            'safety stock','batas minimum'],
   satuan: ['satuan','uom','unit','sat'],
-  rak:    ['rak','rack','shelf','bin','lokasi rak','lokasi','location','gudang','tempat'],
-  pakai:  ['dipakai terakhir','pemakaian terakhir','terakhir dipakai','last used','tanggal pakai',
-           'tgl pakai','terakhir','pemakaian','tanggal','tgl'],
+  rak:    ['rak','rack','shelf','bin','lokasi rak','lokasi','location','tempat'],
+  tambah: ['tanggal ditambahkan','ditambahkan','tanggal masuk','tgl masuk','masuk','date added','added'],
+  pakai:  ['tanggal dipakai','dipakai terakhir','pemakaian terakhir','terakhir dipakai','last used',
+           'tanggal pakai','tgl pakai','dipakai','terakhir','pemakaian','tanggal','tgl'],
+  ket:    ['ket','keterangan','catatan','remark','remarks','note'],
   merk:   ['merk','merek','brand','make','pabrikan','manufacturer'],
   tipe:   ['tipe','type','model','tipe model'],
   sn:     ['serial number','serialnumber','no seri','nomor seri','serial','sn','s n'],
@@ -71,12 +78,12 @@ const sprRata = (s) => String(s == null ? '' : s)
  *   1 — tersebut di dalamnya, mis. 'jumlah stok gudang'
  *   0 — tidak menyebut sama sekali
  */
-function sprCocok(teks, medan){
+function sprCocok(teks, medan, kamus = SPR_JUDUL){
   const t = sprRata(teks);
   if(!t) return 0;
   const kata = t.split(' ');
   let nilai = 0;
-  for(const j of SPR_JUDUL[medan]){
+  for(const j of kamus[medan]){
     if(t === j) return 3;
     if(j.includes(' ') ? t.includes(j) : kata.includes(j)) nilai = Math.max(nilai, 2);
     else if(t.includes(j)) nilai = Math.max(nilai, 1);
@@ -93,11 +100,12 @@ function sprCocok(teks, medan){
  * daripada 'nama' yang cuma bernilai 1 di kolom yang sama, dan satu kolom
  * tidak pernah dipakai dua medan.
  */
-function sprPasangkan(judul){
+function sprPasangkan(judul, kamus = SPR_JUDUL){
+  const MEDAN = Object.keys(kamus);
   const calon = [];
   judul.forEach((sel, k)=>{
-    SPR_MEDAN.forEach((m, urut)=>{
-      const n = sprCocok(sel, m);
+    MEDAN.forEach((m, urut)=>{
+      const n = sprCocok(sel, m, kamus);
       if(n) calon.push({ m, k, n, urut });
     });
   });
@@ -109,7 +117,7 @@ function sprPasangkan(judul){
     peta[c.m] = c.k;
     kolomTerpakai.add(c.k);
   }
-  for(const m of SPR_MEDAN) if(peta[m] === undefined) peta[m] = -1;
+  for(const m of MEDAN) if(peta[m] === undefined) peta[m] = -1;
   return peta;
 }
 
@@ -157,25 +165,14 @@ function sprAngka(nilai, bawaan){
   return Number.isFinite(n) ? Math.min(99999, Math.max(0, n)) : bawaan;
 }
 
-/* Satuan yang dikenal server ada enam (SATUAN_PART). Yang lain ditulis orang
-   dengan kata sendiri, dan server diam-diam menggantinya jadi 'pcs'. Dipetakan
-   di sini supaya penggantian itu terjadi di depan mata, bukan di belakang. */
-const SPR_SATUAN = {
-  pcs:'pcs', pc:'pcs', pieces:'pcs', piece:'pcs', buah:'pcs', bh:'pcs', unit:'pcs',
-  ea:'pcs', each:'pcs', lembar:'pcs', batang:'pcs',
-  rol:'rol', roll:'rol', rl:'rol',
-  drum:'drum',
-  set:'set', pasang:'set', pair:'set', kit:'set',
-  meter:'meter', m:'meter', mtr:'meter',
-  liter:'liter', l:'liter', ltr:'liter'
-};
-
-/** Satuan yang bisa disimpan, plus penanda apakah ia hasil terkaan. */
-function sprSatuan(nilai){
-  const t = sprRata(nilai).replace(/\s+/g, '');
-  if(!t) return { satuan:'pcs', ganti:false };
-  const cocok = SPR_SATUAN[t];
-  return cocok ? { satuan:cocok, ganti:false } : { satuan:'pcs', ganti:true };
+/** Rupiah dari sel. Tanpa batas 99999 seperti jumlah — value SAP ratusan juta.
+    '313.490.000' dan 'Rp 313490000' sama-sama jadi 313490000. */
+function sprRupiah(nilai){
+  const asli = String(nilai == null ? '' : nilai).trim();
+  // Angka mentah dari sel xlsx boleh berpecahan ('6822045.5') — titiknya desimal.
+  if(/^\d+(\.\d+)?(e\+?\d+)?$/i.test(asli)) return Math.min(1e13, Math.round(Number(asli)));
+  const t = asli.replace(/[^\d]/g, '');
+  return t ? Math.min(1e13, parseInt(t, 10)) : 0;
 }
 
 /**
@@ -231,11 +228,18 @@ function sprTanggal(nilai){
 function sprTerap(baris, peta, mulai){
   const isi = [];
   const lewat = [];
-  const satuanDiganti = new Set();
   const pnGanda = new Set();
   const pnAda = new Set();
 
   const sel = (r, k) => k >= 0 ? String(r[k] == null ? '' : r[k]).trim() : '';
+  /* Judul VALUE di lembar SAP digabung dua sel: kiri berisi 'IDR', angkanya di
+     kanan. Kalau sel di bawah judul tidak berangka, sel kanannya yang dibaca. */
+  const selNilai = (r) => {
+    const k = peta.nilai;
+    if(k < 0) return '';
+    const v = sel(r, k);
+    return /\d/.test(v) ? v : sel(r, k + 1);
+  };
 
   for(let i = mulai; i < baris.length; i++){
     const r = baris[i] || [];
@@ -244,30 +248,37 @@ function sprTerap(baris, peta, mulai){
     const nama = sel(r, peta.nama).slice(0, 120);
     const pn   = sel(r, peta.pn).slice(0, 60);
 
-    // Kaki tabel: jumlah, tanda tangan, catatan. Bukan barang.
+    // Kaki tabel: jumlah, tanda tangan, catatan. Bukan barang. Baris yang
+    // nama dan kodenya sama-sama kosong sesudah barang pertama adalah akhir
+    // tabelnya — di lembar SAP itu baris SUM, dan di bawahnya daftar Kode
+    // Warna / PIC yang bukan barang.
+    if(!nama && !pn){ if(isi.length) break; continue; }
     if(/^(jumlah|total|mengetahui|catatan|keterangan|dibuat oleh|diperiksa)\b/i.test(nama)) continue;
 
     if(!nama){ lewat.push({ no:i + 1, sebab:T('nama kosong','name is empty'), teks:pn || r.join(' ') }); continue; }
-    if(!pn){   lewat.push({ no:i + 1, sebab:T('part number kosong','part number is empty'), teks:nama }); continue; }
+    if(!pn){   lewat.push({ no:i + 1, sebab:T('kode material kosong','material code is empty'), teks:nama }); continue; }
 
     const kunci = pn.toLowerCase();
     if(pnAda.has(kunci)){
       pnGanda.add(pn);
-      lewat.push({ no:i + 1, sebab:T('part number kembar di berkas ini','duplicate part number in this file'), teks:`${nama} · ${pn}` });
+      lewat.push({ no:i + 1, sebab:T('kode material kembar di berkas ini','duplicate material code in this file'), teks:`${nama} · ${pn}` });
       continue;
     }
     pnAda.add(kunci);
 
-    const s = sprSatuan(sel(r, peta.satuan));
-    if(s.ganti) satuanDiganti.add(sel(r, peta.satuan));
-
     isi.push({
       nama, pn,
-      rak:    sel(r, peta.rak).slice(0, 24) || '—',
+      sloc:   sel(r, peta.sloc).slice(0, 12),
+      gudang: sel(r, peta.gudang).slice(0, 12),
+      status: sel(r, peta.status).toUpperCase().slice(0, 20),
+      rak:    sel(r, peta.rak).slice(0, 24),
       stok:   sprAngka(sel(r, peta.stok), 0),
+      nilai:  sprRupiah(selNilai(r)),
       min:    sprAngka(sel(r, peta.min), 0),
-      satuan: s.satuan,
+      satuan: sel(r, peta.satuan).toUpperCase().slice(0, 12) || 'UNT',
+      tambah: sprTanggal(sel(r, peta.tambah)),
       pakai:  sprTanggal(sel(r, peta.pakai)),
+      ket:    sel(r, peta.ket).slice(0, 200),
       merk:   sel(r, peta.merk).slice(0, 60),
       tipe:   sel(r, peta.tipe).slice(0, 120),
       sn:     sel(r, peta.sn).slice(0, 60),
@@ -275,7 +286,20 @@ function sprTerap(baris, peta, mulai){
     });
   }
 
-  return { isi, lewat, satuanDiganti:[...satuanDiganti], pnGanda:[...pnGanda] };
+  return { isi, lewat, pnGanda:[...pnGanda] };
+}
+
+/**
+ * Baris hasil impor, hanya dengan medan yang kolomnya dipilih (plus nama dan
+ * kode material). Dipakai untuk memperbarui baris yang sudah tersimpan: kolom
+ * yang tidak ada di berkas tidak boleh mengosongkan isian yang sudah diisi di
+ * aplikasi — mis. Tanggal dipakai yang dicatat teknisi, yang tidak dikenal
+ * lembar SAP gudang.
+ */
+function sprMedanTerpilih(x, peta){
+  const hasil = { nama: x.nama, pn: x.pn };
+  for(const m of SPR_MEDAN) if(peta[m] >= 0 && m in x) hasil[m] = x[m];
+  return hasil;
 }
 
 /**
@@ -298,6 +322,146 @@ function sprHitungAkibat(hasil, unit, ganti){
   return { lama, baru, perbarui, hilang, jumlahAkhir: ganti ? hasil.isi.length : lama.length + baru.length };
 }
 
+/* ---------- Lembar rekap pemakaian dan pengadaan ----------
+
+   Buku orang sparepart punya lembar "Rekap Pemakaian dan Pengadaan Suku
+   Cadang" (Valuated dan Non Valuated): satu baris satu kejadian — TAHUN,
+   BULAN, KODE MATERIAL, NAMA ALAT, KELUAR, MASUK, SISA, IDR, UNIT, KET (GI/GR),
+   lalu keterangan bebas di kolom tanpa judul sesudahnya. Lembar seperti itu
+   tidak masuk daftar sparepart, melainkan riwayat unitnya (PART_RIWAYAT). */
+const RWY_JUDUL = {
+  tahun:   ['tahun','year','thn'],
+  bulan:   ['bulan','month','bln'],
+  tanggal: ['tanggal','tgl','date'],
+  pn:      ['kode material','material code','part number','kode barang','kode'],
+  nama:    ['nama alat','nama barang','nama sparepart','nama','barang','material','item'],
+  keluar:  ['keluar','pemakaian','dipakai'],
+  masuk:   ['masuk','pengadaan','ditambahkan'],
+  sisa:    ['sisa','saldo','stok','stock'],
+  nilai:   ['idr','value','nilai','rupiah','harga'],
+  unit:    ['unit','unit pengelola'],
+  kode:    ['ket','gi gr'],
+  ket:     ['keterangan','catatan','remark','remarks','note']
+};
+const RWY_MEDAN = Object.keys(RWY_JUDUL);
+
+/* Sebutan unit di buku sparepart → kode unit di sini. Dicocokkan utuh sesudah
+   dirapikan, bukan sebagian: 'Pengamatan dan FDPS-RDPS' tidak boleh jatuh ke
+   salah satunya. */
+const SPR_UNIT_SEBUT = {
+  radtel:         ['srsj','radtel','radio telekomunikasi','vcs'],
+  radkom:         ['radkom','radio komunikasi'],
+  ppabn:          ['navigasi','ppabn','alat bantu navigasi'],
+  pengamatan:     ['radar','pengamatan'],
+  amhsadps:       ['amhs','amss adps','amhs adps','amss'],
+  fdpsrdps:       ['rdps','fdps rdps','fdps'],
+  listrikmekanik: ['listrik dan mekanik','listrik','mekanik'],
+  gedungkeamanan: ['gedung dan keamanan','gedung','keamanan']
+};
+function sprUnitDari(teks){
+  const t = sprRata(teks);
+  if(!t) return null;
+  for(const [kode, sebut] of Object.entries(SPR_UNIT_SEBUT)){
+    if(sebut.includes(t) || t === kode || t === sprRata(namaUnit(kode))) return kode;
+  }
+  return null;
+}
+
+const SPR_BULAN = {
+  januari:1, january:1, jan:1, februari:2, february:2, feb:2, pebruari:2, maret:3, march:3, mar:3,
+  april:4, apr:4, mei:5, may:5, juni:6, june:6, jun:6, juli:7, july:7, jul:7,
+  agustus:8, august:8, agu:8, agt:8, aug:8, september:9, sept:9, sep:9,
+  oktober:10, october:10, okt:10, oct:10, november:11, nopember:11, nov:11,
+  desember:12, december:12, des:12, dec:12
+};
+
+/** Kepala lembar rekap: harus ada KELUAR, MASUK, dan kode material. */
+function sprTebakRiwayat(baris){
+  for(let i = 0; i < Math.min(baris.length, 20); i++){
+    const r = baris[i] || [];
+    const peta = sprPasangkan(r, RWY_JUDUL);
+    if(peta.pn < 0 || peta.keluar < 0 || peta.masuk < 0) continue;
+    if(sprCocok(r[peta.keluar], 'keluar', RWY_JUDUL) < 2 || sprCocok(r[peta.masuk], 'masuk', RWY_JUDUL) < 2) continue;
+    // Keterangan bebas ada di kolom tanpa judul tepat sesudah KET.
+    if(peta.ket < 0 && peta.kode >= 0 && !String(r[peta.kode + 1] || '').trim()) peta.ket = peta.kode + 1;
+    return { peta, mulai: i + 1 };
+  }
+  return null;
+}
+
+function sprTerapRiwayat(baris, peta, mulai, unit){
+  const isi = [], lewat = [];
+  const unitLain = {};
+  let tahunLalu = '', bulanLalu = 0;
+  const sel = (r, k) => k >= 0 ? String(r[k] == null ? '' : r[k]).trim() : '';
+
+  for(let i = mulai; i < baris.length; i++){
+    const r = baris[i] || [];
+    const pn = sel(r, peta.pn).slice(0, 60);
+    if(!pn) continue;                       // kaki: "total barang", "value"
+    const nama = sel(r, peta.nama).slice(0, 120);
+    const keluar = sprAngka(sel(r, peta.keluar), 0);
+    const masuk  = sprAngka(sel(r, peta.masuk), 0);
+    if(!keluar && !masuk){
+      lewat.push({ no:i + 1, sebab:T('keluar dan masuk kosong','out and in are empty'), teks:nama || pn });
+      continue;
+    }
+
+    /* Bulan yang dikosongkan di rekap berarti "sama dengan baris di atasnya"
+       — selama tahunnya sama. Kalau tidak ada yang bisa diwarisi, cukup tahun. */
+    const tahunSel = sel(r, peta.tahun);
+    const tahun = /^\d{4}$/.test(tahunSel) ? tahunSel : tahunLalu;
+    const bulanSel = sprRata(sel(r, peta.bulan));
+    let bulan = SPR_BULAN[bulanSel] || (/^\d{1,2}$/.test(bulanSel) && Number(bulanSel) <= 12 ? Number(bulanSel) : 0);
+    if(!bulan && !bulanSel && tahun === tahunLalu) bulan = bulanLalu;
+    const tanggal = sprTanggal(sel(r, peta.tanggal));
+    const tgl = tanggal || (tahun ? (bulan ? `${tahun}-${String(bulan).padStart(2,'0')}` : tahun) : '');
+    if(tahun){ tahunLalu = tahun; bulanLalu = bulan; }
+    if(!tgl){
+      lewat.push({ no:i + 1, sebab:T('tahun/tanggal kosong','year/date is empty'), teks:nama || pn });
+      continue;
+    }
+
+    if(peta.unit >= 0){
+      const sebut = sel(r, peta.unit);
+      const kode = sprUnitDari(sebut);
+      if(kode !== unit){ const k = sebut || '—'; unitLain[k] = (unitLain[k] || 0) + 1; continue; }
+    }
+
+    const sisaSel = sel(r, peta.sisa);
+    isi.push({
+      tgl, pn, nama, keluar, masuk,
+      sisa: sisaSel === '' ? '' : sprAngka(sisaSel, 0),
+      nilai: sprRupiah(sel(r, peta.nilai)),
+      kode: sel(r, peta.kode).toUpperCase().slice(0, 12),
+      ket: sel(r, peta.ket).slice(0, 200)
+    });
+  }
+  return { isi, lewat, unitLain };
+}
+
+const rwyKunci = (x) => [x.tgl, x.pn, x.keluar, x.masuk, x.sisa].join('|').toLowerCase();
+
+/** Mana yang baru dan mana yang sudah tercatat. Dihitung sebagai multiset:
+    rekap sah memuat dua kejadian kembar di bulan yang sama, jadi yang kembar
+    di berkas hanya dianggap "sudah ada" sebanyak yang memang tersimpan. */
+function sprAkibatRiwayat(hasil, unit){
+  const hitung = new Map();
+  for(const r of PART_RIWAYAT[unit] || []) hitung.set(rwyKunci(r), (hitung.get(rwyKunci(r)) || 0) + 1);
+  const baru = [], ada = [];
+  for(const x of hasil.isi){
+    const k = rwyKunci(x), n = hitung.get(k) || 0;
+    if(n){ hitung.set(k, n - 1); ada.push(x); } else baru.push(x);
+  }
+  return { baru, ada };
+}
+
+/** Lembar yang dipilih pertama kali: yang namanya menyebut unit ini. */
+function sprLembarAwal(lembar, unit){
+  const i = lembar.findIndex(l=>sprUnitDari(l.nama) === unit);
+  return i >= 0 ? i : 0;
+}
+
 /* ---------- Kartu impor ---------- */
 
 /* Batas baris per unit di server (lihat app.put('/unitdb/:modul/:unit') —
@@ -309,15 +473,19 @@ const SPR = {
   baris: [],     // baris mentah hasil urai
   peta:  null,   // { nama, pn, rak, stok, min, satuan, pakai, merk, tipe, sn, tahun }
   mulai: 0,      // baris data pertama
-  hasil: null,   // { isi, lewat, satuanDiganti, pnGanda }
+  hasil: null,   // { isi, lewat, pnGanda }
   ganti: false,  // ganti seluruh daftar unit ini, bukan menambah & memperbarui
   asal:  '',
-  unit:  null
+  unit:  null,
+  mode:  'daftar',  // 'daftar' (lembar sparepart) | 'riwayat' (lembar rekap keluar/masuk)
+  lembar: [],       // semua lembar .xlsx: [{ nama, baris }]
+  lembarKe: 0
 };
 
 function sprImporBuka(unit){
   SPR.baris = []; SPR.peta = null; SPR.mulai = 0;
   SPR.hasil = null; SPR.ganti = false; SPR.asal = ''; SPR.unit = unit;
+  SPR.mode = 'daftar'; SPR.lembar = []; SPR.lembarKe = 0;
   el('ketImporPart').textContent = `${namaUnit(unit)} · ${
     PART.filter(p=>p.unit === unit).length} ${T('baris tersimpan','rows stored')}`;
   sprGambar();
@@ -331,13 +499,19 @@ function sprImporTutup(){
 
 /** Nama medan sebagaimana tertulis di layar. */
 const sprLabel = () => ({
-  nama:   T('Nama sparepart','Spare part name'),
-  pn:     'Part number',
+  nama:   T('Nama barang','Item name'),
+  pn:     T('Kode material','Material code'),
+  sloc:   'SLOC',
+  gudang: T('Kode gudang','Warehouse code'),
+  status: 'Status',
   rak:    T('Rak','Rack'),
-  stok:   T('Stok','Stock'),
+  stok:   T('Jumlah','Quantity'),
+  nilai:  'Value (IDR)',
   min:    T('Minimum','Minimum'),
   satuan: T('Satuan','Unit'),
-  pakai:  T('Dipakai terakhir','Last used'),
+  tambah: T('Tanggal ditambahkan','Date added'),
+  pakai:  T('Tanggal dipakai','Date used'),
+  ket:    T('Keterangan','Note'),
   merk:   T('Merk','Make'),
   tipe:   T('Tipe / model','Type / model'),
   sn:     'Serial number',
@@ -363,7 +537,20 @@ function sprGambar(){
     <div class="bantu" id="sprKabar" style="margin-top:4px">${SPR.asal
       ? T(`Dibaca dari ${esc(SPR.asal)} — ${SPR.baris.length} baris.`,
           `Read from ${esc(SPR.asal)} — ${SPR.baris.length} rows.`)
-      : T('Belum ada yang dibaca.','Nothing read yet.')}</div>`;
+        + ' ' + (SPR.mode === 'riwayat'
+          ? T('<b>Lembar rekap pemakaian & pengadaan</b> — masuk ke riwayat, bukan ke daftar.',
+              '<b>Usage & procurement recap sheet</b> — goes into the history, not the list.')
+          : T('<b>Lembar daftar sparepart.</b>','<b>Spare parts list sheet.</b>'))
+      : T('Belum ada yang dibaca.','Nothing read yet.')}</div>
+    ${SPR.lembar.length > 1 ? `
+    <div class="isian" style="margin-top:10px;max-width:360px">
+      <label for="sprLembar">${T('Lembar','Sheet')}</label>
+      <select id="sprLembar">${SPR.lembar.map((l, i)=>
+        `<option value="${i}"${i === SPR.lembarKe ? ' selected' : ''}>${esc(l.nama)}</option>`).join('')}</select>
+      <div class="bantu">${T('Satu lembar per unit untuk daftar sparepart; lembar Rekap untuk riwayat. '
+        + 'Baris rekap unit lain dilewati.',
+          'One sheet per unit for the spare parts list; the Recap sheets for the history. '
+        + 'Recap rows of other units are skipped.')}</div></div>` : ''}`;
 
   let pratinjau = `<div class="catatan" style="margin-top:16px">${
     T('Pratinjaunya muncul di sini setelah berkasnya terbaca. Tidak ada satu baris pun yang '
@@ -371,7 +558,9 @@ function sprGambar(){
       'The preview appears here once the file has been read. Not a single row is saved until the '
     + 'button at the foot of this card is pressed.')}</div>`;
 
-  if(SPR.hasil){
+  if(SPR.hasil && SPR.mode === 'riwayat'){
+    pratinjau = sprPratinjauRiwayat();
+  }else if(SPR.hasil){
     const label = sprLabel();
     const kolomMax = Math.max(0, ...SPR.baris.map(r=>r.length));
     const barisJudul = SPR.baris[Math.max(0, SPR.mulai - 1)] || [];
@@ -388,15 +577,20 @@ function sprGambar(){
     const akibat = sprHitungAkibat(SPR.hasil, SPR.unit, SPR.ganti);
     const petaBaru = new Set(akibat.baru.map(x=>x.pn));
     const badan = SPR.hasil.isi.slice(0, 40).map(x=>{
-      const w = x.stok === 0 ? 'var(--fail)' : x.stok < x.min ? 'var(--warn)' : 'var(--ok)';
+      const w = x.stok === 0 ? 'var(--fail)' : 'var(--text)';
       return `<tr>
         <td><span class="cip ${petaBaru.has(x.pn) ? 'aman' : 'awas'}">${
           petaBaru.has(x.pn) ? T('baru','new') : T('perbarui','update')}</span></td>
-        <td>${esc(x.nama)}</td>
         <td><span class="mono">${esc(x.pn)}</span></td>
-        <td><span class="rak-kode">${esc(x.rak)}</span></td>
-        <td><span class="mono" style="color:${w};font-weight:600">${x.stok}</span><span
-             class="mono" style="color:var(--muted)"> / ${x.min} ${esc(x.satuan)}</span></td>
+        <td>${esc(x.nama)}</td>
+        <td><span class="rak-kode">${esc(x.sloc || '—')}</span></td>
+        <td><span class="rak-kode">${esc(x.gudang || '—')}</span></td>
+        <td>${partStatusCip(x.status)}</td>
+        <td>${esc(x.satuan)}</td>
+        <td class="mono" style="text-align:right;color:${w};font-weight:600">${
+          SPR.peta.stok >= 0 ? x.stok : '—'}</td>
+        <td class="mono" style="text-align:right">${SPR.peta.nilai >= 0 ? partRupiah(x.nilai) : '—'}</td>
+        <td><span class="mono" style="color:var(--muted)">${x.tambah ? esc(tglRingkas(x.tambah)) : '—'}</span></td>
         <td><span class="mono" style="color:var(--muted)">${x.pakai ? esc(tglRingkas(x.pakai)) : '—'}</span></td>
       </tr>`;
     }).join('');
@@ -411,25 +605,50 @@ function sprGambar(){
     if(SPR.hasil.lewat.length){
       catatan.push(T(
         `<b style="color:var(--warn)">${SPR.hasil.lewat.length} baris dilewati.</b> `
-        + 'Nama dan part number keduanya wajib — part number adalah satu-satunya pegangan untuk '
+        + 'Nama barang dan kode material keduanya wajib — kode material adalah satu-satunya pegangan untuk '
         + 'menemukan barisnya lagi. Baris yang dilewati: '
         + SPR.hasil.lewat.slice(0, 8).map(l=>`<span class="mono">#${l.no}</span> ${esc(l.teks).slice(0,28)} (${l.sebab})`).join(' · ')
         + (SPR.hasil.lewat.length > 8 ? ` … ${SPR.hasil.lewat.length - 8} lagi.` : ''),
           `<b style="color:var(--warn)">${SPR.hasil.lewat.length} rows skipped.</b> `
-        + 'Both name and part number are required — the part number is the only handle for finding '
+        + 'Both item name and material code are required — the material code is the only handle for finding '
         + 'the row again. Skipped rows: '
         + SPR.hasil.lewat.slice(0, 8).map(l=>`<span class="mono">#${l.no}</span> ${esc(l.teks).slice(0,28)} (${l.sebab})`).join(' · ')
         + (SPR.hasil.lewat.length > 8 ? ` … ${SPR.hasil.lewat.length - 8} more.` : '')));
     }
 
-    if(SPR.hasil.satuanDiganti.length){
+    /* Jumlah di aplikasi bisa sudah lebih baru dari lembar SAP — teknisi
+       menurunkannya waktu barangnya dipakai. Disebutkan sebelum tombolnya
+       ditekan, beserta jalan keluarnya. */
+    if(SPR.peta.stok >= 0){
+      const petaLama = new Map(akibat.lama.map(p=>[String(p.pn).toLowerCase(), p]));
+      const beda = akibat.perbarui.filter(x=>{
+        const l = petaLama.get(x.pn.toLowerCase());
+        return l && (Number(l.stok) || 0) !== x.stok;
+      });
+      if(beda.length){
+        catatan.push(T(
+          `<b style="color:var(--warn)">${beda.length} barang jumlahnya berbeda dari yang tersimpan</b> — `
+          + beda.slice(0, 6).map(x=>{
+              const l = petaLama.get(x.pn.toLowerCase());
+              return `${esc(x.nama).slice(0,28)} (${Number(l.stok)||0} → ${x.stok})`;
+            }).join(' · ')
+          + (beda.length > 6 ? ` … ${beda.length - 6} lagi` : '')
+          + '. Kalau jumlah di aplikasi yang benar, pilih <i>— tidak ada —</i> pada kolom Jumlah.',
+          `<b style="color:var(--warn)">${beda.length} items have a different quantity from the stored one</b> — `
+          + beda.slice(0, 6).map(x=>{
+              const l = petaLama.get(x.pn.toLowerCase());
+              return `${esc(x.nama).slice(0,28)} (${Number(l.stok)||0} → ${x.stok})`;
+            }).join(' · ')
+          + (beda.length > 6 ? ` … ${beda.length - 6} more` : '')
+          + '. If the app’s quantity is the right one, choose <i>— none —</i> for the Quantity column.'));
+      }
+    }
+    if(akibat.perbarui.length){
       catatan.push(T(
-        `Satuan yang tidak dikenal — <b>${esc(SPR.hasil.satuanDiganti.slice(0,8).join(' · '))}</b> — `
-        + 'disimpan sebagai <span class="mono">pcs</span>. Yang bisa disimpan cuma enam: '
-        + '<span class="mono">pcs · rol · drum · set · meter · liter</span>.',
-        `Unrecognised units — <b>${esc(SPR.hasil.satuanDiganti.slice(0,8).join(' · '))}</b> — `
-        + 'are stored as <span class="mono">pcs</span>. Only six can be stored: '
-        + '<span class="mono">pcs · rol · drum · set · meter · liter</span>.'));
+        'Barang yang sudah ada hanya diperbarui pada kolom yang dipilih di atas; isian lain '
+        + '(mis. Tanggal dipakai) tetap seperti yang tersimpan.',
+        'Existing items are only updated in the columns chosen above; other fields '
+        + '(e.g. Date used) stay as stored.'));
     }
 
     if(akibat.jumlahAkhir > SPR_BATAS_BARIS){
@@ -464,7 +683,8 @@ function sprGambar(){
 
     pratinjau = `
       <div class="imp-atur">
-        ${['nama','pn','rak','stok','min','satuan','pakai','merk','tipe','sn','tahun'].map(pilihKolom).join('')}
+        ${['pn','nama','sloc','gudang','status','satuan','stok','nilai','tambah','pakai','ket',
+           'min','rak','merk','tipe','sn','tahun'].map(pilihKolom).join('')}
         <div class="isian" style="margin-bottom:0">
           <label for="sprMulai">${T('Baris data mulai','Data starts at row')}</label>
           <input type="number" id="sprMulai" min="1" max="${Math.max(1, SPR.baris.length)}"
@@ -473,13 +693,15 @@ function sprGambar(){
       </div>
 
       <div class="gulir" style="margin-top:14px;max-height:340px">
-        <table><thead><tr><th></th><th>${T('Sparepart','Spare Part')}</th><th>Part Number</th>
-          <th>${T('Rak','Rack')}</th><th>${T('Stok / Min','Stock / Min')}</th>
-          <th>${T('Dipakai Terakhir','Last Used')}</th></tr></thead>
-          <tbody>${badan || `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">${
-            T('Tidak ada baris yang terbaca sebagai sparepart. Coba ubah kolom nama, kolom part number, '
+        <table class="tabel-spr"><thead><tr><th></th><th>${T('Kode Material','Material Code')}</th>
+          <th>${T('Nama Barang','Item Name')}</th><th>SLOC</th><th>${T('Kode Gudang','Warehouse')}</th>
+          <th>Status</th><th>${T('Satuan','Unit')}</th><th style="text-align:right">${T('Jumlah','Qty')}</th>
+          <th style="text-align:right">Value (IDR)</th><th>${T('Ditambahkan','Added')}</th>
+          <th>${T('Dipakai','Used')}</th></tr></thead>
+          <tbody>${badan || `<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:20px">${
+            T('Tidak ada baris yang terbaca sebagai sparepart. Coba ubah kolom nama, kolom kode material, '
             + 'atau baris mulainya.',
-              'No row reads as a spare part. Try changing the name column, the part number column, or the '
+              'No row reads as a spare part. Try changing the name column, the material code column, or the '
             + 'starting row.')}</td></tr>`}</tbody></table>
       </div>
 
@@ -491,7 +713,13 @@ function sprGambar(){
   const tombol = el('btnPakaiImporPart');
   const bisa = !!(SPR.hasil && SPR.hasil.isi.length);
   tombol.disabled = !bisa;
-  if(bisa){
+  if(bisa && SPR.mode === 'riwayat'){
+    const a = sprAkibatRiwayat(SPR.hasil, SPR.unit);
+    tombol.disabled = !a.baru.length;
+    tombol.textContent = a.baru.length
+      ? T(`Simpan ke riwayat — ${a.baru.length} catatan baru`, `Save to the history — ${a.baru.length} new records`)
+      : T('Semua catatan sudah ada di riwayat', 'All records are already in the history');
+  }else if(bisa){
     const a = sprHitungAkibat(SPR.hasil, SPR.unit, SPR.ganti);
     // Tombolnya menyebutkan angkanya sendiri: yang ditekan orang adalah
     // kalimat di tombol, bukan catatan panjang di atasnya.
@@ -507,7 +735,80 @@ function sprGambar(){
 }
 
 function sprUlang(){
-  SPR.hasil = sprTerap(SPR.baris, SPR.peta, SPR.mulai);
+  SPR.hasil = SPR.mode === 'riwayat'
+    ? sprTerapRiwayat(SPR.baris, SPR.peta, SPR.mulai, SPR.unit)
+    : sprTerap(SPR.baris, SPR.peta, SPR.mulai);
+}
+
+/** Pratinjau lembar rekap: pemilih kolom, tabel, dan apa yang akan terjadi. */
+function sprPratinjauRiwayat(){
+  const label = {
+    tahun: T('Tahun','Year'), bulan: T('Bulan','Month'), tanggal: T('Tanggal','Date'),
+    pn: T('Kode material','Material code'), nama: T('Nama barang','Item name'),
+    keluar: T('Keluar','Out'), masuk: T('Masuk','In'), sisa: T('Sisa','Left'), nilai: 'IDR',
+    unit: 'Unit', kode: 'KET (GI/GR)', ket: T('Keterangan','Note')
+  };
+  const kolomMax = Math.max(0, ...SPR.baris.map(r=>r.length));
+  const barisJudul = SPR.baris[Math.max(0, SPR.mulai - 1)] || [];
+  const pilihKolom = (m) => `
+    <div class="isian" style="margin-bottom:0">
+      <label for="spr_${m}">${label[m]}</label>
+      <select id="spr_${m}" data-medan="${m}">
+        <option value="-1"${SPR.peta[m] < 0 ? ' selected' : ''}>— ${T('tidak ada','none')} —</option>
+        ${Array.from({length:kolomMax}, (_,k)=>
+          `<option value="${k}"${k === SPR.peta[m] ? ' selected' : ''}>${T('Kolom','Column')} ${k+1}${
+            barisJudul[k] ? ' · ' + esc(String(barisJudul[k]).slice(0,18)) : ''}</option>`).join('')}
+      </select></div>`;
+
+  const a = sprAkibatRiwayat(SPR.hasil, SPR.unit);
+  const baru = new Set(a.baru);
+  const badan = SPR.hasil.isi.slice(0, 60).map(x=>`<tr>
+      <td><span class="cip ${baru.has(x) ? 'aman' : ''}">${baru.has(x) ? T('baru','new') : T('sudah ada','exists')}</span></td>
+      <td class="mono">${esc(tglRiwayat(x.tgl))}</td>
+      <td><span class="mono">${esc(x.pn)}</span></td><td>${esc(x.nama)}</td>
+      <td class="mono" style="text-align:right">${x.keluar || '—'}</td>
+      <td class="mono" style="text-align:right">${x.masuk || '—'}</td>
+      <td class="mono" style="text-align:right">${x.sisa === '' ? '—' : x.sisa}</td>
+      <td class="mono" style="text-align:right">${x.nilai ? partRupiah(x.nilai) : '—'}</td>
+      <td>${esc(x.kode)}</td><td style="color:var(--muted)">${esc(x.ket)}</td></tr>`).join('');
+
+  const catatan = [`<b>${SPR.hasil.isi.length} ${T('catatan untuk','records for')} ${esc(namaUnit(SPR.unit))}${
+    SPR.hasil.isi.length > 60 ? T(' · 60 pertama yang ditampilkan',' · showing the first 60') : ''}</b> — ${
+    a.baru.length} ${T('baru','new')} · ${a.ada.length} ${T('sudah ada di riwayat (tidak digandakan)','already in the history (not duplicated)')}.`];
+  const lain = Object.entries(SPR.hasil.unitLain);
+  if(lain.length){
+    catatan.push(T('Baris unit lain dilewati: ','Rows of other units skipped: ')
+      + lain.map(([u, n])=>`${esc(u)} ${n}`).join(' · ')
+      + T('. Buka impor dari unit itu untuk mengambil bagiannya.',
+          '. Open the import from that unit to take its part.'));
+  }
+  if(SPR.hasil.lewat.length){
+    catatan.push(`<b style="color:var(--warn)">${SPR.hasil.lewat.length} ${T('baris dilewati','rows skipped')}:</b> `
+      + SPR.hasil.lewat.slice(0, 8).map(l=>`<span class="mono">#${l.no}</span> ${esc(l.teks).slice(0,28)} (${l.sebab})`).join(' · '));
+  }
+  catatan.push(T('Bulan yang dikosongkan di rekap mengikuti baris di atasnya (tahun yang sama). '
+    + 'Tanggal Ditambahkan/Dipakai di daftar sparepart ikut riwayat terbaru.',
+      'A blank month in the recap follows the row above it (same year). '
+    + 'Date Added/Used in the spare parts list follows the latest history.'));
+
+  return `
+    <div class="imp-atur">
+      ${RWY_MEDAN.map(pilihKolom).join('')}
+      <div class="isian" style="margin-bottom:0">
+        <label for="sprMulai">${T('Baris data mulai','Data starts at row')}</label>
+        <input type="number" id="sprMulai" min="1" max="${Math.max(1, SPR.baris.length)}"
+          value="${SPR.mulai + 1}"></div>
+    </div>
+    <div class="gulir" style="margin-top:14px;max-height:340px">
+      <table class="tabel-spr"><thead><tr><th></th><th>${T('Tanggal','Date')}</th>
+        <th>${T('Kode Material','Material Code')}</th><th>${T('Nama Barang','Item Name')}</th>
+        <th style="text-align:right">${T('Keluar','Out')}</th><th style="text-align:right">${T('Masuk','In')}</th>
+        <th style="text-align:right">${T('Sisa','Left')}</th><th style="text-align:right">IDR</th>
+        <th>GI/GR</th><th>${T('Keterangan','Note')}</th></tr></thead>
+        <tbody>${badan || `<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:20px">${
+          T('Tidak ada catatan untuk unit ini di lembar tersebut.','No records for this unit in that sheet.')}</td></tr>`}</tbody></table>
+    </div>
+    <div class="catatan" style="margin-top:14px">${catatan.join('<br><br>')}</div>`;
 }
 
 async function sprTerima(berkas){
@@ -517,7 +818,13 @@ async function sprTerima(berkas){
   kabar.textContent = T('Membaca ' + nama + '...', 'Reading ' + nama + '...');
   try{
     let baris;
-    if(rendah.endsWith('.xlsx'))      baris = await xlsxBaca(berkas);
+    SPR.lembar = []; SPR.lembarKe = 0;
+    if(rendah.endsWith('.xlsx')){
+      // Buku sparepart berlembar banyak — lembar yang menyebut unit ini dipilih dulu.
+      SPR.lembar = await xlsxBacaSemua(berkas);
+      SPR.lembarKe = sprLembarAwal(SPR.lembar, SPR.unit);
+      baris = SPR.lembar[SPR.lembarKe].baris;
+    }
     else if(rendah.endsWith('.pdf'))  baris = teksTabelBaris(await pdfBaca(berkas));
     else if(rendah.endsWith('.xls')){
       throw new Error(T('.xls yang lama tidak bisa dibaca di sini — simpan ulang sebagai .xlsx.',
@@ -537,7 +844,9 @@ function sprPakaiBaris(baris, asal){
       T('Tidak ada satu baris pun yang terbaca.','Not a single row could be read.')}</span>`;
     return;
   }
-  const tebakan = sprTebak(baris);
+  const rekap = sprTebakRiwayat(baris);
+  const tebakan = rekap || sprTebak(baris);
+  SPR.mode  = rekap ? 'riwayat' : 'daftar';
   SPR.baris = baris;
   SPR.asal  = asal;
   SPR.peta  = tebakan.peta;
@@ -566,10 +875,18 @@ function sprPasang(){
     const t = tempel.value.trim();
     if(t.length > 3) sprPakaiBaris(teksKeBaris(t), T('tempelan','pasted text'));
   };
-  tempel.addEventListener('paste', ()=>setTimeout(bacaTempel, 0));
-  tempel.addEventListener('change', bacaTempel);
+  tempel.addEventListener('paste', ()=>{ SPR.lembar = []; setTimeout(bacaTempel, 0); });
+  tempel.addEventListener('change', ()=>{ SPR.lembar = []; bacaTempel(); });
+
+  const pilihLembar = el('sprLembar');
+  if(pilihLembar) pilihLembar.addEventListener('change', ()=>{
+    SPR.lembarKe = Number(pilihLembar.value) || 0;
+    const l = SPR.lembar[SPR.lembarKe];
+    if(l) sprPakaiBaris(l.baris, SPR.asal);
+  });
 
   if(!SPR.peta) return;
+  const medanSemua = SPR.mode === 'riwayat' ? RWY_MEDAN : SPR_MEDAN;
   el('badanImporPart').querySelectorAll('select[data-medan]').forEach(s=>{
     s.addEventListener('change', ()=>{
       const medan = s.dataset.medan;
@@ -577,7 +894,7 @@ function sprPasang(){
       // Satu kolom cuma boleh dipegang satu medan. Yang lama melepasnya
       // sendiri, kalau tidak dua medan diam-diam membaca sel yang sama.
       if(nilai >= 0){
-        for(const m of SPR_MEDAN) if(m !== medan && SPR.peta[m] === nilai) SPR.peta[m] = -1;
+        for(const m of medanSemua) if(m !== medan && SPR.peta[m] === nilai) SPR.peta[m] = -1;
       }
       SPR.peta[medan] = nilai;
       sprUlang(); sprGambar();
@@ -610,6 +927,19 @@ document.addEventListener('keydown', e=>{
 el('btnPakaiImporPart').addEventListener('click', async ()=>{
   if(!SPR.hasil || !SPR.hasil.isi.length) return;
   const unit = SPR.unit;
+
+  if(SPR.mode === 'riwayat'){
+    const { baru } = sprAkibatRiwayat(SPR.hasil, unit);
+    if(!baru.length) return;
+    el('btnPakaiImporPart').disabled = true;
+    const daftar = PART_RIWAYAT[unit] || (PART_RIWAYAT[unit] = []);
+    daftar.push(...baru);
+    const ok = await dbSimpanUnit('sparepart-riwayat', unit);
+    sprImporTutup();
+    gambarUnit(); gambarUbin(); gambarCincin();
+    if(ok) pesan(T(`Tersimpan — ${baru.length} catatan riwayat baru.`, `Saved — ${baru.length} new history records.`));
+    return;
+  }
   const akibat = sprHitungAkibat(SPR.hasil, unit, SPR.ganti);
 
   const tombol = el('btnPakaiImporPart');
@@ -622,7 +952,9 @@ el('btnPakaiImporPart').addEventListener('click', async ()=>{
   const petaLama = new Map(PART.filter(p=>p.unit === unit).map(p=>[String(p.pn).toLowerCase(), p]));
   for(const x of SPR.hasil.isi){
     const lama = petaLama.get(x.pn.toLowerCase());
-    if(lama) Object.assign(lama, x, { unit });
+    if(lama) Object.assign(lama, sprMedanTerpilih(x, SPR.peta), { unit });
+    // Tanggal ditambahkan tidak dikarang jadi hari ini: kalau lembarnya tidak
+    // menyebut, riwayat masuk (atau cap dibuat) yang dipakai — lihat partTambah.
     else PART.push({ ...x, unit, dibuat: new Date().toISOString() });
   }
   if(akibat.hilang.length){

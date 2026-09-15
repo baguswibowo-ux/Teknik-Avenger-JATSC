@@ -14,6 +14,9 @@ const LOGO = {};          // kode unit -> { berkas, jam }
 /* Penimpa baris peralatan di kepala unit. Bawaannya dari E-Logbook (u.alat);
    yang di sini menang kalau ada — lihat gambarUnit di 28-database-unit.js. */
 const NAMA_ALAT = {};     // kode unit -> teks
+/* Riwayat pemakaian (keluar) dan pengadaan (masuk) sparepart, per unit —
+   bentuk lembar Rekap orang sparepart. Lihat rapikanRiwayatPart di server.js. */
+const PART_RIWAYAT = {};  // kode unit -> [{ id, tgl, pn, nama, keluar, masuk, sisa, nilai, kode, ket }]
 
 async function unitdbMuat(){
   if(!SRV.aktif) return;
@@ -31,6 +34,10 @@ async function unitdbMuat(){
     Object.entries(j.sparepart || {}).forEach(([unit, baris])=>
       (Array.isArray(baris) ? baris : []).forEach(b=>datar.push({ ...b, unit })));
     PART.splice(0, PART.length, ...datar);
+
+    // Riwayat keluar/masuk sparepart — berkunci unit seperti ISR.
+    Object.keys(PART_RIWAYAT).forEach(k=>delete PART_RIWAYAT[k]);
+    Object.assign(PART_RIWAYAT, j['sparepart-riwayat'] || {});
 
     // ISR disimpan server berkunci unit, dan layar ini memakainya persis
     // seperti itu (berbeda dari sparepart yang diratakan) — tiap unit punya
@@ -72,6 +79,7 @@ async function dbSimpanUnit(jenis, unit){
   const isi = modul === 'peralatan' ? (PERALATAN[unit] || [])
             : modul === 'isr'       ? (ISR[unit] || [])
             : modul === 'notam'     ? (NOTAM[unit] || [])
+            : modul === 'sparepart-riwayat' ? (PART_RIWAYAT[unit] || [])
             : PART.filter(p=>p.unit === unit).map(({ unit:_buang, ...sisa })=>sisa);
   try{
     const r = await srvFetch(`/unitdb/${modul}/${encodeURIComponent(unit)}`, {
