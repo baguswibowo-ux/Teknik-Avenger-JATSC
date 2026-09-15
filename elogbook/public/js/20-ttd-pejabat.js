@@ -532,7 +532,7 @@ function renderInboxBody(){
   if(!wrap) return;
   if(inboxTtd.length === 0){ wrap.innerHTML = '<div class="empty">' + T('inboxKosong') + '</div>'; return; }
   wrap.innerHTML = inboxTtd.map(it=>`
-    <div class="dc-history-item" style="cursor:pointer;" onclick="bukaInboxItem('${it.jenis}','${it.unit}','${it.id}')">
+    <div class="dc-history-item" style="cursor:pointer;flex-direction:column;align-items:stretch;gap:2px;" onclick="bukaInboxItem('${it.jenis}','${it.unit}','${it.id}')">
       <div><b>${escapeHtml(it.label)}</b> &middot; ${escapeHtml(it.tanggal)||'-'}</div>
       <div style="font-size:11.5px;color:var(--muted);">${escapeHtml(it.nama)||'-'}</div>
       ${it.atasNama ? `<div style="font-size:11.5px;color:var(--muted);">Sebagai PH untuk <b>${escapeHtml(it.atasNama)}</b></div>` : ''}
@@ -556,16 +556,27 @@ function openInboxModal(){
 }
 function closeInboxModal(){ document.getElementById('inboxModalBg').classList.remove('show'); }
 
-/** Klik satu baris kotak masuk: pindah ke unit dan tab catatan itu kalau
-    perlu, lalu buka jendela detailnya — tempat yang sama untuk membubuhkan TTD. */
+/** Klik satu baris kotak masuk: papan TTD langsung terbuka. Kalau unit
+    catatannya dipegang akun ini, pindah ke unit & tab itu dan buka jendela
+    detailnya di belakang papan TTD, supaya isinya tetap bisa dibaca.
+
+    PH yang mewakili pejabat sering tidak memegang unit catatannya (teknisi
+    unit lain): server hanya mengirim data unit miliknya, jadi detailnya
+    memang tidak ada di layar. Dulu klik mencoba pindah unit, gagal diam-diam,
+    dan tidak ada yang terbuka — sekaligus menimpa ingatan unit akunnya.
+    Papan TTD tidak butuh data unit: nama tercetak lewat PH datang dari server. */
 async function bukaInboxItem(jenis, unit, id){
   closeInboxModal();
-  if(unit && unit !== unitAktif){
-    unitAktif = unit;
-    simpanUnit(unit);
-    tutupPratinjau();
-    await init();
+  const unitDipegang = !unit || unit === unitAktif || unitSaya.some(u => u.kode === unit);
+  if(unitDipegang){
+    if(unit && unit !== unitAktif){
+      unitAktif = unit;
+      simpanUnit(unit);
+      tutupPratinjau();
+      await init();
+    }
+    bukaTabInbox(jenis, id);
+    if(TTD_BUKA_ULANG[jenis]) TTD_BUKA_ULANG[jenis](id);
   }
-  bukaTabInbox(jenis, id);
-  if(TTD_BUKA_ULANG[jenis]) TTD_BUKA_ULANG[jenis](id);
+  openTtdModal(jenis, id);
 }
