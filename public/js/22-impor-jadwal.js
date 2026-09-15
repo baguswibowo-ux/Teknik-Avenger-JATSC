@@ -395,14 +395,12 @@ function imporTebak(baris, hariN){
   const sebelum = [];
   for(let k = 0; k < hariMulai; k++) sebelum.push(k);
 
-  /* Kolom NIK. Diambil dari sel judul kolom, bukan ditebak dari isi barisnya:
-     NIK terkadang berupa digit murni dan terkadang berupa huruf+digit — mencari
-     berdasar isi akan salah menuduh kolom apa pun yang kebetulan berisi angka.
-     Judul kolom biasanya persis di baris kepala tanggal (satu baris dengan
-     "1 2 3 ...") atau satu baris di atasnya. Kalau tidak ketemu, dibiarkan -1
-     dan pemakai bisa menunjuknya sendiri lewat pemilih "Kolom NIK". */
+  /* Kolom NIK. Pertama dari sel judul kolom: baris kepala tanggal ("1 2 3 ...")
+     dan sampai EMPAT baris di atasnya. Dulu hanya satu baris di atas — lembar
+     Radkom menaruh baris nama hari (SL R K J ...) di antara judul "NIK" dan
+     angka tanggalnya, sehingga NIK tidak pernah terbaca. */
   const kepalaCari = kepala
-    ? [baris[kepala.indeks] || [], kepala.indeks > 0 ? (baris[kepala.indeks - 1] || []) : []]
+    ? Array.from({ length: Math.min(5, kepala.indeks + 1) }, (_, i)=>baris[kepala.indeks - i] || [])
     : [baris[0] || []];
   for(const kb of kepalaCari){
     for(let k = 0; k < hariMulai; k++){
@@ -410,6 +408,20 @@ function imporTebak(baris, hariN){
       if(/\b(NIK|NIP|NRP)\b/.test(teks)){ nikKol = k; break; }
     }
     if(nikKol >= 0) break;
+  }
+
+  /* Tanpa judul: dari isinya, tapi ketat. Hanya kolom di kiri tanggal yang
+     sebagian besar baris orangnya (≥60%) berisi nomor panjang — enam digit
+     atau lebih, boleh berawalan huruf pendek. Nomor urut 1, 2, 3 dan kolom
+     jumlah jam tidak pernah sepanjang itu. Tetap bisa dibetulkan lewat
+     pemilih "Kolom NIK". */
+  if(nikKol < 0){
+    const barisOrang = baris.slice(mulai)
+      .filter(r=>(r || []).slice(0, hariMulai).some(x=>/[A-Za-z]{3,}/.test(String(x || ''))));
+    for(let k = 0; k < hariMulai && barisOrang.length; k++){
+      const cocok = barisOrang.filter(r=>/^[A-Za-z]{0,3}[\s.-]?\d{6,}$/.test(String(r[k] || '').trim())).length;
+      if(cocok >= Math.ceil(barisOrang.length * 0.6)){ nikKol = k; break; }
+    }
   }
 
   if(sebelum.length){
