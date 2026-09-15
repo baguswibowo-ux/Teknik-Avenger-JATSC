@@ -136,6 +136,68 @@ async function xlsxBaca(berkas){
   return baris;
 }
 
+/**
+ * Semua lembar sebuah .xlsx, bernama dan berurutan seperti tab di Excel:
+ * [{ nama, baris }]. Dipakai impor sparepart — buku orang sparepart berisi
+ * satu lembar per unit ditambah lembar rekap. xlsxBaca di atas tetap membaca
+ * lembar pertama saja untuk jadwal dinas.
+ */
+async function xlsxBacaSemua(berkas){
+  const isi = await zipBuka(await berkas.arrayBuffer(), (n)=>
+    n === 'xl/sharedStrings.xml' || n === 'xl/workbook.xml' || n === 'xl/_rels/workbook.xml.rels'
+    || /^xl\/worksheets\/sheet\d+\.xml$/.test(n));
+  const teks = (n)=> isi[n] ? new TextDecoder().decode(isi[n]) : '';
+  const urai = (s)=> new DOMParser().parseFromString(s, 'application/xml');
+
+  const berbagi = [];
+  if(isi['xl/sharedStrings.xml']){
+    urai(teks('xl/sharedStrings.xml')).querySelectorAll('si').forEach(si=>{
+      berbagi.push([...si.querySelectorAll('t')].map(t=>t.textContent).join(''));
+    });
+  }
+
+  // Urutan tab dari workbook.xml, berkasnya dari rels. Tanpa keduanya, jatuh
+  // ke urutan nomor berkas.
+  const target = {};
+  urai(teks('xl/_rels/workbook.xml.rels')).querySelectorAll('Relationship').forEach(r=>{
+    target[r.getAttribute('Id')] = 'xl/' + String(r.getAttribute('Target') || '').replace(/^\/?xl\//, '');
+  });
+  let daftar = [...urai(teks('xl/workbook.xml')).getElementsByTagName('sheet')].map(s=>({
+    nama: s.getAttribute('name') || '',
+    berkas: target[s.getAttribute('r:id')] || ''
+  })).filter(s=>isi[s.berkas]);
+  if(!daftar.length){
+    daftar = Object.keys(isi).filter(n=>n.includes('worksheets'))
+      .sort((a,b)=>Number(a.match(/\d+/)[0]) - Number(b.match(/\d+/)[0]))
+      .map((b, i)=>({ nama: T('Lembar ','Sheet ') + (i + 1), berkas: b }));
+  }
+  if(!daftar.length) throw new Error(T('tidak ada lembar kerja di dalam berkas itu',
+                                       'there is no worksheet inside that file'));
+
+  return daftar.map(({ nama, berkas: b })=>{
+    const baris = [];
+    urai(teks(b)).querySelectorAll('row').forEach(r=>{
+      const sel = [];
+      r.querySelectorAll('c').forEach(c=>{
+        const jenis = c.getAttribute('t');
+        let v = '';
+        if(jenis === 'inlineStr'){
+          v = [...c.querySelectorAll('t')].map(x=>x.textContent).join('');
+        }else{
+          const vn = c.querySelector('v');
+          v = vn ? vn.textContent : '';
+          if(jenis === 's') v = berbagi[Number(v)] || '';
+        }
+        const k = kolomIndeks(c.getAttribute('r'));
+        sel[k >= 0 ? k : sel.length] = String(v).trim();
+      });
+      for(let i = 0; i < sel.length; i++) if(sel[i] == null) sel[i] = '';
+      baris.push(sel);
+    });
+    return { nama, baris };
+  });
+}
+
 /* ---------- Teks berpemisah ---------- */
 
 function csvUrai(teks){

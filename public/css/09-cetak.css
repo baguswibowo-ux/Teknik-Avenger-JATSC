@@ -538,6 +538,11 @@
   font-family: 'Consolas', 'Courier New', monospace;
   font-size: 9pt;
 }
+/* Lembar Sparepart: dua belas kolom berbentuk lembar SAP, sedikit dirapatkan. */
+.cetak-lembar table.data.spr-cetak { font-size: 8.5pt; }
+.cetak-lembar table.data.spr-cetak th,
+.cetak-lembar table.data.spr-cetak td { padding: 2pt 4pt; }
+.cetak-lembar table.data.spr-cetak td.mono { font-size: 8pt; white-space: nowrap; }
 .cetak-lembar table.data td.tengah { text-align: center; }
 .cetak-lembar table.data td.kanan  { text-align: right; }
 

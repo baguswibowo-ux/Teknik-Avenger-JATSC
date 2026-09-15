@@ -227,32 +227,108 @@ function bukaKartuData(jenis, asal, parentAlatId){
       + '</div>'
       + kotakDokumentasi(asal)
       + kotakHapus
-    : dIsian('dNama', T('Nama sparepart','Spare part name'), asal && asal.nama, null, null, true)
+    : dIsian('dPn', T('Kode material','Material code'), asal && asal.pn,
+        T('Kode material SAP. Harus unik — dipakai untuk mengenali barisnya.',
+          'The SAP material code. Must be unique — it is how the row is identified.'))
+      + dIsian('dNama', T('Nama barang','Item name'), asal && asal.nama, null, null, true)
+      + dIsian('dSloc', 'SLOC', asal ? asal.sloc : 'A001',
+        T('Storage location SAP, mis. <span class="mono">A001</span>.',
+          'The SAP storage location, e.g. <span class="mono">A001</span>.'))
+      + dIsian('dGudang', T('Kode gudang','Warehouse code'), asal && asal.gudang)
+      + dPilih('dStatusPart', 'Status', [['', '—'], ...PART_STATUS],
+          asal ? (asal.status || '') : 'NEW')
+      + dIsian('dSatuan', T('Satuan','Unit'), asal ? asal.satuan : 'UNT',
+        T('Seperti di SAP — <span class="mono">UNT</span>, <span class="mono">PC</span>, …',
+          'As written in SAP — <span class="mono">UNT</span>, <span class="mono">PC</span>, …'))
+      + dIsian('dStok', T('Jumlah','Quantity'), asal ? asal.stok : 1, null, 'number')
+      + dIsian('dNilai', 'Value (IDR)', asal ? (asal.nilai || 0) : 0, null, 'number')
+      + dIsian('dTambah', T('Tanggal ditambahkan','Date added'),
+          asal ? partTambah(asal) : isoHariIni(),
+          T('Ikut berganti ke hari ini kalau jumlahnya dinaikkan.',
+            'Moves to today when the quantity is raised.'), 'date')
+      + dIsian('dPakai', T('Tanggal dipakai','Date used'), asal ? asal.pakai : '',
+          T('Ikut berganti ke hari ini kalau jumlahnya diturunkan. Kosong = belum pernah dipakai.',
+            'Moves to today when the quantity is lowered. Empty = never used.'), 'date')
+      + `<div class="isian penuh" id="dRiwayatBaris" hidden>
+           <label for="dKetRiwayat" id="dRiwayatLabel">${T('Keterangan riwayat','History note')}</label>
+           <input type="text" id="dKetRiwayat" autocomplete="off" spellcheck="false"
+             placeholder="${T('mis. Digunakan JATSC · Kirim ke MATSC · PO …','e.g. Used at JATSC · Sent to MATSC · PO …')}">
+           <div class="bantu" id="dRiwayatBantu"></div></div>`
+      + dIsian('dKet', T('Keterangan','Note'), asal && asal.ket, null, null, true)
       + dIsian('dMerk', T('Merk','Make'), asal && asal.merk)
       + dIsian('dTipe', T('Tipe / model','Type / model'), asal && asal.tipe)
-      + dIsian('dPn', 'Part number', asal && asal.pn,
-        T('Harus unik — dipakai untuk mengenali barisnya.','Must be unique — it is how the row is identified.'))
       + dIsian('dSn', T('Serial number (S/N)','Serial number (S/N)'), asal && asal.sn)
-      + dIsian('dTahun', T('Tahun pembuatan','Year of manufacture'), asal && asal.tahun)
-      + dIsian('dRak', T('Rak','Rack'), asal && asal.rak,
-        T('Kode rak di gudang, mis. <span class="mono">A-04</span>.',
-          'The rack code in the store, e.g. <span class="mono">A-04</span>.'))
-      + dIsian('dStok', T('Stok','Stock'), asal ? asal.stok : 0, null, 'number')
-      + dIsian('dMin', T('Minimum','Minimum'), asal ? asal.min : 1,
-          T('Stok di bawah angka ini dihitung sebagai sparepart minim di beranda.',
-            'Stock below this number counts as a low spare part on the home screen.'), 'number')
-      + dPilih('dSatuan', T('Satuan','Unit'), PART_SATUAN, asal ? asal.satuan : 'pcs')
-      + dIsian('dPakai', T('Dipakai terakhir','Last used'), asal ? asal.pakai : isoHariIni(), null, 'date')
+      + dIsian('dMin', T('Minimum','Minimum'), asal ? asal.min : 0,
+          T('Jumlah di bawah angka ini dihitung sebagai sparepart minim di beranda. 0 = tidak dipantau.',
+            'A quantity below this counts as a low spare part on the home screen. 0 = not tracked.'), 'number')
       + '</div>'
+      + kotakRiwayatBarang(asal)
       + kotakDokumentasi(asal)
       + kotakHapus);
 
   el('btnHapusData')?.addEventListener('click', hapusData);
+  if(!seperti) partTanggalPasang(asal);
   papanNamaPasang();
   gambarKartuPasang();
   dokumentasiPasang(asal);
   el('lapisData').classList.add('buka');
   el('dNama').focus();
+}
+
+/**
+ * Jumlah naik → Tanggal ditambahkan jadi hari ini; turun → Tanggal dipakai
+ * jadi hari ini; kembali ke jumlah semula → kedua tanggal kembali seperti
+ * semula. Terjadi di isian yang terlihat, jadi masih bisa dibetulkan sebelum
+ * disimpan — pemakaian kemarin yang baru dicatat hari ini tinggal diganti.
+ * Tanggal yang sudah disentuh tangan tidak ditimpa lagi.
+ */
+function partTanggalPasang(asal){
+  if(!asal) return;
+  const stok = el('dStok'), tambah = el('dTambah'), pakai = el('dPakai');
+  if(!stok || !tambah || !pakai) return;
+  const awal = { stok: Number(asal.stok) || 0, tambah: tambah.value, pakai: pakai.value };
+  [tambah, pakai].forEach(e=>e.addEventListener('input', ()=>{ e.dataset.tangan = '1'; }));
+  stok.addEventListener('input', ()=>{
+    const n = Number(stok.value);
+    if(!Number.isFinite(n)) return;
+    if(!tambah.dataset.tangan) tambah.value = n > awal.stok ? isoHariIni() : awal.tambah;
+    if(!pakai.dataset.tangan)  pakai.value  = n < awal.stok ? isoHariIni() : awal.pakai;
+    // Kotak keterangan riwayat hanya muncul kalau memang ada yang akan dicatat.
+    const selisih = Math.max(0, n) - awal.stok;
+    el('dRiwayatBaris').hidden = !selisih;
+    if(selisih){
+      el('dRiwayatLabel').textContent = selisih < 0
+        ? T('Keterangan pemakaian','Usage note') : T('Keterangan pengadaan','Procurement note');
+      el('dRiwayatBantu').textContent = selisih < 0
+        ? T(`Tercatat di riwayat: keluar ${-selisih}, sisa ${n}, tanggal = Tanggal dipakai.`,
+            `Recorded in the history: out ${-selisih}, left ${n}, date = Date used.`)
+        : T(`Tercatat di riwayat: masuk ${selisih}, sisa ${n}, tanggal = Tanggal ditambahkan.`,
+            `Recorded in the history: in ${selisih}, left ${n}, date = Date added.`);
+    }
+  });
+}
+
+/** Riwayat barang ini saja, sepuluh terbaru — dilihat sebelum jumlahnya diubah. */
+function kotakRiwayatBarang(asal){
+  if(!asal) return '';
+  const kunci = String(asal.pn || '').toLowerCase();
+  const milik = (PART_RIWAYAT[unitDibuka] || []).filter(r=>String(r.pn).toLowerCase() === kunci)
+    .sort((a,b)=> a.tgl < b.tgl ? 1 : a.tgl > b.tgl ? -1 : 0);
+  if(!milik.length) return '';
+  return `
+    <div class="bantu" style="margin:14px 0 6px;font-weight:600">${
+      T('Riwayat barang ini','This item’s history')} (${milik.length})</div>
+    <div class="gulir" style="max-height:200px"><table class="tabel-spr"><thead><tr>
+      <th>${T('Tanggal','Date')}</th><th style="text-align:right">${T('Keluar','Out')}</th>
+      <th style="text-align:right">${T('Masuk','In')}</th><th style="text-align:right">${T('Sisa','Left')}</th>
+      <th>GI/GR</th><th>${T('Keterangan','Note')}</th></tr></thead><tbody>${
+      milik.slice(0, 10).map(r=>`<tr>
+        <td class="mono">${esc(tglRiwayat(r.tgl))}</td>
+        <td class="mono" style="text-align:right">${r.keluar || '—'}</td>
+        <td class="mono" style="text-align:right">${r.masuk || '—'}</td>
+        <td class="mono" style="text-align:right">${r.sisa === '' ? '—' : r.sisa}</td>
+        <td>${esc(r.kode)}</td><td style="color:var(--muted)">${esc(r.ket)}</td></tr>`).join('')}
+    </tbody></table></div>`;
 }
 
 function tutupKartuData(){
@@ -263,6 +339,7 @@ function tutupKartuData(){
 async function simpanData(){
   const { jenis, unit, asal, parentAlatId, kompak } = dataDibuka;
   const nilai = (id) => el(id).value.trim();
+  let catatRiwayat = null;   // catatan keluar/masuk sparepart, disimpan sesudah daftarnya
 
   try{
     if(jenis === 'peralatan'){
@@ -341,24 +418,45 @@ async function simpanData(){
     }else{
       const nama = nilai('dNama');
       const pn   = nilai('dPn');
-      if(!nama) throw new Error(T('Nama sparepart belum diisi.','The spare part name is empty.'));
-      if(!pn)   throw new Error(T('Part number belum diisi.','The part number is empty.'));
-      // Part number jadi pegangan satu-satunya untuk menemukan barisnya lagi,
+      if(!pn)   throw new Error(T('Kode material belum diisi.','The material code is empty.'));
+      if(!nama) throw new Error(T('Nama barang belum diisi.','The item name is empty.'));
+      // Kode material jadi pegangan satu-satunya untuk menemukan barisnya lagi,
       // jadi kembarnya harus ditolak sebelum tersimpan — bukan setelah.
       if(PART.some(p=>p.pn.toLowerCase() === pn.toLowerCase() && (!asal || p.pn !== asal.pn))){
-        throw new Error(T('Part number ' + pn + ' sudah dipakai sparepart lain.',
-                          'Part number ' + pn + ' is already used by another spare part.'));
+        throw new Error(T('Kode material ' + pn + ' sudah dipakai barang lain.',
+                          'Material code ' + pn + ' is already used by another item.'));
       }
       const isi = {
         nama, pn, unit,
-        rak: nilai('dRak') || '—',
+        sloc: nilai('dSloc'), gudang: nilai('dGudang'),
+        status: el('dStatusPart').value,
+        satuan: nilai('dSatuan').toUpperCase() || 'UNT',
         stok: Math.max(0, Number(el('dStok').value) || 0),
+        nilai: Math.max(0, Math.round(Number(el('dNilai').value) || 0)),
         min:  Math.max(0, Number(el('dMin').value) || 0),
-        satuan: el('dSatuan').value,
-        pakai: nilai('dPakai') || isoHariIni(),
+        // Kosong dibiarkan kosong: mengarang hari ini akan menuliskan
+        // pemakaian yang tidak pernah terjadi (lihat tglRingkas).
+        tambah: nilai('dTambah'),
+        pakai: nilai('dPakai'),
+        ket: nilai('dKet'),
         merk: nilai('dMerk'), tipe: nilai('dTipe'), sn: nilai('dSn'),
-        tahun: nilai('dTahun'), foto: dokTerpasang()
+        foto: dokTerpasang()
       };
+      /* Jumlah yang berubah dicatat ke riwayat: turun = keluar (dipakai) pada
+         Tanggal dipakai, naik = masuk (ditambahkan) pada Tanggal ditambahkan.
+         Barang baru berjumlah lebih dari nol dihitung masuk. */
+      const selisih = isi.stok - (asal ? (Number(asal.stok) || 0) : 0);
+      if(selisih){
+        catatRiwayat = {
+          tgl: (selisih < 0 ? isi.pakai : isi.tambah) || isoHariIni(),
+          pn, nama,
+          keluar: selisih < 0 ? -selisih : 0,
+          masuk:  selisih > 0 ? selisih : 0,
+          sisa: isi.stok, nilai: isi.nilai,
+          kode: selisih < 0 ? 'GI' : 'GR',
+          ket: el('dKetRiwayat') ? nilai('dKetRiwayat') : ''
+        };
+      }
       if(asal){
         const p = PART.find(x=>x.pn === asal.pn);
         if(!p) throw new Error(T('Sparepart itu sudah tidak ada di daftar.','That spare part is no longer in the list.'));
@@ -383,6 +481,12 @@ async function simpanData(){
     tutupKartuData();
     gambarUnit(); gambarUbin(); gambarCincin();
     return;
+  }
+  // Riwayat disimpan SESUDAH daftarnya tersimpan: catatan keluar/masuk untuk
+  // perubahan jumlah yang ditolak server tidak boleh ada.
+  if(catatRiwayat){
+    (PART_RIWAYAT[unit] || (PART_RIWAYAT[unit] = [])).push(catatRiwayat);
+    await dbSimpanUnit('sparepart-riwayat', unit);
   }
   // Pencatatannya dikerjakan server dengan identitas sungguhan; mencatat di
   // sini juga akan memunculkan satu perbuatan dua kali.

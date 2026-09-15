@@ -408,32 +408,45 @@ function gambarUnit(){
         </span>
       </div>
       <div class="panel"><div class="kepala"><h3>${T('Sparepart','Spare Parts')} ${esc(u.nama)}</h3>
-        <span class="ket">${part.filter(p=>p.stok<p.min).length} ${
-          T('di bawah minimum','below minimum')}</span></div>
+        <span class="ket">${part.filter(p=>p.stok===0).length} ${
+          T('jumlahnya habis','out of stock')}</span></div>
         ${part.length ? `<div class="gulir" style="max-height:none">
-          <table><thead><tr><th style="width:36px;text-align:right">${T('No','No')}</th>
-          <th>${T('Sparepart','Spare Part')}</th><th>Part Number</th>
-          <th>${T('Rak','Rack')}</th><th>${T('Stok / Min','Stock / Min')}</th>
-          <th>${T('Dipakai Terakhir','Last Used')}</th><th></th></tr></thead><tbody>${
-          [...part].sort((a,b)=>(a.stok/Math.max(a.min,1))-(b.stok/Math.max(b.min,1))).map((p,i)=>{
-            const w = p.stok===0?'var(--fail)':p.stok<p.min?'var(--warn)':'var(--ok)';
-            /* Nomor urut mengikuti urutan tampil (sudah disortir stok terkecil dulu),
-               bukan urutan simpan — jadi baris paling atas selalu No. 1. */
+          <table class="tabel-spr"><thead><tr><th style="width:36px;text-align:right">${T('No','No')}</th>
+          <th>${T('Kode Material','Material Code')}</th><th>${T('Nama Barang','Item Name')}</th>
+          <th>SLOC</th><th>${T('Kode Gudang','Warehouse')}</th><th>Status</th>
+          <th>${T('Satuan','Unit')}</th><th style="text-align:right">${T('Jumlah','Qty')}</th>
+          <th style="text-align:right">Value (IDR)</th>
+          <th>${T('Ditambahkan','Added')}</th><th>${T('Dipakai','Used')}</th>
+          <th>${T('Ket','Note')}</th><th></th></tr></thead><tbody>${
+          /* Urutan simpan, sama dengan nomor di lembar SAP gudang — bukan
+             disortir stok seperti dulu, supaya No. di layar dan di Excel
+             menunjuk barang yang sama. */
+          part.map((p,i)=>{
+            const w = p.stok===0?'var(--fail)':p.stok<p.min?'var(--warn)':'var(--text)';
             return `<tr><td class="mono" style="color:var(--muted);text-align:right">${i+1}</td>
-              <td>${esc(p.nama)}</td><td><span class="mono">${esc(p.pn)}</span></td>
-              <td><span class="rak-kode">${esc(p.rak)}</span></td>
-              <td><span class="mono" style="color:${w};font-weight:600">${p.stok}</span>
-                  <span class="mono" style="color:var(--muted)"> / ${p.min} ${esc(p.satuan)}</span>
-                  <span class="stok-bar"><i style="width:${Math.min(100,p.stok/Math.max(p.min,1)*100)}%;background:${w}"></i></span></td>
-              <td><span class="mono" style="color:var(--muted)">${tglRingkas(p.pakai)}</span></td>
+              <td><span class="mono">${esc(p.pn)}</span></td><td>${esc(p.nama)}</td>
+              <td><span class="rak-kode">${esc(p.sloc || '—')}</span></td>
+              <td><span class="rak-kode">${esc(p.gudang || '—')}</span></td>
+              <td>${partStatusCip(p.status)}</td>
+              <td>${esc(p.satuan)}</td>
+              <td class="mono" style="text-align:right;color:${w};font-weight:600">${p.stok}</td>
+              <td class="mono" style="text-align:right">${partRupiah(p.nilai)}</td>
+              <td><span class="mono" style="color:var(--muted)">${tglRiwayat(partTambah(p))}</span></td>
+              <td><span class="mono" style="color:var(--muted)">${tglRiwayat(partPakai(p))}</span></td>
+              <td style="color:var(--muted)">${esc(p.ket || '')}</td>
               <td style="text-align:right">${bolehSuntingDb('sparepart')
                 ? `<button class="btn garis kecil"
                      data-db-ubah="sparepart" data-pn="${esc(p.pn)}">${T('Ubah','Edit')}</button>`
                 : ''}</td></tr>`;
-          }).join('')}</tbody></table></div>`
+          }).join('')}</tbody>
+          <tfoot><tr><td colspan="7" style="text-align:right;font-weight:600">${T('Jumlah','Total')}</td>
+            <td class="mono" style="text-align:right;font-weight:600">${part.reduce((n,p)=>n+(Number(p.stok)||0),0)}</td>
+            <td class="mono" style="text-align:right;font-weight:600">${partRupiah(part.reduce((n,p)=>n+(Number(p.nilai)||0),0))}</td>
+            <td colspan="4"></td></tr></tfoot></table></div>`
           : `<div class="badan" style="color:var(--muted);font-size:12.5px">${
               T('Belum ada sparepart terdaftar untuk unit ini.','No spare parts registered for this unit yet.')}</div>`}
       </div>
+      ${panelRiwayatPartHtml(unitDibuka)}
     </div>
 
     <!-- IZIN STASIUN RADIO (ISR) — daftar lisensi frekuensi per unit, dengan

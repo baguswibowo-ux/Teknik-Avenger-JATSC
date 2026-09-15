@@ -2485,6 +2485,9 @@ app.put('/personel', badanDinas, async (req, res) => {
 const UNITDB_JSON = {
   peralatan: path.join(DATA_DIR, 'peralatan.json'),
   sparepart: path.join(DATA_DIR, 'sparepart.json'),
+  // Riwayat pemakaian (keluar/GI) dan pengadaan (masuk/GR) sparepart — bentuk
+  // lembar "Rekap Pemakaian dan Pengadaan Suku Cadang" orang sparepart.
+  'sparepart-riwayat': path.join(DATA_DIR, 'sparepart-riwayat.json'),
   // Izin Stasiun Radio — daftar lisensi frekuensi per unit, dengan masa berlaku.
   isr: path.join(DATA_DIR, 'isr.json'),
   // NOTAM teknik — NOTAM yang terbit karena peralatan unit (off, maintenance).
@@ -2498,7 +2501,6 @@ const UNITDB_JSON = {
 const NAMA_ALAT_JSON = path.join(DATA_DIR, 'nama-alat.json');
 
 const STATUS_ALAT = new Set(['Normal', 'Warning', 'Down']);
-const SATUAN_PART = new Set(['pcs', 'rol', 'drum', 'set', 'meter', 'liter']);
 
 /** id yang sah dan unik di dalam unitnya; yang kosong diberi nomor urut. */
 function idBaris(nilai, adaId, awalan) {
@@ -2594,21 +2596,34 @@ function rapikanSub(s, dipakaiId) {
   };
 }
 
+/* Sparepart mengikuti lembar SAP gudang (Kode Material, Nama Barang, SLOC,
+   Kode Gudang, Status, Satuan, Jumlah, Value IDR, Ket). `pn` tetap nama
+   kuncinya — isinya Kode Material, dan cetak, impor, serta kartu Ubah sudah
+   berpegangan padanya. Satuan tidak lagi dibatasi enam kata: SAP menulis
+   UNT dan PC, dan mengganti keduanya jadi 'pcs' berarti membohongi lembarnya.
+   `tambah` tanggal barangnya ditambahkan (bisa beda dari `dibuat`, cap kapan
+   barisnya diketik); `pakai` tanggal terakhir dipakai. */
 function rapikanPart(p, adaId) {
   const nama = String(p?.nama || '').trim().slice(0, 120);
   if (!nama) return null;
-  const bulat = (n, bawaan) => {
+  const bulat = (n, bawaan, batas = 99999) => {
     const v = Number(n);
-    return Number.isFinite(v) ? Math.min(99999, Math.max(0, Math.round(v))) : bawaan;
+    return Number.isFinite(v) ? Math.min(batas, Math.max(0, Math.round(v))) : bawaan;
   };
   return {
     id: idBaris(p?.id, adaId, 's'),
     nama,
     pn:  String(p?.pn  || '').trim().slice(0, 60),
     rak: String(p?.rak || '').trim().slice(0, 24),
+    sloc:   String(p?.sloc   || '').trim().slice(0, 12),
+    gudang: String(p?.gudang || '').trim().slice(0, 12),
+    status: String(p?.status || '').trim().toUpperCase().slice(0, 20),
     stok: bulat(p?.stok, 0),
     min:  bulat(p?.min,  0),
-    satuan: SATUAN_PART.has(p?.satuan) ? p.satuan : 'pcs',
+    satuan: String(p?.satuan || '').trim().slice(0, 12) || 'UNT',
+    nilai: bulat(p?.nilai, 0, 1e13),
+    ket:  String(p?.ket  || '').trim().slice(0, 200),
+    tambah: tglSah(p?.tambah),
     pakai: tglSah(p?.pakai),
     tipe: String(p?.tipe || '').trim().slice(0, 120),
     ...papanNama(p)
@@ -2665,7 +2680,42 @@ function rapikanNotam(x, adaId) {
   };
 }
 
-const UNITDB_RAPI = { peralatan: rapikanAlat, sparepart: rapikanPart, isr: rapikanIsr, notam: rapikanNotam };
+/* Satu baris riwayat = satu kejadian keluar atau masuk. Berpegangan pada kode
+   material, bukan id baris sparepart: rekap SAP memuat barang yang sudah habis
+   dan tidak ada lagi di daftar unit, dan riwayatnya tetap perlu terbaca.
+   Tanggalnya boleh setengah — rekap hanya menulis tahun dan bulan — jadi yang
+   sah YYYY, YYYY-MM, atau YYYY-MM-DD. */
+const TGL_RIWAYAT = /^\d{4}(-(0[1-9]|1[0-2])(-(0[1-9]|[12]\d|3[01]))?)?$/;
+function rapikanRiwayatPart(x, adaId) {
+  const pn  = String(x?.pn  || '').trim().slice(0, 60);
+  const tgl = String(x?.tgl || '').trim();
+  if (!pn || !TGL_RIWAYAT.test(tgl)) return null;
+  const bulat = (n, batas = 99999) => {
+    const v = Number(n);
+    return Number.isFinite(v) ? Math.min(batas, Math.max(0, Math.round(v))) : 0;
+  };
+  const keluar = bulat(x?.keluar), masuk = bulat(x?.masuk);
+  if (!keluar && !masuk) return null;
+  return {
+    id: idBaris(x?.id, adaId, 'r'),
+    tgl, pn,
+    nama: String(x?.nama || '').trim().slice(0, 120),
+    keluar, masuk,
+    // Sisa kosong di beberapa baris rekap — kosong tetap kosong, bukan 0.
+    sisa: x?.sisa === '' || x?.sisa == null ? '' : bulat(x.sisa),
+    nilai: bulat(x?.nilai, 1e13),
+    kode: String(x?.kode || '').trim().toUpperCase().slice(0, 12),
+    ket:  String(x?.ket  || '').trim().slice(0, 200)
+  };
+}
+
+const UNITDB_RAPI = { peralatan: rapikanAlat, sparepart: rapikanPart, 'sparepart-riwayat': rapikanRiwayatPart,
+                      isr: rapikanIsr, notam: rapikanNotam };
+/* Riwayat sparepart menumpang hak modul sparepart: yang boleh mengubah daftar
+   sparepart boleh mencatat pemakaian dan pengadaannya. */
+const UNITDB_HAK = { 'sparepart-riwayat': 'sparepart' };
+/* Batas baris per unit. Riwayat bertambah terus sepanjang tahun. */
+const UNITDB_BATAS = { 'sparepart-riwayat': 5000 };
 
 /** Seluruh database unit. Terbuka seperti kegiatan berkala — yang berdinas
     perlu melihat daftar peralatan unitnya tanpa harus masuk dulu. */
@@ -2673,6 +2723,7 @@ app.get('/unitdb', async (_req, res) => {
   res.json({
     peralatan: await bacaJson(UNITDB_JSON.peralatan, {}),
     sparepart: await bacaJson(UNITDB_JSON.sparepart, {}),
+    'sparepart-riwayat': await bacaJson(UNITDB_JSON['sparepart-riwayat'], {}),
     isr:       await bacaJson(UNITDB_JSON.isr, {}),
     notam:     await bacaJson(UNITDB_JSON.notam, {}),
     logo:      await bacaLogo(),
@@ -2694,10 +2745,11 @@ app.put('/unitdb/:modul/:unit', badanDinas, async (req, res) => {
 
   const user = await siapa(req);
   if (!user) return res.status(401).json({ error: 'Masuk dengan akun E-Logbook Anda dulu.' });
-  if (!(await bolehIsi(user, modul, unit))) {
+  const modulHak = UNITDB_HAK[modul] || modul;
+  if (!(await bolehIsi(user, modulHak, unit))) {
     return res.status(403).json({
       error: bolehUnit(user, unit)
-        ? `Peran akun Anda tidak diberi hak mengubah ${modul} unit ini.`
+        ? `Peran akun Anda tidak diberi hak mengubah ${modulHak} unit ini.`
         : 'Akun Anda tidak memegang unit ini, jadi databasenya tidak bisa Anda ubah.'
     });
   }
@@ -2709,7 +2761,7 @@ app.put('/unitdb/:modul/:unit', badanDinas, async (req, res) => {
   // 'sparepart'. Nama modul sebagai kunci berlaku seragam untuk ketiganya.
   const kunci = modul;
   const daftar = (Array.isArray(req.body?.[kunci]) ? req.body[kunci] : [])
-    .slice(0, 300).map((x) => rapi(x, adaId)).filter(Boolean);
+    .slice(0, UNITDB_BATAS[modul] || 300).map((x) => rapi(x, adaId)).filter(Boolean);
 
   try {
     const semua = await bacaJson(UNITDB_JSON[modul], {});
@@ -2719,7 +2771,7 @@ app.put('/unitdb/:modul/:unit', badanDinas, async (req, res) => {
     // lebih pendek. Yang hilang dicari lewat id.
     const lamaId = new Set((semua[unit] || []).map((x) => x.id));
     for (const x of daftar) lamaId.delete(x.id);
-    if (lamaId.size && !(await bolehHapus(user, modul, unit))) {
+    if (lamaId.size && !(await bolehHapus(user, modulHak, unit))) {
       return res.status(403).json({
         error: `Menghapus baris (${lamaId.size} hilang dari daftar) hanya bisa dilakukan `
              + 'administrator. Menambah dan mengubah tetap boleh.'
@@ -2731,14 +2783,16 @@ app.put('/unitdb/:modul/:unit', badanDinas, async (req, res) => {
     // NOTAM tidak punya kolom nama — label lognya nomor NOTAM.
     const selisih = selisihDaftar(
       (semua[unit] || []).map((x) => rapi(x, new Set())).filter(Boolean), daftar,
-      modul === 'notam' ? { label: (x) => x?.nomor } : undefined);
+      modul === 'notam' ? { label: (x) => x?.nomor }
+        : modul === 'sparepart-riwayat' ? { label: (x) => `${x?.nama || x?.pn} (${x?.tgl})` }
+        : undefined);
     if (daftar.length) semua[unit] = daftar; else delete semua[unit];
     await tulisJson(UNITDB_JSON[modul], semua);
     const aksi = aksiSelisih(selisih);
     if (aksi) {
       await catat(user, {
-        modul, aksi, unit,
-        rincian: `${daftar.length} baris · ${ringkasSelisih(selisih)}`
+        modul: modulHak, aksi, unit,
+        rincian: `${modul === 'sparepart-riwayat' ? 'riwayat · ' : ''}${daftar.length} baris · ${ringkasSelisih(selisih)}`
       });
     }
     res.json({ ok: true, jumlah: daftar.length });
