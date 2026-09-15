@@ -238,6 +238,11 @@ async function requireAuth(req, res, next) {
 }
 
 const isAdmin = (user) => user?.role === 'admin';
+/* Pengelola catatan: administrator, atau admin unit. Dipakai sesudah
+   pastikanUnit/unitDiminta — jadi bagi admin unit artinya "pengelola di
+   unitnya sendiri": boleh membetulkan catatan siapa pun di unit itu, dan
+   membuat isu langsung berstatus apa pun. Aturan TTD tetap dijaga db.js. */
+const kelolaUnit = (user) => isAdmin(user) || String(user?.role || '').toLowerCase() === 'adminunit';
 
 /**
  * Yang boleh menambah data. Ditulis sebagai daftar peran yang BOLEH, bukan
@@ -1131,7 +1136,7 @@ const API = {
     const unit = await unitCatatan('logbook', String(id));
     if (!unit) throw new Error('Catatan tidak ditemukan — mungkin sudah dihapus.');
     await pastikanUnit(user, unit);
-    return updateEntry(String(id), patch || {}, { username: user.username, admin: isAdmin(user) });
+    return updateEntry(String(id), patch || {}, { username: user.username, admin: kelolaUnit(user) });
   },
 
   addDailyCheck: async (rec, user) => {
@@ -1149,7 +1154,7 @@ const API = {
     await pastikanUnit(user, unit);
     // `role` dibawa supaya updateDailyCheck bisa menolak Officer (pejabat) ikut
     // menyunting checklist AMHS — tugasnya hanya melihat & menandatangani.
-    return updateDailyCheck(String(id), patch || {}, { username: user.username, admin: isAdmin(user), role: user.role });
+    return updateDailyCheck(String(id), patch || {}, { username: user.username, admin: kelolaUnit(user), role: user.role });
   },
 
   getDailyCheckDetail: (id) => getDailyCheckDetailById(String(id)),
@@ -1192,7 +1197,7 @@ const API = {
     await pastikanUnit(user, unit);
     const ttdUntuk = await ttdUntukSah(patch?.ttdUntuk);
     return updateDsTest(String(id), { ...(patch || {}), ttdUntuk },
-                        { username: user.username, admin: isAdmin(user) });
+                        { username: user.username, admin: kelolaUnit(user) });
   },
 
   addBerkala: async (rec, user) => {
@@ -1233,14 +1238,14 @@ const API = {
     if (!unit) throw new Error('Catatan tidak ditemukan — mungkin sudah dihapus.');
     await pastikanUnit(user, unit);
     return suntingLampiranBapb(String(id), tambah || [], buang || [],
-                               { username: user.username, admin: isAdmin(user) });
+                               { username: user.username, admin: kelolaUnit(user) });
   },
 
   updateBapb: async (id, patch, user) => {
     const unit = await unitCatatan('bapb', String(id));
     if (!unit) throw new Error('Catatan tidak ditemukan — mungkin sudah dihapus.');
     await pastikanUnit(user, unit);
-    return updateBapb(String(id), patch || {}, { username: user.username, admin: isAdmin(user) });
+    return updateBapb(String(id), patch || {}, { username: user.username, admin: kelolaUnit(user) });
   },
 
   /**
@@ -1543,7 +1548,7 @@ const API = {
 
   addIssue: async (isu, user) => insertIssue(
     {
-      ...(isAdmin(user) ? (isu || {}) : { ...(isu || {}), status: 'Open', lampiranClosed: [] }),
+      ...(kelolaUnit(user) ? (isu || {}) : { ...(isu || {}), status: 'Open', lampiranClosed: [] }),
       unit: await unitDiminta(user, isu?.unit)
     },
     user.username,
@@ -1657,7 +1662,7 @@ const API_ADMIN = {
   deleteDsTest: (id) => removeDsTest(String(id)),
   deleteBerkala: (id) => removeBerkala(String(id)),
 
-  // Menempel berkas ke LTK yang sudah tersimpan berarti mengubahnya — admin saja.
+  // Menempel berkas ke LTK yang sudah tersimpan berarti mengubahnya — admin, atau admin unit di unitnya (UBAH_ADMINUNIT).
   addLtkLampiran: async (id, daftar) => {
     if (!(await getLtk(String(id)))) throw new Error('LTK tidak ditemukan.');
     await tambahLampiranLtk(String(id), daftar || []);
@@ -1669,7 +1674,7 @@ const API_ADMIN = {
   },
 
   // Menempelkan bukti ke isu yang sudah tersimpan berarti mengubah isu itu,
-  // jadi ikut aturan yang sama: administrator saja.
+  // jadi ikut aturan yang sama: administrator, atau admin unit di unitnya.
   addIssueLampiran: async (id, fase, daftar) => {
     if (!(await getIssue(String(id)))) throw new Error('Isu tidak ditemukan.');
     await tambahLampiranIsu(String(id), String(fase), daftar || []);
@@ -1889,6 +1894,15 @@ const HAPUS_ADMINUNIT = {
   deleteBapb:          ['bapb', 0],
   deleteLtkLampiran:   ['lampiran-ltk', 1],
   deleteIssueLampiran: ['lampiran-isu', 1]
+};
+
+/* Fungsi admin yang juga dibuka untuk admin unit, di unitnya sendiri: mengubah
+   kolom trouble dan menambah lampiran trouble/LTK. Sama bentuknya dengan
+   HAPUS_ADMINUNIT — [jenis catatan, posisi argumen id] untuk mencari unitnya. */
+const UBAH_ADMINUNIT = {
+  updateIssueField: ['isu', 0],
+  addIssueLampiran: ['isu', 0],
+  addLtkLampiran:   ['ltk', 0]
 };
 
 const API_ADMIN_UNTUK_ADMINUNIT = new Set([
@@ -2179,19 +2193,23 @@ app.post('/api/:fn', requireAuth, async (req, res) => {
 
   if (adminOnly && !isAdmin(req.user)) {
     const peran = String(req.user?.role || '').toLowerCase();
-    const hapusUnit = Object.prototype.hasOwnProperty.call(HAPUS_ADMINUNIT, fn);
-    const bolehAdminUnit = peran === 'adminunit' && (API_ADMIN_UNTUK_ADMINUNIT.has(fn) || hapusUnit);
+    const punya = (peta) => Object.prototype.hasOwnProperty.call(peta, fn);
+    const hapusUnit = punya(HAPUS_ADMINUNIT);
+    const ubahUnit = punya(UBAH_ADMINUNIT);
+    const bolehAdminUnit = peran === 'adminunit' && (API_ADMIN_UNTUK_ADMINUNIT.has(fn) || hapusUnit || ubahUnit);
     if (!bolehAdminUnit) {
       return res.status(403).json({ error: 'Hanya administrator yang boleh melakukan ini.' });
     }
-    // Admin unit menghapus: catatannya harus milik unit yang dipegangnya.
-    if (hapusUnit) {
-      const [jenis, posisi] = HAPUS_ADMINUNIT[fn];
-      const argsHapus = Array.isArray(req.body?.args) ? req.body.args : [];
-      const unit = await unitHapus(jenis, argsHapus[posisi]);
+    // Admin unit menghapus atau mengubah: catatannya harus milik unit yang dipegangnya.
+    if (hapusUnit || ubahUnit) {
+      const [jenis, posisi] = hapusUnit ? HAPUS_ADMINUNIT[fn] : UBAH_ADMINUNIT[fn];
+      const argsUnit = Array.isArray(req.body?.args) ? req.body.args : [];
+      const unit = await unitHapus(jenis, argsUnit[posisi]);
       if (!unit) return res.status(404).json({ error: 'Catatan tidak ditemukan — mungkin sudah dihapus.' });
       if (!(await unitUntukUser(req.user)).includes(unit)) {
-        return res.status(403).json({ error: 'Admin unit hanya boleh menghapus catatan di unit yang dipegangnya.' });
+        return res.status(403).json({ error: hapusUnit
+          ? 'Admin unit hanya boleh menghapus catatan di unit yang dipegangnya.'
+          : 'Admin unit hanya boleh mengubah catatan di unit yang dipegangnya.' });
       }
     }
   }

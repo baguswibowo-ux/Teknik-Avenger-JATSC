@@ -18,11 +18,15 @@ function bolehMenulis(){ return PERAN_TULIS.has(userSaatIni?.role); }
     membuka unit yang dipegangnya, jadi semua yang tampil memang unitnya —
     server tetap memeriksa unit tiap catatan (HAPUS_ADMINUNIT di server.js). */
 function bolehHapusCatatan(){ return adminAktif() || userSaatIni?.role === 'adminunit'; }
+/** Pengelola catatan: administrator, atau admin unit (yang memang hanya
+    melihat unitnya sendiri). Boleh membetulkan catatan siapa pun di unit itu,
+    mengubah status trouble, dan menempel lampiran. Server menjaga unitnya. */
+function kelolaUnitAktif(){ return adminAktif() || userSaatIni?.role === 'adminunit'; }
 
-/** Menyunting catatan yang sudah tersimpan: admin, atau pembuat aslinya
-    sendiri — bukan sekadar siapa saja yang boleh menulis di unit itu. */
+/** Menyunting catatan yang sudah tersimpan: pengelola unit, atau pembuat
+    aslinya sendiri — bukan sekadar siapa saja yang boleh menulis di unit itu. */
 function bolehSuntingCatatan(dibuatOlehUsername){
-  if(adminAktif()) return true;
+  if(kelolaUnitAktif()) return true;
   if(!bolehMenulis()) return false;
   return !!userSaatIni && !!dibuatOlehUsername && userSaatIni.username === dibuatOlehUsername;
 }
@@ -32,6 +36,7 @@ function terapkanPeran(){
   document.body.classList.toggle('peran-teknisi', !!userSaatIni && !adminAktif() && !pejabatAktif() && !pejabatNonOpAktif());
   document.body.classList.toggle('peran-pejabat', pejabatAktif());
   document.body.classList.toggle('boleh-hapus', !!userSaatIni && bolehHapusCatatan());
+  document.body.classList.toggle('boleh-kelola', !!userSaatIni && kelolaUnitAktif());
   // Tombol penambah data disembunyikan dari pejabat. Yang menahan sebenarnya
   // tetap server, yang menolak seluruh fungsi tulis dengan 403.
   document.body.classList.toggle('tanpa-tulis', !!userSaatIni && !bolehMenulis());

@@ -286,7 +286,7 @@ function openBapbDetail(id){
 
 function bolehUbahPemakaiBapb(b){
   if (!b || b.teknikTtd) return false;
-  if (typeof adminAktif === 'function' && adminAktif()) return true;
+  if (typeof kelolaUnitAktif === 'function' && kelolaUnitAktif()) return true;
   return !!(userSaatIni && b.dibuatOlehUsername && userSaatIni.username === b.dibuatOlehUsername);
 }
 
@@ -345,7 +345,7 @@ async function simpanBapbPemakai(){
 
 function bolehKelolaLampiranBapb(b){
   if (!b) return false;
-  if (typeof adminAktif === 'function' && adminAktif()) return true;
+  if (typeof kelolaUnitAktif === 'function' && kelolaUnitAktif()) return true;
   if (typeof bolehMenulis === 'function' && !bolehMenulis()) return false;
   return !!(userSaatIni && b.dibuatOlehUsername && userSaatIni.username === b.dibuatOlehUsername);
 }

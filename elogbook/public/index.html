@@ -19,7 +19,7 @@
 <link rel="stylesheet" href="css/03-tombol-formulir.css">
 <link rel="stylesheet" href="css/04-catatan.css">
 <link rel="stylesheet" href="css/05-tabel.css">
-<link rel="stylesheet" href="css/06-peran-lampiran.css">
+<link rel="stylesheet" href="css/06-peran-lampiran.css?v=20260916adminunit">
 <link rel="stylesheet" href="css/07-modal-toast.css">
 <link rel="stylesheet" href="css/08-layar-kecil.css">
 <link rel="stylesheet" href="css/09-cetak.css">
@@ -1596,8 +1596,8 @@
       <div class="lampiran-hint" id="isLampiranOpenHint" data-t="hintLampiran">Maksimal 6 berkas, 8 MB per berkas. JPG, PNG, WEBP, atau PDF.</div>
       <div id="isLampiranOpenList"></div>
     </div>
-    <div class="field hanya-admin"><label>Status</label><select id="isStatus" onchange="toggleLampiranClosed()"><option>Open</option><option>Proses</option><option>Closed</option></select></div>
-    <div class="field hanya-admin" id="isLampiranClosedWrap" style="display:none;">
+    <div class="field hanya-kelola"><label>Status</label><select id="isStatus" onchange="toggleLampiranClosed()"><option>Open</option><option>Proses</option><option>Closed</option></select></div>
+    <div class="field hanya-kelola" id="isLampiranClosedWrap" style="display:none;">
       <label data-t-html="labelBuktiClosed">Foto / Dokumen Saat Selesai <span style="text-transform:none;letter-spacing:0;">(opsional)</span></label>
       <input type="file" id="isLampiranClosed" multiple accept="image/jpeg,image/png,image/webp,application/pdf" onchange="pilihLampiran(this, 'isLampiranClosed')">
       <div class="lampiran-hint" id="isLampiranClosedHint" data-t="hintLampiran">Maksimal 6 berkas, 8 MB per berkas. JPG, PNG, WEBP, atau PDF.</div>
@@ -2418,14 +2418,14 @@
      untuk semua pemasangan, alamatnya tidak. Harus di depan 26-init.js. -->
 <script src="avenger-tautan.js"></script>
 <script src="js/01-tema.js"></script>
-<script src="js/02-bahasa.js?v=20260915nonop"></script>
+<script src="js/02-bahasa.js?v=20260916adminunit"></script>
 <script src="js/03-waktu.js"></script>
 <script src="js/04-toast-tab.js"></script>
 <script src="js/05-jembatan-server.js"></script>
 <script src="js/06-keadaan.js"></script>
 <script src="js/07-unit.js?v=20260915nonop"></script>
 <script src="js/08-tanda-tangan.js"></script>
-<script src="js/09-peran.js?v=20260915nonop"></script>
+<script src="js/09-peran.js?v=20260916adminunit"></script>
 <script src="js/10-lampiran.js"></script>
 <script src="js/11-logbook.js?v=20260915ph"></script>
 <script src="js/12-daily-check-radtel.js"></script>
@@ -2437,7 +2437,7 @@
 <script src="js/12g-daily-check-listrik.js"></script>
 <script src="js/13-daily-check-radkom.js"></script>
 <script src="js/14-daily-check-umum.js?v=20260915ph"></script>
-<script src="js/15-isu.js"></script>
+<script src="js/15-isu.js?v=20260916adminunit"></script>
 <script src="js/16-monitoring.js"></script>
 <script src="js/17-ds-test.js"></script>
 <script src="js/17c-radio.js"></script>
@@ -2447,7 +2447,7 @@
 <script src="js/17g-maint-listrik.js"></script>
 <script src="js/17h-meter-radkom.js"></script>
 <script src="js/18-ltk.js?v=20260915ph"></script>
-<script src="js/18b-bapb.js"></script>
+<script src="js/18b-bapb.js?v=20260916adminunit"></script>
 <script src="js/19-berkala.js"></script>
 <script src="js/20-ttd-pejabat.js?v=20260915ph"></script>
 <script src="js/21-cetak-dasar.js"></script>
