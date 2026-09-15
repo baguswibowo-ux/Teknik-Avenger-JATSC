@@ -1283,6 +1283,11 @@ const API = {
     const u = UNIT.find((x) => x.kode === unit);
     return {
       unit, unitNama: u ? u.nama : unit, judul: (await ringkasUntukNotif(j, String(id))).judul,
+      // Nama pejabat yang diwakili — tag PH di detail, juga sesudah TTD
+      // (butir kotak masuknya sudah hilang). Kosong kalau bukan lewat PH.
+      atasNama: sebagaiPh && !pegangUnit
+        ? (() => { const p = diwakili.find((x) => sameUser(x.username, baris.TtdUntuk)); return (p && p.nama) || baris.TtdUntuk; })()
+        : '',
       baris: isAdmin(user) ? baris : tanpaJejakInput([baris])[0]
     };
   },

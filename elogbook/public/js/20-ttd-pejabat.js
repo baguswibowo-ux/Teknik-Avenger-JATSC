@@ -453,7 +453,11 @@ async function bukaDetailTitipan(jenis, id){
     const pita = document.createElement('div');
     pita.className = 'subtle-note';
     pita.style.cssText = 'margin-bottom:10px;padding:7px 10px;border:1px dashed var(--accent-dim);border-radius:8px;background:rgba(41,182,246,.06);';
-    pita.innerHTML = `📄 <b>${escapeHtml(r.judul || '')}</b> &middot; Unit <b>${escapeHtml(r.unitNama || r.unit)}</b>`;
+    const it = inboxTtd.find(x => x.jenis === jenis && x.id === id);
+    const atas = r.atasNama || (it && it.atasNama) || '';
+    pita.style.display = 'flex'; pita.style.flexWrap = 'wrap'; pita.style.alignItems = 'center'; pita.style.gap = '6px';
+    pita.innerHTML = `${tagUnitTtd(r.unitNama || r.unit)}${atas ? tagPhTtd(atas) : ''}`
+      + `<span>📄 <b>${escapeHtml(r.judul || '')}</b></span>`;
     badan.prepend(pita);
   }
 }
@@ -589,16 +593,27 @@ function renderInboxBadge(){
   badge.style.display = n > 0 ? '' : 'none';
 }
 
+/** Tag kecil berwarna: unit (biru) dan PH (kuning) di kotak masuk & detail
+    titipan — supaya asal dokumen terbaca sekilas, bukan terselip di kalimat. */
+function tagTtd(teks, warna, latar){
+  return `<span style="display:inline-block;font-family:var(--font-mono);font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:2px 9px;border-radius:999px;border:1px solid ${warna};color:${warna};background:${latar};white-space:nowrap;">${escapeHtml(teks)}</span>`;
+}
+const tagUnitTtd = (nama) => tagTtd('Unit ' + nama, 'var(--accent)', 'rgba(41,182,246,.12)');
+const tagPhTtd   = (atas) => tagTtd('PH · ' + atas, 'var(--warn)', 'rgba(255,179,0,.12)');
+
 function renderInboxBody(){
   const wrap = document.getElementById('inboxBody');
   if(!wrap) return;
   if(inboxTtd.length === 0){ wrap.innerHTML = '<div class="empty">' + T('inboxKosong') + '</div>'; return; }
   wrap.innerHTML = inboxTtd.map(it=>`
-    <div class="dc-history-item" style="cursor:pointer;flex-direction:column;align-items:stretch;gap:2px;" onclick="bukaInboxItem('${it.jenis}','${it.unit}','${it.id}')">
+    <div class="dc-history-item" style="cursor:pointer;flex-direction:column;align-items:stretch;gap:3px;" onclick="bukaInboxItem('${it.jenis}','${it.unit}','${it.id}')">
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:3px;">
+        ${tagUnitTtd(it.unitNama || it.unit || '-')}
+        ${it.atasNama ? tagPhTtd(it.atasNama) : ''}
+      </div>
       <div><b>${escapeHtml(it.judul || it.label)}</b> &middot; ${escapeHtml(it.tanggal)||'-'}</div>
-      <div style="font-size:11.5px;color:var(--muted);">Unit <b>${escapeHtml(it.unitNama || it.unit || '-')}</b> &middot; ${escapeHtml(it.label)}: ${escapeHtml(it.nama)||'-'}</div>
+      <div style="font-size:11.5px;color:var(--muted);">${escapeHtml(it.label)}: ${escapeHtml(it.nama)||'-'}</div>
       ${it.cuplikan ? `<div style="font-size:11.5px;color:var(--muted);font-style:italic;">${escapeHtml(it.cuplikan)}</div>` : ''}
-      ${it.atasNama ? `<div style="font-size:11.5px;color:var(--muted);">Sebagai PH untuk <b>${escapeHtml(it.atasNama)}</b></div>` : ''}
     </div>`).join('');
 }
 
