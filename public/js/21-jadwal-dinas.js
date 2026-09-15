@@ -165,6 +165,24 @@ function dinasHariIni(kode){
     if(!s){ s = { k, o:[] }; petak.push(s); }
     s.o.push({ n:o.nama, p:o.peran || T('Teknisi','Technician') });
   });
+
+  /* Yang SEDANG berjalan jam ini didahulukan — sisanya tetap urut jam mulai.
+     Satu hari dinas memuat dua giliran yang jamnya berbeda (PS lalu M, atau P,
+     S, lalu M), dan yang dicari orang waktu membuka layar ini adalah giliran
+     yang sedang bertugas. Urut jam mulai saja membuat malam yang sedang jaga
+     berdiri paling kanan, di belakang PS yang sudah pulang tujuh jam lalu.
+     Pita beranda sudah lama berlaku begitu; petak unit menyusul.
+
+     Diurutkan di sini, bukan di kodeDipakaiUnit(): jam malam bergantung pada
+     kode yang dipakai HARI INI (aturan `geser`), dan daftar kode di sana
+     dikumpulkan dari seluruh bulan. sort() JavaScript stabil, jadi kelompok
+     yang tidak sedang berjalan tidak berubah urutannya. */
+  const kodeHari = petak.filter(s=>s.o.length).map(s=>s.k);
+  const libur  = (k)=> !!(SHIFT[k] && SHIFT[k].libur);
+  const sedang = (k)=> !!SHIFT[k] && !libur(k) && sedangShift(jamShift(k, kodeHari));
+  /* CUTI/CAP/IJIN/DL selalu paling belakang: mereka bukan giliran, dan berdiri
+     di antara dua giliran hanya memotong urutan jamnya. */
+  petak.sort((a,b)=>(sedang(b.k) - sedang(a.k)) || (libur(a.k) - libur(b.k)));
   return petak;
 }
 
