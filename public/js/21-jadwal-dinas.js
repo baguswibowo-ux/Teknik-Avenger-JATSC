@@ -33,7 +33,8 @@ const JDW = {
   bisaTulis:true,    // server punya penyimpanan tetap?
   sebab:    '',      // kenapa tidak boleh, untuk ditampilkan apa adanya
   sunting:  false,   // subtab sedang dalam mode sunting
-  draf:     null     // salinan yang sedang disunting; null di luar mode sunting
+  draf:     null,    // salinan yang sedang disunting; null di luar mode sunting
+  pola:     null     // ringkasan draf hasil "Lanjutkan pola"; null kalau drafnya bukan dari sana
 };
 
 /* ---------- Ambil dan simpan ---------- */
@@ -140,6 +141,150 @@ function dinasHariIni(kode){
   return petak;
 }
 
+/* ---------- Lanjutkan pola bulan lalu ---------- */
+
+/*
+ * Kebanyakan unit berdinas dengan putaran tetap — PS M L L tiap empat hari,
+ * atau P S M L L tiap lima. Bulan depan tinggal lanjutan bulan ini, jadi
+ * mengunggah lembar baru tiap bulan cuma untuk menyalin putaran yang sama itu
+ * pekerjaan yang tidak perlu. Di sini putarannya dibaca dari jadwal yang sudah
+ * ada, lalu diteruskan lurus ke bulan yang dibuka.
+ *
+ * Hasilnya DRAF di mode sunting, bukan jadwal tersimpan: huruf gedung (J/N)
+ * dan SPKL tidak berpola, dan jadwal yang terlanjur tersimpan langsung dipakai
+ * pengingat Telegram. Yang mengisi tetap memeriksa, membetulkan, lalu Simpan.
+ */
+
+/* Hari terakhir yang dibaca untuk menebak panjang putaran. Enam minggu dulu;
+   kalau gagal, makin pendek — orang yang gilirannya digeser di tengah bulan
+   punya putaran yang rapi lagi sesudah geserannya. */
+const POLA_JENDELA = [42, 16, 12];
+const POLA_PUTARAN = [2, 10];     // panjang putaran yang dicoba
+const POLA_YAKIN = 0.8;           // sebagian kecil tukar dinas masih boleh
+const POLA_RAGU  = 0.6;           // di bawah yakin tetap diisi, tapi namanya disebut untuk dicek
+
+/**
+ * Bentuk satu kode untuk membaca putaran: 'PS', 'M', 'P', 'S', 'L' (libur),
+ * atau null untuk yang tidak ikut putaran (CUTI/CAP/IJIN/DL) — hari-hari itu
+ * dilompati, bukan dianggap libur.
+ *
+ * SPKL selalu jatuh di hari libur putarannya (lembur di luar giliran), jadi
+ * bentuknya L. Kode yang tidak dikenal jadi bentuknya sendiri supaya ikut
+ * terulang apa adanya.
+ */
+function polaBentuk(kode){
+  if(kode == null) return null;
+  const t = String(kode).trim();
+  if(!t) return 'L';
+  const b = kodeBaku(t);
+  if(!b) return t.toUpperCase().replace(/[^A-Z]/g, '') || 'L';
+  if(SHIFT[b].libur) return null;
+  if(b.startsWith('SPKL')) return 'L';
+  return SHIFT[b].pita || 'L';
+}
+
+/** Kode yang diteruskan ke bulan baru: SPKL tidak ikut, sisanya apa adanya. */
+const polaNilai = (kode) => polaBentuk(kode) === 'L' ? '' : String(kode).trim();
+
+/**
+ * Panjang putaran satu riwayat hari (kode berurutan lintas bulan; null = tidak
+ * terbaca), dibaca dari `jendela` hari terakhir: { p, r } dengan r bagian hari
+ * yang sama bentuknya dengan satu putaran sebelumnya, atau null.
+ */
+function polaPanjang(riwayat, jendela){
+  const bentuk = riwayat.map(polaBentuk);
+  const n = bentuk.length;
+  const skor = [];
+  for(let p = POLA_PUTARAN[0]; p <= POLA_PUTARAN[1]; p++){
+    let banding = 0, cocok = 0;
+    for(let i = Math.max(p, n - jendela); i < n; i++){
+      if(bentuk[i] == null || bentuk[i - p] == null) continue;
+      banding++;
+      if(bentuk[i] === bentuk[i - p]) cocok++;
+    }
+    // Minimal dua putaran utuh yang benar-benar terbaca.
+    if(banding >= 2 * p) skor.push({ p, r: cocok / banding });
+  }
+  if(!skor.length) return null;
+  const terbaik = Math.max(...skor.map(s=>s.r));
+  // Kelipatan putaran (8 untuk putaran 4) nilainya sama baiknya; ambil yang terpendek.
+  return skor.find(s=>s.r >= terbaik - 0.05);
+}
+
+/**
+ * Teruskan riwayat sebanyak `hariN` hari: { hari:[...], ragu } atau null kalau
+ * putarannya tidak terbaca atau isinya libur semua.
+ *
+ * Tiap hari baru melihat hari-hari berfase sama di putaran sebelumnya (tiga
+ * yang terakhir, melompati cuti): bentuk terbanyak yang menang — satu tukar
+ * dinas tidak ikut terulang sebulan — dan kodenya diambil dari kemunculan
+ * bentuk itu yang paling akhir, jadi huruf gedungnya ikut putaran terakhir.
+ */
+function polaLanjut(riwayat, hariN){
+  const n = riwayat.length;
+  let pilih = null, jendela = 0;
+  for(const j of POLA_JENDELA){
+    const s = polaPanjang(riwayat, j);
+    if(s && s.r >= POLA_YAKIN){ pilih = s; jendela = j; break; }
+    if(s && s.r >= POLA_RAGU && (!pilih || s.r > pilih.r)){ pilih = s; jendela = j; }
+  }
+  if(!pilih) return null;
+  const p = pilih.p;
+  // Contoh fase diambil dari jendela yang sama: putaran sebelum geseran tidak ikut bersuara.
+  const batas = Math.max(0, n - jendela);
+  const hari = [];
+  for(let k = 0; k < hariN; k++){
+    const calon = [];
+    for(let j = n + k - p * Math.ceil((k + 1) / p); j >= batas && calon.length < 3; j -= p){
+      const b = polaBentuk(riwayat[j]);
+      if(b != null) calon.push({ b, kode: riwayat[j] });
+    }
+    if(!calon.length){ hari.push(''); continue; }
+    const hitung = {};
+    calon.forEach(c=>{ hitung[c.b] = (hitung[c.b] || 0) + 1; });
+    // Seri: yang paling akhir menang (calon[0] paling akhir).
+    const menang = calon.reduce((a, c)=>hitung[c.b] > hitung[a.b] ? c : a, calon[0]).b;
+    hari.push(polaNilai(calon.find(c=>c.b === menang).kode));
+  }
+  return hari.some(Boolean) ? { hari, ragu: pilih.r < POLA_YAKIN } : null;
+}
+
+/** Bulan 'YYYY-MM' digeser `n` bulan. */
+const bulanGeser = (bulan, n) =>
+  bulanKode(new Date(Number(bulan.slice(0,4)), Number(bulan.slice(5,7)) - 1 + n, 1));
+
+/**
+ * Draf jadwal `bulan` untuk satu unit, diteruskan dari dua bulan sebelumnya.
+ * Orangnya = daftar bulan lalu (urutan, nama, NIK, peran ikut); riwayatnya
+ * disambung dengan bulan sebelum itu lewat NIK, atau nama kalau salah satunya
+ * belum ber-NIK.
+ *
+ *   { orang:[...], lanjut:[nama], ragu:[nama], kosong:[nama] }
+ *   — atau null kalau bulan lalu belum ada jadwalnya.
+ */
+function polaDraf(bulan, lalu, sebelumLalu){
+  if(!Array.isArray(lalu) || !lalu.length) return null;
+  const hariN = jumlahHari(bulan);
+  const nLalu = jumlahHari(bulanGeser(bulan, -1)), nSebelum = jumlahHari(bulanGeser(bulan, -2));
+  const nik  = (o)=> String(o.nik || '').trim();
+  const nama = (o)=> String(o.nama || '').trim().toUpperCase();
+  const dulu = (o)=> (sebelumLalu || []).find(x=>nik(o) && nik(x) ? nik(o) === nik(x) : nama(o) === nama(x));
+  const hasil = { orang:[], lanjut:[], ragu:[], kosong:[] };
+  lalu.filter(nama).forEach(o=>{
+    const d = dulu(o);
+    // Bulan sebelumnya yang tidak memuat orang ini diisi null: tidak terbaca, bukan libur.
+    const riwayat = [
+      ...Array.from({length:nSebelum}, (_,i)=> d ? ((d.hari || [])[i] || '') : null),
+      ...Array.from({length:nLalu},    (_,i)=> (o.hari || [])[i] || '')
+    ];
+    const t = polaLanjut(riwayat, hariN);
+    hasil[!t ? 'kosong' : t.ragu ? 'ragu' : 'lanjut'].push(o.nama);
+    hasil.orang.push({ nama:o.nama, peran:o.peran || '', nik:o.nik || '',
+                       hari: t ? t.hari : Array(hariN).fill('') });
+  });
+  return hasil;
+}
+
 /* ---------- Tabel bulanan ---------- */
 
 /** Baris orang untuk unit + bulan yang sedang dibuka. */
@@ -179,11 +324,20 @@ function jdwTabel(unit){
     ${JDW.sunting ? '<td></td>' : ''}</tr>` : '';
 
   if(!baris.length){
+    const bolehPola = !JDW.sunting && BOLEH.dinas && JDW.bisaTulis;
     return `<table class="jdw"><thead>${kepala}</thead><tbody>${barisBerkala}
       <tr><td colspan="${hariN + 3 + (JDW.sunting?1:0)}" style="text-align:center;color:var(--muted);padding:22px">
         ${T('Belum ada jadwal untuk bulan ini.','No roster for this month yet.')}
+        ${bolehPola ? `<div style="margin-top:10px"><button class="btn kecil" data-jdw-pola>${
+          T('Lanjutkan pola ','Continue the pattern of ') + esc(namaBulan(bulanGeser(bulan, -1)))}</button></div>` : ''}
       </td></tr></tbody></table>`;
   }
+
+  const tandaPola = (nama)=> !JDW.sunting || !JDW.pola ? ''
+    : JDW.pola.kosong.includes(nama) ? `<span title="${esc(T('Polanya tidak terbaca — isi manual.',
+        'Pattern could not be read — fill in by hand.'))}" style="color:var(--fail)"> ●</span>`
+    : JDW.pola.ragu.includes(nama) ? `<span title="${esc(T('Polanya kurang rapi — periksa hasilnya.',
+        'Irregular pattern — check the result.'))}" style="color:var(--warn)"> ●</span>` : '';
 
   const isi = baris.map((o,i)=>{
     const sel = (h)=>{
@@ -199,7 +353,7 @@ function jdwTabel(unit){
       </select></td>`;
     };
     return `<tr>
-      <td class="jdw-no">${i+1}</td>
+      <td class="jdw-no">${i+1}${tandaPola(o.nama)}</td>
       <td class="jdw-nama">${JDW.sunting
         ? `<input type="text" data-baris="${i}" data-kolom="nama" value="${esc(o.nama || '')}">`
         : esc(o.nama || '')}</td>
@@ -230,6 +384,10 @@ function jdwIsi(unit){
         <input type="month" id="jdwBulan" value="${esc(bulan)}"${JDW.sunting?' disabled':''}>
         ${JDW.sunting
           ? `<button class="btn garis kecil" id="jdwBatal">${T('Batal','Cancel')}</button>
+             <button class="btn garis kecil" data-jdw-pola title="${esc(T(
+               'Teruskan putaran dinas tiap orang dari jadwal bulan sebelumnya.',
+               'Carry each person\'s shift rotation on from the previous month.'))}">${
+               T('Lanjutkan pola bulan lalu','Continue last month\'s pattern')}</button>
              <button class="btn garis kecil" id="jdwImpor">${T('Impor dari berkas','Import from a file')}</button>
              <button class="btn garis kecil" id="jdwTambahOrang">${T('Tambah orang','Add person')}</button>
              <button class="btn kecil" id="jdwSimpan">${T('Simpan jadwal','Save roster')}</button>`
@@ -254,8 +412,22 @@ function jdwIsi(unit){
         'The current month roster is deliberately open to every account; who may fill it in is decided '
         + 'per role by an administrator, in the Who May Fill What panel on the Manage Accounts screen.')}</div>`}`;
 
+  const pola = JDW.sunting && JDW.pola;
+  const daftarNama = (xs)=> xs.map(n=>`<b>${esc(n)}</b>`).join(', ');
+  const catatanPola = !pola ? '' : `<div class="catatan" style="margin-top:0">
+    <b>${T('Draf dari pola ','Draft from the pattern of ') + esc(namaBulan(pola.sumber))}.</b>
+    ${T(`${pola.lanjut.length} orang diteruskan lurus.`, `${pola.lanjut.length} people carried straight on.`)}
+    ${pola.ragu.length ? T(` Periksa dulu (polanya kurang rapi, tanda kuning): ${daftarNama(pola.ragu)}.`,
+                           ` Check first (irregular pattern, yellow mark): ${daftarNama(pola.ragu)}.`) : ''}
+    ${pola.kosong.length ? T(` Tidak terbaca, isi manual (tanda merah): ${daftarNama(pola.kosong)}.`,
+                             ` Unreadable, fill in by hand (red mark): ${daftarNama(pola.kosong)}.`) : ''}
+    ${T(' Huruf gedung J/N ikut putaran terakhir; SPKL, cuti, dan DL tidak ikut. Betulkan yang perlu, '
+      + 'lalu tekan <b>Simpan jadwal</b> — sebelum disimpan, belum ada yang berubah.',
+        ' The J/N building letter follows the latest rotation; SPKL, leave, and DL are not carried. Fix '
+      + 'what is needed, then press <b>Save roster</b> — nothing changes until it is saved.')}</div>`;
+
   const petak = dinasUnit(unit);
-  return kepala
+  return kepala + catatanPola
     + `<div class="jdw-gulir">${jdwTabel(unit)}</div>`
     + `<div class="dinas-baris" style="margin-top:18px">${
         petak.filter(s=>s.o.length).map(s=>kartuShift(s, kodeTerpakai(petak))).join('')}</div>`
@@ -297,6 +469,37 @@ function jdwGambar(){
   jdwPasang(unitDibuka);
 }
 
+/**
+ * Isi draf bulan yang dibuka dengan lanjutan pola dua bulan sebelumnya, lalu
+ * masuk mode sunting. Tidak menyimpan apa pun.
+ */
+async function jdwPolaIsi(unit, tombol){
+  const bulan = JDW.lihat;
+  const ambil = async (b)=> b === JDW.bulanIni ? JDW.jadwal : await jdwAmbil(b);
+  const adaIsi = JDW.sunting && (JDW.draf || []).some(o=>String(o.nama || '').trim() || (o.hari || []).some(Boolean));
+  if(adaIsi && !confirm(T('Isi tabel yang sedang disunting akan diganti draf dari pola bulan lalu. Lanjutkan?',
+      'The table being edited will be replaced by a draft from last month\'s pattern. Continue?'))) return;
+  if(tombol) tombol.disabled = true;
+  try{
+    const sumber = bulanGeser(bulan, -1);
+    const [lalu, sebelum] = await Promise.all([ambil(sumber), ambil(bulanGeser(bulan, -2))]);
+    const draf = polaDraf(bulan, lalu[unit], sebelum[unit]);
+    if(!draf){
+      pesan(T(`Jadwal ${namaBulan(sumber)} unit ini belum ada — tidak ada pola yang bisa diteruskan.`,
+              `There is no ${namaBulan(sumber)} roster for this unit — no pattern to continue.`));
+      return;
+    }
+    JDW.draf = draf.orang;
+    JDW.pola = { sumber, lanjut: draf.lanjut, ragu: draf.ragu, kosong: draf.kosong };
+    JDW.sunting = true;
+    jdwGambar();
+  }catch(e){
+    pesan(T('Jadwal bulan sebelumnya tidak bisa diambil: ','The previous roster could not be fetched: ') + (e && e.message || e));
+  }finally{
+    if(tombol && tombol.isConnected) tombol.disabled = false;
+  }
+}
+
 /** Pasang pendengar untuk isi yang barusan digambar. */
 function jdwPasang(unit){
   const kotak = el('s-dinas');
@@ -322,14 +525,16 @@ function jdwPasang(unit){
     // keadaan sebelum disunting, termasuk kalau sudah puluhan sel diubah.
     JDW.draf = jdwBaris(unit).map(o=>({ nama:o.nama, peran:o.peran, nik:o.nik || '', hari:[...(o.hari||[])] }));
     if(!JDW.draf.length) JDW.draf.push({ nama:'', peran:'', nik:'', hari:[] });
-    JDW.sunting = true;
+    JDW.sunting = true; JDW.pola = null;
     jdwGambar();
   });
 
   const btnBatal = kotak.querySelector('#jdwBatal');
   if(btnBatal) btnBatal.addEventListener('click', ()=>{
-    JDW.sunting = false; JDW.draf = null; jdwGambar();
+    JDW.sunting = false; JDW.draf = null; JDW.pola = null; jdwGambar();
   });
+
+  kotak.querySelectorAll('[data-jdw-pola]').forEach(b=>b.addEventListener('click', ()=>jdwPolaIsi(unit, b)));
 
   const btnImpor = kotak.querySelector('#jdwImpor');
   if(btnImpor) btnImpor.addEventListener('click', ()=>imporBuka(unit));
@@ -365,7 +570,7 @@ function jdwPasang(unit){
       await jdwSimpanUnit(JDW.lihat, unit, orang);
       JDW.jadwalLihat = { ...JDW.jadwalLihat, [unit]: orang };
       if(JDW.lihat === JDW.bulanIni) JDW.jadwal = JDW.jadwalLihat;
-      JDW.sunting = false; JDW.draf = null;
+      JDW.sunting = false; JDW.draf = null; JDW.pola = null;
       jdwGambar();
       // Kartu "hari ini" di beranda dan layar Dinas ikut berubah, jadi
       // digambar ulang — bukan menunggu orangnya menyegarkan halaman.

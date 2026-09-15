@@ -766,7 +766,7 @@ function gambarUnit(){
   // Subtab Jadwal Dinas mengisi dirinya sendiri: ia digambar ulang tiap kali
   // masuk atau keluar mode sunting, jadi tidak ikut di dalam template besar
   // di atas. Mode sunting unit sebelumnya sengaja tidak dibawa ke unit baru.
-  JDW.sunting = false; JDW.draf = null;
+  JDW.sunting = false; JDW.draf = null; JDW.pola = null;
   jdwGambar();
   // Kegiatan Berkala sama persis alasannya.
   if(BKL.unit !== unitDibuka){ BKL.sunting = false; BKL.draf = null; }

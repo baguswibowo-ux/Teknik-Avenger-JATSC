@@ -754,7 +754,7 @@ el('btnPakaiImpor').addEventListener('click', ()=>{
   // lagi di tabel jadwal yang sebenarnya, dan Batal di sana masih membatalkan
   // seluruhnya. Tombol Simpan jadwal yang menuliskannya.
   JDW.draf = IMP.orang.map(o=>({ nama:o.nama, peran:o.peran, nik:o.nik || '', hari:[...o.hari] }));
-  JDW.sunting = true;
+  JDW.sunting = true; JDW.pola = null;
   imporTutup();
   jdwGambar();
   pesan(T(`${jumlah} orang masuk ke jadwal — periksa, lalu tekan Simpan jadwal.`,
