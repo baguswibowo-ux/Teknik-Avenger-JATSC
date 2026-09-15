@@ -733,7 +733,7 @@ function blokTtd(){
     : T('(belum ada TTD tersimpan)','(no saved signature)');
 
   /* Jadwal Dinas TIDAK memakai blokTtd standar — footernya penuh, meliputi
-     PIC, tabel cuti/SAP, note lima poin, tanggal, dan dua kolom TTD di
+     PIC, tabel cuti/CAP, note lima poin, tanggal, dan dua kolom TTD di
      kanan. Yang menyusunnya dinasFooterHtml(); jalur ini cuma dilewati oleh
      mode lain (peralatan, sparepart). */
 
@@ -1801,7 +1801,7 @@ function tanggalPanjangID(iso){
 }
 
 /**
- * Ekstrak baris tabel cuti/SAP/ijin dari daftar orang + bulan.
+ * Ekstrak baris tabel cuti/CAP/ijin/DL dari daftar orang + bulan.
  *
  * Yang jadi baris: rentang berturut-turut yang kodenya CUTI, CAP, IJIN,
  * atau DL. Rentang yang terputus (misal cuti hari 1-3, masuk hari 4, cuti
@@ -1810,14 +1810,15 @@ function tanggalPanjangID(iso){
  *
  * Keterangan lampiran:
  *   CUTI → "Cuti Tahunan"     (bentuk paling umum di lembar aslinya)
- *   CAP  → "SAP"              (Surat Alasan Penting / Cuti Alasan Penting)
+ *   CAP  → "Cuti Alasan Penting" (sama dengan legenda kode dinas; dulu
+ *                              tertulis "SAP" dan terbaca sebagai hal lain)
  *   IJIN → "Ijin"
  *   DL   → "Dinas Luar"       (bertugas di luar stasiun)
  * Kode lain tidak masuk daftar ini — mereka bagian dari giliran jaga.
  */
 function dinasBarisCuti(orang, bulan){
   if(!Array.isArray(orang) || !orang.length) return [];
-  const KODE_CUTI = { CUTI: 'Cuti Tahunan', CAP: 'SAP', IJIN: 'Ijin', DL: 'Dinas Luar' };
+  const KODE_CUTI = { CUTI: 'Cuti Tahunan', CAP: 'Cuti Alasan Penting', IJIN: 'Ijin', DL: 'Dinas Luar' };
   const hariN = jumlahHari(bulan);
   const bulanIdx = Number(bulan.slice(5, 7));
   const bulanNama = BULAN_ID[bulanIdx - 1] || '';
@@ -1867,7 +1868,7 @@ const DINAS_NOTE = [
 
 /**
  * Bangun footer lembar Dinas: tanggal di kanan atas,
- * tabel cuti/SAP di tengah, note 5 poin di kiri bawah, dua blok TTD di
+ * tabel cuti/CAP di tengah, note 5 poin di kiri bawah, dua blok TTD di
  * kanan bawah (Mengetahui Deputy General Manager Teknik + Dibuat Oleh
  * Manager Teknik). Semua data yang berbeda per lembar diterima lewat
  * ctx supaya fungsi ini bisa dipanggil dari htmlDinas() maupun
@@ -1884,7 +1885,7 @@ const DINAS_NOTE = [
  */
 function dinasFooterHtml(ctx){
   /* Lembar PUM disederhanakan: daftar Note dibuang, menyisakan
-     tabel cuti/SAP/ijin/DL bulan itu plus tanggal dan dua kolom TTD. Note
+     tabel cuti/CAP/ijin/DL bulan itu plus tanggal dan dua kolom TTD. Note
      lima poin (rating, pemenuhan jam) urusan internal Teknik, bukan hal yang
      perlu ikut ke lembar PUM. */
   const pum = !!ctx.pum;
@@ -1901,7 +1902,7 @@ function dinasFooterHtml(ctx){
           <td class="cuti-tgl">${esc(r.tanggal)}</td>
         </tr>`).join('')
     : `<tr><td colspan="5" class="cuti-kosong">${
-        esc('Tidak ada cuti/SAP/ijin pada bulan ini.')}</td></tr>`;
+        esc('Tidak ada cuti/CAP/ijin/dinas luar pada bulan ini.')}</td></tr>`;
 
   const noteLi = DINAS_NOTE.map((s,i)=>
     `<div class="dinas-note-butir"><span class="dinas-note-no">${i+1}.</span> ${esc(s)}</div>`).join('');
