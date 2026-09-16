@@ -923,7 +923,11 @@ export function setUsername(oldUsername, newUsername) {
     ['dstest',      ['dibuat_oleh', 'ttd_oleh', 'ttd_untuk']],
     ['ltk',         ['dibuat_oleh', 'ttd_oleh', 'ttd_untuk']],
     ['berkala',     ['dibuat_oleh', 'ttd_oleh', 'ttd_untuk']],
-    ['bapb',        ['dibuat_oleh']]
+    ['bapb',        ['dibuat_oleh']],
+    // Sambungan notifikasi ikut pindah — username akan diganti NIK, dan tanpa
+    // ini Telegram serta HP orangnya diam-diam berhenti menerima kabar.
+    ['telegram_akun',  ['username']],
+    ['push_langganan', ['username']]
   ];
   const setUname = db.prepare('UPDATE users SET username = ? WHERE id = ?');
   db.exec('BEGIN');

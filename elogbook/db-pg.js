@@ -717,6 +717,9 @@ export async function setUsername(oldUsername, newUsername) {
     ['bapb',        ['dibuat_oleh']]
   ];
   const klien = await pool.connect();
+  // Sambungan notifikasi ikut pindah (lihat db.js). Di sini username-nya
+  // disimpan lowercase, jadi dicocokkan lowercase juga.
+  const TABEL_NOTIF = ['telegram_akun', 'push_langganan'];
   try {
     await klien.query('BEGIN');
     await klien.query('UPDATE users SET username = $1 WHERE id = $2', [baru, target.id]);
@@ -734,6 +737,11 @@ export async function setUsername(oldUsername, newUsername) {
         if (!kolomAda.has(k)) continue;
         await klien.query(`UPDATE ${tabel} SET ${k} = $1 WHERE ${k} = $2`, [baru, lama]);
       }
+    }
+    for (const tabel of TABEL_NOTIF) {
+      const ada = await klien.query('SELECT to_regclass($1) AS t', [tabel]);
+      if (!ada.rows[0]?.t) continue;
+      await klien.query(`UPDATE ${tabel} SET username = $1 WHERE username = $2`, [baru, lama.toLowerCase()]);
     }
     await klien.query('COMMIT');
   } catch (err) {
