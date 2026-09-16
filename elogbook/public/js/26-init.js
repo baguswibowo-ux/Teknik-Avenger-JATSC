@@ -247,9 +247,31 @@ function pilihLembarDiForm(nama) {
   if (tombol) tombol.click();
 }
 
+/**
+ * Lupakan tanda pagar sesudah dipakai.
+ *
+ * TAUTAN ITU SATU KUNJUNGAN. init() memanggil bukaTabDariTautan() di ujungnya,
+ * dan init() dijalankan lagi setiap kali unit diganti (07-unit.js) atau
+ * dokumen kotak masuk dibuka dari unit lain (20-ttd-pejabat.js). Selama tanda
+ * pagarnya masih menempel di alamat, tiap pemuatan ulang itu membaca perintah
+ * yang sama dan membuka jendela pengisiannya lagi — yang paling merasakan
+ * administrator, karena cuma dia yang punya banyak unit untuk digonta-ganti.
+ *
+ * replaceState, bukan pushState: kunjungan ini menggantikan alamat bertanda
+ * pagar tadi, tidak menumpuk satu langkah baru yang membuat tombol Kembali
+ * mengulangi hal yang sama.
+ */
+function lupakanTautanMasuk(){
+  try{ history.replaceState(null, '', location.pathname + location.search); }
+  catch(e){ /* peramban yang menolak: paling jauh jendelanya terbuka lagi */ }
+}
+
 function bukaTabDariTautan(){
   const tuju = tautanMasuk();
   if(!tuju || !tuju.tab) return;
+  // Dibuang sekarang, bukan sesudah tabnya terbuka: yang di bawah memakai
+  // setTimeout, dan init() berikutnya bisa mendahuluinya.
+  lupakanTautanMasuk();
   const btn = document.querySelector(`.tab-btn[data-tab="${tuju.tab}"]`);
   // Tab yang tidak ada, atau yang disembunyikan karena unit ini memang tidak
   // punya formulirnya, dibiarkan saja — halaman tetap terbuka di tab biasanya,
