@@ -240,6 +240,9 @@ tr.kelompok-akun .jumlah{color:var(--muted);margin-left:8px;letter-spacing:.04em
 .kartu-ubah.data{width:min(720px,100%);}
 .kartu-ubah .kepala{display:flex;justify-content:space-between;align-items:center;gap:10px;
   padding:13px 16px;border-bottom:1px solid var(--line);background:var(--panel-2);}
+/* Ruang untuk tombol tutup di pojok. Tanpa ini keterangan yang panjang lewat
+   di bawahnya dan terbaca setengah. */
+.kartu-ubah .kepala{padding-right:46px;}
 .kartu-ubah .kepala h3{font-size:14px;}
 .kartu-ubah .kepala .ket{font-family:var(--font-mono);font-size:10.5px;color:var(--muted);}
 .kartu-ubah .badan{padding:15px 16px;}
@@ -573,3 +576,22 @@ html[data-tema="gelap"] .sert-sunting input[type=date]::-webkit-calendar-picker-
             border:1px solid var(--line); margin-right:4px;}
 .tg-lencana.on{border-color:var(--ok); color:var(--ok);}
 .tg-lencana.off{color:var(--muted);}
+
+/* ---------- Tombol tutup di pojok kartu jendela ----------
+   Kartunya sering sepanjang dua layar — kartu data unit punya sebelas isian —
+   dan satu-satunya jalan keluar selama ini tombol Batal di kakinya: yang
+   salah buka harus menggulir sampai habis dulu.
+
+   Diletakkan absolut terhadap kartu, bukan disisipkan ke dalam aliran kepala,
+   supaya susunan judul + keterangan yang sudah ada tidak bergeser sedikit pun.
+
+   Tombol ini tidak memanggil fungsi apa pun sendiri — ia menekan tombol
+   keluar yang sudah ada di kaki kartu (lihat [data-tutup] di js/08-bantu.js).
+   Jadi apa pun yang dikerjakan tombol itu tetap terjadi, dan tidak ada jalan
+   keluar kedua yang bisa lupa diperbarui. */
+.kartu-ubah{position:relative;}
+.tutup-x{position:absolute;top:9px;right:10px;z-index:2;
+  width:30px;height:30px;display:flex;align-items:center;justify-content:center;
+  background:none;border:none;border-radius:8px;cursor:pointer;
+  color:var(--muted);font-size:15px;line-height:1;padding:0;}
+.tutup-x:hover{color:var(--text);background:var(--panel);}

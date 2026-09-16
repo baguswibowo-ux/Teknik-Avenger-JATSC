@@ -26,3 +26,15 @@
 .tg-badge{display:inline-block; padding:2px 8px; border-radius:999px; font-size:11.5px; font-weight:600; margin-right:4px;}
 .tg-badge.tg-on{background:rgba(45,180,90,.15); color:#2db45a; border:1px solid rgba(45,180,90,.4);}
 .tg-badge.tg-off{background:var(--panel-2); color:var(--muted); border:1px solid var(--line);}
+
+/* ---------- Kepala jendela ----------
+   Judul di kiri, tombol tutup di kanan. Bentuknya satu untuk seluruh jendela:
+   formulirnya panjang-panjang — lembar Neptuno 316 baris — dan yang salah buka
+   dulu harus menggulir sampai habis untuk menemukan tombol Batal di kakinya.
+
+   `gap` menjaga tombolnya tidak menempel ke judul yang panjang, dan tombolnya
+   tidak ikut menyusut waktu judulnya memaksa baris kedua di layar HP. */
+.modal-kepala{display:flex; justify-content:space-between; align-items:center;
+              gap:12px; margin-bottom:10px;}
+.modal-kepala h3{margin:0;}
+.modal-kepala .icon-btn{flex:0 0 auto; font-size:18px; line-height:1;}

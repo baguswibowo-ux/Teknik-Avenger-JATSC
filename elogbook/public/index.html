@@ -20,7 +20,7 @@
 <link rel="stylesheet" href="css/04-catatan.css?v=20260916tautan">
 <link rel="stylesheet" href="css/05-tabel.css">
 <link rel="stylesheet" href="css/06-peran-lampiran.css?v=20260916tautan">
-<link rel="stylesheet" href="css/07-modal-toast.css">
+<link rel="stylesheet" href="css/07-modal-toast.css?v=20260916tutup">
 <link rel="stylesheet" href="css/08-layar-kecil.css">
 <link rel="stylesheet" href="css/09-cetak.css">
 <link rel="stylesheet" href="css/10-login-identitas.css">
@@ -185,8 +185,8 @@
          openDcFormModal(); ditutup closeDcFormModal(). -->
     <div class="modal-bg" id="dcFormModalBg">
       <div class="modal" style="max-width:1180px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-          <h3 id="dcFormModalJudul" style="margin:0;" data-t="dcJudul">Daily Check</h3>
+        <div class="modal-kepala">
+          <h3 id="dcFormModalJudul" data-t="dcJudul">Daily Check</h3>
           <button class="icon-btn" onclick="closeDcFormModal()" title="Tutup">✕</button>
         </div>
     <nav class="subtabs" id="dcSubtabs" style="display:none;">
@@ -1529,7 +1529,10 @@
 <!-- MODAL TAMBAH CATATAN -->
 <div class="modal-bg" id="entryModalBg">
   <div class="modal">
-    <h3 data-t="modalCatatan">Tambah Catatan Logbook</h3>
+    <div class="modal-kepala">
+      <h3 data-t="modalCatatan">Tambah Catatan Logbook</h3>
+      <button class="icon-btn" onclick="closeEntryModal()" data-t-title="tutup" title="Tutup">&#10005;</button>
+    </div>
     <div class="grid3">
       <div class="field"><label data-t="tanggal">Tanggal</label><input type="date" id="feTanggal"></div>
       <div class="field"><label id="feJamLabel" data-t="jamUtc">Jam (UTC)</label><input type="time" id="feJam"></div>
@@ -1579,7 +1582,10 @@
 <!-- MODAL TAMBAH ISU -->
 <div class="modal-bg" id="issueModalBg">
   <div class="modal" style="max-width:560px;">
-    <h3 data-t="modalIsu">Tambah Isu</h3>
+    <div class="modal-kepala">
+      <h3 data-t="modalIsu">Tambah Isu</h3>
+      <button class="icon-btn" onclick="closeIssueModal()" data-t-title="tutup" title="Tutup">&#10005;</button>
+    </div>
     <!-- Muncul hanya kalau form ini dibuka dari catatan Logbook Fasilitas (isinya diisi JS). -->
     <div class="subtle-note" id="isDariLogbook" style="display:none;"></div>
     <div class="field"><label data-t="jenisIssue">Jenis Issue</label><input type="text" id="isJenis" data-t-ph="phJenisIsu" placeholder="cth. VR 3 partial failure of element"></div>
@@ -1622,7 +1628,7 @@
 <!-- MODAL DETAIL BERSAMA (Monitoring & LTK) -->
 <div class="modal-bg" id="formDetailBg">
   <div class="modal" style="max-width:860px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+    <div class="modal-kepala">
       <h3 style="margin:0;" id="formDetailJudul">Detail</h3>
       <button class="icon-btn" style="font-size:18px;" onclick="closeFormDetail()">✕</button>
     </div>
@@ -1645,7 +1651,7 @@
      jadi pemilihnya tidak memanggil server sama sekali. -->
 <div class="modal-bg" id="tautanPilihBg">
   <div class="modal" style="max-width:640px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+    <div class="modal-kepala">
       <h3 style="margin:0;" data-t="pilihDokumen">Tautkan Dokumen</h3>
       <button class="icon-btn" style="font-size:18px;" onclick="closeTautanPilih()">✕</button>
     </div>
@@ -1663,7 +1669,10 @@
 <!-- MODAL FORM MONITORING FREKUENSI -->
 <div class="modal-bg" id="monModalBg">
   <div class="modal" style="max-width:960px;">
-    <h3 data-t="monModal">Form Monitoring Frekuensi</h3>
+    <div class="modal-kepala">
+      <h3 data-t="monModal">Form Monitoring Frekuensi</h3>
+      <button class="icon-btn" onclick="closeMonModal()" data-t-title="tutup" title="Tutup">&#10005;</button>
+    </div>
     <div class="field" style="max-width:260px;"><label data-t="tanggal">Tanggal</label><input type="date" id="monTanggal"></div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin:6px 0;">
       <label style="font-family:var(--font-mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);" data-t="barisPengamatan">Baris Pengamatan</label>
@@ -1703,7 +1712,10 @@
 <!-- MODAL DS TEST -->
 <div class="modal-bg" id="dsModalBg">
   <div class="modal" style="max-width:1080px;">
-    <h3 data-t="dsModal">DS Test</h3>
+    <div class="modal-kepala">
+      <h3 data-t="dsModal">DS Test</h3>
+      <button class="icon-btn" onclick="closeDsModal()" data-t-title="tutup" title="Tutup">&#10005;</button>
+    </div>
     <div class="grid2">
       <div class="field"><label data-t="tanggal">Tanggal</label><input type="date" id="dsTanggal"></div>
       <div class="field">
@@ -1756,7 +1768,10 @@
 <!-- MODAL MAINTENANCE RADIO -->
 <div class="modal-bg" id="radioModalBg">
   <div class="modal" style="max-width:1120px;">
-    <h3 data-t="radioModal">Maintenance Radio</h3>
+    <div class="modal-kepala">
+      <h3 data-t="radioModal">Maintenance Radio</h3>
+      <button class="icon-btn" onclick="closeRadioModal()" data-t-title="tutup" title="Tutup">&#10005;</button>
+    </div>
     <div class="grid2">
       <div class="field"><label data-t="tanggal">Tanggal</label><input type="date" id="radioTanggal"></div>
       <div class="field">
@@ -1814,7 +1829,10 @@
      tombolnya ditekan. -->
 <div class="modal-bg" id="wkModalBg">
   <div class="modal" style="max-width:1120px;">
-    <h3 id="wkModalJudul">Weekly Check</h3>
+    <div class="modal-kepala">
+      <h3 id="wkModalJudul">Weekly Check</h3>
+      <button class="icon-btn" onclick="closeWkModal()" data-t-title="tutup" title="Tutup">&#10005;</button>
+    </div>
     <div class="grid2">
       <div class="field"><label data-t="hariTanggal">Hari / Tanggal</label><input type="date" id="wkTanggal"></div>
     </div>
@@ -1852,7 +1870,10 @@
      ditekan — pola yang sama dengan modal Weekly Check di atas. -->
 <div class="modal-bg" id="mlModalBg">
   <div class="modal" style="max-width:1180px;">
-    <h3 id="mlModalJudul">Pemeliharaan</h3>
+    <div class="modal-kepala">
+      <h3 id="mlModalJudul">Pemeliharaan</h3>
+      <button class="icon-btn" onclick="closeMlModal()" data-t-title="tutup" title="Tutup">&#10005;</button>
+    </div>
     <p id="mlModalSub" style="margin:-6px 0 12px;color:var(--muted);font-size:12.5px;"></p>
     <div class="grid3">
       <div class="field"><label data-t="hariTanggal">Hari / Tanggal</label><input type="date" id="mlTanggal"></div>
@@ -1893,7 +1914,10 @@
      sama dengan modal Pemeliharaan Listrik di atas. -->
 <div class="modal-bg" id="rkModalBg">
   <div class="modal" style="max-width:1280px;">
-    <h3 id="rkModalJudul">Meter Reading</h3>
+    <div class="modal-kepala">
+      <h3 id="rkModalJudul">Meter Reading</h3>
+      <button class="icon-btn" onclick="closeRkModal()" data-t-title="tutup" title="Tutup">&#10005;</button>
+    </div>
     <p id="rkModalSub" style="margin:-6px 0 12px;color:var(--muted);font-size:12.5px;"></p>
     <div class="grid3">
       <div class="field"><label data-t="hariTanggal">Hari / Tanggal</label><input type="date" id="rkTanggal"></div>
@@ -1932,7 +1956,10 @@
      #llzCharts tergambar ulang tiap kali kolom DDM (ddm) diketik. -->
 <div class="modal-bg" id="llzModalBg">
   <div class="modal" style="max-width:1180px;">
-    <h3 id="llzModalJudul">Ground Check Performance Curve</h3>
+    <div class="modal-kepala">
+      <h3 id="llzModalJudul">Ground Check Performance Curve</h3>
+      <button class="icon-btn" onclick="closeLlzModal()" data-t-title="tutup" title="Tutup">&#10005;</button>
+    </div>
     <div class="grid2">
       <div class="field"><label data-t="hariTanggal">Hari / Tanggal</label><input type="date" id="llzTanggal"></div>
       <div class="field"><label>Jarak dari antenna localizer (M)</label><input type="text" inputmode="decimal" id="llzJarakAntena" placeholder="mis. 60"></div>
@@ -1967,7 +1994,10 @@
      openMrModal(id) di js/17f-meter-reading.js dari skema per jenis. -->
 <div class="modal-bg" id="mrModalBg">
   <div class="modal" style="max-width:1240px;">
-    <h3 id="mrModalJudul">Meter Reading</h3>
+    <div class="modal-kepala">
+      <h3 id="mrModalJudul">Meter Reading</h3>
+      <button class="icon-btn" onclick="closeMrModal()" data-t-title="tutup" title="Tutup">&#10005;</button>
+    </div>
     <div id="mrModalMeta" style="font-family:var(--font-mono);font-size:11.5px;color:var(--muted);margin:-4px 0 10px;letter-spacing:.03em;"></div>
     <div class="grid2">
       <div class="field"><label data-t="hariTanggal">Hari / Tanggal</label><input type="date" id="mrTanggal"></div>
@@ -2000,7 +2030,10 @@
      yang menentukan sudah tab tempat tombolnya ditekan. -->
 <div class="modal-bg" id="bkModalBg">
   <div class="modal" style="max-width:860px;">
-    <h3 id="bkModalJudul">Pekerjaan Berkala</h3>
+    <div class="modal-kepala">
+      <h3 id="bkModalJudul">Pekerjaan Berkala</h3>
+      <button class="icon-btn" onclick="closeBerkalaModal()" data-t-title="tutup" title="Tutup">&#10005;</button>
+    </div>
     <div class="grid2">
       <div class="field"><label data-t="tanggal">Tanggal</label><input type="date" id="bkTanggal"></div>
       <div class="field"><label data-t="bkRingkasan">Ringkasan</label><div id="bkRingkas" style="padding:9px 0;font-size:12px;color:var(--muted);"></div></div>
@@ -2044,7 +2077,10 @@
 <!-- MODAL LTK -->
 <div class="modal-bg" id="ltkModalBg">
   <div class="modal" style="max-width:720px;">
-    <h3 data-t="ltkModal">Buat LTK</h3>
+    <div class="modal-kepala">
+      <h3 data-t="ltkModal">Buat LTK</h3>
+      <button class="icon-btn" onclick="closeLtkModal()" data-t-title="tutup" title="Tutup">&#10005;</button>
+    </div>
     <div class="grid2">
       <div class="field"><label data-t="tanggalPelaporan">Tanggal Pelaporan</label><input type="date" id="ltkTanggalLapor"></div>
       <div class="field"><label data-t="kotaLtk">Kota</label><input type="text" id="ltkKota" placeholder="Tangerang"></div>
@@ -2095,7 +2131,10 @@
      (Manager Pemakai, Manager Teknik, Petugas Pemasangan). -->
 <div class="modal-bg" id="bapbModalBg">
   <div class="modal" style="max-width:960px;">
-    <h3 data-t="bapbModal">Buat BAPB</h3>
+    <div class="modal-kepala">
+      <h3 data-t="bapbModal">Buat BAPB</h3>
+      <button class="icon-btn" onclick="closeBapbModal()" data-t-title="tutup" title="Tutup">&#10005;</button>
+    </div>
     <div class="grid2">
       <div class="field"><label data-t="bapbNomor">Nomor</label><input type="text" id="bapbNomor" data-t-ph="phBapbNomor" placeholder="cth. 001/BAPB/VIII/2026"></div>
       <div class="field"><label data-t="tanggal">Tanggal</label><input type="date" id="bapbTanggal"></div>
@@ -2170,7 +2209,10 @@
      lampiran BAPB yang sudah tersimpan (lihat suntingLampiranBapb di db.js). -->
 <div class="modal-bg" id="bapbLampiranBg">
   <div class="modal" style="max-width:520px;">
-    <h3 data-t="bapbKelolaLampiranJudul">Lampiran BAPB</h3>
+    <div class="modal-kepala">
+      <h3 data-t="bapbKelolaLampiranJudul">Lampiran BAPB</h3>
+      <button class="icon-btn" onclick="closeBapbLampiranModal()" data-t-title="tutup" title="Tutup">&#10005;</button>
+    </div>
     <div class="field">
       <label data-t="bapbLampiranTersimpan">Lampiran tersimpan</label>
       <div id="bapbLampiranAda"></div>
@@ -2193,7 +2235,10 @@
      Pemakai belakangan, selama Manager Teknik belum tanda tangan. -->
 <div class="modal-bg" id="bapbPemakaiBg">
   <div class="modal" style="max-width:440px;">
-    <h3 data-t="bapbPemakaiUbahJudul">TTD Manager Pemakai</h3>
+    <div class="modal-kepala">
+      <h3 data-t="bapbPemakaiUbahJudul">TTD Manager Pemakai</h3>
+      <button class="icon-btn" onclick="closeBapbPemakaiModal()" data-t-title="tutup" title="Tutup">&#10005;</button>
+    </div>
     <div class="field"><label data-t="bapbPemakai">Manager Pemakai</label><input type="text" id="bapbPemakaiEditNama" data-t-ph="phBapbPemakaiNama" placeholder="Nama manager pemakai"></div>
     <div class="field" style="margin-top:6px;"><label data-t="ttdDiSini">Tanda Tangan</label><div class="sig-wrap"><canvas id="sigBapbPemakaiEdit"></canvas><div class="sig-toolbar"><span class="sig-hint" data-t="ttdHintUmum">tanda tangan di sini</span><button class="sig-clear" onclick="clearSig('sigBapbPemakaiEdit')" data-t="bersihkan">bersihkan</button></div></div></div>
     <div class="modal-footer">
@@ -2206,7 +2251,7 @@
 <!-- MODAL DETAIL ISU -->
 <div class="modal-bg" id="issueDetailBg">
   <div class="modal" style="max-width:680px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+    <div class="modal-kepala">
       <h3 style="margin:0;" data-t="detailIsu">Detail Isu</h3>
       <button class="icon-btn" style="font-size:18px;" onclick="closeIssueDetail()">✕</button>
     </div>
@@ -2225,7 +2270,10 @@
      langkah itu sering terlupa, jadi isu ditutup tanpa jejak apa pun. -->
 <div class="modal-bg" id="tutupIsuModalBg">
   <div class="modal" style="max-width:520px;">
-    <h3>Tutup Isu</h3>
+    <div class="modal-kepala">
+      <h3>Tutup Isu</h3>
+      <button class="icon-btn" onclick="batalkanTutupIsu()" data-t-title="tutup" title="Tutup">&#10005;</button>
+    </div>
     <div class="subtle-note" id="tutupIsuRingkas" style="margin-bottom:12px;">
       Isu yang akan ditutup akan muncul di sini.
     </div>
@@ -2260,7 +2308,10 @@
 <!-- MODAL TANDA TANGAN SUSULAN (pejabat / manager teknik) -->
 <div class="modal-bg" id="ttdModalBg">
   <div class="modal" style="max-width:460px;">
-    <h3 data-t="ttdModalJudul">Bubuhkan Tanda Tangan</h3>
+    <div class="modal-kepala">
+      <h3 data-t="ttdModalJudul">Bubuhkan Tanda Tangan</h3>
+      <button class="icon-btn" onclick="closeTtdModal()" data-t-title="tutup" title="Tutup">&#10005;</button>
+    </div>
     <div class="subtle-note" style="margin-bottom:12px;">
       <span data-t="ttdSbgKeterangan">Tanda tangan untuk</span>
       <b id="ttdSbgPeran">-</b> — <b id="ttdSbgNama">-</b>.<br>
@@ -2297,7 +2348,10 @@
 <!-- MODAL TTD TERSIMPAN MILIK AKUN SENDIRI -->
 <div class="modal-bg" id="ttdSayaModalBg">
   <div class="modal" style="max-width:640px;">
-    <h3 data-t="ttdSayaJudul">TTD Tersimpan Saya</h3>
+    <div class="modal-kepala">
+      <h3 data-t="ttdSayaJudul">TTD Tersimpan Saya</h3>
+      <button class="icon-btn" onclick="closeTtdSayaModal()" data-t-title="tutup" title="Tutup">&#10005;</button>
+    </div>
     <div class="ttd-saya-pratinjau">
       <label data-t="ttdSayaTersimpanKini">Yang tersimpan sekarang</label>
       <div id="ttdSayaPratinjau"></div>
@@ -2338,7 +2392,10 @@
 <!-- MODAL SUNTING CATATAN LOGBOOK (tanggal/jam/uraian yang salah ketik) -->
 <div class="modal-bg" id="entryEditModalBg">
   <div class="modal">
-    <h3 data-t="modalSuntingCatatan">Sunting Catatan Logbook</h3>
+    <div class="modal-kepala">
+      <h3 data-t="modalSuntingCatatan">Sunting Catatan Logbook</h3>
+      <button class="icon-btn" onclick="closeEntryEditModal()" data-t-title="tutup" title="Tutup">&#10005;</button>
+    </div>
     <div class="grid3">
       <div class="field"><label data-t="tanggal">Tanggal</label><input type="date" id="feeTanggal"></div>
       <div class="field"><label id="feeJamLabel" data-t="jamUtc">Jam (UTC)</label><input type="time" id="feeJam"></div>
@@ -2391,7 +2448,7 @@
 <!-- MODAL KOTAK MASUK TTD (pejabat & admin) -->
 <div class="modal-bg" id="inboxModalBg">
   <div class="modal" style="max-width:520px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+    <div class="modal-kepala">
       <h3 style="margin:0;" data-t="inboxJudul">Menunggu TTD Anda</h3>
       <button class="icon-btn" style="font-size:18px;" onclick="closeInboxModal()">✕</button>
     </div>
@@ -2405,7 +2462,7 @@
 <!-- MODAL DETAIL CATATAN LOGBOOK -->
 <div class="modal-bg" id="entryDetailBg">
   <div class="modal" style="max-width:680px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+    <div class="modal-kepala">
       <h3 style="margin:0;" data-t="detailCatatan">Detail Catatan Logbook</h3>
       <button class="icon-btn" style="font-size:18px;" onclick="closeEntryDetail()">✕</button>
     </div>
@@ -2424,7 +2481,7 @@
 
 <div class="modal-bg" id="dcDetailBg">
   <div class="modal" style="max-width:820px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+    <div class="modal-kepala">
       <h3 style="margin:0;" data-t="detailDc">Detail Daily Check</h3>
       <button class="icon-btn" style="font-size:18px;" onclick="closeDcDetail()">✕</button>
     </div>

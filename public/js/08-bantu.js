@@ -68,3 +68,24 @@ const tglRingkas  = (iso) => { const d=new Date(iso+'T00:00:00');
   if(isNaN(d)) return '—';
   return d.getDate()+' '+BULAN[BHS][d.getMonth()]+' '+d.getFullYear(); };
 
+
+/* ---------- Tombol tutup di pojok kartu jendela ----------
+   Tiap tombol X di kepala kartu membawa data-tutup berisi id tombol keluar
+   yang sudah ada di kaki kartu itu, dan yang dilakukannya cuma menekan tombol
+   tersebut.
+
+   Sengaja begitu, bukan memanggil fungsi penutupnya langsung: tombol di kaki
+   sering mengerjakan lebih dari sekadar menyembunyikan kartu — mengosongkan
+   formulir, melepas draf, mengembalikan pilihan yang belum disimpan. Jalan
+   keluar kedua yang memanggil fungsi sendiri berarti dua tempat yang harus
+   ikut diperbarui, dan yang lupa diperbarui akan meninggalkan kartu berikutnya
+   berisi sisa isian kartu sebelumnya.
+
+   Satu pendengar untuk seluruh halaman, bukan satu per tombol: kartu yang
+   digambar belakangan ikut terlayani tanpa perlu dipasangi apa pun. */
+document.addEventListener('click', (ev) => {
+  const x = ev.target.closest('[data-tutup]');
+  if (!x) return;
+  const keluar = el(x.dataset.tutup);
+  if (keluar) keluar.click();
+});
