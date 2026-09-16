@@ -133,10 +133,9 @@ function tautanMasuk(){
   // bukan cuma tabnya. Dipakai cip kegiatan berkala dan tombol Kotak Masuk di
   // dashboard — dari sana orang memang berangkat untuk MENGISI, dan berhenti
   // di tab berarti masih harus mencari tombol Form Baru sendiri.
-  // Bagian keempat opsional: nama sub-tab DI DALAM jendela form, buat lembar
-  // yang satu tabnya memuat beberapa bentuk. Daily Check Radtel begitu —
-  // gedungnya (New JATSC/JATSC) dipilih di dalam formnya, bukan di tab.
-  const [tab, unit, mau, subform] = isi.split(':');
+  // Bagian keempat opsional: LEMBAR mana di dalam tab itu. Satu tab sering
+  // memuat banyak lembar, dan cara memilihnya berbeda-beda — lihat bukaLembar().
+  const [tab, unit, mau, lembar] = isi.split(':');
   // Tanda hubung ikut diterima. Empat tab pekerjaan berkala bernama bk-neptuno
   // sampai bk-restart, dan pola yang cuma menerima huruf menolak keempatnya
   // tanpa suara: tautannya mendarat di halaman depan seolah tabnya tidak ada.
@@ -145,59 +144,107 @@ function tautanMasuk(){
     tab,
     unit: /^[a-z0-9_-]+$/.test(unit || '') ? unit : '',
     isi: mau === 'isi',
-    subform: /^[a-z][a-z0-9-]*$/.test(subform || '') ? subform : ''
+    // Angka boleh di depan: lembar Ground Check bernama 07l, 25r, dan
+    // seterusnya. Pola yang mengharuskan huruf menolak keempatnya tanpa suara.
+    lembar: /^[a-z0-9][a-z0-9-]*$/.test(lembar || '') ? lembar : ''
   };
 }
 
 /**
- * Tekan tombol "+ Form Baru" milik panel yang baru saja dibuka.
+ * Tombol pemilih yang memanggil fungsinya dengan nama lembar ini sebagai
+ * argumen — openMrModal('gp-07l'), setDcLkForm('sts'), pindahDcAmhsSub('AMHS').
  *
- * TOMBOLNYA YANG DITEKAN, bukan fungsinya yang dipanggil. Lima puluh tujuh
- * tombol itu sudah membawa argumennya masing-masing di markup —
- * openBerkalaModal('neptuno'), openWkModal('ckg3'), openMrModal('llz-07l') —
- * jadi lembar yang terbuka pasti lembar yang ditunjuk tautannya. Daftar
- * "sub-tab mana memanggil fungsi apa" di sini berarti daftar kedua yang harus
- * ikut diubah tiap kali ada lembar baru, dan yang lupa diubah akan membuka
- * form yang salah tanpa suara.
+ * Argumennya dicocokkan UTUH, bukan sebagai potongan teks: 'sts' tidak boleh
+ * ikut memilih lembar bernama 'sts-lama' kalau kelak ada. Dan tidak peka huruf
+ * besar-kecil — lembar AMHS disebut 'amhs' di dashboard (itu nilai yang
+ * tersimpan di kolom Form) tapi 'AMHS' di tombolnya.
  *
- * Dibatasi ke tombol yang memang MEMBUKA form: di tab Daily Check ada tombol
- * Simpan yang kebetulan berkelas btn-tambah juga.
- *
- * Tombol yang tersembunyi tidak ditekan. Peran yang cuma boleh membaca memang
- * tidak dipasangi tombol itu, dan tautannya cukup berhenti di tabnya.
+ * SATU NAMA BISA DIPAKAI BEBERAPA UNIT. 'jatsc' adalah gedung di Radtel dan
+ * juga di Gedung & Keamanan; 'sts' adalah lembar Daily Check Listrik dan juga
+ * lembar Pemeliharaan Listrik. Yang membedakan mana yang berlaku: hanya milik
+ * unit yang sedang dibuka yang terlihat — 07-unit.js menyembunyikan nav unit
+ * lain. Karena itu `tampak` ada, dan pemanggil yang mencari di seluruh
+ * halaman wajib menyalakannya; mengambil yang pertama ketemu berarti mendarat
+ * di tombol unit lain yang tidak akan pernah bisa ditekan.
  */
-function tekanFormBaru(panel, subform){
-  if(!panel) return;
-  const btn = panel.querySelector('.btn-tambah[onclick^="open"]');
-  if(!btn || btn.offsetParent === null) return;
-  // Sesudah tabnya benar-benar tergambar: papan tanda tangan di dalam jendela
-  // diukur ulang saat terbuka, dan kanvas selebar 0 tidak bisa digambari.
-  setTimeout(()=>{
-    btn.click();
-    if(subform) setTimeout(()=>pilihSubformAktif(subform), 60);
-  }, 80);
+function tombolBertanda(akar, kelas, nama, tampak) {
+  const cari = String(nama).toLowerCase();
+  const daftar = [...akar.querySelectorAll(kelas)];
+  return daftar.find(b => {
+    if (tampak && b.offsetParent === null) return false;
+    const cocok = /\(\s*'([^']*)'\s*\)/.exec(b.getAttribute('onclick') || '');
+    return cocok && cocok[1].toLowerCase() === cari;
+  }) || null;
 }
 
 /**
- * Tekan sub-tab di dalam jendela form yang baru terbuka — mis. gedung pada
- * Daily Check Radtel (dc-newjatsc / dc-jatsc).
+ * Buka tingkat-tingkat tab yang menyembunyikan sebuah elemen.
  *
- * Sesudah formnya terbuka, bukan sebelum: "+ Form Baru" memanggil
- * resetDcForm(), dan yang disetel duluan akan tertimpa.
- *
- * Tombolnya lagi-lagi yang ditekan, bukan setDcLokasi() yang dipanggil
- * langsung. Sub-tab itu yang tahu nilai apa yang dikirimnya, dan lembar lain
- * yang kelak punya pemilih serupa (Pengamatan: Radar CKG 3 vs Fasilitas)
- * ikut jalan tanpa berkas ini disentuh.
- *
- * Yang tidak terlihat dilewati: unit yang memang tidak punya pemilih itu
- * menyembunyikan navnya, dan menekan yang tersembunyi mengubah bentuk form
- * ke sesuatu yang tidak dipakai unit tersebut.
+ * Lembar Meter Reading dan Ground Check duduk di dalam tab bertingkat
+ * (.lvl-panel), dan tombol di panel yang tidak aktif tidak bisa ditekan. Tiap
+ * tingkat dibuka lewat tombolnya sendiri; urutannya tidak berpengaruh karena
+ * satu .lvl-btn hanya menukar anak langsung tingkatnya.
  */
-function pilihSubformAktif(nama){
-  const tombol = [...document.querySelectorAll('.subtab-btn[data-subtab="' + nama + '"]')]
-    .find(b => b.offsetParent !== null);
-  if(tombol) tombol.click();
+function bukaTingkat(el) {
+  let panel = el.closest('.lvl-panel');
+  while (panel) {
+    if (!panel.classList.contains('active')) {
+      const tombol = document.querySelector('.lvl-btn[data-target="' + panel.id + '"]');
+      if (tombol) tombol.click();
+    }
+    panel = panel.parentElement ? panel.parentElement.closest('.lvl-panel') : null;
+  }
+}
+
+/**
+ * Buka jendela pengisian lembar yang ditunjuk tautan.
+ *
+ * Satu tab hampir selalu memuat banyak lembar, dan cara memilihnya ada dua —
+ * keduanya dituju dari dashboard, jadi keduanya dilayani di sini:
+ *
+ *   TOMBOL SENDIRI-SENDIRI — lembar Preventive Maintenance. Tiap lembar punya
+ *   "+ Form Baru" sendiri lengkap dengan argumennya di markup, kadang terkubur
+ *   di tab bertingkat. Tombolnya dicari langsung, tingkatnya dibuka, ditekan.
+ *
+ *   PEMILIH DI DALAM FORM — Daily Check tiap unit. Tombolnya cuma satu, dan
+ *   lembarnya dipilih sesudah jendelanya terbuka lewat sub-tab di dalam form:
+ *   gedung untuk Radtel dan Gedung & Keamanan, nama lembar untuk Listrik &
+ *   Mekanik, sistem untuk AMHS. Dipilih SESUDAH formnya terbuka, bukan
+ *   sebelum — "+ Form Baru" memanggil reset yang menimpa apa pun yang
+ *   disetel duluan.
+ *
+ * Keduanya menekan TOMBOLNYA, bukan memanggil fungsinya. Tombol itu yang tahu
+ * nilai apa yang dikirimnya, jadi lembar baru di E-Logbook ikut jalan tanpa
+ * berkas ini disentuh — tidak ada daftar kedua yang harus dijaga sinkron.
+ *
+ * Yang tersembunyi tidak ditekan. Peran yang cuma boleh membaca memang tidak
+ * dipasangi "+ Form Baru", dan pemilih yang disembunyikan untuk unit ini
+ * bukan milik unit ini.
+ *
+ * Nama lembar yang tidak dikenali jatuh ke tombol pertama panel itu — lembar
+ * pertama tab yang benar masih jauh lebih dekat ke tujuan daripada tidak
+ * terjadi apa-apa.
+ */
+function bukaLembar(panel, nama) {
+  if (!panel) return;
+  const tepat = nama ? tombolBertanda(panel, '.btn-tambah', nama) : null;
+  const btn = tepat || panel.querySelector('.btn-tambah[onclick^="open"]');
+  if (!btn) return;
+  if (tepat) bukaTingkat(tepat);
+  if (btn.offsetParent === null) return;
+  // Sesudah tabnya benar-benar tergambar: papan tanda tangan di dalam jendela
+  // diukur ulang saat terbuka, dan kanvas selebar 0 tidak bisa digambari.
+  setTimeout(() => {
+    btn.click();
+    if (nama && !tepat) setTimeout(() => pilihLembarDiForm(nama), 60);
+  }, 80);
+}
+
+/** Sub-tab pemilih lembar di dalam jendela form yang baru terbuka. Dicari di
+    seluruh halaman, jadi wajib menyaring yang terlihat — lihat tombolBertanda. */
+function pilihLembarDiForm(nama) {
+  const tombol = tombolBertanda(document, '.subtab-btn', nama, true);
+  if (tombol) tombol.click();
 }
 
 function bukaTabDariTautan(){
@@ -210,7 +257,7 @@ function bukaTabDariTautan(){
   if(btn){
     if(btn.style.display === 'none') return;
     btn.click();
-    if(tuju.isi) tekanFormBaru(document.getElementById('view-' + tuju.tab), tuju.subform);
+    if(tuju.isi) bukaLembar(document.getElementById('view-' + tuju.tab), tuju.lembar);
     return;
   }
   /* Nama SUB-TAB (dstest, radio, bk-neptuno, wk-ckg3, gcheck, meter, ml-sts, …):
@@ -226,7 +273,7 @@ function bukaTabDariTautan(){
   sub.click();
   // Panelnya sub-view, bukan tab induknya: satu tab bisa memuat belasan
   // lembar, dan yang dicari tombol milik lembar yang ditunjuk tautannya.
-  if(tuju.isi) tekanFormBaru(document.getElementById('view-' + tuju.tab), tuju.subform);
+  if(tuju.isi) bukaLembar(document.getElementById('view-' + tuju.tab), tuju.lembar);
 }
 /**
  * Alamat Dashboard Fasilitas Teknik, untuk tombol pulang di kepala halaman.

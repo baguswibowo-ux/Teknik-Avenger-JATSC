@@ -109,10 +109,14 @@ const BKL = {
      sebut  sebutan di dalam kalimat ("menunggu lembar DS Test")
      paket  nama larik pada jawaban getAllData E-Logbook
      tab    tab E-Logbook untuk tautan #<tab>:<unit>, lihat kotakTautanForm()
-     subform boleh tidak ada. Nama sub-tab DI DALAM jendela form E-Logbook,
-            untuk lembar yang satu tabnya memuat beberapa bentuk — Daily Check
-            Radtel memilih gedungnya di dalam formnya, bukan di tab, jadi tanpa
-            ini kedua cipnya mendarat di form yang sama
+     lembar boleh tidak ada. LEMBAR mana di dalam tab itu — satu tab hampir
+            selalu memuat beberapa lembar, dan tanpa ini semua cipnya mendarat
+            di lembar yang kebetulan dipakai terakhir. Isinya nilai yang sama
+            dengan yang dikirim tombol pemilihnya di E-Logbook: gedung Daily
+            Check Radtel ('jatsc'), kolom Form untuk Daily Check unit lain
+            ('ckg3', 'sts', 'amhs'), atau argumen "+ Form Baru" untuk lembar
+            Preventive ('gp-07l', 'ming-710'). Lihat bukaLembar() di
+            E-Logbook js/26-init.js
      ada    penanda per unit di daftar unit E-Logbook — unit yang tidak punya
             formulirnya tidak dipasangi tombol yang menuju tab tersembunyi.
             Boleh juga FUNGSI (baris unit) => boolean, untuk lembar yang tidak
@@ -180,7 +184,7 @@ const BERKALA_SUMBER = {
     cip:   'DAILY CHECK · NEW JATSC',  judul: 'Daily Check (New JATSC)',
     sebut: ['lembar Daily Check New JATSC', 'the New JATSC Daily Check sheet'],
     paket: 'dcHistory',  tab: 'dailycheck',  ada: (u)=> u.kode === 'radtel' && !!u.adaDailyCheck,   // lembar Garex/Frequentis hanya Radtel
-    subform: 'dc-newjatsc',
+    lembar: 'new-jatsc',
     /* Lokasi kosong dibaca sebagai New JATSC — lihat blok di atas. */
     saring:(x)=> !x.Lokasi || x.Lokasi === 'new-jatsc',
     tgl:   (x)=> isoTgl(x.TanggalIso) || isoTgl(x.Tanggal) || isoTgl(x.DibuatPada),
@@ -192,7 +196,7 @@ const BERKALA_SUMBER = {
     cip:   'DAILY CHECK · JATSC',  judul: 'Daily Check (JATSC)',
     sebut: ['lembar Daily Check JATSC', 'the JATSC Daily Check sheet'],
     paket: 'dcHistory',  tab: 'dailycheck',  ada: (u)=> u.kode === 'radtel' && !!u.adaDailyCheck,   // lembar Garex/Frequentis hanya Radtel
-    subform: 'dc-jatsc',
+    lembar: 'jatsc',
     saring:(x)=> x.Lokasi === 'jatsc',
     tgl:   (x)=> isoTgl(x.TanggalIso) || isoTgl(x.Tanggal) || isoTgl(x.DibuatPada),
     nama:  (x)=> x.TeknisiNama || x.DiinputOleh,
@@ -314,6 +318,9 @@ function bklSumberDc(unitKode, form, sebutan){
     sebut: ['lembar Daily Check' + lbl, 'the' + lbl + ' Daily Check sheet'],
     paket: 'dcHistory',  tab: 'dailycheck',
     ada:   (u)=> !!u.adaDailyCheck && daftar.includes(u.kode),
+    // Nilai kolom Form itu juga yang dikirim tombol pemilihnya di dalam form
+    // E-Logbook — setDcPgmForm('ckg3'), setDcLkForm('sts'), dan seterusnya.
+    lembar: form || '',
     saring: form ? (x)=> x.Form === form : undefined,
     tgl: bklTglDc, nama: bklNamaBaris, rinci: (x)=> x.Dinas || ''
   };
@@ -327,6 +334,9 @@ function bklSumberPm(unitKode, kategori, kunci, form, sebutan, cip, tab, ada){
     sebut: ['lembar ' + sebutan, 'the ' + sebutan + ' sheet'],
     paket: 'dstest',  tab: tab || 'preventive',
     ada:   ada || ((u)=> u.kode === unitKode),
+    // Kunci lembar di dalam State itu juga argumen tombol "+ Form Baru"-nya:
+    // openMrModal('gp-07l'), openMlModal('sts'), openLlzModal('07l').
+    lembar: form || '',
     saring:(x)=> x.Kategori === kategori && (!form || ((x.State || {})[kunci] === form)),
     tgl: bklTglDs, nama: bklNamaBaris, rinci: ()=> ''
   };
@@ -522,7 +532,7 @@ function bklCipSumber(unit, k){
      harus mencari tombol Form Baru di antara belasan lembar sub-tab.
      E-Logbook mengabaikan penanda ini kalau perannya cuma boleh membaca —
      lihat tekanFormBaru() di js/26-init.js. */
-  return `<a class="cip" href="${esc(TAUTAN_ELOGBOOK)}#${esc(f.tab)}:${esc(unit)}:isi${f.subform ? ':' + esc(f.subform) : ''}"
+  return `<a class="cip" href="${esc(TAUTAN_ELOGBOOK)}#${esc(f.tab)}:${esc(unit)}:isi${f.lembar ? ':' + esc(f.lembar) : ''}"
     title="${esc(ket + ' ' + T('Tekan untuk membuka form ' + f.judul + ' di sana.',
                                'Press to open the ' + f.judul + ' form there.'))}">${esc(f.cip)}</a>`;
 }

@@ -331,7 +331,7 @@ function kotakTautanForm(unit, k){
   /* ':isi' — jendela pengisiannya ikut dibuka di sana. Butirnya muncul di
      Kotak Masuk justru karena lembarnya belum ada, jadi yang dituju lembar
      kosongnya. Lihat tekanFormBaru() di E-Logbook js/26-init.js. */
-  return `<a class="btn kecil" href="${esc(TAUTAN_ELOGBOOK)}#${esc(f.tab)}:${esc(unit)}:isi${f.subform ? ':' + esc(f.subform) : ''}"
+  return `<a class="btn kecil" href="${esc(TAUTAN_ELOGBOOK)}#${esc(f.tab)}:${esc(unit)}:isi${f.lembar ? ':' + esc(f.lembar) : ''}"
     title="${esc(T('Buka form ' + f.judul + ' di E-Logbook untuk unit ini',
                    'Open the ' + f.judul + ' form in E-Logbook for this unit'))}">${
     esc(T('Isi ' + f.judul, 'Fill in ' + f.judul))}</a>`;
