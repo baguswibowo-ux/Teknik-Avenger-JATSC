@@ -899,7 +899,7 @@ export const UNIT = [
   /* ---------- Fasilitas Otomasi ---------- */
   {
     kode: 'amhsadps',
-    nama: 'AMHS-ADPS',
+    nama: 'AMSS-ADPS',
     brand: 'E-Logbook Fasilitas Otomasi',
     judul: 'Buku Catatan Fasilitas',
     kelompok: 'Fasilitas Otomasi',

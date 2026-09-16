@@ -180,7 +180,7 @@ UNIT`), masing-masing dengan lima kemampuan yang bisa menyala independen:
 | `radkom` | Radkom (VHF/HF A/G) | ✓ | ✓ | – | – | ✓ |
 | `ppabn` | Pendaratan Presisi & Nav (ILS, DVOR/DME, NDB) | ✓ | – | – | – | ✓ |
 | `pengamatan` | Pengamatan (Radar) | ✓ | – | – | – | ✓ |
-| `amhsadps` | AMHS-ADPS (AMHS, AADPS, D-ATIS) | ✓ | – | – | – | ✓ |
+| `amhsadps` | AMSS-ADPS (AMHS, AADPS, D-ATIS) | ✓ | – | – | – | ✓ |
 | `fdpsrdps` | FDPS-RDPS | – | – | – | – | ✓ |
 | `listrikmekanik` | Listrik & Mekanik | ✓ | – | – | – | ✓ |
 | `gedungkeamanan` | Gedung & Keamanan | ✓ | – | – | – | ✓ |
@@ -286,7 +286,7 @@ dengan catatan di balik tiap sel dan cetaknya.
 | Radtel | `12-daily-check-radtel.js` | Daily Check VCS Garex 300 |
 | Radtel/JATSC | `12b-daily-check-radtel-jatsc.js` | (lembar tambahan Radtel) |
 | PPABN/Navigasi | `12c-daily-check-navigasi.js` | ILS 4 runway + DVOR/DME 2 site |
-| AMHS-ADPS | `12d-daily-check-amhs.js` | AMHS · AADPS · D-ATIS |
+| AMSS-ADPS | `12d-daily-check-amhs.js` | AMHS · AADPS · D-ATIS |
 | Pengamatan | `12e-daily-check-pengamatan.js` | Radar CKG 3 · Fasilitas Pengamatan (sub-tab) |
 | Gedung & Keamanan | `12f-daily-check-fgk.js` *(baru)* | Toilet & Mushalla · lift/CCTV/akses (sub-tab) |
 | Listrik & Mekanik | `12g-daily-check-listrik.js` *(baru)* | STS · MDS · Beban Listrik · UPS (sub-tab) |
