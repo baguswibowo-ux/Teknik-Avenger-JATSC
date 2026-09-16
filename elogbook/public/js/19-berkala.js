@@ -963,6 +963,7 @@ function openBerkalaDetail(id, penuh){
     </div>
     <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line);">${diinputOlehHtml(b.diinputOleh, b.dibuatPada, String(b.tanggal||'').slice(0,10))}</div>`;
   document.getElementById('formDetailPrintBtn').onclick = ()=>{ closeFormDetail(); printBerkala(id); };
+  pasangTombolCatatanDariDokumen('berkala', id);
   document.getElementById('formDetailBg').classList.add('show');
 }
 

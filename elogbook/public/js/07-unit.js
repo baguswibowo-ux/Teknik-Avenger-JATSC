@@ -330,7 +330,8 @@ function pilihTab(nama){
 const mapEntry = e => ({ id:e.ID, tanggal:e.Tanggal, jam:e.Jam, dinas:e.Dinas||'', uraian:e.Uraian, teknisiNama:e.TeknisiNama, teknisiTtd:e.TeknisiTTD, pjNama:e.PJNama, pjTtd:e.PJTTD, teknisiNamaList:e.TeknisiNamaListJSON||[],
                          jamSelesai:e.JamSelesai||'', frek:e.Frek||'', unit:e.Unit||'radtel', lokasi:e.Lokasi||'',
                          diinputOleh:e.DiinputOleh||'', dibuatPada:e.DibuatPada||'', dibuatOlehUsername:e.DibuatOlehUsername||'',
-                         ttdOleh:e.TtdOleh||'', ttdPada:e.TtdPada||'', ttdUntuk:e.TtdUntuk||'', lampiran:e.Lampiran||[] });
+                         ttdOleh:e.TtdOleh||'', ttdPada:e.TtdPada||'', ttdUntuk:e.TtdUntuk||'', lampiran:e.Lampiran||[],
+                         tautan:e.Tautan||[] });
 const mapDc = r => ({ id:r.ID, tanggal:r.Tanggal, tanggalIso:r.TanggalIso||'', dinas:r.Dinas, suhu:r.Suhu, remark:r.Remark, teknisiNama:r.TeknisiNama, teknisiTtd:r.TeknisiTTD, managerNama:r.ManagerNama, managerTtd:r.ManagerTTD, fails:r.FailsJSON||[], warns:r.WarnsJSON||[], teknisiNamaList:r.TeknisiNamaListJSON||[],
                      diinputOleh:r.DiinputOleh||'', dibuatPada:r.DibuatPada||'', dibuatOlehUsername:r.DibuatOlehUsername||'',
                      ttdOleh:r.TtdOleh||'', ttdPada:r.TtdPada||'', ttdUntuk:r.TtdUntuk||'' });

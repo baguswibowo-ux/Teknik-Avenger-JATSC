@@ -63,3 +63,17 @@ body:not(.tanpa-tulis) .hanya-tulis{display:revert;}
                        overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .lampiran-kartu:hover{border-color:var(--accent);}
 .tag-lampiran{font-family:var(--font-mono); font-size:10.5px; color:var(--muted);}
+
+/* Tombol "Buat Catatan Logbook" di jendela detail lembar (LTK/BAPB/berkala).
+   Bawaannya tersembunyi: jendela itu dipakai bersama sepuluh lembar lain yang
+   BUKAN sumber tautan, dan hanya pembuka yang memanggil
+   pasangTombolCatatanDariDokumen() yang berhak memunculkannya.
+
+   Sengaja bukan style inline. lepasTitipan() mengembalikan tombol yang
+   disembunyikannya dengan mengosongkan style inline, jadi tombol yang
+   bergantung pada inline akan menyala lagi di lembar berikutnya — lengkap
+   dengan handler dokumen sebelumnya. Class ini tidak bisa dihidupkan dari
+   sana. Peran yang tidak boleh menulis tetap tidak melihatnya, sama seperti
+   tombol .hanya-tulis yang lain. */
+#formDetailLogbookBtn{display:none;}
+body:not(.tanpa-tulis) #formDetailLogbookBtn.siap{display:revert;}

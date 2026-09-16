@@ -47,6 +47,7 @@ async function init(){
   // digambar, supaya bilah cetak langsung lengkap.
   if(Array.isArray(data.lokasi) && data.lokasi.length) lokasiPilihan = data.lokasi;
   isiPilihanLokasi();
+  if(Number.isFinite(data.batasTautan) && data.batasTautan > 0) batasTautan = data.batasTautan;
   // render tiap bagian terpisah — kalau satu error, yang lain tetap tampil
   try{ entries = (data.entries||[]).map(mapEntry); renderEntries(); }
   catch(e){ document.getElementById('entryList').innerHTML = '<div class="empty">Logbook gagal ditampilkan: '+escapeHtml(String(e.message||e))+'</div>'; }

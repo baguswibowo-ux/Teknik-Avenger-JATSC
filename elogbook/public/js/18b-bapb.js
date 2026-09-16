@@ -274,6 +274,7 @@ function openBapbDetail(id){
   // Cetakan resmi masih di langkah 4 — tombol print disembunyikan dulu.
   const pb = document.getElementById('formDetailPrintBtn');
   if (pb) { pb.style.display = 'none'; pb.onclick = null; }
+  pasangTombolCatatanDariDokumen('bapb', id);
   document.getElementById('formDetailBg').classList.add('show');
 }
 

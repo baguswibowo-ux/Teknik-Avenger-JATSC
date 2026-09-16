@@ -420,7 +420,7 @@ const TITIPAN_DAFTAR = {
   ltk:        { daftar: ()=>ltkList,     map: r=>mapLtk(r) },
   bapb:       { daftar: ()=>bapbList,    map: r=>mapBapb(r) }
 };
-const TOMBOL_BUKAN_TITIPAN = ['dcDetailPrintBtn','formDetailPrintBtn','entryDetailIsuBtn'];
+const TOMBOL_BUKAN_TITIPAN = ['dcDetailPrintBtn','formDetailPrintBtn','entryDetailIsuBtn','formDetailLogbookBtn'];
 let titipanTerbuka = null;   // { jenis, id } yang sedang dititipkan
 
 function lepasTitipan(){

@@ -78,6 +78,12 @@ function openEntryModal(){
   document.getElementById('fePjNama').value = '';
   document.getElementById('fePjAkun').value = '';
   resetLampiran('feLampiran');
+  // Tautan dokumen ikut dikosongkan. mulaiCatatanDariDokumen memanggil
+  // openEntryModal() dulu, baru memasang tautannya — jadi urutan itu yang
+  // menentukan, bukan baris ini.
+  if(typeof resetTautanForm === 'function') resetTautanForm('baru', []);
+  const dariDok = document.getElementById('feDariDokumen');
+  if(dariDok) dariDok.style.display = 'none';
   feTeknisiRows = []; feTeknisiSeq = 0; addFeTeknisi();  // mulai 1 baris nama
   ['sigFeTeknisi'].forEach(id=>{
     if(!sigPads[id]) setupSigCanvas(id);
@@ -107,6 +113,7 @@ async function saveEntry(){
     pjNama: document.getElementById('fePjNama').value.trim(),
     ttdUntuk: ttdUntukTerpilih('fePjAkun', document.getElementById('fePjNama').value),
     lampiran: kirimLampiran('feLampiran'),
+    tautan: (typeof tautanBaru !== 'undefined' ? tautanBaru : []),
     unit: unitAktif
   };
   toast(kotakLampiran('feLampiran').length ? 'Mengunggah lampiran dan menyimpan...' : 'Menyimpan ke server...');
@@ -222,7 +229,7 @@ function renderEntries(){
         </div>
       </div>
       <div class="entry-main">
-        <div class="entry-body">${escapeHtml(e.uraian)}</div>
+        <div class="entry-body">${escapeHtml(e.uraian)}${tautanKartuHtml(e.tautan)}</div>
         <div class="entry-sigs">
           <div class="sig-block"><b>${tekLabel}</b>${sigThumbHtml(e.teknisiTtd)}</div>
           <div class="sig-block"><b>${escapeHtml(e.pjNama)||'Manager Teknik'}</b>${sigThumbHtml(e.pjTtd)}</div>
@@ -231,6 +238,25 @@ function renderEntries(){
       <div class="entry-diinput">${diinputOlehHtml(e.diinputOleh, e.dibuatPada, acuanWaktuEntry(e))}</div>
     </div>`;
   }).join('');
+}
+
+/** Chip tautan di kartu daftar. Diberi jarak atas karena menempel langsung di
+    bawah uraian, di dalam kotak yang sama. */
+function tautanKartuHtml(daftar){
+  if(typeof tautanChipsHtml !== 'function') return '';
+  const isi = tautanChipsHtml(daftar);
+  return isi ? `<div style="margin-top:10px;">${isi}</div>` : '';
+}
+
+/** Chip tautan di jendela detail, dengan judul kecil seperti bagian lain. */
+function tautanDetailHtml(daftar){
+  if(typeof tautanChipsHtml !== 'function') return '';
+  const isi = tautanChipsHtml(daftar);
+  if(!isi) return '';
+  return `<div style="margin-top:14px;">
+    <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;">${T('tautanDokumen')}</div>
+    ${isi}
+  </div>`;
 }
 
 /* ---------- Lihat detail satu catatan logbook ---------- */
@@ -251,6 +277,7 @@ function openEntryDetail(id){
     </div>
     <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;">${T('uraianPekerjaan')}</div>
     <div class="entry-detail-uraian">${escapeHtml(e.uraian)||'-'}</div>
+    ${tautanDetailHtml(e.tautan)}
     ${lampiranGaleriHtml(e.lampiran)}
     <div class="detail-ttd">
       <div class="sig-block"><b>${T('teknisiPelaksana')}</b>${tekHtml}</div>
@@ -358,6 +385,7 @@ function openEntryEditModal(id){
   entryEditLampiranAda = e.lampiran || [];
   entryEditLampiranBuang = [];
   renderEntryEditLampiranAda();
+  if(typeof resetTautanForm === 'function') resetTautanForm('sunting', e.tautan || []);
   resetLampiran('feeLampiran');
   siapkanTtdSunting(e);
 
@@ -385,6 +413,7 @@ function isiPilihanLokasiEdit(nilai){
 
 function closeEntryEditModal(){
   document.getElementById('entryEditModalBg').classList.remove('show');
+  if(typeof resetTautanForm === 'function') resetTautanForm('sunting', []);
   entryEditId = null;
   entryEditLampiranAda = [];
   entryEditLampiranBuang = [];
@@ -408,6 +437,9 @@ async function saveEntryEdit(){
     uraian,
     lampiranBaru: kirimLampiran('feeLampiran'),
     lampiranHapus: entryEditLampiranBuang,
+    // Daftar utuh, bukan tambah/buang: jendelanya memang menampilkan seluruh
+    // tautan sekaligus (lihat updateEntry di db.js).
+    tautan: (typeof tautanSunting !== 'undefined' ? tautanSunting : []),
     // Papan kosong menjawab null, dan server membaca itu sebagai "tidak ada
     // yang dibubuhkan" — bukan sebagai perintah mengosongkan.
     teknisiTtd: entryEditBolehTtd ? getSigDataUrl('sigFeeTeknisi') : null

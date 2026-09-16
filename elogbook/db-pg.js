@@ -238,6 +238,8 @@ for (const sql of TABEL_SUSULAN) {
  * seluruh aplikasi gagal start. */
 const KOLOM_SUSULAN = [
   ['entries', 'lokasi', "TEXT NOT NULL DEFAULT ''"],
+  // Rujukan ke BAPB/LTK/berkala yang jadi dasar catatan — lihat tautan-dokumen.js.
+  ['entries', 'tautan_json', "TEXT NOT NULL DEFAULT '[]'"],
   // Siapa membubuhkan tanda tangan susulan, dan kapan. Terpisah dari nama pada
   // formulir — nama itu milik teknisi yang mengisi. ttd_untuk: akun yang
   // DITUNJUK untuk membubuhkan, dipakai kotak masuk TTD — lihat getInboxTtd.
@@ -1267,6 +1269,19 @@ export async function hapusLampiranLtk(lampiranId) {
 export const LOKASI = ['JATSC', 'New JATSC'];
 export const lokasiSah = (l) => LOKASI.includes(l);
 
+/** Cerminan dari siapkanTautan di db.js — alasannya diterangkan di sana. */
+async function siapkanTautan(daftar) {
+  const bersih = normalkanTautan(daftar);
+  const hasil = [];
+  for (const t of bersih) {
+    const tabel = TAUTAN_SUMBER[t.jenis]?.tabel;
+    if (!tabel) continue;
+    // Nama tabel datang dari SUMBER, bukan dari kiriman klien.
+    if (await q1(`SELECT 1 FROM ${tabel} WHERE id = $1`, [t.id])) hasil.push(t);
+  }
+  return hasil;
+}
+
 const rowToEntry = (r, extra = {}) => ({
   ID: r.id, Tanggal: r.tanggal, Jam: r.jam, Dinas: r.dinas, Uraian: r.uraian,
   Lokasi: r.lokasi || '',
@@ -1274,6 +1289,7 @@ const rowToEntry = (r, extra = {}) => ({
   TeknisiNama: r.teknisi_nama, TeknisiTTD: r.teknisi_ttd,
   PJNama: r.pj_nama, PJTTD: r.pj_ttd,
   TeknisiNamaListJSON: parseJson(r.teknisi_nama_list, []),
+  Tautan: parseJson(r.tautan_json, []),
   DiinputOleh: extra.diinputOleh ?? (r.dibuat_oleh || ''),
   // Waktu sebenarnya baris ini masuk ke server — tanggal dan jam di atas diketik
   // sendiri oleh teknisi, jadi hanya angka ini yang bisa dipakai administrator
@@ -1325,16 +1341,17 @@ export async function insertEntry(entry, olehUsername = '', olehNama = '') {
     pj_ttd: await saveSignature(entry.pjTtd, 'logbook_pj'),
     ttd_untuk: entry.ttdUntuk || '',
     teknisi_nama_list: JSON.stringify(namaList),
+    tautan_json: JSON.stringify(await siapkanTautan(entry.tautan)),
     dibuat_pada: nowIso()
   };
   await jalankan(
     `INSERT INTO entries
       (id, tanggal, jam, jam_selesai, frek, unit, dinas, lokasi, uraian, teknisi_nama, teknisi_ttd,
-       pj_nama, pj_ttd, ttd_untuk, teknisi_nama_list, dibuat_pada, dibuat_oleh)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
+       pj_nama, pj_ttd, ttd_untuk, teknisi_nama_list, tautan_json, dibuat_pada, dibuat_oleh)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
     [row.id, row.tanggal, row.jam, row.jam_selesai, row.frek, row.unit, row.dinas, row.lokasi,
      row.uraian, row.teknisi_nama, row.teknisi_ttd, row.pj_nama, row.pj_ttd, row.ttd_untuk, row.teknisi_nama_list,
-     row.dibuat_pada, olehUsername]
+     row.tautan_json, row.dibuat_pada, olehUsername]
   );
 
   const lampiran = await simpanLampiran(id, entry.lampiran);
@@ -1391,7 +1408,11 @@ export async function updateEntry(id, patch = {}, actor = {}) {
     frek: patch.frek !== undefined ? String(patch.frek || '').trim() : row.frek,
     dinas: patch.dinas !== undefined ? String(patch.dinas || '') : row.dinas,
     lokasi: patch.lokasi !== undefined ? (lokasiSah(patch.lokasi) ? patch.lokasi : '') : row.lokasi,
-    uraian
+    uraian,
+    // Daftar utuh, bukan tambah/buang — alasannya sama dengan versi SQLite.
+    tautan_json: patch.tautan !== undefined
+      ? JSON.stringify(await siapkanTautan(patch.tautan))
+      : row.tautan_json
   };
 
   // Lampiran lebih dulu — alasannya sama dengan versi SQLite.
@@ -1401,10 +1422,10 @@ export async function updateEntry(id, patch = {}, actor = {}) {
 
   await jalankan(
     `UPDATE entries SET tanggal = $1, jam = $2, jam_selesai = $3, frek = $4, dinas = $5, lokasi = $6, uraian = $7,
-                        teknisi_ttd = $8
-     WHERE id = $9`,
+                        tautan_json = $8, teknisi_ttd = $9
+     WHERE id = $10`,
     [next.tanggal, next.jam, next.jam_selesai, next.frek, next.dinas, next.lokasi, next.uraian,
-     next.teknisi_ttd, String(id)]
+     next.tautan_json, next.teknisi_ttd, String(id)]
   );
 
   const nama = await petaNamaPengguna();

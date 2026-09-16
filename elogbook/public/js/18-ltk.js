@@ -174,6 +174,7 @@ function openLtkDetail(id){
     </div>
     <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line);">${diinputOlehHtml(l.diinputOleh, l.dibuatPada, String(l.tanggalLapor||'').slice(0,10))}</div>`;
   document.getElementById('formDetailPrintBtn').onclick = ()=>{ closeFormDetail(); printLtk(id); };
+  pasangTombolCatatanDariDokumen('ltk', id);
   document.getElementById('formDetailBg').classList.add('show');
 }
 
@@ -204,4 +205,13 @@ function printLtk(id){
     </table>`, 'landscape');
 }
 
-function closeFormDetail(){ document.getElementById('formDetailBg').classList.remove('show'); if(typeof lepasTitipan === 'function') lepasTitipan(); }
+function closeFormDetail(){
+  document.getElementById('formDetailBg').classList.remove('show');
+  if(typeof lepasTitipan === 'function') lepasTitipan();
+  // Sesudah lepasTitipan, bukan sebelum: fungsi itu mengembalikan tombol yang
+  // disembunyikannya dengan mengosongkan style inline. Jendela ini dipakai
+  // bersama lembar-lembar yang bukan sumber tautan, jadi tombol "buat catatan
+  // logbook" tidak boleh tertinggal menyala buat lembar berikutnya.
+  const bl = document.getElementById('formDetailLogbookBtn');
+  if(bl){ bl.classList.remove('siap'); bl.onclick = null; }
+}

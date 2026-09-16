@@ -31,3 +31,54 @@
             letter-spacing:.03em; margin-top:5px; line-height:1.45;}
 .icon-btn{background:none; border:none; color:var(--muted); cursor:pointer; font-size:15px; padding:2px 5px;}
 .icon-btn:hover{color:var(--fail);}
+
+/* ---------- Tautan dokumen pada catatan ----------
+   Rujukan ke lembar lain yang jadi dasar catatan (BAPB/LTK/berkala). Lihat
+   js/11b-tautan-dokumen.js.
+
+   Chip sengaja dibuat ramping dan tidak berwarna mencolok: ia keterangan
+   tambahan di pinggir catatan, bukan isi catatannya. Yang bisa diklik
+   ditandai warna aksen pada tepinya — cuma yang di kartu dan jendela detail;
+   chip di dalam form justru tidak bisa dibuka, karena di situ tombolnya
+   melepas tautan dan dua perbuatan dalam satu kotak sekecil ini terlalu
+   gampang salah tekan. */
+.tautan-baris{display:flex; flex-wrap:wrap; gap:6px; align-items:center;}
+.tautan-chip{display:inline-flex; align-items:center; gap:6px; max-width:100%;
+             padding:4px 9px; border:1px solid var(--line); border-radius:999px;
+             background:var(--panel-2); color:var(--muted);
+             font-size:11.5px; line-height:1.4;}
+.tautan-chip b{color:var(--text); font-weight:500;}
+.tautan-chip-ikon{font-size:12px; line-height:1;}
+.tautan-chip.bisa-buka{cursor:pointer; border-color:var(--accent-dim);}
+.tautan-chip.bisa-buka:hover{border-color:var(--accent); color:var(--text);}
+.tautan-chip-lepas{background:none; border:none; color:var(--muted); cursor:pointer;
+                   font-size:12px; line-height:1; padding:0 0 0 2px;}
+.tautan-chip-lepas:hover{color:var(--fail);}
+.tautan-kosong{font-size:11.5px; color:var(--muted); font-style:italic;}
+.tautan-tambah-btn{margin-top:8px; padding:7px 12px; font-size:12px;}
+
+/* Deretan tombol jenis di jendela pemilih. Menggulir mendatar di HP daripada
+   membungkus jadi dua baris — jumlah jenisnya akan bertambah (DS Test, lembar
+   preventive tiap unit), dan tumpukan tombol mendorong daftar dokumennya
+   keluar layar. */
+.tautan-jenis-baris{display:flex; gap:6px; margin-bottom:10px; overflow-x:auto; padding-bottom:2px;}
+.tautan-jenis-btn{flex:0 0 auto; padding:7px 13px; border-radius:999px; cursor:pointer;
+                  border:1px solid var(--line); background:var(--panel-2); color:var(--muted);
+                  font-size:12px; white-space:nowrap;}
+.tautan-jenis-btn:hover{color:var(--text);}
+.tautan-jenis-btn.active{border-color:var(--accent); color:var(--accent); background:rgba(41,182,246,.1);}
+
+/* Daftar dokumen: tingginya dibatasi dan menggulir sendiri, supaya tombol
+   Selesai tidak terdorong ke bawah layar waktu unitnya punya ratusan lembar. */
+.tautan-pilih-list{max-height:46vh; overflow-y:auto; border:1px solid var(--line);
+                   border-radius:8px; background:var(--panel-2);}
+.tautan-pilih-item{display:flex; align-items:center; gap:10px; padding:9px 12px;
+                   border-bottom:1px solid var(--line); cursor:pointer;}
+.tautan-pilih-item:last-child{border-bottom:none;}
+.tautan-pilih-item:hover{background:rgba(41,182,246,.06);}
+.tautan-pilih-item.terpilih{background:rgba(41,182,246,.1);}
+.tautan-pilih-tanda{font-family:var(--font-mono); font-size:13px; color:var(--muted);
+                    width:16px; text-align:center; flex:0 0 auto;}
+.tautan-pilih-item.terpilih .tautan-pilih-tanda{color:var(--accent);}
+.tautan-pilih-teks{min-width:0; font-size:12.5px; line-height:1.45;}
+.tautan-pilih-tanggal{font-family:var(--font-mono); font-size:10.5px; color:var(--muted);}

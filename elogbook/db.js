@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url';
 import { isoDariTanggalPanjang } from './tanggal-lama.js';
 import { DS_SITE, KATEGORI_DS, kategoriDsSah, dsSiteUntuk } from './ds-site.js';
 import { BERKALA_ITEM, JENIS_BERKALA, jenisBerkalaSah, berkalaItemUntuk } from './berkala-item.js';
+import { SUMBER as TAUTAN_SUMBER, normalkanTautan } from './tautan-dokumen.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 export const DATA_DIR = process.env.ELOGBOOK_DATA_DIR || path.join(ROOT, 'data');
@@ -353,6 +354,12 @@ tambahKolom('monitoring', 'teknisi_nama_list', "TEXT NOT NULL DEFAULT '[]'");
    memang tidak pernah dicatat waktu itu, dan menebaknya sekarang sama saja
    dengan mengarang isi buku catatan. */
 tambahKolom('entries', 'lokasi', "TEXT NOT NULL DEFAULT ''");
+
+/* Rujukan ke lembar lain yang jadi dasar catatan — BAPB, LTK, atau pekerjaan
+   berkala. Catatan lama berisi '[]': dulu rujukannya memang tidak pernah
+   direkam, dan menebaknya dari kalimat uraian sama saja dengan mengarang.
+   Lihat tautan-dokumen.js. */
+tambahKolom('entries', 'tautan_json', "TEXT NOT NULL DEFAULT '[]'");
 
 /* Kapan pengingat "belum ditandatangani" dikirim ke pembuat catatan. Kosong =
    belum pernah. Diisi sekali saja — pengingatnya memang sekali per catatan.
@@ -1470,6 +1477,26 @@ export function suntingLampiranBapb(bapbId, tambah, buang, { username = '', admi
 export const LOKASI = ['JATSC', 'New JATSC'];
 export const lokasiSah = (l) => LOKASI.includes(l);
 
+/**
+ * Rujukan ke lembar lain (BAPB/LTK/berkala) yang siap disimpan.
+ *
+ * Selain dibersihkan bentuknya (lihat normalkanTautan), tiap tautan dipastikan
+ * benar-benar menunjuk baris yang ada SAAT DITAUTKAN — kiriman yang idnya
+ * karangan tidak ikut tersimpan. Yang dokumennya dihapus BELAKANGAN sengaja
+ * dibiarkan: label dan tanggalnya sudah beku, jadi rujukannya tetap terbaca
+ * dan tetap benar di cetakan, cuma tak bisa diklik lagi.
+ */
+function siapkanTautan(daftar) {
+  const bersih = normalkanTautan(daftar);
+  return bersih.filter((t) => {
+    const tabel = TAUTAN_SUMBER[t.jenis]?.tabel;
+    if (!tabel) return false;
+    // Nama tabel datang dari SUMBER, bukan dari kiriman klien — tidak ada
+    // nilai luar yang menyentuh teks SQL ini.
+    return !!db.prepare(`SELECT 1 FROM ${tabel} WHERE id = ?`).get(t.id);
+  });
+}
+
 /** Bentuk objek dibuat sama persis dengan respons Apps Script lama, supaya frontend tak perlu diubah. */
 const rowToEntry = (r, extra = {}) => ({
   ID: r.id, Tanggal: r.tanggal, Jam: r.jam, Dinas: r.dinas, Uraian: r.uraian,
@@ -1478,6 +1505,7 @@ const rowToEntry = (r, extra = {}) => ({
   TeknisiNama: r.teknisi_nama, TeknisiTTD: r.teknisi_ttd,
   PJNama: r.pj_nama, PJTTD: r.pj_ttd,
   TeknisiNamaListJSON: parseJson(r.teknisi_nama_list, []),
+  Tautan: parseJson(r.tautan_json, []),
   DiinputOleh: extra.diinputOleh ?? (r.dibuat_oleh || ''),
   // Waktu sebenarnya baris ini masuk ke server — dicatat sejak awal tapi dulu
   // tidak pernah dikirim ke layar. Tanggal dan jam di atas diketik sendiri oleh
@@ -1533,15 +1561,16 @@ export function insertEntry(entry, olehUsername = '', olehNama = '') {
     pj_nama: entry.pjNama || '',
     pj_ttd: saveSignature(entry.pjTtd, 'logbook_pj'),
     ttd_untuk: entry.ttdUntuk || '',
-    teknisi_nama_list: JSON.stringify(namaList)
+    teknisi_nama_list: JSON.stringify(namaList),
+    tautan_json: JSON.stringify(siapkanTautan(entry.tautan))
   };
   db.prepare(`INSERT INTO entries
     (id, tanggal, jam, jam_selesai, frek, unit, dinas, lokasi, uraian, teknisi_nama, teknisi_ttd,
-     pj_nama, pj_ttd, ttd_untuk, teknisi_nama_list, dibuat_pada, dibuat_oleh)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+     pj_nama, pj_ttd, ttd_untuk, teknisi_nama_list, tautan_json, dibuat_pada, dibuat_oleh)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
     .run(row.id, row.tanggal, row.jam, row.jam_selesai, row.frek, row.unit, row.dinas, row.lokasi,
          row.uraian, row.teknisi_nama, row.teknisi_ttd, row.pj_nama, row.pj_ttd, row.ttd_untuk,
-         row.teknisi_nama_list, row.dibuat_pada, olehUsername);
+         row.teknisi_nama_list, row.tautan_json, row.dibuat_pada, olehUsername);
 
   // Lampiran disimpan setelah catatannya ada, karena barisnya menunjuk ke entry_id.
   const lampiran = simpanLampiran(id, entry.lampiran);
@@ -1628,7 +1657,13 @@ export function updateEntry(id, patch = {}, actor = {}) {
     frek: patch.frek !== undefined ? String(patch.frek || '').trim() : row.frek,
     dinas: patch.dinas !== undefined ? String(patch.dinas || '') : row.dinas,
     lokasi: patch.lokasi !== undefined ? (lokasiSah(patch.lokasi) ? patch.lokasi : '') : row.lokasi,
-    uraian
+    uraian,
+    // Dikirim sebagai daftar utuh, bukan tambah/buang satu per satu: jendela
+    // suntingnya memang menampilkan seluruh tautan sekaligus, dan daftar utuh
+    // tidak bisa salah urutan kalau dua penyimpanan saling susul.
+    tautan_json: patch.tautan !== undefined
+      ? JSON.stringify(siapkanTautan(patch.tautan))
+      : row.tautan_json
   };
 
   // Lampiran lebih dulu: kalau jatahnya penuh atau berkasnya ditolak, suntingan
@@ -1641,10 +1676,10 @@ export function updateEntry(id, patch = {}, actor = {}) {
   next.teknisi_ttd = bubuhTtd ? saveSignature(bubuhTtd, 'logbook_teknisi') : row.teknisi_ttd;
 
   db.prepare(`UPDATE entries SET tanggal = ?, jam = ?, jam_selesai = ?, frek = ?, dinas = ?, lokasi = ?, uraian = ?,
-                                 teknisi_ttd = ?
+                                 tautan_json = ?, teknisi_ttd = ?
               WHERE id = ?`)
     .run(next.tanggal, next.jam, next.jam_selesai, next.frek, next.dinas, next.lokasi, next.uraian,
-         next.teknisi_ttd, String(id));
+         next.tautan_json, next.teknisi_ttd, String(id));
 
   const nama = petaNamaPengguna();
   const lampiran = lampiranUntuk([String(id)]).get(String(id)) || [];

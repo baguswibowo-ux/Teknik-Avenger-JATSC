@@ -1541,6 +1541,14 @@
       <div class="field" id="feFrekWrap" style="display:none;"><label data-t="frek">Frekuensi</label><input type="text" id="feFrek" data-t-ph="phFrek" placeholder="cth. 132.900 MHz"></div>
     </div>
     <div class="field"><label id="feUraianLabel">Uraian Pekerjaan / Kejadian</label><textarea id="feUraian" data-t-ph="phUraian" placeholder="cth. Pengecekan peralatan VCS Garex melalui TMCS, ditemukan CWP03 alarm..."></textarea></div>
+    <!-- Rujukan ke lembar lain yang jadi dasar catatan ini (BAPB/LTK/berkala).
+         Isinya tidak disalin ke uraian — lihat js/11b-tautan-dokumen.js. -->
+    <div class="field">
+      <label data-t="tautanDokumen">Tautan Dokumen</label>
+      <div class="subtle-note" id="feDariDokumen" style="display:none;margin-bottom:8px;"></div>
+      <div class="tautan-baris" id="feTautanList"></div>
+      <button type="button" class="btn ghost tautan-tambah-btn" onclick="openTautanPilih('baru')" data-t="tautkanDokumen">+ Tautkan Dokumen</button>
+    </div>
     <div class="field">
       <label data-t-html="labelLampiran">Lampiran — Hasil Scan / Foto <span style="text-transform:none;letter-spacing:0;">(opsional)</span></label>
       <input type="file" id="feLampiran" multiple accept="image/jpeg,image/png,image/webp,application/pdf" onchange="pilihLampiran(this, 'feLampiran')">
@@ -1621,7 +1629,33 @@
     <div id="formDetailBody"></div>
     <div class="modal-footer">
       <button class="btn ghost" onclick="closeFormDetail()" data-t="tutup">Tutup</button>
+      <!-- Membuka jendela catatan logbook dengan lembar ini sudah tertaut.
+           Uraiannya tetap kosong: itu kalimat teknisi, bukan salinan isi
+           dokumen (lihat mulaiCatatanDariDokumen). -->
+      <button class="btn ghost" id="formDetailLogbookBtn" data-t="buatCatatanLogbook">✎ Buat Catatan Logbook</button>
       <button class="btn" id="formDetailPrintBtn" data-t="cetak">🖨 Cetak</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PEMILIH TAUTAN DOKUMEN
+     Satu jendela melayani form tambah catatan dan form sunting — bentuk
+     daftarnya sama, yang berbeda cuma daftar mana yang sedang diubah.
+     Daftar dokumennya sudah ada di memori layar (dikirim server saat masuk),
+     jadi pemilihnya tidak memanggil server sama sekali. -->
+<div class="modal-bg" id="tautanPilihBg">
+  <div class="modal" style="max-width:640px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <h3 style="margin:0;" data-t="pilihDokumen">Tautkan Dokumen</h3>
+      <button class="icon-btn" style="font-size:18px;" onclick="closeTautanPilih()">✕</button>
+    </div>
+    <div class="tautan-jenis-baris" id="tautanJenisBtn"></div>
+    <div class="field" style="margin-bottom:8px;">
+      <input type="text" id="tautanCari" data-t-ph="cariDokumen" placeholder="Cari dokumen..." oninput="renderTautanPilih()">
+    </div>
+    <div class="tautan-pilih-list" id="tautanPilihList"></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeTautanPilih()" data-t="selesai">Selesai</button>
     </div>
   </div>
 </div>
@@ -2317,6 +2351,11 @@
     </div>
     <div class="field"><label id="feeUraianLabel">Uraian Pekerjaan / Kejadian</label><textarea id="feeUraian"></textarea></div>
     <div class="field">
+      <label data-t="tautanDokumen">Tautan Dokumen</label>
+      <div class="tautan-baris" id="feeTautanList"></div>
+      <button type="button" class="btn ghost tautan-tambah-btn" onclick="openTautanPilih('sunting')" data-t="tautkanDokumen">+ Tautkan Dokumen</button>
+    </div>
+    <div class="field">
       <label data-t-html="labelLampiranSunting">Lampiran — Hasil Scan / Foto <span style="text-transform:none;letter-spacing:0;">(bisa ditambah atau dibuang)</span></label>
       <div id="feeLampiranAda"></div>
       <input type="file" id="feeLampiran" multiple accept="image/jpeg,image/png,image/webp,application/pdf" onchange="pilihLampiran(this, 'feeLampiran')">
@@ -2428,6 +2467,7 @@
 <script src="js/09-peran.js?v=20260916adminunit"></script>
 <script src="js/10-lampiran.js"></script>
 <script src="js/11-logbook.js?v=20260915ph"></script>
+<script src="js/11b-tautan-dokumen.js?v=20260916tautan"></script>
 <script src="js/12-daily-check-radtel.js"></script>
 <script src="js/12b-daily-check-radtel-jatsc.js"></script>
 <script src="js/12c-daily-check-navigasi.js"></script>

@@ -24,12 +24,27 @@ function entryPrintRow(e, i, pakaiKolomLokasi){
       <td style="width:50px;font-size:8.5pt;text-align:center;">${escapeHtml(e.dinas || '-')}</td>
       ${pakaiKolomLokasi ? `<td style="width:62px;font-size:8pt;text-align:center;">${escapeHtml(e.lokasi || '-')}</td>` : ''}
       ${infoUnit()?.pakaiFrek ? `<td style="width:62px;font-size:8pt;text-align:center;">${escapeHtml(e.frek || '-')}</td>` : ''}
-      <td style="font-size:9pt;">${escapeHtml(e.uraian).replace(/\n/g,'<br>')}</td>
+      <td style="font-size:9pt;">${rujukanPrintHtml(e.tautan)}${escapeHtml(e.uraian).replace(/\n/g,'<br>')}</td>
       <td style="width:85px;font-size:8.5pt;">${tekCell}</td>
       <td style="width:80px;">${ttdImg(e.teknisiTtd)}</td>
       <td style="width:85px;font-size:8.5pt;text-align:center;">${pjCell}</td>
       <td style="width:80px;">${ttdImg(e.pjTtd)}</td>
     </tr>`;
+}
+
+/**
+ * Rujukan dokumen di bawah uraian.
+ *
+ * Di kertas tautannya tidak bisa diklik, jadi yang tercetak keterangannya:
+ * jenis, tanggal, dan judul lembarnya — cukup untuk menemukan berkas aslinya
+ * di dalam arsip. Teksnya datang dari label yang DIBEKUKAN waktu menautkan,
+ * jadi cetakan catatan lama tetap benar meski dokumennya sudah dihapus.
+ */
+function rujukanPrintHtml(tautan){
+  if(typeof tautanTeksRujukan !== 'function') return '';
+  const teks = tautanTeksRujukan(tautan);
+  if(!teks) return '';
+  return `<div style="font-size:7.5pt;font-style:italic;margin-bottom:3px;">${T('rujukan')}: ${escapeHtml(teks)}</div>`;
 }
 
 /**

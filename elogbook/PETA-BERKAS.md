@@ -61,6 +61,7 @@ Mencari sesuatu: **warna** → `01`. **Sesuatu yang salah di HP** → `08`.
 | Berkas | Isi |
 |---|---|
 | `11-logbook.js` | Logbook Fasilitas: form, daftar, detail catatan |
+| `11b-tautan-dokumen.js` | Rujukan catatan ke lembar lain (BAPB/LTK/berkala): chip, pemilih, tombol "buat catatan logbook" |
 | `12-daily-check-radtel.js` | Daily check Garex 300 — daftar item dan tabelnya |
 | `13-daily-check-radkom.js` | Daily check Radkom — VHF A/G, ACC, CWP FIC & ATMCP |
 | `14-daily-check-umum.js` | Daftar teknisi, pemilihan bentuk per unit, simpan, riwayat, detail |

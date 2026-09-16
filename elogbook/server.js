@@ -39,6 +39,7 @@
 
 import { ringkasDokumen, NAMA_DOKUMEN, potong } from './ringkas-dokumen.js';
 import { MODUL_DOKUMEN, JENIS_RUTE, unitCsv, rincianDokumen, rincianAkun } from './aktivitas-rincian.js';
+import { TAUTAN_MAKS } from './tautan-dokumen.js';
 import express from 'express';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -1109,6 +1110,9 @@ const API = {
       jenisBerkala: JENIS_BERKALA,
       lokasi: LOKASI,
       batasLampiran: { maksByte: LAMPIRAN_MAKS_BYTE, maksJumlah: LAMPIRAN_MAKS_JUMLAH },
+      // Batas tautan dokumen per catatan logbook — satu sumber di
+      // tautan-dokumen.js, supaya layar tidak menyimpan angkanya sendiri.
+      batasTautan: TAUTAN_MAKS,
       users,
       pejabatList,
       teknisiUnitList,

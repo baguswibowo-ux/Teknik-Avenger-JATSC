@@ -15,6 +15,10 @@ let ltkList = [];
 let bapbList = [];
 let dsList = [];
 let berkalaList = [];
+/* Batas tautan dokumen per catatan logbook. Diganti nilai dari server saat
+   memuat (lihat 26-init.js); angka di sini cuma penyelamat kalau server lama
+   belum mengirimnya. */
+let batasTautan = 10;
 
 /* Akun pejabat/admin aktif — dipakai menunjuk penerima TTD susulan saat
    mengisi formulir. Kotak masuk TTD milik akun yang sedang masuk, kalau
