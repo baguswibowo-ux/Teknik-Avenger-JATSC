@@ -140,8 +140,13 @@ const NEPTUNO_NTP = [
 ];
 function daftarNeptuno() {
   const out = [];
-  let no = 0;
   for (let i = 1; i <= 4; i++) {
+    // Penomoran dimulai ulang tiap Neptuno. Lembar ini dibaca per perangkat —
+    // satu tab satu Neptuno — dan "baris 79" tidak memberi tahu siapa pun
+    // Neptuno keberapa yang sedang dilihat, apalagi waktu hasilnya dicocokkan
+    // dengan layar perangkatnya. Nomor ini cuma untuk dibaca; yang mengunci
+    // catatan tetap kodenya.
+    let no = 0;
     for (const it of NEPTUNO_MONIT) {
       out.push({
         no:  ++no,
