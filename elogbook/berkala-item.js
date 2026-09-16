@@ -98,6 +98,27 @@ function daftarCwp() {
 /** Baris sederhana bernomor ulang dari satu. */
 const bernomor = (daftar) => daftar.map((it, i) => ({ ...it, no: i + 1 }));
 
+/**
+ * Nomor yang dimulai ulang tiap kali kelompoknya berganti.
+ *
+ * Lembar berkala dibaca per satuan yang diperiksa — per perangkat, per
+ * kelompok alat — bukan sebagai satu daftar panjang. Nomor yang berjalan
+ * terus membuat "baris 79" tidak memberi tahu siapa pun ia ada di kelompok
+ * mana, dan itu justru menyulitkan waktu hasilnya dicocokkan dengan layar
+ * perangkatnya.
+ *
+ * Nomor hanya untuk dibaca. Yang mengunci isi catatan tetap kodenya, jadi
+ * mengubah penomoran tidak pernah membuat catatan lama terbaca kosong.
+ */
+const bernomorPerKelompok = (daftar, kunci = (it) => it.grup) => {
+  let no = 0, kini;
+  return daftar.map((it) => {
+    const k = kunci(it);
+    if (k !== kini) { kini = k; no = 0; }
+    return { ...it, no: ++no };
+  });
+};
+
 /* ============== NEPTUNO — WEEKLY INSPECTION ==============
  * Lembar mingguan per unit Neptuno (recording): dua seksi.
  *
@@ -219,7 +240,9 @@ export const BERKALA_ITEM = {
   neptuno:        daftarNeptuno(),
   gatevox:        daftarGatevox(),
   'cleaning-cwp': daftarCwp(),
-  'restart-cwp':  [...daftarCwp(), ...bernomor(NEPTUNO_TMCS).map((it, i) => ({ ...it, no: i + 1 }))]
+  // Neptuno dan TMCS dua kelompok terpisah, jadi penomorannya pun terpisah —
+  // TMCS mulai dari 1, bukan menyambung nomor Neptuno.
+  'restart-cwp':  [...daftarCwp(), ...bernomorPerKelompok(NEPTUNO_TMCS)]
 };
 
 export const JENIS_BERKALA = Object.keys(BERKALA_ITEM);
