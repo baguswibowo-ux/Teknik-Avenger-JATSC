@@ -272,6 +272,7 @@ function bukaTabDariTautan(){
   // Dibuang sekarang, bukan sesudah tabnya terbuka: yang di bawah memakai
   // setTimeout, dan init() berikutnya bisa mendahuluinya.
   lupakanTautanMasuk();
+  if(tuju.tab === 'kotak-ttd'){ bukaKotakTtdDariTautan(tuju.lembar); return; }
   const btn = document.querySelector(`.tab-btn[data-tab="${tuju.tab}"]`);
   // Tab yang tidak ada, atau yang disembunyikan karena unit ini memang tidak
   // punya formulirnya, dibiarkan saja — halaman tetap terbuka di tab biasanya,
@@ -297,6 +298,31 @@ function bukaTabDariTautan(){
   // lembar, dan yang dicari tombol milik lembar yang ditunjuk tautannya.
   if(tuju.isi) bukaLembar(document.getElementById('view-' + tuju.tab), tuju.lembar);
 }
+/**
+ * Notifikasi HP "Perlu tanda tangan Anda" diketuk → #kotak-ttd:::<jenis>-<id>.
+ * Dokumennya yang ada di kotak masuk akun ini (miliknya sendiri atau titipan
+ * PH) langsung dibuka, siap dibubuhi TTD. Yang sudah tidak ada — sudah
+ * ditandatangani orang lain lebih dulu — membuka daftar kotak masuknya saja.
+ * Tanpa unit di tautan: kotak masuk memang lintas unit.
+ */
+function bukaKotakTtdDariTautan(lembar){
+  const pisah = String(lembar || '').indexOf('-');
+  const jenis = pisah > 0 ? lembar.slice(0, pisah) : '';
+  const id = pisah > 0 ? lembar.slice(pisah + 1) : '';
+  const it = jenis && (inboxTtd || []).find(x => x.jenis === jenis && String(x.id) === id);
+  if(it){ bukaInboxItem(it.jenis, it.unit, it.id); return; }
+  if(typeof openInboxModal === 'function') openInboxModal();
+}
+
+/* Halaman E-Logbook yang sedang terbuka dan notifikasinya diketuk: HP hanya
+   mengganti tanda pagar, tidak memuat ulang — init() tidak jalan lagi. Hanya
+   kotak masuk yang ditangani di sini; tautan lain boleh menyebut unit dan
+   butuh init() penuh. */
+window.addEventListener('hashchange', ()=>{
+  const tuju = tautanMasuk();
+  if(tuju && tuju.tab === 'kotak-ttd') bukaTabDariTautan();
+});
+
 /**
  * Alamat Dashboard Fasilitas Teknik, untuk tombol pulang di kepala halaman.
  *

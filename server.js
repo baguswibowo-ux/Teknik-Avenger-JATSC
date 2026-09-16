@@ -4672,6 +4672,7 @@ const URUTAN_JS = [
   '28-database-unit.js', '29-sunting-unitdb.js', '30-papan-nama.js',
   '31-gambar-kartu.js', '32-dokumen-unit.js', '34-sejarah-alat.js',
   '35-impor-sparepart.js', '36-cetak.js', '37-isr.js', '38-profil.js', '39-notam.js',
+  '40-notif-hp.js',
   '33-mulai.js'   // terakhir: inilah yang menyalakan, bukan yang mendeklarasikan
 ];
 const URUTAN_CSS = [
@@ -4823,6 +4824,22 @@ app.get(['/', '/index.html', '/index'], kirimIndex);
  */
 const UMUR_ASET = 7 * 24 * 60 * 60;   // detik
 const UMUR_KODE = 60;
+
+/* Service worker notifikasi HP. Rute sendiri, bukan lewat express.static:
+   jawabannya tidak boleh disinggahkan di tepian Cloudflare (umur js biasa 60
+   detik), supaya perbaikan sw.js sampai ke HP pada kunjungan berikutnya, dan
+   cakupannya diizinkan eksplisit untuk seluruh asal — termasuk /logbook/. */
+app.get('/sw.js', (req, res, next) => {
+  // Dibaca langsung, bukan sendFile: sendFile menolak jalur yang melewati
+  // folder bertitik (worktree di .claude/), dan servernya menjawab 404.
+  fs.readFile(path.join(ROOT, 'public', 'sw.js'), (err, isi) => {
+    if (err) return next();
+    res.setHeader('Cache-Control', 'no-cache, no-store');
+    res.setHeader('Service-Worker-Allowed', '/');
+    res.type('application/javascript; charset=utf-8');
+    res.send(isi);
+  });
+});
 
 app.use(express.static(path.join(ROOT, 'public'), {
   extensions: ['html'],

@@ -44,6 +44,7 @@ function bukaProfil(){
   gambarProfilIdentitas(u);
   el('lapisProfil').classList.add('buka');
   muatProfilTelegram();
+  hpSegarkanProfil();   // bagian Notifikasi HP, 40-notif-hp.js
 }
 
 function tutupProfil(){

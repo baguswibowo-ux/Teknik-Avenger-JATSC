@@ -40,7 +40,7 @@ function bikinTombol(sifat = {}) {
   };
 }
 
-function bikinRuang({ hash, tombolTab, tombolForm }) {
+function bikinRuang({ hash, tombolTab, tombolForm, inbox = [] }) {
   const panel = {
     querySelector: (sel) => (sel.includes('btn-tambah') ? tombolForm : null),
     querySelectorAll: () => (tombolForm ? [tombolForm] : [])
@@ -54,7 +54,13 @@ function bikinRuang({ hash, tombolTab, tombolForm }) {
       getElementById: () => panel
     },
     setTimeout: (fn) => fn(),   // jalankan seketika supaya urutannya terbaca
-    console
+    console,
+    // Kotak masuk TTD (20-ttd-pejabat.js) — dicatat, tidak digambar.
+    window: { addEventListener() {} },
+    inboxTtd: inbox,
+    dibuka: [],
+    bukaInboxItem: (jenis, unit, id) => ruang.dibuka.push(['item', jenis, unit, id]),
+    openInboxModal: () => ruang.dibuka.push(['daftar'])
   };
   vm.createContext(ruang);
   vm.runInContext(kode, ruang);
@@ -112,6 +118,27 @@ function bikinRuang({ hash, tombolTab, tombolForm }) {
   const r = bikinRuang({ hash: '#dstest:radtel:isi', tombolTab: tab, tombolForm: form });
   r.bukaTabDariTautan();
   cek('peran baca: tab dibuka, form tidak', tab.ditekan === 1 && form.ditekan === 0);
+}
+
+/* ---------- 5. notifikasi HP "perlu TTD" diketuk ---------- */
+{
+  const id = 'a4863c3e-ed28-4d2a-a4ba-5d34e5f3ea35';
+  const inbox = [{ jenis: 'logbook', unit: 'radtel', id }, { jenis: 'dailycheck', unit: 'radtel', id: 'lain' }];
+  const r = bikinRuang({ hash: `#kotak-ttd:::logbook-${id}`, tombolTab: null, tombolForm: null, inbox });
+  cek('tautan kotak masuk terbaca', JSON.stringify(r.tautanMasuk()) === JSON.stringify({ tab: 'kotak-ttd', unit: '', isi: false, lembar: `logbook-${id}` }));
+  r.bukaTabDariTautan();
+  cek('dokumennya langsung dibuka', JSON.stringify(r.dibuka) === JSON.stringify([['item', 'logbook', 'radtel', id]]));
+  cek('tanda pagar dilepas', r.location.hash === '');
+  r.bukaTabDariTautan();
+  cek('tidak dibuka dua kali', r.dibuka.length === 1);
+
+  const r2 = bikinRuang({ hash: `#kotak-ttd:::logbook-${id}`, tombolTab: null, tombolForm: null, inbox: [] });
+  r2.bukaTabDariTautan();
+  cek('sudah ditandatangani orang lain: daftar kotak masuk yang dibuka', JSON.stringify(r2.dibuka) === JSON.stringify([['daftar']]));
+
+  const r3 = bikinRuang({ hash: '#kotak-ttd', tombolTab: null, tombolForm: null, inbox });
+  r3.bukaTabDariTautan();
+  cek('tanpa dokumen: daftar kotak masuk', JSON.stringify(r3.dibuka) === JSON.stringify([['daftar']]));
 }
 
 console.log(`\n${lulus} lulus, ${gagal} gagal`);

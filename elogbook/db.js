@@ -296,6 +296,22 @@ CREATE TABLE IF NOT EXISTS telegram_akun (
   dibuat_pada    TEXT NOT NULL DEFAULT ''
 );
 
+-- Notifikasi HP (Web Push): satu baris per HP/peramban yang menekan "Aktifkan
+-- notifikasi". endpoint = alamat unik perangkat itu di layanan notifikasi;
+-- kunci = kunci publik VAPID server saat berlangganan (langganan milik kunci
+-- lain tidak bisa dikirimi). Lihat webpush.js dan simpanLanggananPush.
+CREATE TABLE IF NOT EXISTS push_langganan (
+  endpoint        TEXT PRIMARY KEY,
+  username        TEXT NOT NULL COLLATE NOCASE,
+  p256dh          TEXT NOT NULL,
+  auth            TEXT NOT NULL,
+  kunci           TEXT NOT NULL DEFAULT '',
+  perangkat       TEXT NOT NULL DEFAULT '',
+  dibuat_pada     TEXT NOT NULL DEFAULT '',
+  diperbarui_pada TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_push_langganan_user ON push_langganan(username);
+
 -- Log aktivitas E-Logbook: siapa menambah, mengubah, atau menghapus apa —
 -- termasuk pengelolaan akun. Ditulis server.js (PENCATAT_AKTIVITAS), dibaca
 -- layar Aktivitas dashboard lewat getAktivitas. unit = kode unit dipisah koma,
@@ -3056,6 +3072,42 @@ export function statusTautanTelegram(username) {
   if (!u) return { tertaut: false, ditautkanPada: '' };
   const row = db.prepare('SELECT chat_id, ditautkan_pada FROM telegram_akun WHERE username = ?').get(u);
   return { tertaut: !!(row && row.chat_id), ditautkanPada: (row && row.ditautkan_pada) || '' };
+}
+
+/* ============== LANGGANAN NOTIFIKASI HP ==============
+ * Satu HP satu baris, dikunci endpoint-nya. HP yang dipakai bergantian dan
+ * berlangganan lagi sesudah orang lain masuk berpindah ke akun yang terakhir —
+ * satu perangkat tidak menerima kabar milik dua orang. Satu akun paling banyak
+ * PUSH_MAKS_PERANGKAT perangkat; yang paling lama tidak diperbarui dibuang.
+ * Cermin Postgres-nya di db-pg.js. */
+const PUSH_MAKS_PERANGKAT = 10;
+
+export function simpanLanggananPush({ username, endpoint, p256dh, auth, kunci = '', perangkat = '' }) {
+  const u = String(username || '').trim();
+  if (!u || !endpoint || !p256dh || !auth) throw new Error('Langganan notifikasi tidak lengkap.');
+  const kini = nowIso();
+  db.prepare(`INSERT INTO push_langganan (endpoint, username, p256dh, auth, kunci, perangkat, dibuat_pada, diperbarui_pada)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+              ON CONFLICT(endpoint) DO UPDATE SET
+                username = excluded.username, p256dh = excluded.p256dh, auth = excluded.auth,
+                kunci = excluded.kunci, perangkat = excluded.perangkat,
+                diperbarui_pada = excluded.diperbarui_pada`)
+    .run(endpoint, u, p256dh, auth, kunci, perangkat, kini, kini);
+  const lebih = db.prepare(`SELECT endpoint FROM push_langganan WHERE username = ?
+                            ORDER BY diperbarui_pada DESC LIMIT -1 OFFSET ?`).all(u, PUSH_MAKS_PERANGKAT);
+  for (const r of lebih) db.prepare('DELETE FROM push_langganan WHERE endpoint = ?').run(r.endpoint);
+}
+
+export function listLanggananPush(username) {
+  const u = String(username || '').trim();
+  if (!u) return [];
+  return db.prepare(`SELECT endpoint, p256dh, auth, kunci, perangkat, diperbarui_pada
+                       FROM push_langganan WHERE username = ?
+                      ORDER BY diperbarui_pada DESC`).all(u);
+}
+
+export function hapusLanggananPush(endpoint) {
+  if (endpoint) db.prepare('DELETE FROM push_langganan WHERE endpoint = ?').run(String(endpoint));
 }
 
 /* ============== PENGINGAT TTD (SEMUA LEMBAR) ==============

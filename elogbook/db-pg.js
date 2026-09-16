@@ -197,6 +197,19 @@ const TABEL_SUSULAN = [
      ditautkan_pada TEXT NOT NULL DEFAULT '',
      dibuat_pada    TEXT NOT NULL DEFAULT ''
    )`,
+  /* Notifikasi HP — sepadan dengan CREATE TABLE push_langganan di db.js.
+     username lowercase, sama seperti telegram_akun. */
+  `CREATE TABLE IF NOT EXISTS push_langganan (
+     endpoint        TEXT PRIMARY KEY,
+     username        TEXT NOT NULL,
+     p256dh          TEXT NOT NULL,
+     auth            TEXT NOT NULL,
+     kunci           TEXT NOT NULL DEFAULT '',
+     perangkat       TEXT NOT NULL DEFAULT '',
+     dibuat_pada     TEXT NOT NULL DEFAULT '',
+     diperbarui_pada TEXT NOT NULL DEFAULT ''
+   )`,
+  'CREATE INDEX IF NOT EXISTS idx_push_langganan_user ON push_langganan(username)',
   /* Log aktivitas — sepadan dengan CREATE TABLE aktivitas di db.js. */
   `CREATE TABLE IF NOT EXISTS aktivitas (
      id       BIGSERIAL PRIMARY KEY,
@@ -2680,6 +2693,43 @@ export async function statusTautanTelegram(username) {
   if (!u) return { tertaut: false, ditautkanPada: '' };
   const row = await q1('SELECT chat_id, ditautkan_pada FROM telegram_akun WHERE username = $1', [u]);
   return { tertaut: !!(row && row.chat_id), ditautkanPada: (row && row.ditautkan_pada) || '' };
+}
+
+/* ============== LANGGANAN NOTIFIKASI HP ==============
+ * Cermin Postgres dari fungsi senama di db.js — lihat catatan di sana. */
+const PUSH_MAKS_PERANGKAT = 10;
+
+export async function simpanLanggananPush({ username, endpoint, p256dh, auth, kunci = '', perangkat = '' }) {
+  const u = tgUser(username);
+  if (!u || !endpoint || !p256dh || !auth) throw new Error('Langganan notifikasi tidak lengkap.');
+  const kini = nowIso();
+  await jalankan(
+    `INSERT INTO push_langganan (endpoint, username, p256dh, auth, kunci, perangkat, dibuat_pada, diperbarui_pada)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $7)
+     ON CONFLICT (endpoint) DO UPDATE SET
+       username = EXCLUDED.username, p256dh = EXCLUDED.p256dh, auth = EXCLUDED.auth,
+       kunci = EXCLUDED.kunci, perangkat = EXCLUDED.perangkat,
+       diperbarui_pada = EXCLUDED.diperbarui_pada`,
+    [endpoint, u, p256dh, auth, kunci, perangkat, kini]
+  );
+  await jalankan(
+    `DELETE FROM push_langganan WHERE endpoint IN (
+       SELECT endpoint FROM push_langganan WHERE username = $1
+        ORDER BY diperbarui_pada DESC OFFSET $2)`,
+    [u, PUSH_MAKS_PERANGKAT]
+  );
+}
+
+export async function listLanggananPush(username) {
+  const u = tgUser(username);
+  if (!u) return [];
+  return q(`SELECT endpoint, p256dh, auth, kunci, perangkat, diperbarui_pada
+              FROM push_langganan WHERE username = $1
+             ORDER BY diperbarui_pada DESC`, [u]);
+}
+
+export async function hapusLanggananPush(endpoint) {
+  if (endpoint) await jalankan('DELETE FROM push_langganan WHERE endpoint = $1', [String(endpoint)]);
 }
 
 /* ============== PENGINGAT TTD (SEMUA LEMBAR) ==============

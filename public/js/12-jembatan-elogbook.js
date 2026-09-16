@@ -291,7 +291,7 @@ async function srvPeriksa(){
     sesi yang masih hidup atau tidak. Dulu bernama pilihTujuan() dan menerima
     tujuan sebagai argumen; sekarang tidak ada yang perlu dipilih. */
 function segarkanKartuMasuk(){
-  el('iUser').placeholder = 'username E-Logbook Anda';
+  el('iUser').placeholder = 'NIK atau username Anda';
   el('iPass').placeholder = SRV.sesi
     ? 'kosongkan — sesi Anda masih aktif'
     : 'password akun E-Logbook';

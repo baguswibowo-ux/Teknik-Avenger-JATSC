@@ -33,6 +33,12 @@
                 tidak disentuh, termasuk waktu mematikan.
     5. NOTIF  : token Telegram dikosongkan dan folder uji tidak punya .env,
                 jadi uji tidak mengirim pesan ke grup sungguhan.
+                Notifikasi HP: kunci push-vapid.json dari produksi DIHAPUS
+                dari salinan, jadi server uji membuat kuncinya sendiri. HP
+                yang berlangganan di produksi terikat kunci produksi dan
+                tidak bisa dikirimi oleh kunci lain - hanya HP yang menekan
+                Aktifkan di uji.teknik-avengers.com yang menerima notif uji.
+                Sesudah data disalin ulang, HP uji perlu menekan Aktifkan lagi.
 
   Skrip ini sengaja ASCII murni. PowerShell 5.1 membaca .ps1 tanpa BOM
   sebagai ANSI, dan satu tanda pisah panjang cukup untuk memutus string.
@@ -155,6 +161,20 @@ if ($TanpaSalinData) {
     if ($LASTEXITCODE -ge 8) { Gagal "Salin $d gagal (kode robocopy $LASTEXITCODE)." }
     Write-Host "  $d"
   }
+  # Kunci notifikasi HP produksi tidak boleh ikut: dengan kunci itu server uji
+  # bisa mengirim notif ke HP orang sungguhan. Tanpanya uji membuat kunci
+  # sendiri yang tidak dikenali langganan produksi.
+  $kunciPush = Join-Path $Uji 'elogbook\data\push-vapid.json'
+  if (-not $kunciPush.StartsWith($Uji + '\', [System.StringComparison]::OrdinalIgnoreCase)) {
+    Gagal "Letak kunci notifikasi $kunciPush di luar folder uji. Dihentikan."
+  }
+  if (Test-Path $kunciPush) {
+    Remove-Item -LiteralPath $kunciPush -Force
+    Write-Host '  kunci notifikasi HP produksi dibuang dari salinan'
+  }
+}
+if (-not (Test-Path (Join-Path $Uji 'elogbook\data\push-vapid.json'))) {
+  Write-Host '  notifikasi HP uji: kunci baru akan dibuat - tekan Aktifkan notifikasi lagi di tiap HP'
 }
 
 if (Test-Path (Join-Path $Uji '.env')) {
@@ -173,6 +193,10 @@ $env:TELEGRAM_BOT_TOKEN      = ''
 $env:TELEGRAM_BOT_USERNAME   = ''
 $env:TELEGRAM_POLLING        = ''
 $env:TELEGRAM_WEBHOOK_SECRET = ''
+# Kunci notifikasi HP tidak boleh datang dari lingkungan (bisa kunci produksi).
+$env:VAPID_PUBLIK            = ''
+$env:VAPID_PRIVAT            = ''
+$env:PUSH_MATI               = ''
 $env:ELOGBOOK_PORT           = "$PortElog"
 $env:PORT                    = "$PortDash"
 # 0.0.0.0, bukan 127.0.0.1: cloudflared menghubungi localhost lewat ::1, dan

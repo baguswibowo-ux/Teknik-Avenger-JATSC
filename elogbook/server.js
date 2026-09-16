@@ -35,6 +35,13 @@
  *   TELEGRAM_POLLING         set 1 untuk mode polling (uji lokal tanpa webhook/
  *                            tunnel). Hanya berlaku pada npm start, tidak di
  *                            Vercel. Produksi biarkan kosong = pakai webhook.
+ *   VAPID_PUBLIK, VAPID_PRIVAT  kunci notifikasi HP (Web Push). Kosong: dibuat
+ *                            sendiri sekali dan disimpan di data/push-vapid.json.
+ *                            Mengganti kunci memutus semua HP yang sudah
+ *                            berlangganan — mereka harus menekan Aktifkan lagi.
+ *   PUSH_SUBJEK              kontak server untuk layanan notifikasi (https: atau
+ *                            mailto:). Bawaan https://teknik-avengers.com
+ *   PUSH_MATI                set 1 untuk mematikan notifikasi HP sama sekali.
  */
 
 import { ringkasDokumen, NAMA_DOKUMEN, potong } from './ringkas-dokumen.js';
@@ -43,6 +50,7 @@ import { TAUTAN_MAKS } from './tautan-dokumen.js';
 import { dalamPeriodePh } from './ttd-hak.js';
 import express from 'express';
 import path from 'node:path';
+import fs from 'node:fs';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import {
@@ -51,6 +59,9 @@ import {
   telegramModePolling, mulaiPolling,
   pesanPerluTtd, pesanSudahTtd, pesanBelumTtd, pesanTautBerhasil, pesanPerluTaut
 } from '../telegram.js';
+import {
+  buatKunciVapid, kunciVapidSah, kirimPush, endpointSah, kunciLanggananSah, pesanUntukPush
+} from '../webpush.js';
 
 /**
  * Lapisan data dipilih saat start:
@@ -88,6 +99,7 @@ const {
   createSession, getSessionUser, deleteSession, purgeExpiredSessions,
   ambilBerkas,
   buatTautanTelegram, tautkanTelegram, getChatIdTelegram, statusTautanTelegram,
+  simpanLanggananPush, listLanggananPush, hapusLanggananPush,
   pelaksanaCatatan, usernameDariNama,
   catatanPerluPengingatTtd, tandaiPengingatTtd,
   getPh, setPh, listDiwakiliOleh, listCalonPh, ringkasCatatan,
@@ -402,10 +414,99 @@ async function ringkasUntukNotif(jenis, id) {
   return { judul: NAMA_DOKUMEN[jenis] || 'Dokumen', cuplikan: '' };
 }
 
+/* ============== NOTIFIKASI HP (WEB PUSH) ==============
+ * Kanal kedua di samping Telegram, untuk yang tidak memakai Telegram. Tiap
+ * kabar yang dikirim ke Telegram di berkas ini ikut dikirim ke HP akun yang
+ * sama, dengan kalimat yang sama (pesanUntukPush mengubah HTML-nya).
+ *
+ * Tinggal di sini karena alasan yang sama dengan tabel chat Telegram: semua
+ * kabar TTD lahir di server ini, dan pengingat dashboard sudah menitipkan
+ * kirimannya lewat /internal/telegram/kirim — pintu itu sekarang mengirim ke
+ * dua kanal sekaligus, jadi dashboard tidak perlu tahu kanal mana yang ada.
+ *
+ * KUNCI VAPID dibuat sendiri sekali, disimpan di data/push-vapid.json. Server
+ * uji menghapus berkas itu dari salinan datanya (tools/uji.ps1): kunci yang
+ * berbeda membuat server uji secara kriptografis TIDAK BISA mengirim ke HP yang
+ * berlangganan di produksi, walaupun baris langganannya ikut tersalin. */
+const DIR_DATA = process.env.ELOGBOOK_DATA_DIR || path.join(ROOT, 'data');
+const SUBJEK_PUSH = process.env.PUSH_SUBJEK || 'https://teknik-avengers.com';
+let kunciPush = null;   // null = belum dibaca, false = mati
+
+function ambilKunciPush() {
+  if (kunciPush !== null) return kunciPush;
+  if (String(process.env.PUSH_MATI || '') === '1') return (kunciPush = false);
+  const dariEnv = { publik: process.env.VAPID_PUBLIK || '', privat: process.env.VAPID_PRIVAT || '' };
+  if (dariEnv.publik || dariEnv.privat) {
+    if (!kunciVapidSah(dariEnv)) console.error('[push] VAPID_PUBLIK/VAPID_PRIVAT tidak sah — notifikasi HP dimatikan.');
+    return (kunciPush = kunciVapidSah(dariEnv) ? dariEnv : false);
+  }
+  const berkas = path.join(DIR_DATA, 'push-vapid.json');
+  const baca = () => {
+    try {
+      const k = JSON.parse(fs.readFileSync(berkas, 'utf8'));
+      return kunciVapidSah(k) ? { publik: k.publik, privat: k.privat } : false;
+    } catch { return null; }   // null = belum ada / tak terbaca
+  };
+  const ada = baca();
+  if (ada) return (kunciPush = ada);
+  if (ada === false) {
+    console.error(`[push] ${berkas} rusak — notifikasi HP dimatikan. Hapus berkasnya untuk membuat kunci baru.`);
+    return (kunciPush = false);
+  }
+  // Serverless tidak punya cakram yang bertahan: tanpa kunci di env, mati.
+  if (!DIJALANKAN_LANGSUNG) return (kunciPush = false);
+  try {
+    const k = buatKunciVapid();
+    fs.mkdirSync(DIR_DATA, { recursive: true });
+    fs.writeFileSync(berkas, JSON.stringify({ ...k, dibuat: new Date().toISOString() }, null, 2), { flag: 'wx' });
+    console.log('[push] kunci notifikasi HP baru dibuat:', berkas);
+    return (kunciPush = k);
+  } catch (err) {
+    // Didahului proses lain yang menulis di saat yang sama: pakai miliknya.
+    if (err?.code === 'EEXIST') return (kunciPush = baca() || false);
+    console.error('[push] kunci notifikasi HP tidak bisa dibuat:', err?.message || err);
+    return (kunciPush = false);
+  }
+}
+
+const pushAktif = () => !!ambilKunciPush();
+const pushCobaTerakhir = new Map();   // username → ms percobaan terakhir
+
+/** Langganan milik akun ini yang dibuat dengan kunci yang sekarang berlaku. */
+async function langgananAkun(username) {
+  const kunci = ambilKunciPush();
+  if (!kunci || !username) return [];
+  return (await listLanggananPush(username)).filter((l) => l.kunci === kunci.publik);
+}
+
+/** Kirim ke semua HP milik satu akun → { jumlah, terkirim }. Tidak pernah
+    melempar: notifikasi tidak boleh menggagalkan pekerjaan yang memicunya. */
+async function kirimPushKeAkun(username, muatan) {
+  try {
+    const kunci = ambilKunciPush();
+    const daftar = await langgananAkun(username);
+    let terkirim = 0;
+    for (const l of daftar) {
+      const h = await kirimPush(l, muatan, kunci, { subjek: SUBJEK_PUSH });
+      if (h.ok) terkirim++;
+      else if (h.hilang) await hapusLanggananPush(l.endpoint);   // HP mencabut izinnya
+      else console.error('[push] gagal', h.status || h.galat, 'ke', new URL(l.endpoint).hostname);
+    }
+    return { jumlah: daftar.length, terkirim };
+  } catch (err) {
+    console.error('[push kirim]', err?.message || err);
+    return { jumlah: 0, terkirim: 0 };
+  }
+}
+
+/** Alamat yang dibuka saat notifikasi "perlu TTD" diketuk: E-Logbook dengan
+    kotak masuk TTD langsung pada dokumennya (26-init.js, tautan #kotak-ttd). */
+const tautanKotakTtd = (jenis, id) => `/logbook/#kotak-ttd:::${jenis}-${id}`;
+
 /** Kabari akun yang dituju bahwa ada dokumen menunggu tanda tangannya. */
 async function notifPerluTtd(jenis, ttdUntukUsername, form, pembuatNama, id) {
   try {
-    if (!telegramAktif() || !ttdUntukUsername) return;
+    if ((!telegramAktif() && !pushAktif()) || !ttdUntukUsername) return;
     const rk = await ringkasUntukNotif(jenis, id);
     const isi = {
       dokumen: rk.judul,
@@ -414,20 +515,22 @@ async function notifPerluTtd(jenis, ttdUntukUsername, form, pembuatNama, id) {
       pembuat: pembuatNama,
       cuplikan: rk.cuplikan
     };
-    const chatId = await getChatIdTelegram(ttdUntukUsername);
+    const opsiPush = { url: tautanKotakTtd(jenis, id), tag: `ttd-${jenis}-${id}`, tetap: true };
+    const chatId = telegramAktif() ? await getChatIdTelegram(ttdUntukUsername) : '';
     if (chatId) await kirimPesan(chatId, pesanPerluTtd(isi));
+    await kirimPushKeAkun(ttdUntukUsername, pesanUntukPush(pesanPerluTtd(isi), opsiPush));
     /* PH ikut dikabari selama pengalihannya berlaku (phAktifUntuk). Pejabat
        aslinya tetap menerima juga — siapa pun yang sempat duluan boleh
        menandatangani. Satu orang yang kebetulan PH untuk dirinya sendiri, atau
        yang chat-nya sama, tidak dikirimi dua kali. */
     // PH hanya dikabari untuk lembar yang memang dititipkan kepadanya.
     const ph = await phAktifUntuk(ttdUntukUsername, tanggalForm(form));
-    if (ph) {
-      const chatPh = await getChatIdTelegram(ph.username);
-      if (chatPh && chatPh !== chatId) {
-        const asli = await getUserByUsername(ttdUntukUsername);
-        await kirimPesan(chatPh, pesanPerluTtd({ ...isi, atasNama: asli?.nama || ttdUntukUsername }));
-      }
+    if (ph && !sameUser(ph.username, ttdUntukUsername)) {
+      const asli = await getUserByUsername(ttdUntukUsername);
+      const teksPh = pesanPerluTtd({ ...isi, atasNama: asli?.nama || ttdUntukUsername });
+      const chatPh = telegramAktif() ? await getChatIdTelegram(ph.username) : '';
+      if (chatPh && chatPh !== chatId) await kirimPesan(chatPh, teksPh);
+      await kirimPushKeAkun(ph.username, pesanUntukPush(teksPh, opsiPush));
     }
   } catch (err) {
     console.error('[telegram notifPerluTtd]', err?.message || err);
@@ -440,15 +543,22 @@ async function notifPerluTtd(jenis, ttdUntukUsername, form, pembuatNama, id) {
    Nama pelaksana teks bebas; pemetaannya ke akun di db.js (usernameDariNama),
    yang melewati nama tak dikenal dan nama yang dipakai lebih dari satu akun.
 
-   Yang pulang CHAT ID, bukan username: satu orang bisa muncul dua kali (nama
-   pelaksana yang sekaligus pembuatnya), dan yang belum menautkan Telegram
-   tidak perlu ikut dihitung sama sekali. */
-async function chatPenerimaCatatan(jenis, id, dibuatOleh, namaPelaksana) {
+   Yang pulang dua daftar. CHAT ID untuk Telegram, bukan username: satu orang
+   bisa muncul dua kali (nama pelaksana yang sekaligus pembuatnya), dan yang
+   belum menautkan Telegram tidak perlu ikut dihitung sama sekali. HP
+   (akunPush) per username yang punya langganan notifikasi HP — HP-nya sendiri
+   sudah unik per baris langganan. */
+async function penerimaCatatan(jenis, id, dibuatOleh, namaPelaksana) {
   const chat = new Set();
+  const akunPush = new Map();   // username lowercase → username
   const tambah = async (username) => {
     if (!username) return;
-    const c = await getChatIdTelegram(username);
-    if (c) chat.add(String(c));
+    if (telegramAktif()) {
+      const c = await getChatIdTelegram(username);
+      if (c) chat.add(String(c));
+    }
+    const kunci = String(username).toLowerCase();
+    if (!akunPush.has(kunci) && (await langgananAkun(username)).length) akunPush.set(kunci, username);
   };
   await tambah(dibuatOleh);
   try {
@@ -459,21 +569,23 @@ async function chatPenerimaCatatan(jenis, id, dibuatOleh, namaPelaksana) {
     // satu orang tahu daripada tidak ada sama sekali.
     console.error('[telegram pelaksana]', err?.message || err);
   }
-  return [...chat];
+  return { chatIds: [...chat], akunPush: [...akunPush.values()] };
 }
 
 /** Kabari pembuat/pelaksana bahwa dokumennya sudah ditandatangani. */
 async function notifSudahTtd(jenis, dibuatOleh, { unit, tanggal, penanda, id }) {
   try {
-    if (!telegramAktif()) return;
-    const chatIds = await chatPenerimaCatatan(jenis, id, dibuatOleh);
-    if (!chatIds.length) return;
+    if (!telegramAktif() && !pushAktif()) return;
+    const { chatIds, akunPush } = await penerimaCatatan(jenis, id, dibuatOleh);
+    if (!chatIds.length && !akunPush.length) return;
     const rk = await ringkasUntukNotif(jenis, id);
     const teks = pesanSudahTtd({
       dokumen: rk.judul, cuplikan: rk.cuplikan,
       unit: namaUnit(unit), tanggal, penanda
     });
     for (const chatId of chatIds) await kirimPesan(chatId, teks);
+    const muatan = pesanUntukPush(teks, { url: '/logbook/', tag: `sudah-${jenis}-${id}` });
+    for (const u of akunPush) await kirimPushKeAkun(u, muatan);
   } catch (err) {
     console.error('[telegram notifSudahTtd]', err?.message || err);
   }
@@ -539,7 +651,7 @@ function jatuhTempoPengingat(row) {
 let pengingatBerjalan = false;
 
 async function periksaPengingatTtd() {
-  if (!telegramAktif() || pengingatBerjalan) return;
+  if ((!telegramAktif() && !pushAktif()) || pengingatBerjalan) return;
   pengingatBerjalan = true;
   try {
     const kini = Date.now();
@@ -549,8 +661,8 @@ async function periksaPengingatTtd() {
       if (!Number.isFinite(jatuh) || kini < jatuh || kini - jatuh > PENGINGAT_JENDELA_MS) continue;
       // Seluruh teknisi yang tercantum di lembar itu, bukan cuma pembuatnya —
       // dinasnya bersama, jadi tagihannya juga bersama.
-      const chatIds = await chatPenerimaCatatan(r.jenis, r.id, r.dibuat_oleh);
-      if (!chatIds.length) continue;
+      const { chatIds, akunPush } = await penerimaCatatan(r.jenis, r.id, r.dibuat_oleh);
+      if (!chatIds.length && !akunPush.length) continue;
       /* Judul dan perihalnya dibaca ulang per jenis (ringkasCatatan +
          ringkas-dokumen.js), sama seperti dua notifikasi yang lain — kueri
          pengingat sengaja tidak ikut membawa kolom perihal tiap tabel. */
@@ -566,6 +678,10 @@ async function periksaPengingatTtd() {
       let terkirim = false;
       for (const chatId of chatIds) {
         if (await kirimPesan(chatId, teks)) terkirim = true;
+      }
+      const muatan = pesanUntukPush(teks, { url: '/logbook/', tag: `belum-${r.jenis}-${r.id}` });
+      for (const u of akunPush) {
+        if ((await kirimPushKeAkun(u, muatan)).terkirim) terkirim = true;
       }
       // Ditandai kalau SETIDAKNYA satu sampai: menandai baru saat semuanya
       // sampai berarti yang lain dikirimi dua kali pada putaran berikutnya.
@@ -1419,6 +1535,49 @@ const API = {
     };
   },
 
+  /* ---------- Notifikasi HP milik akun sendiri ----------
+     Sama seperti Telegram: semua peran boleh, tidak masuk API_TULIS. Yang
+     dipanggil dari Profil dan spanduk di dashboard (40-notif-hp.js).
+     pushStatus dan pushCoba dipanggil tanpa argumen → bertanda tangan (user). */
+  pushStatus: async (user) => {
+    const kunci = ambilKunciPush();
+    if (!kunci) return { aktif: false };
+    return { aktif: true, kunciPublik: kunci.publik, perangkat: (await langgananAkun(user.username)).length };
+  },
+
+  /* (langganan, perangkat, user). Peramban lama yang cuma mengirim langganan
+     membuat user jatuh di posisi kedua — ditangani seperti tandaTangani. */
+  pushLangganan: async (langganan, perangkat, user) => {
+    if (perangkat && typeof perangkat === 'object') { user = perangkat; perangkat = ''; }
+    const kunci = ambilKunciPush();
+    if (!kunci) throw new Error('Notifikasi HP belum dinyalakan di server.');
+    const endpoint = String(langganan?.endpoint || '');
+    const p256dh = String(langganan?.keys?.p256dh || '');
+    const auth = String(langganan?.keys?.auth || '');
+    if (!endpointSah(endpoint)) throw new Error('Alamat notifikasi dari peramban ini tidak dikenal.');
+    if (!kunciLanggananSah(p256dh, auth)) throw new Error('Kunci notifikasi dari peramban ini tidak sah.');
+    await simpanLanggananPush({
+      username: user.username, endpoint, p256dh, auth,
+      kunci: kunci.publik, perangkat: String(perangkat || '').slice(0, 80)
+    });
+    return { aktif: true, kunciPublik: kunci.publik, perangkat: (await langgananAkun(user.username)).length };
+  },
+
+  /* Notifikasi percobaan ke semua HP akun ini. Dijeda 15 detik per akun
+     supaya tombolnya tidak bisa dipakai membanjiri HP sendiri. */
+  pushCoba: async (user) => {
+    if (!pushAktif()) throw new Error('Notifikasi HP belum dinyalakan di server.');
+    const kunciJeda = String(user.username).toLowerCase();
+    const terakhir = pushCobaTerakhir.get(kunciJeda) || 0;
+    if (Date.now() - terakhir < 15000) throw new Error('Tunggu sebentar sebelum mengirim percobaan lagi.');
+    pushCobaTerakhir.set(kunciJeda, Date.now());
+    return kirimPushKeAkun(user.username, {
+      judul: '🔔 Notifikasi percobaan',
+      isi: `Halo ${user.nama || user.username}, notifikasi Avengers sudah sampai di HP ini.`,
+      url: '/', tag: 'percobaan', tetap: false
+    });
+  },
+
   /* Tidak ada telegramPutus: pengguna tidak boleh mematikan notifikasi TTD
      sendiri. Pindah ke Telegram lain cukup lewat telegramTaut lagi — chat yang
      baru menggantikan yang lama saat Start ditekan (tautkanTelegram). */
@@ -2213,19 +2372,32 @@ app.get('/internal/bukti-berkala', hanyaInternal, async (req, res) => {
   }
 });
 
-/** Kirim satu pesan HTML ke chat Telegram sebuah akun.
-    { aktif, tertaut, terkirim } — aktif false berarti bot tidak dikonfigurasi,
-    tertaut false berarti akun itu belum menekan Start di bot. */
+/** Kirim satu pesan HTML ke sebuah akun — ke chat Telegram-nya DAN ke HP yang
+    sudah mengaktifkan notifikasi. Namanya tetap /telegram/kirim supaya
+    dashboard yang sudah memakainya tidak perlu diubah.
+    { aktif, tertaut, terkirim } — aktif false berarti tidak ada kanal yang
+    menyala sama sekali, tertaut false berarti akun itu belum punya tujuan di
+    kanal mana pun. `url` (opsional) dibuka saat notifikasi HP diketuk. */
 app.post('/internal/telegram/kirim', hanyaInternal, async (req, res) => {
   try {
     const username = String(req.body?.username || '').trim();
     const teks = String(req.body?.teks || '');
     if (!username || !teks) return res.status(400).json({ error: 'username dan teks wajib diisi.' });
-    if (!telegramAktif()) return res.json({ aktif: false, tertaut: false, terkirim: false });
-    const chatId = await getChatIdTelegram(username);
-    if (!chatId) return res.json({ aktif: true, tertaut: false, terkirim: false });
-    const terkirim = await kirimPesan(chatId, teks);
-    res.json({ aktif: true, tertaut: true, terkirim: !!terkirim });
+    if (!telegramAktif() && !pushAktif()) return res.json({ aktif: false, tertaut: false, terkirim: false });
+    let tertaut = false, terkirim = false;
+    if (telegramAktif()) {
+      const chatId = await getChatIdTelegram(username);
+      if (chatId) {
+        tertaut = true;
+        terkirim = !!(await kirimPesan(chatId, teks));
+      }
+    }
+    const hp = await kirimPushKeAkun(username, pesanUntukPush(teks, {
+      url: String(req.body?.url || '/'), tag: String(req.body?.tag || '')
+    }));
+    if (hp.jumlah) tertaut = true;
+    if (hp.terkirim) terkirim = true;
+    res.json({ aktif: true, tertaut, terkirim, hp });
   } catch (err) {
     res.status(500).json({ error: err?.message || String(err) });
   }
@@ -2477,8 +2649,11 @@ if (DIJALANKAN_LANGSUNG) {
 
   /* Pengingat TTD hanya di proses yang hidup terus, sama seperti polling —
      serverless tidak punya jam yang berdetak di antara permintaan. Putaran
-     pertama semenit setelah menyala, sesudahnya tiap 5 menit. */
-  if (telegramAktif()) {
+     pertama semenit setelah menyala, sesudahnya tiap 5 menit. Berjalan kalau
+     salah satu kanal menyala: server uji tanpa Telegram tetap mengingatkan
+     lewat notifikasi HP. */
+  console.log(pushAktif() ? '[push] notifikasi HP aktif.' : '[push] notifikasi HP mati.');
+  if (telegramAktif() || pushAktif()) {
     setTimeout(periksaPengingatTtd, 60 * 1000).unref();
     setInterval(periksaPengingatTtd, 5 * 60 * 1000).unref();
   }

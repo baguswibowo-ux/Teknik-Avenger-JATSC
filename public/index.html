@@ -6,6 +6,15 @@
 <meta name="theme-color" content="#0a0e13">
 <meta name="color-scheme" content="dark light">
 <title>Dashboard Fasilitas Teknik — JATSC</title>
+<!-- Bisa dipasang di layar utama HP sebagai "Avengers" dan menerima notifikasi
+     (js/40-notif-hp.js, sw.js). iPhone membaca apple-touch-icon dan judul
+     apple-mobile-web-app-title; Android membaca manifest. -->
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/images/pwa/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Avengers">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <!-- Font aplikasi utama dibawa di vendor/font/ (subset latin + latin-ext),
      supaya sisi dashboard tetap utuh di jaringan tertutup. Panji AVENGERS di
      layar masuk memakai keluarga font khusus (Lora italic untuk judul, Barlow
@@ -629,6 +638,16 @@
         <div id="profilTgStatus" class="profil-tg-status"></div>
         <div id="profilTgAksi" class="profil-tg-aksi"></div>
       </div>
+
+      <!-- Notifikasi HP (Web Push). Diisi js/40-notif-hp.js; tersembunyi
+           kalau server belum menyalakannya. Keadaannya milik PERANGKAT ini,
+           bukan akun: tiap HP diaktifkan sendiri-sendiri. -->
+      <div class="profil-telegram" id="profilHp" hidden>
+        <h4 data-en="📱 Phone notifications">📱 Notifikasi HP</h4>
+        <div class="bantu" data-en="The same updates appear straight on this phone — no Telegram needed. Turn it on for every phone you use.">Kabar yang sama langsung muncul di HP ini — tanpa Telegram. Aktifkan di setiap HP yang Anda pakai.</div>
+        <div id="profilHpStatus" class="profil-tg-status"></div>
+        <div id="profilHpAksi" class="profil-tg-aksi"></div>
+      </div>
     </div>
     <div class="kaki">
       <button class="btn garis" id="btnTutupProfil" data-en="Close">Tutup</button>
@@ -822,6 +841,18 @@
      (lihat 09-cetak.css). Isi HTML lembarnya ditempel sesaat sebelum
      window.print(), dan dibersihkan lagi sesudahnya. -->
 <div id="printArea"></div>
+
+<!-- Spanduk bawah di HP: tawaran pasang Avengers ke layar utama, petunjuk
+     pasang di iPhone, atau tawaran mengaktifkan notifikasi — satu saja yang
+     tampil, dipilih js/40-notif-hp.js. "Nanti" menundanya tiga hari. -->
+<div class="hp-spanduk" id="hpSpanduk" role="region" aria-label="Avengers di HP" hidden>
+  <img src="/images/pwa/ikon-192.png" alt="" width="40" height="40">
+  <div class="teks"><b id="hpSpandukJudul"></b><span id="hpSpandukIsi"></span></div>
+  <div class="aksi">
+    <button type="button" class="btn" id="hpSpandukYa"></button>
+    <button type="button" class="btn garis" id="hpSpandukNanti">Nanti</button>
+  </div>
+</div>
 
 <!-- Tiga puluh enam berkas js disambung jadi satu oleh server (URUTAN_JS di
      server.js), urutannya persis urutan lama dan 33-mulai.js tetap terakhir.
