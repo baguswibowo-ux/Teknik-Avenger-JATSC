@@ -129,12 +129,42 @@ async function init(){
 function tautanMasuk(){
   const isi = String(location.hash || '').replace(/^#/, '').trim();
   if(!isi) return null;
-  const [tab, unit] = isi.split(':');
+  // Bagian ketiga opsional: ':isi' berarti jendela pengisiannya ikut dibuka,
+  // bukan cuma tabnya. Dipakai cip kegiatan berkala dan tombol Kotak Masuk di
+  // dashboard — dari sana orang memang berangkat untuk MENGISI, dan berhenti
+  // di tab berarti masih harus mencari tombol Form Baru sendiri.
+  const [tab, unit, mau] = isi.split(':');
   // Tanda hubung ikut diterima. Empat tab pekerjaan berkala bernama bk-neptuno
   // sampai bk-restart, dan pola yang cuma menerima huruf menolak keempatnya
   // tanpa suara: tautannya mendarat di halaman depan seolah tabnya tidak ada.
   if(!/^[a-z][a-z0-9-]*$/.test(tab || '')) return null;
-  return { tab, unit: /^[a-z0-9_-]+$/.test(unit || '') ? unit : '' };
+  return { tab, unit: /^[a-z0-9_-]+$/.test(unit || '') ? unit : '', isi: mau === 'isi' };
+}
+
+/**
+ * Tekan tombol "+ Form Baru" milik panel yang baru saja dibuka.
+ *
+ * TOMBOLNYA YANG DITEKAN, bukan fungsinya yang dipanggil. Lima puluh tujuh
+ * tombol itu sudah membawa argumennya masing-masing di markup —
+ * openBerkalaModal('neptuno'), openWkModal('ckg3'), openMrModal('llz-07l') —
+ * jadi lembar yang terbuka pasti lembar yang ditunjuk tautannya. Daftar
+ * "sub-tab mana memanggil fungsi apa" di sini berarti daftar kedua yang harus
+ * ikut diubah tiap kali ada lembar baru, dan yang lupa diubah akan membuka
+ * form yang salah tanpa suara.
+ *
+ * Dibatasi ke tombol yang memang MEMBUKA form: di tab Daily Check ada tombol
+ * Simpan yang kebetulan berkelas btn-tambah juga.
+ *
+ * Tombol yang tersembunyi tidak ditekan. Peran yang cuma boleh membaca memang
+ * tidak dipasangi tombol itu, dan tautannya cukup berhenti di tabnya.
+ */
+function tekanFormBaru(panel){
+  if(!panel) return;
+  const btn = panel.querySelector('.btn-tambah[onclick^="open"]');
+  if(!btn || btn.offsetParent === null) return;
+  // Sesudah tabnya benar-benar tergambar: papan tanda tangan di dalam jendela
+  // diukur ulang saat terbuka, dan kanvas selebar 0 tidak bisa digambari.
+  setTimeout(()=>btn.click(), 80);
 }
 
 function bukaTabDariTautan(){
@@ -145,7 +175,9 @@ function bukaTabDariTautan(){
   // punya formulirnya, dibiarkan saja — halaman tetap terbuka di tab biasanya,
   // dan itu lebih baik daripada memaksa masuk ke bagian yang kosong.
   if(btn){
-    if(btn.style.display !== 'none') btn.click();
+    if(btn.style.display === 'none') return;
+    btn.click();
+    if(tuju.isi) tekanFormBaru(document.getElementById('view-' + tuju.tab));
     return;
   }
   /* Nama SUB-TAB (dstest, radio, bk-neptuno, wk-ckg3, gcheck, meter, ml-sts, …):
@@ -159,6 +191,9 @@ function bukaTabDariTautan(){
   if(!induk || induk.style.display === 'none') return;
   induk.click();
   sub.click();
+  // Panelnya sub-view, bukan tab induknya: satu tab bisa memuat belasan
+  // lembar, dan yang dicari tombol milik lembar yang ditunjuk tautannya.
+  if(tuju.isi) tekanFormBaru(document.getElementById('view-' + tuju.tab));
 }
 /**
  * Alamat Dashboard Fasilitas Teknik, untuk tombol pulang di kepala halaman.

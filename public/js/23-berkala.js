@@ -510,9 +510,15 @@ function bklCipSumber(unit, k){
   if(!f.tab || !TAUTAN_ELOGBOOK || !bklFormAda(unit, k)){
     return `<span class="cip" title="${esc(ket)}">${esc(f.cip)}</span>`;
   }
-  return `<a class="cip" href="${esc(TAUTAN_ELOGBOOK)}#${esc(f.tab)}:${esc(unit)}"
-    title="${esc(ket + ' ' + T('Tekan untuk membuka tab ' + f.judul + ' di sana.',
-                               'Press to open the ' + f.judul + ' tab there.'))}">${esc(f.cip)}</a>`;
+  /* ':isi' — jendela pengisiannya ikut dibuka di sana, bukan cuma tabnya.
+     Yang menekan cip ini berangkat dari kartu yang bilang "belum dikerjakan",
+     jadi yang dituju memang lembar kosongnya. Berhenti di tab berarti masih
+     harus mencari tombol Form Baru di antara belasan lembar sub-tab.
+     E-Logbook mengabaikan penanda ini kalau perannya cuma boleh membaca —
+     lihat tekanFormBaru() di js/26-init.js. */
+  return `<a class="cip" href="${esc(TAUTAN_ELOGBOOK)}#${esc(f.tab)}:${esc(unit)}:isi"
+    title="${esc(ket + ' ' + T('Tekan untuk membuka form ' + f.judul + ' di sana.',
+                               'Press to open the ' + f.judul + ' form there.'))}">${esc(f.cip)}</a>`;
 }
 
 /** Lembar yang membuktikan kegiatan ini dikerjakan pada tanggal itu. Satu hari
