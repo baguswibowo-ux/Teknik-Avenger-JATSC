@@ -133,12 +133,20 @@ function tautanMasuk(){
   // bukan cuma tabnya. Dipakai cip kegiatan berkala dan tombol Kotak Masuk di
   // dashboard — dari sana orang memang berangkat untuk MENGISI, dan berhenti
   // di tab berarti masih harus mencari tombol Form Baru sendiri.
-  const [tab, unit, mau] = isi.split(':');
+  // Bagian keempat opsional: nama sub-tab DI DALAM jendela form, buat lembar
+  // yang satu tabnya memuat beberapa bentuk. Daily Check Radtel begitu —
+  // gedungnya (New JATSC/JATSC) dipilih di dalam formnya, bukan di tab.
+  const [tab, unit, mau, subform] = isi.split(':');
   // Tanda hubung ikut diterima. Empat tab pekerjaan berkala bernama bk-neptuno
   // sampai bk-restart, dan pola yang cuma menerima huruf menolak keempatnya
   // tanpa suara: tautannya mendarat di halaman depan seolah tabnya tidak ada.
   if(!/^[a-z][a-z0-9-]*$/.test(tab || '')) return null;
-  return { tab, unit: /^[a-z0-9_-]+$/.test(unit || '') ? unit : '', isi: mau === 'isi' };
+  return {
+    tab,
+    unit: /^[a-z0-9_-]+$/.test(unit || '') ? unit : '',
+    isi: mau === 'isi',
+    subform: /^[a-z][a-z0-9-]*$/.test(subform || '') ? subform : ''
+  };
 }
 
 /**
@@ -158,13 +166,38 @@ function tautanMasuk(){
  * Tombol yang tersembunyi tidak ditekan. Peran yang cuma boleh membaca memang
  * tidak dipasangi tombol itu, dan tautannya cukup berhenti di tabnya.
  */
-function tekanFormBaru(panel){
+function tekanFormBaru(panel, subform){
   if(!panel) return;
   const btn = panel.querySelector('.btn-tambah[onclick^="open"]');
   if(!btn || btn.offsetParent === null) return;
   // Sesudah tabnya benar-benar tergambar: papan tanda tangan di dalam jendela
   // diukur ulang saat terbuka, dan kanvas selebar 0 tidak bisa digambari.
-  setTimeout(()=>btn.click(), 80);
+  setTimeout(()=>{
+    btn.click();
+    if(subform) setTimeout(()=>pilihSubformAktif(subform), 60);
+  }, 80);
+}
+
+/**
+ * Tekan sub-tab di dalam jendela form yang baru terbuka — mis. gedung pada
+ * Daily Check Radtel (dc-newjatsc / dc-jatsc).
+ *
+ * Sesudah formnya terbuka, bukan sebelum: "+ Form Baru" memanggil
+ * resetDcForm(), dan yang disetel duluan akan tertimpa.
+ *
+ * Tombolnya lagi-lagi yang ditekan, bukan setDcLokasi() yang dipanggil
+ * langsung. Sub-tab itu yang tahu nilai apa yang dikirimnya, dan lembar lain
+ * yang kelak punya pemilih serupa (Pengamatan: Radar CKG 3 vs Fasilitas)
+ * ikut jalan tanpa berkas ini disentuh.
+ *
+ * Yang tidak terlihat dilewati: unit yang memang tidak punya pemilih itu
+ * menyembunyikan navnya, dan menekan yang tersembunyi mengubah bentuk form
+ * ke sesuatu yang tidak dipakai unit tersebut.
+ */
+function pilihSubformAktif(nama){
+  const tombol = [...document.querySelectorAll('.subtab-btn[data-subtab="' + nama + '"]')]
+    .find(b => b.offsetParent !== null);
+  if(tombol) tombol.click();
 }
 
 function bukaTabDariTautan(){
@@ -177,7 +210,7 @@ function bukaTabDariTautan(){
   if(btn){
     if(btn.style.display === 'none') return;
     btn.click();
-    if(tuju.isi) tekanFormBaru(document.getElementById('view-' + tuju.tab));
+    if(tuju.isi) tekanFormBaru(document.getElementById('view-' + tuju.tab), tuju.subform);
     return;
   }
   /* Nama SUB-TAB (dstest, radio, bk-neptuno, wk-ckg3, gcheck, meter, ml-sts, …):
@@ -193,7 +226,7 @@ function bukaTabDariTautan(){
   sub.click();
   // Panelnya sub-view, bukan tab induknya: satu tab bisa memuat belasan
   // lembar, dan yang dicari tombol milik lembar yang ditunjuk tautannya.
-  if(tuju.isi) tekanFormBaru(document.getElementById('view-' + tuju.tab));
+  if(tuju.isi) tekanFormBaru(document.getElementById('view-' + tuju.tab), tuju.subform);
 }
 /**
  * Alamat Dashboard Fasilitas Teknik, untuk tombol pulang di kepala halaman.

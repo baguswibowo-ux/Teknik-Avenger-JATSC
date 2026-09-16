@@ -109,6 +109,10 @@ const BKL = {
      sebut  sebutan di dalam kalimat ("menunggu lembar DS Test")
      paket  nama larik pada jawaban getAllData E-Logbook
      tab    tab E-Logbook untuk tautan #<tab>:<unit>, lihat kotakTautanForm()
+     subform boleh tidak ada. Nama sub-tab DI DALAM jendela form E-Logbook,
+            untuk lembar yang satu tabnya memuat beberapa bentuk — Daily Check
+            Radtel memilih gedungnya di dalam formnya, bukan di tab, jadi tanpa
+            ini kedua cipnya mendarat di form yang sama
      ada    penanda per unit di daftar unit E-Logbook — unit yang tidak punya
             formulirnya tidak dipasangi tombol yang menuju tab tersembunyi.
             Boleh juga FUNGSI (baris unit) => boolean, untuk lembar yang tidak
@@ -176,6 +180,7 @@ const BERKALA_SUMBER = {
     cip:   'DAILY CHECK · NEW JATSC',  judul: 'Daily Check (New JATSC)',
     sebut: ['lembar Daily Check New JATSC', 'the New JATSC Daily Check sheet'],
     paket: 'dcHistory',  tab: 'dailycheck',  ada: (u)=> u.kode === 'radtel' && !!u.adaDailyCheck,   // lembar Garex/Frequentis hanya Radtel
+    subform: 'dc-newjatsc',
     /* Lokasi kosong dibaca sebagai New JATSC — lihat blok di atas. */
     saring:(x)=> !x.Lokasi || x.Lokasi === 'new-jatsc',
     tgl:   (x)=> isoTgl(x.TanggalIso) || isoTgl(x.Tanggal) || isoTgl(x.DibuatPada),
@@ -187,6 +192,7 @@ const BERKALA_SUMBER = {
     cip:   'DAILY CHECK · JATSC',  judul: 'Daily Check (JATSC)',
     sebut: ['lembar Daily Check JATSC', 'the JATSC Daily Check sheet'],
     paket: 'dcHistory',  tab: 'dailycheck',  ada: (u)=> u.kode === 'radtel' && !!u.adaDailyCheck,   // lembar Garex/Frequentis hanya Radtel
+    subform: 'dc-jatsc',
     saring:(x)=> x.Lokasi === 'jatsc',
     tgl:   (x)=> isoTgl(x.TanggalIso) || isoTgl(x.Tanggal) || isoTgl(x.DibuatPada),
     nama:  (x)=> x.TeknisiNama || x.DiinputOleh,
@@ -516,7 +522,7 @@ function bklCipSumber(unit, k){
      harus mencari tombol Form Baru di antara belasan lembar sub-tab.
      E-Logbook mengabaikan penanda ini kalau perannya cuma boleh membaca —
      lihat tekanFormBaru() di js/26-init.js. */
-  return `<a class="cip" href="${esc(TAUTAN_ELOGBOOK)}#${esc(f.tab)}:${esc(unit)}:isi"
+  return `<a class="cip" href="${esc(TAUTAN_ELOGBOOK)}#${esc(f.tab)}:${esc(unit)}:isi${f.subform ? ':' + esc(f.subform) : ''}"
     title="${esc(ket + ' ' + T('Tekan untuk membuka form ' + f.judul + ' di sana.',
                                'Press to open the ' + f.judul + ' form there.'))}">${esc(f.cip)}</a>`;
 }
