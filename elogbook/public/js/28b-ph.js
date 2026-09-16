@@ -2,9 +2,10 @@
    Dimuat dari index.html sesuai nomor berkas; urutannya berpengaruh (setelah
    28-telegram.js karena panelnya menumpang di modal "TTD Saya" yang sama).
 
-   Pejabat yang akan tidak di tempat mencari nama PH-nya — teknisi, admin unit,
-   atau pejabat lain — dan mengisi sampai tanggal berapa. Selama itu, dokumen
-   yang ditujukan ke pejabat tersebut juga muncul di Kotak Masuk TTD milik PH,
+   Pejabat yang akan tidak di tempat mencari nama PH-nya — siapa pun kecuali
+   pejabat non-operasional — dan mengisi PERIODE-nya: mulai dan sampai tanggal
+   berapa. Lembar yang ditujukan ke pejabat tersebut dan BERTANGGAL KEGIATAN
+   di dalam periode itu muncul juga di Kotak Masuk TTD milik PH,
    PH ikut menerima notifikasi Telegram "perlu tanda tangan", dan PH bisa
    menandatanganinya dari akunnya sendiri dengan TTD tersimpannya sendiri —
    tanpa meminjam login pejabat. Yang tercetak nama PH berikut keterangannya.
@@ -17,7 +18,15 @@
 /** Keadaan terakhir dari server, supaya render tidak perlu memanggil ulang. */
 let phInfo = { boleh: false, mewakili: [] };
 
-const PERAN_CALON_PH = { teknisi: 'Teknisi', adminunit: 'Admin unit', pejabat: 'Pejabat' };
+const PERAN_CALON_PH = { teknisi: 'Teknisi', adminunit: 'Admin unit', pejabat: 'Pejabat', admin: 'Administrator' };
+
+/** "16 Sep 2026 – 18 Sep 2026", atau "s.d. 18 Sep 2026" untuk penunjukan lama
+    yang dibuat sebelum tanggal mulai ada. */
+function periodePhTampil(mulai, sampai){
+  return mulai
+    ? `${tanggalPhTampil(mulai)} – ${tanggalPhTampil(sampai)}`
+    : `s.d. ${tanggalPhTampil(sampai)}`;
+}
 
 /** Dipanggil saat modal "TTD Saya" dibuka (js/27-ttd-tersimpan.js). */
 async function muatPh(){
@@ -56,9 +65,15 @@ function renderPh(){
   // Kebalikannya juga ditampilkan: kalau akun ini sedang menjadi PH untuk
   // orang lain, pemiliknya perlu tahu kenapa kotak masuknya berisi dokumen
   // yang tidak ditujukan kepadanya.
-  const mewakili = (phInfo.mewakili || []).map(p => escapeHtml(p.nama)).join(', ');
+  // Periodenya ikut disebut: yang masuk ke kotak masuk PH hanya lembar
+  // bertanggal kegiatan di dalam periode itu, dan tanpa tahu periodenya PH
+  // akan bertanya-tanya kenapa lembar tanggal lain milik pejabat yang sama
+  // tidak ada.
+  const mewakili = (phInfo.mewakili || [])
+    .map(p => `<b>${escapeHtml(p.nama)}</b> (lembar tanggal ${escapeHtml(periodePhTampil(p.mulai, p.sampai))})`)
+    .join(', ');
   const catatanMewakili = mewakili
-    ? `<div class="subtle-note" style="margin-top:6px;">Anda sedang menjadi PH untuk: <b>${mewakili}</b>. Dokumennya ada di Kotak Masuk TTD Anda.</div>`
+    ? `<div class="subtle-note" style="margin-top:6px;">Anda sedang menjadi PH untuk: ${mewakili}. Dokumennya ada di Kotak Masuk TTD Anda.</div>`
     : '';
 
   if(!phInfo.boleh){
@@ -67,10 +82,15 @@ function renderPh(){
     return;
   }
 
-  if(phInfo.aktif){
-    status.innerHTML = `<span class="tg-badge tg-on">Aktif</span> PH: <b>${escapeHtml(phInfo.phNama || phInfo.phUsername)}</b>`
-      + ` sampai ${escapeHtml(tanggalPhTampil(phInfo.sampai))}` + catatanMewakili;
-    aksi.innerHTML = '<button class="btn ghost" onclick="akhiriPh()">Akhiri sekarang</button>';
+  if(phInfo.aktif || phInfo.belumMulai){
+    // Terjadwal: sudah tersimpan tapi periodenya belum mulai. Terbaca beda dari
+    // "Aktif" supaya pejabatnya tidak mengira lembar hari ini sudah tertitip.
+    const lencana = phInfo.aktif
+      ? '<span class="tg-badge tg-on">Aktif</span>'
+      : '<span class="tg-badge tg-off">Terjadwal</span>';
+    status.innerHTML = `${lencana} PH: <b>${escapeHtml(phInfo.phNama || phInfo.phUsername)}</b>`
+      + ` · lembar tanggal ${escapeHtml(periodePhTampil(phInfo.mulai, phInfo.sampai))}` + catatanMewakili;
+    aksi.innerHTML = `<button class="btn ghost" onclick="akhiriPh()">${phInfo.aktif ? 'Akhiri sekarang' : 'Batalkan'}</button>`;
     return;
   }
 
@@ -84,10 +104,15 @@ function renderPh(){
     `<option value="${escapeHtml(labelCalonPh(c))}">${escapeHtml(PERAN_CALON_PH[c.role] || c.role)}</option>`).join('');
   aksi.innerHTML = `
     <div class="field"><label>Cari nama PH</label>
-      <input type="text" id="phCari" list="phCalonDaftar" autocomplete="off" placeholder="Ketik nama teknisi atau pejabat…">
+      <input type="text" id="phCari" list="phCalonDaftar" autocomplete="off" placeholder="Ketik nama…">
       <datalist id="phCalonDaftar">${opsi}</datalist></div>
-    <div class="field" style="margin-top:6px;"><label>Sampai tanggal</label>
-      <input type="date" id="phSampai" min="${tanggalHariIni()}"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">
+      <div class="field" style="flex:1;min-width:140px;"><label>Mulai tanggal</label>
+        <input type="date" id="phMulai" value="${tanggalHariIni()}" min="${tanggalHariIni()}"></div>
+      <div class="field" style="flex:1;min-width:140px;"><label>Sampai tanggal</label>
+        <input type="date" id="phSampai" min="${tanggalHariIni()}"></div>
+    </div>
+    <div class="subtle-note" style="margin-top:4px;">Yang dititipkan ke PH hanya lembar yang <b>tanggal kegiatannya</b> di dalam periode ini. Lembar tanggal lain tetap menunggu Anda.</div>
     <button class="btn" style="margin-top:8px;" onclick="simpanPh()">Simpan PH</button>`;
 }
 
@@ -110,11 +135,14 @@ function calonPhDariIsian(isian){
 
 async function simpanPh(){
   const pilih = calonPhDariIsian(document.getElementById('phCari')?.value);
+  const mulai = document.getElementById('phMulai')?.value || '';
   const sampai = document.getElementById('phSampai')?.value || '';
   if(!pilih){ toast('Pilih nama PH dari daftar yang muncul saat mengetik.'); return; }
+  if(!mulai){ toast('Isi tanggal mulai.'); return; }
   if(!sampai){ toast('Isi tanggal selesai.'); return; }
+  if(mulai > sampai){ toast('Tanggal mulai tidak boleh sesudah tanggal selesai.'); return; }
   try{
-    phInfo = await gsRun('phAtur', { phUsername: pilih.username, sampai });
+    phInfo = await gsRun('phAtur', { phUsername: pilih.username, mulai, sampai });
     toast('PH disimpan.');
   }catch(e){
     toast(e?.message || 'Gagal menyimpan PH.');

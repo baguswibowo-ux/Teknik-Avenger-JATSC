@@ -40,6 +40,7 @@
 import { ringkasDokumen, NAMA_DOKUMEN, potong } from './ringkas-dokumen.js';
 import { MODUL_DOKUMEN, JENIS_RUTE, unitCsv, rincianDokumen, rincianAkun } from './aktivitas-rincian.js';
 import { TAUTAN_MAKS } from './tautan-dokumen.js';
+import { dalamPeriodePh } from './ttd-hak.js';
 import express from 'express';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -335,10 +336,20 @@ function tanggalForm(form) {
 /** Tanggal hari ini (UTC), bentuk YYYY-MM-DD — sama dengan tanggal formulir. */
 const hariIniUtc = () => new Date().toISOString().slice(0, 10);
 
-/** PH yang sedang mewakili seorang pejabat: { username, nama } atau null. */
-async function phAktifUntuk(username) {
+/**
+ * PH yang sedang mewakili seorang pejabat: { username, nama } atau null.
+ *
+ * "Sedang" berarti hari ini berada di dalam periode tugasnya — sudah mulai dan
+ * belum lewat. Kalau `tanggalDokumen` disebut, lembar itu juga harus bertanggal
+ * kegiatan di dalam periode: pejabat yang cuti 16-18 Sep menitipkan lembar
+ * 16-18 Sep, bukan lembar tanggal 14 yang kebetulan baru diisi sekarang.
+ */
+async function phAktifUntuk(username, tanggalDokumen) {
   const ph = await getPh(username);
-  if (!ph.phUsername || !ph.phAktifAkun || !ph.sampai || ph.sampai < hariIniUtc()) return null;
+  const hari = hariIniUtc();
+  if (!ph.phUsername || !ph.phAktifAkun || !ph.sampai || ph.sampai < hari) return null;
+  if (ph.mulai && ph.mulai > hari) return null;
+  if (tanggalDokumen !== undefined && !dalamPeriodePh(tanggalDokumen, ph.mulai, ph.sampai)) return null;
   return { username: ph.phUsername, nama: ph.phNama || ph.phUsername };
 }
 
@@ -351,7 +362,12 @@ async function inboxTtdDenganPh(user) {
   const titipan = [];
   for (const p of diwakili) {
     if (sameUser(p.username, user.username)) continue;
-    for (const it of await getInboxTtd(p.username)) titipan.push({ ...it, atasNama: p.nama || p.username, atasUsername: p.username });
+    for (const it of await getInboxTtd(p.username)) {
+      // Hanya lembar bertanggal kegiatan di dalam periode tugas PH. Sisanya
+      // tetap di kotak masuk pejabatnya sendiri — bukan titipan.
+      if (!dalamPeriodePh(it.tanggal, p.mulai, p.sampai)) continue;
+      titipan.push({ ...it, atasNama: p.nama || p.username, atasUsername: p.username });
+    }
   }
   // Tiap butir disebut dokumen apa dan dari unit mana — "Weekly Check
   // Pengamatan · Pengamatan", bukan cuma "Manager Teknik · tanggal". Terasa
@@ -404,7 +420,8 @@ async function notifPerluTtd(jenis, ttdUntukUsername, form, pembuatNama, id) {
        aslinya tetap menerima juga — siapa pun yang sempat duluan boleh
        menandatangani. Satu orang yang kebetulan PH untuk dirinya sendiri, atau
        yang chat-nya sama, tidak dikirimi dua kali. */
-    const ph = await phAktifUntuk(ttdUntukUsername);
+    // PH hanya dikabari untuk lembar yang memang dititipkan kepadanya.
+    const ph = await phAktifUntuk(ttdUntukUsername, tanggalForm(form));
     if (ph) {
       const chatPh = await getChatIdTelegram(ph.username);
       if (chatPh && chatPh !== chatId) {
@@ -1295,8 +1312,13 @@ const API = {
     const baris = (await daftar(unit, 2000)).find((r) => String(r.ID) === String(id));
     if (!baris) throw new Error('Catatan terlalu lama untuk dibuka dari kotak masuk.');
     const pegangUnit = (await unitUntukUser(user)).includes(unit);
+    // PH hanya boleh membuka lembar yang dititipkan: bertanggal kegiatan di
+    // dalam periode tugasnya. Tanpa pagar ini lembar di luar periode masih
+    // terbuka lewat jalur titipan, walau sudah tidak muncul di kotak masuk.
+    const tglBaris = baris.TanggalIso || baris.Tanggal || baris.TanggalLapor || '';
     const diwakili = (await listDiwakiliOleh(user.username, hariIniUtc()))
-      .filter((p) => !sameUser(p.username, user.username));
+      .filter((p) => !sameUser(p.username, user.username))
+      .filter((p) => dalamPeriodePh(tglBaris, p.mulai, p.sampai));
     const sebagaiPh = !!baris.TtdUntuk && diwakili.some((p) => sameUser(p.username, baris.TtdUntuk));
     if (!pegangUnit && !sebagaiPh) {
       throw new Error('Catatan ini bukan untuk Anda atau pejabat yang sedang Anda wakili.');
@@ -1406,16 +1428,24 @@ const API = {
     const hari = hariIniUtc();
     const mewakili = (await listDiwakiliOleh(user.username, hari))
       .filter((p) => !sameUser(p.username, user.username))
-      .map((p) => ({ nama: p.nama || p.username }));
+      .map((p) => ({ nama: p.nama || p.username, mulai: p.mulai || '', sampai: p.sampai || '' }));
     // Yang tidak bisa menandatangani tidak bisa menunjuk PH, tapi tetap perlu
     // tahu kalau dirinya sedang menjadi PH bagi seseorang.
     if (!bolehTtdSusulan(user)) return { boleh: false, mewakili };
     const ph = await getPh(user.username);
-    const aktif = !!(ph.phUsername && ph.phAktifAkun && ph.sampai && ph.sampai >= hari);
+    // Tiga keadaan, bukan dua: ditunjuk untuk nanti (belum mulai) juga perlu
+    // terbaca di layar, supaya pejabatnya tahu penunjukannya sudah tersimpan.
+    const berlaku = !!(ph.phUsername && ph.phAktifAkun && ph.sampai && ph.sampai >= hari);
+    const belumMulai = berlaku && !!ph.mulai && ph.mulai > hari;
+    const aktif = berlaku && !belumMulai;
     const calon = (await listCalonPh())
       .filter((c) => !sameUser(c.username, user.username))
       .map((c) => ({ username: c.username, nama: c.nama || c.username, role: c.role }));
-    return { boleh: true, aktif, phUsername: ph.phUsername, phNama: ph.phNama, sampai: ph.sampai, mewakili, calon };
+    return {
+      boleh: true, aktif, belumMulai,
+      phUsername: ph.phUsername, phNama: ph.phNama,
+      mulai: ph.mulai, sampai: ph.sampai, mewakili, calon
+    };
   },
 
   phAtur: async (payload, user) => {
@@ -1424,24 +1454,29 @@ const API = {
     // Calon yang sah diambil dari sumber yang sama dengan daftar di layar —
     // satu tempat yang menentukan peran mana yang boleh jadi PH.
     const target = (await listCalonPh()).find((c) => sameUser(c.username, diminta));
-    if (!target) throw new Error('PH harus akun teknisi, admin unit, atau pejabat yang aktif.');
+    if (!target) throw new Error('PH harus akun aktif yang bukan pejabat non-operasional.');
     if (sameUser(target.username, user.username)) throw new Error('PH tidak bisa diri sendiri.');
+    const tanggalSah = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(Date.parse(s + 'T00:00:00Z'));
     const sampai = String(payload?.sampai || '').trim();
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(sampai) || isNaN(Date.parse(sampai + 'T00:00:00Z'))) {
-      throw new Error('Tanggal selesai tidak sah.');
-    }
+    if (!tanggalSah(sampai)) throw new Error('Tanggal selesai tidak sah.');
     if (sampai < hariIniUtc()) throw new Error('Tanggal selesai sudah lewat.');
+    // Tanggal mulai boleh kosong dari peramban lama yang belum mengirimnya —
+    // dibaca sebagai hari ini, bukan tanpa batas bawah: penunjukan BARU selalu
+    // punya awal, dan tanpa awal seluruh lembar lama pejabatnya ikut tertitip.
+    const mulai = String(payload?.mulai || '').trim() || hariIniUtc();
+    if (!tanggalSah(mulai)) throw new Error('Tanggal mulai tidak sah.');
+    if (mulai > sampai) throw new Error('Tanggal mulai tidak boleh sesudah tanggal selesai.');
     // Batas atas supaya pengalihan tidak tertinggal hidup berbulan-bulan hanya
     // karena salah ketik tahun.
     const batas = new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10);
     if (sampai > batas) throw new Error('PH paling lama 90 hari ke depan.');
-    await setPh(user.username, target.username, sampai);
+    await setPh(user.username, target.username, sampai, mulai);
     return API.phStatus(user);
   },
 
   phHapus: async (user) => {
     if (!bolehTtdSusulan(user)) return { boleh: false };
-    await setPh(user.username, '', '');
+    await setPh(user.username, '', '', '');
     return API.phStatus(user);
   },
 

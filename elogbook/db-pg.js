@@ -19,7 +19,7 @@
  */
 
 import { KOLOM_RINGKAS } from './ringkas-dokumen.js';
-import { hakTtd, namaCetakPh } from './ttd-hak.js';
+import { hakTtd, namaCetakPh, diwakiliUntukTanggal } from './ttd-hak.js';
 import crypto from 'node:crypto';
 import pg from 'pg';
 import { isoDariTanggalPanjang } from './tanggal-lama.js';
@@ -280,7 +280,9 @@ const KOLOM_SUSULAN = [
   ['bapb', 'pengingat_ttd_pada', "TEXT NOT NULL DEFAULT ''"],
   // PH (pelaksana harian) — lihat getPh di db.js.
   ['users', 'ph_username', "TEXT NOT NULL DEFAULT ''"],
-  ['users', 'ph_sampai', "TEXT NOT NULL DEFAULT ''"]
+  ['users', 'ph_sampai', "TEXT NOT NULL DEFAULT ''"],
+  // Tanggal mulai tugas PH — lihat catatan di db.js.
+  ['users', 'ph_mulai', "TEXT NOT NULL DEFAULT ''"]
 ];
 try {
   const sudahAda = new Set(
@@ -2450,10 +2452,13 @@ export async function tandaTanganiCatatan(jenis, id, { nama, username, role, ttd
   );
   if (!row) throw new Error('Catatan tidak ditemukan — mungkin sudah dihapus.');
   if (row.ttd) throw new Error('Catatan ini sudah ditandatangani.');
-  // Siapa yang boleh membubuhkan — satu aturan untuk SQLite dan Postgres, di
-  // ttd-hak.js. wakilDari: pejabat yang sedang diwakili penanda sebagai PH.
+  // PH hanya berhak atas lembar bertanggal kegiatan di dalam periode tugasnya —
+  // alasannya diterangkan di db.js.
+  const diwakiliSah = diwakiliUntukTanggal(diwakili, row.tanggal);
+  const wakilSah = (wakilDari || []).filter((w) =>
+    diwakiliSah.some((p) => String(p.username).toLowerCase() === String(w).toLowerCase()));
   const { sebagaiPh } = hakTtd({
-    role, username, ttdUntuk: row.ttd_untuk, dibuatOleh: row.dibuat_oleh, wakilDari
+    role, username, ttdUntuk: row.ttd_untuk, dibuatOleh: row.dibuat_oleh, wakilDari: wakilSah
   });
 
   const path = await saveSignature(ttd, t.prefix);
@@ -2464,7 +2469,7 @@ export async function tandaTanganiCatatan(jenis, id, { nama, username, role, ttd
   // diketik teknisi di formulir. TTD si PH di atas nama orang lain sama saja
   // dengan memalsu arsip.
   const namaTetap = sebagaiPh
-    ? namaCetakPh(nama || username, row.ttd_untuk, diwakili, t.label)
+    ? namaCetakPh(nama || username, row.ttd_untuk, diwakiliSah, t.label)
     : (String(row.nama || '').trim() ? row.nama : String(nama || ''));
   const pada = nowIso();
   await jalankan(
@@ -2587,31 +2592,35 @@ export async function getInboxTtd(username) {
  * kecil, sedangkan SQLite memakai COLLATE NOCASE. aktif::int menerima kolom
  * INTEGER maupun BOOLEAN. */
 export async function getPh(username) {
-  const row = await q1(`SELECT u.ph_username, u.ph_sampai, p.nama AS ph_nama, p.aktif AS ph_aktif
+  const row = await q1(`SELECT u.ph_username, u.ph_mulai, u.ph_sampai, p.nama AS ph_nama, p.aktif AS ph_aktif
                           FROM users u LEFT JOIN users p ON lower(p.username) = lower(u.ph_username)
                          WHERE lower(u.username) = lower($1)`, [String(username || '').trim()]);
   return {
     phUsername: row?.ph_username || '', phNama: row?.ph_nama || '',
-    sampai: row?.ph_sampai || '', phAktifAkun: !!Number(row?.ph_aktif ?? 0)
+    mulai: row?.ph_mulai || '', sampai: row?.ph_sampai || '',
+    phAktifAkun: !!Number(row?.ph_aktif ?? 0)
   };
 }
 
-export async function setPh(username, phUsername, sampai) {
-  await jalankan('UPDATE users SET ph_username = $1, ph_sampai = $2 WHERE lower(username) = lower($3)',
-    [String(phUsername || ''), String(sampai || ''), String(username || '').trim()]);
+export async function setPh(username, phUsername, sampai, mulai = '') {
+  await jalankan('UPDATE users SET ph_username = $1, ph_mulai = $2, ph_sampai = $3 WHERE lower(username) = lower($4)',
+    [String(phUsername || ''), String(mulai || ''), String(sampai || ''), String(username || '').trim()]);
 }
 
+/** Cerminan listDiwakiliOleh di db.js — alasannya diterangkan di sana. */
 export async function listDiwakiliOleh(phUsername, hariIni) {
   const u = String(phUsername || '').trim();
   if (!u) return [];
-  return await q(`SELECT username, nama FROM users
+  return await q(`SELECT username, nama, ph_mulai AS mulai, ph_sampai AS sampai FROM users
                    WHERE aktif::int = 1 AND lower(ph_username) = lower($1) AND ph_sampai >= $2
+                     AND (ph_mulai = '' OR ph_mulai <= $2)
                    ORDER BY lower(nama)`, [u, String(hariIni)]);
 }
 
+/** Cerminan listCalonPh di db.js: semua akun aktif kecuali pejabat non-operasional. */
 export async function listCalonPh() {
   return await q(`SELECT username, nama, role FROM users
-                   WHERE aktif = true AND role IN ('teknisi', 'adminunit', 'pejabat')
+                   WHERE aktif = true AND role <> 'pejabatnonop'
                    ORDER BY lower(nama)`);
 }
 
