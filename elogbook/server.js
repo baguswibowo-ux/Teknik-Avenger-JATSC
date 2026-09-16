@@ -662,20 +662,23 @@ app.post('/api/daftar', async (req, res) => {
     return res.status(429).json({ error: 'Terlalu banyak percobaan. Tunggu 5 menit.' });
   }
 
-  const username = String(req.body?.username || '').trim().toLowerCase();
+  const username = String(req.body?.username || '').replace(/\s+/g, '');
   const nama = String(req.body?.nama || '').trim();
   const password = String(req.body?.password || '');
   const unit = String(req.body?.unit || '').trim();
 
   try {
-    if (!/^[a-z0-9._-]{3,32}$/.test(username)) {
-      throw new Error('Username 3–32 karakter, hanya huruf kecil, angka, titik, garis bawah, atau strip.');
+    /* Pendaftar mandiri wajib memakai NIK (8 angka) sebagai username: NIK yang
+       mengikat akun ke jadwal dinas dan Telegram. Akun lama dan akun yang dibuat
+       administrator tidak terkena aturan ini. */
+    if (!/^\d{8}$/.test(username)) {
+      throw new Error('NIK harus 8 angka, sesuai NIK pegawai Anda.');
     }
     if (!nama) throw new Error('Nama lengkap belum diisi.');
     if (password.length < 6) throw new Error('Password minimal 6 karakter.');
     if (!unit) throw new Error('Unit yang dituju belum dipilih.');
     if (!unitSah(unit)) throw new Error('Unit yang dituju tidak dikenal.');
-    if (await getUserByUsername(username)) throw new Error('Username itu sudah dipakai. Pilih yang lain.');
+    if (await getUserByUsername(username)) throw new Error('NIK itu sudah terdaftar. Kalau lupa password, hubungi administrator.');
 
     const dibuat = await createUser({ username, password, nama, role: 'teknisi', unit: [unit] });
     await setAktif(username, false);

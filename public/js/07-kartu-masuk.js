@@ -72,7 +72,7 @@ async function daftarMuatUnit(){
 async function daftarKirim(){
   if(!SRV.ada){ ketDaftar(); return; }
   const nama     = el('dfNama').value.trim();
-  const username = el('dfUser').value.trim().toLowerCase();
+  const username = el('dfUser').value.replace(/\s+/g, '');
   const unit     = el('dfUnit').value;
   const p1 = el('dfPass').value, p2 = el('dfPass2').value;
 
@@ -80,8 +80,8 @@ async function daftarKirim(){
   // sebelum permintaannya berangkat. Aturannya tetap milik server — ia
   // memeriksa ulang semuanya, dan halaman ini tidak menjaga apa pun.
   if(!nama){ ketDaftar('Nama lengkap belum diisi.', 'km-awas'); return; }
-  if(!/^[a-z0-9._-]{3,32}$/.test(username)){
-    ketDaftar('Username 3–32 karakter: huruf kecil, angka, titik, garis bawah, atau strip.', 'km-awas');
+  if(!/^\d{8}$/.test(username)){
+    ketDaftar('NIK harus 8 angka, sesuai NIK pegawai Anda.', 'km-awas');
     return;
   }
   if(!unit){ ketDaftar('Unit yang dituju belum dipilih.', 'km-awas'); return; }
