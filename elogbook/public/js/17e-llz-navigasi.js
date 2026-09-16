@@ -266,7 +266,67 @@ function hapusLlzTeknisi(key){ llzTeknisiRows = llzTeknisiRows.filter(x => x.key
 
 /* ---------- Modal (buka / tutup / simpan) ---------- */
 
+/* ---------- Mode sunting ----------
+   Sejajar dengan Weekly Check (17d) dan Maintenance Listrik (17g): terkunci
+   sesudah Manager Teknik menandatangani, dan selain administrator hanya
+   pembuatnya yang boleh. Lembarnya (llzForm) tidak ikut bisa diganti. */
+
+let llzEditingId = null;
+
+function llzTerapkanModeSunting(){
+  const btn = document.getElementById('llzSaveBtn');
+  if(btn) btn.textContent = llzEditingId ? T('simpanPerubahan') : T('simpanLlz');
+  const bar = document.getElementById('llzEditingBanner');
+  if(bar) bar.style.display = llzEditingId ? '' : 'none';
+}
+
+function batalEditLlz(){
+  const form = llzForm;
+  closeLlzModal();
+  llzEditingId = null;
+  llzTerapkanModeSunting();
+  renderLlzList(form);
+}
+
+function openLlzEdit(id){
+  const d = (typeof dsList !== 'undefined' ? dsList : []).find(x=>x.id === id);
+  if(!d || !d.state){ toast(T('takAdaHasil')); return; }
+  if(d.managerTtd){ toast(T('lembarTerkunci')); return; }
+
+  const form = LLZ_FORMS[d.state.__llzForm] ? d.state.__llzForm : '07l';
+  openLlzModal(form);
+  llzEditingId = id;
+
+  // Baris tersimpan dipakai apa adanya kalau jumlahnya cocok dengan kerangka
+  // yang berlaku sekarang. Kalau daftar barisnya sudah berubah, kerangka baru
+  // yang dipakai dan isinya ditimpakan sejauh yang ada — lebih baik sebagian
+  // terisi daripada tabel yang barisnya tidak cocok dengan judulnya.
+  const tersimpan = Array.isArray(d.state.rows) ? d.state.rows : [];
+  llzVals = llzVals.map((baris, i) => Object.assign(baris, tersimpan[i] || {}));
+  renderLlzTable();
+
+  const h = d.state.header || {};
+  document.getElementById('llzTanggal').value = String(d.tanggal || '').slice(0, 10);
+  document.getElementById('llzIdent').value = h.ident || '';
+  document.getElementById('llzMerk').value = h.merk || '';
+  document.getElementById('llzJarakAntena').value = h.jarakAntena || '';
+  document.getElementById('llzManagerNama').value = d.managerNama || '';
+  const akun = document.getElementById('llzManagerAkun');
+  if(akun) akun.value = d.ttdUntuk || '';
+
+  llzTeknisiRows = []; llzTeknisiSeq = 0;
+  const daftar = (d.teknisiNamaList && d.teknisiNamaList.length)
+    ? d.teknisiNamaList
+    : String(d.teknisiNama || '').split(',').map(s=>s.trim()).filter(Boolean);
+  if(daftar.length) daftar.forEach(nama=>llzTeknisiRows.push({ key:'g' + (llzTeknisiSeq++), nama }));
+  else addLlzTeknisi();
+  renderLlzTeknisi();
+
+  llzTerapkanModeSunting();
+}
+
 function openLlzModal(form){
+  llzEditingId = null;
   if(!LLZ_FORMS[form]) form = '07l';
   llzForm = form;
   llzInitVals();
@@ -285,6 +345,7 @@ function openLlzModal(form){
   // effort nempel TTD, bukan tiba-tiba sudah ada tanda tangan kita.
   if(typeof pasangTombolTtdTersimpan === 'function') pasangTombolTtdTersimpan();
   renderLlzTable();
+  llzTerapkanModeSunting();
   document.getElementById('llzModalBg').classList.add('show');
   setTimeout(() => resizeSigCanvas('sigLlz'), 60);
 }
@@ -292,6 +353,7 @@ function closeLlzModal(){ document.getElementById('llzModalBg').classList.remove
 
 async function saveLlz(){
   const btn = document.getElementById('llzSaveBtn'); btn.disabled = true;
+  const menyunting = !!llzEditingId;
   try{
     const header = {
       ident: document.getElementById('llzIdent').value.trim(),
@@ -299,7 +361,7 @@ async function saveLlz(){
       jarakAntena: document.getElementById('llzJarakAntena').value.trim()
     };
     const state = { __format: 'llzgc', __llzForm: llzForm, header, rows: llzVals };
-    const saved = await gsRun('addDsTest', {
+    const payload = {
       unit: unitAktif,
       kategori: 'llzgc',
       tanggal: document.getElementById('llzTanggal').value,
@@ -308,7 +370,21 @@ async function saveLlz(){
       teknisiTtd: getSigDataUrl('sigLlz'),
       managerNama: document.getElementById('llzManagerNama').value.trim(),
       ttdUntuk: ttdUntukTerpilih('llzManagerAkun', document.getElementById('llzManagerNama').value)
-    });
+    };
+    if(menyunting){
+      const saved = await gsRun('updateDsTest', llzEditingId, payload);
+      const i = dsList.findIndex(x=>x.id === llzEditingId);
+      if(i !== -1) dsList[i] = mapDs(saved);
+      const form = llzForm;
+      closeLlzModal();
+      llzEditingId = null;
+      llzTerapkanModeSunting();
+      renderLlzList(form);
+      toast(T('tersimpanPerubahan'));
+      btn.disabled = false;
+      return;
+    }
+    const saved = await gsRun('addDsTest', payload);
     dsList.unshift(mapDs(saved));
     renderLlzList(llzForm);
     closeLlzModal();
@@ -349,6 +425,8 @@ function renderLlzList(form){
       ${diinputOlehHtml(d.diinputOleh, d.dibuatPada, String(d.tanggal || '').slice(0, 10))}
       <div style="display:flex;gap:4px;">
         <button class="btn ghost" style="padding:6px 10px;" onclick="openLlzDetail('${d.id}')">${T('detail')}</button>
+        ${(!d.managerTtd && bolehSuntingCatatan(d.dibuatOlehUsername))
+          ? `<button class="icon-btn" title="${T('suntingLembarIni')}" onclick="openLlzEdit('${d.id}')">✎</button>` : ''}
         <button class="icon-btn" title="${T('cetak')}" onclick="printLlz('${d.id}')">🖨</button>
         <button class="icon-btn hanya-hapus" title="${T('hapus')}" onclick="hapusLlz('${d.id}')">✕</button>
       </div>

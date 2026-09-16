@@ -304,7 +304,84 @@ function hapusRadioTeknisi(key){ radioTeknisiRows = radioTeknisiRows.filter(x=>x
 
 /* ---------- Modal (buka / tutup / simpan) ---------- */
 
+/* ---------- Mode sunting ----------
+   Satu jendela dipakai mengisi lembar baru DAN menyunting yang tersimpan.
+   Yang membedakan cuma radioEditingId. Aturannya kembar dengan Maintenance
+   Listrik (17g) dan sunting catatan logbook:
+     · lembar yang sudah ditandatangani Manager Teknik terkunci — tombol
+       suntingnya tidak digambar, dan server menolaknya lagi;
+     · selain administrator, hanya pembuat lembar yang boleh menyunting. */
+
+/** Id lembar yang sedang disunting; null = sedang mengisi lembar baru. */
+let radioEditingId = null;
+
+function radioTerapkanModeSunting(){
+  const btn = document.getElementById('radioSaveBtn');
+  if(btn) btn.textContent = radioEditingId ? T('simpanPerubahan') : T('simpanRadio');
+  const bar = document.getElementById('radioEditingBanner');
+  if(bar) bar.style.display = radioEditingId ? '' : 'none';
+}
+
+function batalEditRadio(){
+  closeRadioModal();
+  radioEditingId = null;
+  radioTerapkanModeSunting();
+  renderRadioList();
+}
+
+/**
+ * Buka jendela berisi lembar tersimpan.
+ *
+ * Sesi TIDAK ikut dibangun ulang dari radioSesiBerikut(): yang dibuka lembar
+ * yang sudah ada, dan sesinya bagian dari catatan itu. Barisnya pun diambil
+ * apa adanya dari yang tersimpan, bukan dibangun ulang dari daftar radio yang
+ * berlaku sekarang — daftar itu bisa sudah berubah, dan yang tercatat waktu
+ * itu tetap yang benar untuk lembar itu.
+ */
+function openRadioEdit(id){
+  const d = (typeof dsList !== 'undefined' ? dsList : []).find(x=>x.id === id);
+  if(!d || !d.state){ toast(T('takAdaHasil')); return; }
+  if(d.managerTtd){ toast(T('lembarTerkunci')); return; }
+
+  radioEditingId = id;
+  radioSesi = Math.max(1, Math.min(7, +d.state.__sesi || 1));
+  radioRows = (Array.isArray(d.state.rows) ? d.state.rows : []).map(r=>({
+    code:   String((r && r.code) || ''),
+    ptts:   String((r && r.ptts) || ''),
+    ptta:   String((r && r.ptta) || ''),
+    rx:     String((r && r.rx) || ''),
+    tx:     String((r && r.tx) || ''),
+    hasil:  (r && r.hasil) || 'ok',
+    remark: String((r && r.remark) || '')
+  }));
+
+  document.getElementById('radioTanggal').value = String(d.tanggal || '').slice(0, 10);
+  document.getElementById('radioManagerNama').value = d.managerNama || '';
+  const akun = document.getElementById('radioManagerAkun');
+  if(akun) akun.value = d.ttdUntuk || '';
+
+  radioTeknisiRows = []; radioTeknisiSeq = 0;
+  const daftar = (d.teknisiNamaList && d.teknisiNamaList.length)
+    ? d.teknisiNamaList
+    : String(d.teknisiNama || '').split(',').map(s=>s.trim()).filter(Boolean);
+  if(daftar.length) daftar.forEach(nama=>radioTeknisiRows.push({ key:'r' + (radioTeknisiSeq++), nama }));
+  else addRadioTeknisi();
+  renderRadioTeknisi();
+
+  ['sigRadio'].forEach(sid=>{ if(!sigPads[sid]) setupSigCanvas(sid); clearSig(sid); });
+
+  const sel = document.getElementById('radioSesi');
+  if(sel){ sel.innerHTML = radioSesiPilihanHtml(); sel.value = String(radioSesi); }
+  renderRadioTable();
+  radioTerapkanModeSunting();
+
+  document.getElementById('radioModalBg').classList.add('show');
+  setTimeout(()=>['sigRadio'].forEach(resizeSigCanvas), 60);
+}
+
 function openRadioModal(){
+  radioEditingId = null;
+  radioTerapkanModeSunting();
   document.getElementById('radioTanggal').value = tanggalHariIni();
   document.getElementById('radioManagerNama').value = '';
   document.getElementById('radioManagerAkun').value = '';
@@ -328,6 +405,7 @@ async function saveRadio(){
     return;
   }
   const btn = document.getElementById('radioSaveBtn'); btn.disabled = true;
+  const menyunting = !!radioEditingId;
   try{
     const state = {
       __format: 'radio',
@@ -342,7 +420,7 @@ async function saveRadio(){
         remark: String(r.remark || '')
       }))
     };
-    const saved = await gsRun('addDsTest', {
+    const payload = {
       unit: unitAktif,
       kategori: 'radio',
       tanggal: document.getElementById('radioTanggal').value,
@@ -351,7 +429,24 @@ async function saveRadio(){
       teknisiTtd: getSigDataUrl('sigRadio'),
       managerNama: document.getElementById('radioManagerNama').value.trim(),
       ttdUntuk: ttdUntukTerpilih('radioManagerAkun', document.getElementById('radioManagerNama').value)
-    });
+    };
+    if(menyunting){
+      const saved = await gsRun('updateDsTest', radioEditingId, payload);
+      const i = dsList.findIndex(x=>x.id === radioEditingId);
+      if(i !== -1) dsList[i] = mapDs(saved);
+      closeRadioModal();
+      radioEditingId = null;
+      radioTerapkanModeSunting();
+      renderRadioList();
+      // Penanda sesi & radio terpakai TIDAK disentuh waktu menyunting:
+      // siklusnya sudah tercatat sejak lembar ini pertama disimpan, dan
+      // mencatatnya lagi membuat sampling berikutnya melompati radio yang
+      // sebenarnya belum diuji.
+      toast(T('tersimpanPerubahan'));
+      btn.disabled = false;
+      return;
+    }
+    const saved = await gsRun('addDsTest', payload);
     dsList.unshift(mapDs(saved));
     renderRadioList();
     radioCatatSesi(radioSesi);
@@ -405,6 +500,8 @@ function renderRadioList(){
       ${diinputOlehHtml(d.diinputOleh, d.dibuatPada, String(d.tanggal||'').slice(0,10))}
       <div style="display:flex;gap:4px;">
         <button class="btn ghost" style="padding:6px 10px;" onclick="openRadioDetail('${d.id}')">${T('detail')}</button>
+        ${(!d.managerTtd && bolehSuntingCatatan(d.dibuatOlehUsername))
+          ? `<button class="icon-btn" title="${T('suntingLembarIni')}" onclick="openRadioEdit('${d.id}')">✎</button>` : ''}
         <button class="icon-btn" title="${T('cetak')}" onclick="printRadio('${d.id}')">🖨</button>
         <button class="icon-btn hanya-hapus" title="${T('hapus')}" onclick="hapusRadio('${d.id}')">✕</button>
       </div>

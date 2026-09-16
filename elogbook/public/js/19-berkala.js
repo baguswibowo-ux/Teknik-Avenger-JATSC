@@ -51,7 +51,7 @@ const mapBerkala = b => ({ id:b.ID, tanggal:b.Tanggal, jenis:b.Jenis||'neptuno',
                            managerNama:b.ManagerNama||'', managerTtd:b.ManagerTTD||'',
                            teknisiNama:b.TeknisiNama||'', teknisiNamaList:b.TeknisiNamaListJSON||[],
                            teknisiTtd:b.TeknisiTTD||'', diinputOleh:b.DiinputOleh||'',
-                           dibuatPada:b.DibuatPada||'',
+                           dibuatPada:b.DibuatPada||'', dibuatOlehUsername:b.DibuatOlehUsername||'',
                            ttdOleh:b.TtdOleh||'', ttdPada:b.TtdPada||'', ttdUntuk:b.TtdUntuk||'' });
 
 /* ok (dikerjakan, normal) -> fail (dikerjakan, ada temuan) -> minus (tidak
@@ -585,7 +585,66 @@ function hapusBerkalaTeknisi(key){ berkalaTeknisiRows = berkalaTeknisiRows.filte
 /** Jendela pengisian, selalu untuk satu jenis — tabnya yang menentukan.
     Lembar Change Over Gatevox punya 16 kolom, jadi modalnya dilebarkan
     saat jenis itu yang dibuka; jenis lain kembali ke lebar semula. */
+/* ---------- Mode sunting ----------
+   Satu jendela dipakai mengisi lembar baru DAN menyunting yang tersimpan;
+   yang membedakan cuma berkalaEditingId. Aturannya kembar dengan lembar
+   Preventive yang lain: terkunci sesudah Manager Teknik menandatangani, dan
+   selain administrator hanya pembuatnya yang boleh. Server memeriksa
+   keduanya lagi di updateBerkala.
+
+   JENIS tidak ikut bisa diganti. Jenis itu identitas lembarnya: lembar
+   Cleaning CWP yang diubah jadi Restart CWP bukan suntingan, itu lembar lain
+   yang menumpang catatan orang lain beserta tanggal dan nama teknisinya. */
+
+let berkalaEditingId = null;
+
+function berkalaTerapkanModeSunting(){
+  const btn = document.getElementById('bkSaveBtn');
+  if(btn) btn.textContent = berkalaEditingId ? T('simpanPerubahan') : T('simpanBk');
+  const bar = document.getElementById('bkEditingBanner');
+  if(bar) bar.style.display = berkalaEditingId ? '' : 'none';
+}
+
+function batalEditBerkala(){
+  closeBerkalaModal();
+  berkalaEditingId = null;
+  berkalaTerapkanModeSunting();
+  renderBerkalaList();
+}
+
+function openBerkalaEdit(id){
+  const b = berkalaList.find(x=>x.id === id);
+  if(!b){ toast(T('takAdaHasil')); return; }
+  if(b.managerTtd){ toast(T('lembarTerkunci')); return; }
+
+  openBerkalaModal(b.jenis);        // kerangka kosong jenis itu dulu
+  berkalaEditingId = id;
+
+  // Isi tersimpan ditimpakan di atas kerangka — pekerjaan yang baru
+  // ditambahkan ke daftar sesudah lembar ini diisi tetap kosong, bukan
+  // hilang, dan itu memang benar: waktu itu belum ada yang mengerjakannya.
+  berkalaState = Object.assign({}, berkalaState, b.state || {});
+  renderBerkalaTable();
+
+  document.getElementById('bkTanggal').value = String(b.tanggal || '').slice(0, 10);
+  document.getElementById('bkCatatan').value = b.catatan || '';
+  document.getElementById('bkManagerNama').value = b.managerNama || '';
+  const akun = document.getElementById('bkManagerAkun');
+  if(akun) akun.value = b.ttdUntuk || '';
+
+  berkalaTeknisiRows = []; berkalaTeknisiSeq = 0;
+  const daftar = (b.teknisiNamaList && b.teknisiNamaList.length)
+    ? b.teknisiNamaList
+    : String(b.teknisiNama || '').split(',').map(s=>s.trim()).filter(Boolean);
+  if(daftar.length) daftar.forEach(nama=>berkalaTeknisiRows.push({ key:'b' + (berkalaTeknisiSeq++), nama }));
+  else addBerkalaTeknisi();
+  renderBerkalaTeknisi();
+
+  berkalaTerapkanModeSunting();
+}
+
 function openBerkalaModal(jenis){
+  berkalaEditingId = null;
   berkalaJenis = berkalaJenisUrut.includes(jenis) ? jenis : berkalaJenisUrut[0];
   const modal = document.querySelector('#bkModalBg .modal');
   if(modal) modal.style.maxWidth =
@@ -610,6 +669,7 @@ function openBerkalaModal(jenis){
   document.getElementById('bkKosongNote').style.display = kosong ? '' : 'none';
   document.getElementById('bkSaveBtn').disabled = kosong;
 
+  berkalaTerapkanModeSunting();
   document.getElementById('bkModalBg').classList.add('show');
   setTimeout(()=>['sigBerkala'].forEach(resizeSigCanvas), 60);
 }
@@ -617,8 +677,9 @@ function closeBerkalaModal(){ document.getElementById('bkModalBg').classList.rem
 
 async function saveBerkala(){
   const btn = document.getElementById('bkSaveBtn'); btn.disabled = true;
+  const menyunting = !!berkalaEditingId;
   try{
-    const saved = await gsRun('addBerkala', {
+    const payload = {
       unit: unitAktif,
       jenis: berkalaJenis,
       tanggal: document.getElementById('bkTanggal').value,
@@ -628,7 +689,23 @@ async function saveBerkala(){
       teknisiTtd: getSigDataUrl('sigBerkala'),
       managerNama: document.getElementById('bkManagerNama').value.trim(),
       ttdUntuk: ttdUntukTerpilih('bkManagerAkun', document.getElementById('bkManagerNama').value)
-    });
+    };
+    if(menyunting){
+      // Nama teknisi dan tanda tangannya tidak ikut dikirim: updateBerkala
+      // memang tidak menyentuhnya — itu bukti kerja yang sudah dibubuhkan,
+      // sama seperti pada catatan logbook.
+      const saved = await gsRun('updateBerkala', berkalaEditingId, payload);
+      const i = berkalaList.findIndex(x=>x.id === berkalaEditingId);
+      if(i !== -1) berkalaList[i] = mapBerkala(saved);
+      closeBerkalaModal();
+      berkalaEditingId = null;
+      berkalaTerapkanModeSunting();
+      renderBerkalaList();
+      toast(T('tersimpanPerubahan'));
+      btn.disabled = false;
+      return;
+    }
+    const saved = await gsRun('addBerkala', payload);
     berkalaList.unshift(mapBerkala(saved));
     renderBerkalaList();
     closeBerkalaModal();
@@ -689,6 +766,8 @@ function renderBerkalaList(){
         ${diinputOlehHtml(b.diinputOleh, b.dibuatPada, String(b.tanggal||'').slice(0,10))}
         <div style="display:flex;gap:4px;">
           <button class="btn ghost" style="padding:6px 10px;" onclick="openBerkalaDetail('${b.id}')">${T('detail')}</button>
+          ${(!b.managerTtd && bolehSuntingCatatan(b.dibuatOlehUsername))
+            ? `<button class="icon-btn" title="${T('suntingLembarIni')}" onclick="openBerkalaEdit('${b.id}')">✎</button>` : ''}
           <button class="icon-btn" title="${T('cetak')}" onclick="printBerkala('${b.id}')">🖨</button>
           <button class="icon-btn hanya-hapus" title="${T('hapus')}" onclick="hapusBerkala('${b.id}')">✕</button>
         </div>

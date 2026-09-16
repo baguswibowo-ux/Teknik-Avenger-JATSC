@@ -167,6 +167,11 @@ const KAMUS = {
     mlSel:'sel', mlNo:'NO', mlTeganganV:'TEGANGAN (V)', mlNilaiTercatat:'nilai tercatat',
     mlTidakBaik:'tidak baik / tidak ada',
     batalEdit:'Batal Edit',
+    /* mode sunting lembar preventive — dipakai bersama seluruh lembar */
+    suntingLembarIni:'Sedang menyunting lembar ini',
+    dsLamaTakBisaSunting:'Catatan DS Test bentuk lama tidak bisa disunting — bentuk tabelnya berbeda.',
+    simpanMr:'💾 Simpan Meter Reading',
+    lembarTerkunci:'Lembar ini sudah ditandatangani manager teknik — tidak bisa disunting lagi.',
     mlSunting:'Sunting lembar ini',
     mlTerkunci:'Sudah ditandatangani manager teknik — tidak bisa disunting lagi.',
     /* ---------- Meter Reading Radkom (js/17h) ---------- */
@@ -551,6 +556,11 @@ const KAMUS = {
     mlSel:'cells', mlNo:'NO', mlTeganganV:'VOLTAGE (V)', mlNilaiTercatat:'values recorded',
     mlTidakBaik:'not good / missing',
     batalEdit:'Cancel Edit',
+    /* sheet edit mode — shared by every preventive sheet */
+    suntingLembarIni:'Editing this sheet',
+    dsLamaTakBisaSunting:'Old-format DS Test records cannot be edited — their table layout differs.',
+    simpanMr:'💾 Save Meter Reading',
+    lembarTerkunci:'This sheet has been signed by the technical manager — it can no longer be edited.',
     mlSunting:'Edit this sheet',
     mlTerkunci:'Already signed by the technical manager — it can no longer be edited.',
     /* ---------- Radkom meter reading (js/17h) ---------- */
@@ -1149,6 +1159,11 @@ const KAMUS = {
     mlSel:'celdas', mlNo:'N.º', mlTeganganV:'TENSIÓN (V)', mlNilaiTercatat:'valores registrados',
     mlTidakBaik:'en mal estado / ausente',
     batalEdit:'Cancelar Edición',
+    /* modo edición de hojas preventivas — compartido por todas las hojas */
+    suntingLembarIni:'Editando esta hoja',
+    dsLamaTakBisaSunting:'Los registros DS Test de formato antiguo no se pueden editar — su tabla es distinta.',
+    simpanMr:'💾 Guardar Meter Reading',
+    lembarTerkunci:'Esta hoja ya fue firmada por el gerente técnico — ya no se puede editar.',
     mlSunting:'Editar esta hoja',
     mlTerkunci:'Ya está firmada por el gerente técnico — no se puede editar.',
     /* ---------- Lectura de medidores Radkom (js/17h) ---------- */

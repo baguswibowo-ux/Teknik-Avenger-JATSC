@@ -1716,6 +1716,10 @@
       <h3 data-t="dsModal">DS Test</h3>
       <button class="icon-btn" onclick="closeDsModal()" data-t-title="tutup" title="Tutup">&#10005;</button>
     </div>
+    <div id="dsEditingBanner" class="km-sumber-ket km-awas" style="display:none;margin-bottom:8px;">
+      <span data-t="suntingLembarIni">Sedang menyunting lembar ini</span>
+      <button class="btn ghost" style="margin-left:8px;padding:5px 10px;" onclick="batalEditDs()" data-t="batalEdit">Batal Edit</button>
+    </div>
     <div class="grid2">
       <div class="field"><label data-t="tanggal">Tanggal</label><input type="date" id="dsTanggal"></div>
       <div class="field">
@@ -1771,6 +1775,10 @@
     <div class="modal-kepala">
       <h3 data-t="radioModal">Maintenance Radio</h3>
       <button class="icon-btn" onclick="closeRadioModal()" data-t-title="tutup" title="Tutup">&#10005;</button>
+    </div>
+    <div id="radioEditingBanner" class="km-sumber-ket km-awas" style="display:none;margin-bottom:8px;">
+      <span data-t="suntingLembarIni">Sedang menyunting lembar ini</span>
+      <button class="btn ghost" style="margin-left:8px;padding:5px 10px;" onclick="batalEditRadio()" data-t="batalEdit">Batal Edit</button>
     </div>
     <div class="grid2">
       <div class="field"><label data-t="tanggal">Tanggal</label><input type="date" id="radioTanggal"></div>
@@ -1832,6 +1840,10 @@
     <div class="modal-kepala">
       <h3 id="wkModalJudul">Weekly Check</h3>
       <button class="icon-btn" onclick="closeWkModal()" data-t-title="tutup" title="Tutup">&#10005;</button>
+    </div>
+    <div id="wkEditingBanner" class="km-sumber-ket km-awas" style="display:none;margin-bottom:8px;">
+      <span data-t="suntingLembarIni">Sedang menyunting lembar ini</span>
+      <button class="btn ghost" style="margin-left:8px;padding:5px 10px;" onclick="batalEditWk()" data-t="batalEdit">Batal Edit</button>
     </div>
     <div class="grid2">
       <div class="field"><label data-t="hariTanggal">Hari / Tanggal</label><input type="date" id="wkTanggal"></div>
@@ -1960,6 +1972,10 @@
       <h3 id="llzModalJudul">Ground Check Performance Curve</h3>
       <button class="icon-btn" onclick="closeLlzModal()" data-t-title="tutup" title="Tutup">&#10005;</button>
     </div>
+    <div id="llzEditingBanner" class="km-sumber-ket km-awas" style="display:none;margin-bottom:8px;">
+      <span data-t="suntingLembarIni">Sedang menyunting lembar ini</span>
+      <button class="btn ghost" style="margin-left:8px;padding:5px 10px;" onclick="batalEditLlz()" data-t="batalEdit">Batal Edit</button>
+    </div>
     <div class="grid2">
       <div class="field"><label data-t="hariTanggal">Hari / Tanggal</label><input type="date" id="llzTanggal"></div>
       <div class="field"><label>Jarak dari antenna localizer (M)</label><input type="text" inputmode="decimal" id="llzJarakAntena" placeholder="mis. 60"></div>
@@ -1998,6 +2014,10 @@
       <h3 id="mrModalJudul">Meter Reading</h3>
       <button class="icon-btn" onclick="closeMrModal()" data-t-title="tutup" title="Tutup">&#10005;</button>
     </div>
+    <div id="mrEditingBanner" class="km-sumber-ket km-awas" style="display:none;margin-bottom:8px;">
+      <span data-t="suntingLembarIni">Sedang menyunting lembar ini</span>
+      <button class="btn ghost" style="margin-left:8px;padding:5px 10px;" onclick="batalEditMr()" data-t="batalEdit">Batal Edit</button>
+    </div>
     <div id="mrModalMeta" style="font-family:var(--font-mono);font-size:11.5px;color:var(--muted);margin:-4px 0 10px;letter-spacing:.03em;"></div>
     <div class="grid2">
       <div class="field"><label data-t="hariTanggal">Hari / Tanggal</label><input type="date" id="mrTanggal"></div>
@@ -2019,7 +2039,7 @@
     <div class="field" style="margin-top:6px;"><label data-t="kirimTtdKe">Kirim TTD ke akun</label><select id="mrManagerAkun"><option value="" data-t="kirimTtdOtomatis">Otomatis (dari nama di atas)</option></select></div>
     <div class="modal-footer">
       <button class="btn ghost" onclick="closeMrModal()" data-t="batal">Batal</button>
-      <button class="btn" id="mrSaveBtn" onclick="saveMr()">💾 Simpan Meter Reading</button>
+      <button class="btn" id="mrSaveBtn" onclick="saveMr()" data-t="simpanMr">💾 Simpan Meter Reading</button>
     </div>
   </div>
 </div>
@@ -2033,6 +2053,10 @@
     <div class="modal-kepala">
       <h3 id="bkModalJudul">Pekerjaan Berkala</h3>
       <button class="icon-btn" onclick="closeBerkalaModal()" data-t-title="tutup" title="Tutup">&#10005;</button>
+    </div>
+    <div id="bkEditingBanner" class="km-sumber-ket km-awas" style="display:none;margin-bottom:8px;">
+      <span data-t="suntingLembarIni">Sedang menyunting lembar ini</span>
+      <button class="btn ghost" style="margin-left:8px;padding:5px 10px;" onclick="batalEditBerkala()" data-t="batalEdit">Batal Edit</button>
     </div>
     <div class="grid2">
       <div class="field"><label data-t="tanggal">Tanggal</label><input type="date" id="bkTanggal"></div>
@@ -2514,7 +2538,7 @@
      untuk semua pemasangan, alamatnya tidak. Harus di depan 26-init.js. -->
 <script src="avenger-tautan.js"></script>
 <script src="js/01-tema.js"></script>
-<script src="js/02-bahasa.js?v=20260916tautan"></script>
+<script src="js/02-bahasa.js?v=20260916sunting"></script>
 <script src="js/03-waktu.js"></script>
 <script src="js/04-toast-tab.js"></script>
 <script src="js/05-jembatan-server.js"></script>
@@ -2536,16 +2560,16 @@
 <script src="js/14-daily-check-umum.js?v=20260915ph"></script>
 <script src="js/15-isu.js?v=20260916adminunit"></script>
 <script src="js/16-monitoring.js"></script>
-<script src="js/17-ds-test.js"></script>
-<script src="js/17c-radio.js"></script>
-<script src="js/17d-weekly-pengamatan.js"></script>
-<script src="js/17e-llz-navigasi.js"></script>
-<script src="js/17f-meter-reading.js"></script>
+<script src="js/17-ds-test.js?v=20260916sunting"></script>
+<script src="js/17c-radio.js?v=20260916sunting"></script>
+<script src="js/17d-weekly-pengamatan.js?v=20260916sunting"></script>
+<script src="js/17e-llz-navigasi.js?v=20260916sunting"></script>
+<script src="js/17f-meter-reading.js?v=20260916sunting"></script>
 <script src="js/17g-maint-listrik.js"></script>
 <script src="js/17h-meter-radkom.js"></script>
 <script src="js/18-ltk.js?v=20260916tautan"></script>
 <script src="js/18b-bapb.js?v=20260916tautan"></script>
-<script src="js/19-berkala.js?v=20260916tautan"></script>
+<script src="js/19-berkala.js?v=20260916sunting"></script>
 <script src="js/20-ttd-pejabat.js?v=20260916tautan"></script>
 <script src="js/21-cetak-dasar.js"></script>
 <script src="js/22-cetak-logbook.js?v=20260916tautan"></script>

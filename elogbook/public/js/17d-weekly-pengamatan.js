@@ -400,7 +400,64 @@ function hapusWkTeknisi(key){ wkTeknisiRows = wkTeknisiRows.filter(x=>x.key!==ke
 
 /* ---------- Modal (buka / tutup / simpan) ---------- */
 
+/* ---------- Mode sunting ----------
+   Satu jendela dipakai mengisi lembar baru DAN menyunting yang tersimpan;
+   yang membedakan cuma wkEditingId. Aturannya kembar dengan Maintenance
+   Listrik (17g): terkunci sesudah Manager Teknik menandatangani, dan selain
+   administrator hanya pembuatnya yang boleh. Server memeriksa keduanya lagi.
+
+   LEMBAR (wkForm) tidak ikut bisa diganti: jenis lembar itu identitas
+   catatannya. Salah lembar berarti catatan baru, bukan suntingan. */
+
+let wkEditingId = null;
+
+function wkTerapkanModeSunting(){
+  const btn = document.getElementById('wkSaveBtn');
+  if(btn) btn.textContent = wkEditingId ? T('simpanPerubahan') : T('simpanWk');
+  const bar = document.getElementById('wkEditingBanner');
+  if(bar) bar.style.display = wkEditingId ? '' : 'none';
+}
+
+function batalEditWk(){
+  const form = wkForm;
+  closeWkModal();
+  wkEditingId = null;
+  wkTerapkanModeSunting();
+  renderWkList(form);
+}
+
+function openWkEdit(id){
+  const d = (typeof dsList !== 'undefined' ? dsList : []).find(x=>x.id === id);
+  if(!d || !d.state){ toast(T('takAdaHasil')); return; }
+  if(d.managerTtd){ toast(T('lembarTerkunci')); return; }
+
+  const form = WK_FORMS[d.state.__wForm] ? d.state.__wForm : 'ckg3';
+  openWkModal(form);          // kerangka kosong lembar itu dulu
+  wkEditingId = id;
+
+  // Pilihan tersimpan ditimpakan di atas kerangka — butir yang belum pernah
+  // ada waktu lembar itu diisi tetap kosong, bukan hilang.
+  wkSel = Object.assign(wkInitSel(form), (d.state && d.state.sel) || {});
+  renderWkTable();
+
+  document.getElementById('wkTanggal').value = String(d.tanggal || '').slice(0, 10);
+  document.getElementById('wkManagerNama').value = d.managerNama || '';
+  const akun = document.getElementById('wkManagerAkun');
+  if(akun) akun.value = d.ttdUntuk || '';
+
+  wkTeknisiRows = []; wkTeknisiSeq = 0;
+  const daftar = (d.teknisiNamaList && d.teknisiNamaList.length)
+    ? d.teknisiNamaList
+    : String(d.teknisiNama || '').split(',').map(s=>s.trim()).filter(Boolean);
+  if(daftar.length) daftar.forEach(nama=>wkTeknisiRows.push({ key:'w' + (wkTeknisiSeq++), nama }));
+  else addWkTeknisi();
+  renderWkTeknisi();
+
+  wkTerapkanModeSunting();
+}
+
 function openWkModal(form){
+  wkEditingId = null;
   if(!WK_FORMS[form]) form = 'ckg3';
   wkForm = form;
   wkSel = wkInitSel(form);
@@ -416,6 +473,7 @@ function openWkModal(form){
   // effort nempel TTD, bukan tiba-tiba sudah ada tanda tangan kita.
   if(typeof pasangTombolTtdTersimpan === 'function') pasangTombolTtdTersimpan();
   renderWkTable();
+  wkTerapkanModeSunting();
   document.getElementById('wkModalBg').classList.add('show');
   setTimeout(()=>resizeSigCanvas('sigWk'), 60);
 }
@@ -423,9 +481,10 @@ function closeWkModal(){ document.getElementById('wkModalBg').classList.remove('
 
 async function saveWk(){
   const btn = document.getElementById('wkSaveBtn'); btn.disabled = true;
+  const menyunting = !!wkEditingId;
   try{
     const state = { __format:'pgmweekly', __wForm:wkForm, sel:wkSel };
-    const saved = await gsRun('addDsTest', {
+    const payload = {
       unit: unitAktif,
       kategori: 'pgmweekly',
       tanggal: document.getElementById('wkTanggal').value,
@@ -434,7 +493,21 @@ async function saveWk(){
       teknisiTtd: getSigDataUrl('sigWk'),
       managerNama: document.getElementById('wkManagerNama').value.trim(),
       ttdUntuk: ttdUntukTerpilih('wkManagerAkun', document.getElementById('wkManagerNama').value)
-    });
+    };
+    if(menyunting){
+      const saved = await gsRun('updateDsTest', wkEditingId, payload);
+      const i = dsList.findIndex(x=>x.id === wkEditingId);
+      if(i !== -1) dsList[i] = mapDs(saved);
+      const form = wkForm;
+      closeWkModal();
+      wkEditingId = null;
+      wkTerapkanModeSunting();
+      renderWkList(form);
+      toast(T('tersimpanPerubahan'));
+      btn.disabled = false;
+      return;
+    }
+    const saved = await gsRun('addDsTest', payload);
     dsList.unshift(mapDs(saved));
     renderWkList(wkForm);
     closeWkModal();
@@ -480,6 +553,8 @@ function renderWkList(form){
       ${diinputOlehHtml(d.diinputOleh, d.dibuatPada, String(d.tanggal||'').slice(0,10))}
       <div style="display:flex;gap:4px;">
         <button class="btn ghost" style="padding:6px 10px;" onclick="openWkDetail('${d.id}')">${T('detail')}</button>
+        ${(!d.managerTtd && bolehSuntingCatatan(d.dibuatOlehUsername))
+          ? `<button class="icon-btn" title="${T('suntingLembarIni')}" onclick="openWkEdit('${d.id}')">✎</button>` : ''}
         <button class="icon-btn" title="${T('cetak')}" onclick="printWk('${d.id}')">🖨</button>
         <button class="icon-btn hanya-hapus" title="${T('hapus')}" onclick="hapusWk('${d.id}')">✕</button>
       </div>

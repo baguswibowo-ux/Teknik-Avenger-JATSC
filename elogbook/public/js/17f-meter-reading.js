@@ -591,7 +591,62 @@ function hapusMrTeknisi(key){ mrTeknisiRows = mrTeknisiRows.filter(x => x.key !=
 
 /* ---------- Modal (buka / tutup / simpan) ---------- */
 
+/* ---------- Mode sunting ----------
+   Sejajar dengan Weekly Check (17d) dan Maintenance Listrik (17g): terkunci
+   sesudah Manager Teknik menandatangani, dan selain administrator hanya
+   pembuatnya yang boleh. Lembarnya (mrForm) tidak ikut bisa diganti. */
+
+let mrEditingId = null;
+
+function mrTerapkanModeSunting(){
+  const btn = document.getElementById('mrSaveBtn');
+  if(btn) btn.textContent = mrEditingId ? T('simpanPerubahan') : T('simpanMr');
+  const bar = document.getElementById('mrEditingBanner');
+  if(bar) bar.style.display = mrEditingId ? '' : 'none';
+}
+
+function batalEditMr(){
+  const form = mrForm;
+  closeMrModal();
+  mrEditingId = null;
+  mrTerapkanModeSunting();
+  renderMrList(form);
+}
+
+function openMrEdit(id){
+  const d = (typeof dsList !== 'undefined' ? dsList : []).find(x=>x.id === id);
+  if(!d || !d.state){ toast(T('takAdaHasil')); return; }
+  if(d.managerTtd){ toast(T('lembarTerkunci')); return; }
+
+  const form = MR_FORMS[d.state.__mrForm] ? d.state.__mrForm : MR_URUT[0];
+  openMrModal(form);
+  mrEditingId = id;
+
+  // Isi tersimpan ditimpakan di atas kerangka kosong — butir yang belum
+  // pernah ada waktu lembar itu diisi tetap kosong, bukan hilang.
+  mrData = Object.assign({}, (d.state && d.state.data) || {});
+  renderMrTable();
+
+  const h = (d.state && d.state.header) || {};
+  document.getElementById('mrTanggal').value = String(d.tanggal || '').slice(0, 10);
+  document.getElementById('mrJam').value = h.jam || '';
+  document.getElementById('mrManagerNama').value = d.managerNama || '';
+  const akun = document.getElementById('mrManagerAkun');
+  if(akun) akun.value = d.ttdUntuk || '';
+
+  mrTeknisiRows = []; mrTeknisiSeq = 0;
+  const daftar = (d.teknisiNamaList && d.teknisiNamaList.length)
+    ? d.teknisiNamaList
+    : String(d.teknisiNama || '').split(',').map(s=>s.trim()).filter(Boolean);
+  if(daftar.length) daftar.forEach(nama=>mrTeknisiRows.push({ key:'m' + (mrTeknisiSeq++), nama }));
+  else addMrTeknisi();
+  renderMrTeknisi();
+
+  mrTerapkanModeSunting();
+}
+
 function openMrModal(form){
+  mrEditingId = null;
   if(!MR_FORMS[form]) form = MR_URUT[0];
   mrForm = form;
   mrData = {};
@@ -619,6 +674,7 @@ function openMrModal(form){
   // klik "✍ pakai TTD tersimpan". Jangan auto-tempel.
   if(typeof pasangTombolTtdTersimpan === 'function') pasangTombolTtdTersimpan();
   renderMrTable();
+  mrTerapkanModeSunting();
   document.getElementById('mrModalBg').classList.add('show');
   setTimeout(() => resizeSigCanvas('sigMr'), 60);
 }
@@ -626,13 +682,14 @@ function closeMrModal(){ document.getElementById('mrModalBg').classList.remove('
 
 async function saveMr(){
   const btn = document.getElementById('mrSaveBtn'); btn.disabled = true;
+  const menyunting = !!mrEditingId;
   try{
     const state = {
       __format: 'mrreading', __mrForm: mrForm,
       header: { jam: document.getElementById('mrJam').value.trim() },
       data: mrData
     };
-    const saved = await gsRun('addDsTest', {
+    const payload = {
       unit: unitAktif,
       kategori: 'mrreading',
       tanggal: document.getElementById('mrTanggal').value,
@@ -641,7 +698,21 @@ async function saveMr(){
       teknisiTtd: getSigDataUrl('sigMr'),
       managerNama: document.getElementById('mrManagerNama').value.trim(),
       ttdUntuk: ttdUntukTerpilih('mrManagerAkun', document.getElementById('mrManagerNama').value)
-    });
+    };
+    if(menyunting){
+      const saved = await gsRun('updateDsTest', mrEditingId, payload);
+      const i = dsList.findIndex(x=>x.id === mrEditingId);
+      if(i !== -1) dsList[i] = mapDs(saved);
+      const form = mrForm;
+      closeMrModal();
+      mrEditingId = null;
+      mrTerapkanModeSunting();
+      renderMrList(form);
+      toast(T('tersimpanPerubahan'));
+      btn.disabled = false;
+      return;
+    }
+    const saved = await gsRun('addDsTest', payload);
     dsList.unshift(mapDs(saved));
     renderMrList(mrForm);
     closeMrModal();
@@ -681,6 +752,8 @@ function renderMrList(form){
       ${diinputOlehHtml(d.diinputOleh, d.dibuatPada, String(d.tanggal || '').slice(0, 10))}
       <div style="display:flex;gap:4px;">
         <button class="btn ghost" style="padding:6px 10px;" onclick="openMrDetail('${d.id}')">${T('detail')}</button>
+        ${(!d.managerTtd && bolehSuntingCatatan(d.dibuatOlehUsername))
+          ? `<button class="icon-btn" title="${T('suntingLembarIni')}" onclick="openMrEdit('${d.id}')">✎</button>` : ''}
         <button class="icon-btn" title="${T('cetak')}" onclick="printMr('${d.id}')">🖨</button>
         <button class="icon-btn hanya-hapus" title="${T('hapus')}" onclick="hapusMr('${d.id}')">✕</button>
       </div>

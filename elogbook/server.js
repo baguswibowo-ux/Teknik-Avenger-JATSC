@@ -74,7 +74,7 @@ const {
   tambahLampiranIsu, hapusLampiranIsu,
   listMonitoring, insertMonitoring, removeMonitoring,
   listDsTest, insertDsTest, removeDsTest, updateDsTest, DS_SITE, KATEGORI_DS,
-  listBerkala, insertBerkala, removeBerkala, BERKALA_ITEM, JENIS_BERKALA,
+  listBerkala, insertBerkala, updateBerkala, removeBerkala, BERKALA_ITEM, JENIS_BERKALA,
   LOKASI,
   tambahLampiranLtk, hapusLampiranLtk, getLtk,
   listLtk, insertLtk, removeLtk,
@@ -797,7 +797,7 @@ async function unitDanHakAkses(user, unit) {
 const API_TULIS = new Set([
   'addEntry', 'addDailyCheck', 'addIssue', 'addMonitoring', 'addLtk', 'addDsTest', 'addBerkala',
   'addBapb', 'updateBapb', 'suntingLampiranBapb',
-  'updateEntry', 'updateDailyCheck', 'updateDsTest', 'updateTtdRouting',
+  'updateEntry', 'updateDailyCheck', 'updateDsTest', 'updateBerkala', 'updateTtdRouting',
   // Menutup isu dan menempel bukti penutup bukan admin-only: teknisi
   // yang menyelesaikan gangguan boleh menandai isunya selesai.
   'tutupIsu', 'addBuktiTutupIsu'
@@ -1202,6 +1202,18 @@ const API = {
     const ttdUntuk = await ttdUntukSah(patch?.ttdUntuk);
     return updateDsTest(String(id), { ...(patch || {}), ttdUntuk },
                         { username: user.username, admin: kelolaUnit(user) });
+  },
+
+  /** Sunting lembar pekerjaan berkala — sejajar updateDsTest di atas, dan
+      pagarnya diperiksa lagi di updateBerkala: hanya selama Manager Teknik
+      belum menandatangani, dan hanya oleh pembuatnya (atau admin unit). */
+  updateBerkala: async (id, patch, user) => {
+    const unit = await unitCatatan('berkala', String(id));
+    if (!unit) throw new Error('Catatan tidak ditemukan — mungkin sudah dihapus.');
+    await pastikanUnit(user, unit);
+    const ttdUntuk = await ttdUntukSah(patch?.ttdUntuk);
+    return updateBerkala(String(id), { ...(patch || {}), ttdUntuk },
+                         { username: user.username, admin: kelolaUnit(user) });
   },
 
   addBerkala: async (rec, user) => {
@@ -1956,6 +1968,7 @@ const DOKUMEN_FN = {
   deleteMonitoring:    { jenis: 'monitoring', aksi: 'hapus' },
   updateDsTest:        { jenis: 'dstest',     aksi: 'ubah' },
   deleteDsTest:        { jenis: 'dstest',     aksi: 'hapus' },
+  updateBerkala:       { jenis: 'berkala',    aksi: 'ubah' },
   deleteBerkala:       { jenis: 'berkala',    aksi: 'hapus' },
   deleteLtk:           { jenis: 'ltk',        aksi: 'hapus' },
   addLtkLampiran:      { jenis: 'ltk',        aksi: 'lampiran-tambah',

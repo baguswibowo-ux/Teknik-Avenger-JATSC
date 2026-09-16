@@ -354,7 +354,88 @@ function hapusDsTeknisi(key){ dsTeknisiRows = dsTeknisiRows.filter(x=>x.key!==ke
 
 /* ---------- Modal (buka / tutup / simpan) ---------- */
 
+/* ---------- Mode sunting ----------
+   Satu jendela dipakai mengisi lembar baru DAN menyunting yang tersimpan;
+   yang membedakan cuma dsEditingId. Aturannya kembar dengan Maintenance
+   Listrik (17g) dan sunting catatan logbook: yang sudah ditandatangani
+   Manager Teknik terkunci, dan selain administrator hanya pembuatnya yang
+   boleh menyunting. Server memeriksa keduanya lagi. */
+
+/** Id lembar yang sedang disunting; null = sedang mengisi lembar baru. */
+let dsEditingId = null;
+
+function dsTerapkanModeSunting(){
+  const btn = document.getElementById('dsSaveBtn');
+  if(btn) btn.textContent = dsEditingId ? T('simpanPerubahan') : T('simpanDs');
+  const bar = document.getElementById('dsEditingBanner');
+  if(bar) bar.style.display = dsEditingId ? '' : 'none';
+}
+
+function batalEditDs(){
+  closeDsModal();
+  dsEditingId = null;
+  dsTerapkanModeSunting();
+  renderDsList();
+}
+
+/**
+ * Buka jendela berisi lembar tersimpan.
+ *
+ * Hanya lembar berformat sampling yang bisa disunting dari sini. Catatan DS
+ * Test bentuk lama punya kerangka tabel yang berbeda, dan jendela ini tidak
+ * bisa menggambarkannya — membukanya berarti menawarkan suntingan yang
+ * hasilnya justru merusak catatannya.
+ *
+ * Sesi dan barisnya diambil apa adanya dari yang tersimpan, bukan dibangun
+ * ulang dari daftar channel yang berlaku sekarang: daftar itu bisa sudah
+ * berubah, dan yang tercatat waktu itu tetap yang benar untuk lembar itu.
+ */
+function openDsEdit(id){
+  const d = dsList.find(x=>x.id === id);
+  if(!d || !d.state){ toast(T('takAdaHasil')); return; }
+  if(d.managerTtd){ toast(T('lembarTerkunci')); return; }
+  if(!dsFormatBaru(d.state)){ toast(T('dsLamaTakBisaSunting')); return; }
+
+  dsEditingId = id;
+  dsKategori = d.kategori || DS_KATEGORI_BARU;
+  dsSesi = Math.max(1, Math.min(9, +d.state.__sesiDs || 1));
+  dsRows = (Array.isArray(d.state.rows) ? d.state.rows : []).map(r=>({
+    code:   String((r && r.code) || ''),
+    kat:    (r && r.kat) || '',
+    in:     (r && r.in)  || 'ok',
+    out:    (r && r.out) || 'ok',
+    voff:   String((r && r.voff) || ''),
+    von:    String((r && r.von)  || ''),
+    remark: String((r && r.remark) || '')
+  }));
+
+  document.getElementById('dsTanggal').value = String(d.tanggal || '').slice(0, 10);
+  document.getElementById('dsManagerNama').value = d.managerNama || '';
+  const akun = document.getElementById('dsManagerAkun');
+  if(akun) akun.value = d.ttdUntuk || '';
+
+  dsTeknisiRows = []; dsTeknisiSeq = 0;
+  const daftar = (d.teknisiNamaList && d.teknisiNamaList.length)
+    ? d.teknisiNamaList
+    : String(d.teknisiNama || '').split(',').map(s=>s.trim()).filter(Boolean);
+  if(daftar.length) daftar.forEach(nama=>dsTeknisiRows.push({ key:'d' + (dsTeknisiSeq++), nama }));
+  else addDsTeknisi();
+  renderDsTeknisi();
+
+  ['sigDs'].forEach(sid=>{ if(!sigPads[sid]) setupSigCanvas(sid); clearSig(sid); });
+
+  const selSesi = document.getElementById('dsSesi');
+  if(selSesi){ selSesi.innerHTML = dsSesiPilihanHtml(); selSesi.value = String(dsSesi); }
+  renderDsTable();
+  dsTerapkanModeSunting();
+
+  document.getElementById('dsModalBg').classList.add('show');
+  setTimeout(()=>['sigDs'].forEach(resizeSigCanvas), 60);
+}
+
 function openDsModal(){
+  dsEditingId = null;
+  dsTerapkanModeSunting();
   document.getElementById('dsTanggal').value = tanggalHariIni();
   document.getElementById('dsManagerNama').value = '';
   document.getElementById('dsManagerAkun').value = '';
@@ -382,6 +463,7 @@ async function saveDs(){
     return;
   }
   const btn = document.getElementById('dsSaveBtn'); btn.disabled = true;
+  const menyunting = !!dsEditingId;
   try{
     const state = {
       __format: 'sampling',
@@ -396,7 +478,7 @@ async function saveDs(){
         remark: String(r.remark || '')
       }))
     };
-    const saved = await gsRun('addDsTest', {
+    const payload = {
       unit: unitAktif,
       kategori: DS_KATEGORI_BARU,
       tanggal: document.getElementById('dsTanggal').value,
@@ -405,7 +487,24 @@ async function saveDs(){
       teknisiTtd: getSigDataUrl('sigDs'),
       managerNama: document.getElementById('dsManagerNama').value.trim(),
       ttdUntuk: ttdUntukTerpilih('dsManagerAkun', document.getElementById('dsManagerNama').value)
-    });
+    };
+    if(menyunting){
+      const saved = await gsRun('updateDsTest', dsEditingId, payload);
+      const i = dsList.findIndex(x=>x.id === dsEditingId);
+      if(i !== -1) dsList[i] = mapDs(saved);
+      closeDsModal();
+      dsEditingId = null;
+      dsTerapkanModeSunting();
+      renderDsList();
+      // Penanda sesi & channel terpakai TIDAK disentuh waktu menyunting:
+      // siklusnya sudah tercatat sejak lembar ini pertama disimpan, dan
+      // mencatatnya lagi membuat sesi berikutnya melompati channel yang
+      // sebenarnya belum diuji.
+      toast(T('tersimpanPerubahan'));
+      btn.disabled = false;
+      return;
+    }
+    const saved = await gsRun('addDsTest', payload);
     dsList.unshift(mapDs(saved));
     renderDsList();
     // Ingat sesi yang barusan tersimpan (untuk auto-advance form berikutnya)
@@ -478,6 +577,8 @@ function renderDsList(){
       ${diinputOlehHtml(d.diinputOleh, d.dibuatPada, String(d.tanggal||'').slice(0,10))}
       <div style="display:flex;gap:4px;">
         <button class="btn ghost" style="padding:6px 10px;" onclick="openDsDetail('${d.id}')">${T('detail')}</button>
+        ${(!d.managerTtd && baru && bolehSuntingCatatan(d.dibuatOlehUsername))
+          ? `<button class="icon-btn" title="${T('suntingLembarIni')}" onclick="openDsEdit('${d.id}')">✎</button>` : ''}
         <button class="icon-btn" title="${T('cetak')}" onclick="printDs('${d.id}')">🖨</button>
         <button class="icon-btn hanya-hapus" title="${T('hapus')}" onclick="hapusDs('${d.id}')">✕</button>
       </div>

@@ -2077,6 +2077,8 @@ const rowToBerkala = (r, extra = {}) => ({
   TeknisiTTD: r.teknisi_ttd,
   DiinputOleh: extra.diinputOleh ?? (r.dibuat_oleh || ''),
   DibuatPada: r.dibuat_pada || '',
+  // Dipakai layar memutuskan siapa yang boleh menyunting — cerminan db.js.
+  DibuatOlehUsername: r.dibuat_oleh || '',
   TtdOleh: extra.ttdOleh ?? (r.ttd_oleh || ''), TtdPada: r.ttd_pada || '', TtdUntuk: r.ttd_untuk || ''
 });
 
@@ -2123,6 +2125,42 @@ export async function insertBerkala(rec = {}, olehUsername = '', olehNama = '') 
      row.dibuat_pada, olehUsername]
   );
   return rowToBerkala(row, { diinputOleh: olehNama || olehUsername });
+}
+
+/** Cerminan dari updateBerkala di db.js — aturannya diterangkan di sana. */
+export async function updateBerkala(id, patch = {}, actor = {}) {
+  const row = await q1('SELECT * FROM berkala WHERE id = $1', [String(id)]);
+  if (!row) throw new Error('Catatan tidak ditemukan — mungkin sudah dihapus.');
+  if (row.manager_ttd) {
+    throw new Error('Lembar ini sudah ditandatangani manager teknik — tidak bisa disunting lagi.');
+  }
+  if (!actor.admin && row.dibuat_oleh && row.dibuat_oleh !== actor.username) {
+    throw new Error('Hanya pembuat lembar ini yang bisa menyuntingnya.');
+  }
+
+  const tanggal = patch.tanggal !== undefined ? String(patch.tanggal || '').trim() : row.tanggal;
+  if (!tanggal) throw new Error('Tanggal tidak boleh kosong.');
+
+  const next = {
+    tanggal,
+    state_json: patch.state !== undefined ? JSON.stringify(patch.state || {}) : row.state_json,
+    catatan: patch.catatan !== undefined ? String(patch.catatan || '').trim() : row.catatan,
+    manager_nama: patch.managerNama !== undefined ? String(patch.managerNama || '').trim() : row.manager_nama,
+    ttd_untuk: patch.ttdUntuk !== undefined ? String(patch.ttdUntuk || '') : row.ttd_untuk
+  };
+
+  await jalankan(
+    `UPDATE berkala SET tanggal = $1, state_json = $2, catatan = $3,
+                        manager_nama = $4, ttd_untuk = $5
+     WHERE id = $6`,
+    [next.tanggal, next.state_json, next.catatan, next.manager_nama, next.ttd_untuk, String(id)]
+  );
+
+  const nama = await petaNamaPengguna();
+  return rowToBerkala({ ...row, ...next }, {
+    diinputOleh: namaTampil(nama, row.dibuat_oleh),
+    ttdOleh: namaTampil(nama, row.ttd_oleh)
+  });
 }
 
 export async function removeBerkala(id) {

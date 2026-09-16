@@ -2345,6 +2345,10 @@ const rowToBerkala = (r, extra = {}) => ({
   TeknisiTTD: r.teknisi_ttd,
   DiinputOleh: extra.diinputOleh ?? (r.dibuat_oleh || ''),
   DibuatPada: r.dibuat_pada || '',
+  // Username mentah (bukan nama tampilan) — dipakai layar memutuskan siapa
+  // yang boleh menyunting, tanpa perlu percaya kiriman klien. Server
+  // memeriksanya lagi di updateBerkala.
+  DibuatOlehUsername: r.dibuat_oleh || '',
   TtdOleh: extra.ttdOleh ?? (r.ttd_oleh || ''), TtdPada: r.ttd_pada || '', TtdUntuk: r.ttd_untuk || ''
 });
 
@@ -2389,6 +2393,55 @@ export function insertBerkala(rec = {}, olehUsername = '', olehNama = '') {
          row.teknisi_nama_list, row.teknisi_ttd, row.manager_nama, row.manager_ttd, row.ttd_untuk,
          row.dibuat_pada, olehUsername);
   return rowToBerkala(row, { diinputOleh: olehNama || olehUsername });
+}
+
+/**
+ * Sunting lembar pekerjaan berkala yang sudah tersimpan.
+ *
+ * Kembaran updateDsTest, dan pagarnya pun sama persis: selama Manager Teknik
+ * BELUM menandatangani, dan hanya oleh pembuatnya sendiri (atau administrator).
+ * Sesudah ditandatangani, isinya terkunci — yang sudah diparaf tidak diubah
+ * diam-diam di belakang yang memarafnya.
+ *
+ * JENIS TIDAK IKUT BISA DIGANTI. Jenis itu identitas lembarnya: lembar
+ * Cleaning CWP yang diubah jadi Restart CWP bukan suntingan, itu lembar lain
+ * yang menumpang catatan orang lain beserta tanggal dan nama teknisinya.
+ *
+ * Nama teknisi dan tanda tangannya juga tidak disentuh dari sini — itu bukti
+ * kerja yang sudah dibubuhkan, sama seperti pada catatan logbook. Yang boleh
+ * dibetulkan: tanggal, isi lembarnya, catatan, dan nama manager yang dituju.
+ */
+export function updateBerkala(id, patch = {}, actor = {}) {
+  const row = db.prepare('SELECT * FROM berkala WHERE id = ?').get(String(id));
+  if (!row) throw new Error('Catatan tidak ditemukan — mungkin sudah dihapus.');
+  if (row.manager_ttd) {
+    throw new Error('Lembar ini sudah ditandatangani manager teknik — tidak bisa disunting lagi.');
+  }
+  if (!actor.admin && row.dibuat_oleh && row.dibuat_oleh !== actor.username) {
+    throw new Error('Hanya pembuat lembar ini yang bisa menyuntingnya.');
+  }
+
+  const tanggal = patch.tanggal !== undefined ? String(patch.tanggal || '').trim() : row.tanggal;
+  if (!tanggal) throw new Error('Tanggal tidak boleh kosong.');
+
+  const next = {
+    tanggal,
+    state_json: patch.state !== undefined ? JSON.stringify(patch.state || {}) : row.state_json,
+    catatan: patch.catatan !== undefined ? String(patch.catatan || '').trim() : row.catatan,
+    manager_nama: patch.managerNama !== undefined ? String(patch.managerNama || '').trim() : row.manager_nama,
+    ttd_untuk: patch.ttdUntuk !== undefined ? String(patch.ttdUntuk || '') : row.ttd_untuk
+  };
+
+  db.prepare(`UPDATE berkala SET tanggal = ?, state_json = ?, catatan = ?,
+                                manager_nama = ?, ttd_untuk = ?
+              WHERE id = ?`)
+    .run(next.tanggal, next.state_json, next.catatan, next.manager_nama, next.ttd_untuk, String(id));
+
+  const nama = petaNamaPengguna();
+  return rowToBerkala({ ...row, ...next }, {
+    diinputOleh: namaTampil(nama, row.dibuat_oleh),
+    ttdOleh: namaTampil(nama, row.ttd_oleh)
+  });
 }
 
 export function removeBerkala(id) {
