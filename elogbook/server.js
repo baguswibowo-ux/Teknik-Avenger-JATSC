@@ -555,9 +555,12 @@ async function periksaPengingatTtd() {
          ringkas-dokumen.js), sama seperti dua notifikasi yang lain — kueri
          pengingat sengaja tidak ikut membawa kolom perihal tiap tabel. */
       const rk = await ringkasUntukNotif(r.jenis, r.id);
+      /* Nama lengkap dari akunnya, bukan kolom nama di lembar: kolom itu
+         kadang cuma berisi username ("deny"), dan username akan diganti NIK. */
+      const pejabat = await getUserByUsername(r.ttd_untuk);
       const teks = pesanBelumTtd({
         dokumen: rk.judul, unit: namaUnit(r.unit), tanggal: r.tanggal,
-        dinas: r.dinas, menunggu: r.pihak_nama || r.ttd_untuk, menit: PENGINGAT_TTD_MENIT,
+        dinas: r.dinas, menunggu: pejabat?.nama || r.pihak_nama || r.ttd_untuk, menit: PENGINGAT_TTD_MENIT,
         cuplikan: rk.cuplikan
       });
       let terkirim = false;
