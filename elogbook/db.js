@@ -3159,6 +3159,18 @@ export function tandaiPengingatTtd(jenis, id, waktuIso) {
  * judul dan cuplikan pesan Telegram oleh ringkas-dokumen.js. Kolom yang dibaca
  * per jenis juga ditentukan di sana (KOLOM_RINGKAS), berdampingan dengan kode
  * yang memakainya. Cermin Postgres-nya di db-pg.js. */
+/** Ke siapa sebuah catatan menunggu TTD, dan apakah sudah dibubuhkan — dibaca
+    sebelum dan sesudah penyuntingan supaya notifikasi "perlu TTD" terkirim
+    ketika tujuannya BARU dipilih atau diganti, bukan cuma saat lembar dibuat.
+    Cermin Postgres-nya di db-pg.js. */
+export function tujuanTtdCatatan(jenis, id) {
+  const t = JENIS_TTD[jenis];
+  if (!t) return null;
+  const r = db.prepare(`SELECT ttd_untuk, ${t.ttd} AS ttd, unit, ${t.tglKolom} AS tanggal
+                          FROM ${t.tabel} WHERE id = ?`).get(String(id));
+  return r ? { ttdUntuk: r.ttd_untuk || '', sudahTtd: !!r.ttd, unit: r.unit || '', tanggal: r.tanggal || '' } : null;
+}
+
 export function ringkasCatatan(jenis, id) {
   const t = JENIS_TTD[jenis];
   const kolom = KOLOM_RINGKAS[jenis];

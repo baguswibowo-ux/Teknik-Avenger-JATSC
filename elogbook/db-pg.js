@@ -2770,6 +2770,15 @@ export async function tandaiPengingatTtd(jenis, id, waktuIso) {
 
 /* ============== RINGKASAN UNTUK NOTIFIKASI ==============
  * Cermin Postgres dari ringkasCatatan di db.js — lihat catatan di sana. */
+/** Cermin tujuanTtdCatatan di db.js. */
+export async function tujuanTtdCatatan(jenis, id) {
+  const t = JENIS_TTD[jenis];
+  if (!t) return null;
+  const r = await q1(`SELECT ttd_untuk, ${t.ttd} AS ttd, unit, ${t.tglKolom} AS tanggal
+                        FROM ${t.tabel} WHERE id = $1`, [String(id)]);
+  return r ? { ttdUntuk: r.ttd_untuk || '', sudahTtd: !!r.ttd, unit: r.unit || '', tanggal: r.tanggal || '' } : null;
+}
+
 export async function ringkasCatatan(jenis, id) {
   const t = JENIS_TTD[jenis];
   const kolom = KOLOM_RINGKAS[jenis];

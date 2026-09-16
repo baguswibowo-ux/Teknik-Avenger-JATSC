@@ -102,7 +102,7 @@ const {
   simpanLanggananPush, listLanggananPush, hapusLanggananPush,
   pelaksanaCatatan, usernameDariNama,
   catatanPerluPengingatTtd, tandaiPengingatTtd,
-  getPh, setPh, listDiwakiliOleh, listCalonPh, ringkasCatatan,
+  getPh, setPh, listDiwakiliOleh, listCalonPh, ringkasCatatan, tujuanTtdCatatan,
   infoCatatan, catatAktivitas, listAktivitas
 } = await import(PAKAI_POSTGRES ? './db-pg.js' : './db.js');
 
@@ -536,6 +536,37 @@ async function notifPerluTtd(jenis, ttdUntukUsername, form, pembuatNama, id) {
     console.error('[telegram notifPerluTtd]', err?.message || err);
   }
 }
+
+/* NOTIF SAAT DISUNTING. notifPerluTtd di atas dipanggil add* saat lembar
+   dibuat. Tapi banyak lembar baru mendapat tujuan TTD belakangan: daily check
+   AMSS-ADPS diisi bertahap per dinas lewat Edit dan Manager baru dipilih dinas
+   malam, dan tujuan bisa diganti lewat updateTtdRouting. Tanpa ini, lembar itu
+   masuk kotak masuk Manager tanpa satu kabar pun — di semua unit.
+
+   Aturannya: kabari kalau SESUDAH disunting ada tujuan, belum ditandatangani,
+   dan tujuannya berbeda dari SEBELUM disunting (baru dipilih, atau diganti ke
+   orang lain). Suntingan yang tujuannya tetap tidak mengirim ulang. */
+async function tujuanTtdSebelum(jenis, id) {
+  try { return await tujuanTtdCatatan(jenis, String(id)); }
+  catch { return null; }
+}
+
+async function notifJikaTujuanBaru(jenis, id, sebelum, user) {
+  try {
+    const kini = await tujuanTtdCatatan(jenis, String(id));
+    if (!kini || kini.sudahTtd || !kini.ttdUntuk) return;
+    if (sebelum && sameUser(sebelum.ttdUntuk, kini.ttdUntuk)) return;
+    // Tidak ditunggu, sama seperti di add*: simpanan tidak boleh menunggu
+    // Telegram dan layanan notifikasi HP menjawab.
+    notifPerluTtd(jenis, kini.ttdUntuk, { unit: kini.unit, tanggal: kini.tanggal },
+      user?.nama || user?.username || '', String(id));
+  } catch (err) {
+    console.error('[telegram notif sunting]', err?.message || err);
+  }
+}
+
+/* updateTtdRouting memakai nama jenis lamanya sendiri. */
+const JENIS_DARI_RUTE = { entry: 'logbook', dc: 'dailycheck', ltk: 'ltk', berkala: 'berkala', dstest: 'dstest', bapb: 'bapb' };
 
 /* Siapa saja yang berhak tahu nasib sebuah lembar: akun yang menyimpannya,
    ditambah teknisi yang tercantum sebagai pelaksana — mereka dinas bersama,
@@ -1279,7 +1310,10 @@ const API = {
     const unit = await unitCatatan('logbook', String(id));
     if (!unit) throw new Error('Catatan tidak ditemukan — mungkin sudah dihapus.');
     await pastikanUnit(user, unit);
-    return updateEntry(String(id), patch || {}, { username: user.username, admin: kelolaUnit(user) });
+    const sebelum = await tujuanTtdSebelum('logbook', id);
+    const hasil = await updateEntry(String(id), patch || {}, { username: user.username, admin: kelolaUnit(user) });
+    await notifJikaTujuanBaru('logbook', id, sebelum, user);
+    return hasil;
   },
 
   addDailyCheck: async (rec, user) => {
@@ -1297,7 +1331,10 @@ const API = {
     await pastikanUnit(user, unit);
     // `role` dibawa supaya updateDailyCheck bisa menolak Officer (pejabat) ikut
     // menyunting checklist AMHS — tugasnya hanya melihat & menandatangani.
-    return updateDailyCheck(String(id), patch || {}, { username: user.username, admin: kelolaUnit(user), role: user.role });
+    const sebelum = await tujuanTtdSebelum('dailycheck', id);
+    const hasil = await updateDailyCheck(String(id), patch || {}, { username: user.username, admin: kelolaUnit(user), role: user.role });
+    await notifJikaTujuanBaru('dailycheck', id, sebelum, user);
+    return hasil;
   },
 
   getDailyCheckDetail: (id) => getDailyCheckDetailById(String(id)),
@@ -1339,8 +1376,11 @@ const API = {
     if (!unit) throw new Error('Catatan tidak ditemukan — mungkin sudah dihapus.');
     await pastikanUnit(user, unit);
     const ttdUntuk = await ttdUntukSah(patch?.ttdUntuk);
-    return updateDsTest(String(id), { ...(patch || {}), ttdUntuk },
+    const sebelum = await tujuanTtdSebelum('dstest', id);
+    const hasil = await updateDsTest(String(id), { ...(patch || {}), ttdUntuk },
                         { username: user.username, admin: kelolaUnit(user) });
+    await notifJikaTujuanBaru('dstest', id, sebelum, user);
+    return hasil;
   },
 
   /** Sunting lembar pekerjaan berkala — sejajar updateDsTest di atas, dan
@@ -1351,8 +1391,11 @@ const API = {
     if (!unit) throw new Error('Catatan tidak ditemukan — mungkin sudah dihapus.');
     await pastikanUnit(user, unit);
     const ttdUntuk = await ttdUntukSah(patch?.ttdUntuk);
-    return updateBerkala(String(id), { ...(patch || {}), ttdUntuk },
+    const sebelum = await tujuanTtdSebelum('berkala', id);
+    const hasil = await updateBerkala(String(id), { ...(patch || {}), ttdUntuk },
                          { username: user.username, admin: kelolaUnit(user) });
+    await notifJikaTujuanBaru('berkala', id, sebelum, user);
+    return hasil;
   },
 
   addBerkala: async (rec, user) => {
@@ -1400,7 +1443,10 @@ const API = {
     const unit = await unitCatatan('bapb', String(id));
     if (!unit) throw new Error('Catatan tidak ditemukan — mungkin sudah dihapus.');
     await pastikanUnit(user, unit);
-    return updateBapb(String(id), patch || {}, { username: user.username, admin: kelolaUnit(user) });
+    const sebelum = await tujuanTtdSebelum('bapb', id);
+    const hasil = await updateBapb(String(id), patch || {}, { username: user.username, admin: kelolaUnit(user) });
+    await notifJikaTujuanBaru('bapb', id, sebelum, user);
+    return hasil;
   },
 
   /**
@@ -1869,8 +1915,13 @@ const API_ADMIN = {
    * supaya berlaku seragam ke lima form (entry/dc/ltk/berkala/dstest) tanpa
    * menyusupkan slot pihak-kedua ke tiap update masing-masing.
    */
-  updateTtdRouting: (kind, id, patch) =>
-    updateTtdRouting(String(kind || ''), String(id || ''), patch || {}),
+  updateTtdRouting: async (kind, id, patch, user) => {
+    const jenis = JENIS_DARI_RUTE[String(kind || '').toLowerCase()];
+    const sebelum = jenis ? await tujuanTtdSebelum(jenis, id) : null;
+    const hasil = await updateTtdRouting(String(kind || ''), String(id || ''), patch || {});
+    if (jenis) await notifJikaTujuanBaru(jenis, id, sebelum, user);
+    return hasil;
+  },
   deleteIssue: (id) => removeIssue(String(id)),
   deleteMonitoring: (id) => removeMonitoring(String(id)),
   deleteLtk: (id) => removeLtk(String(id)),
