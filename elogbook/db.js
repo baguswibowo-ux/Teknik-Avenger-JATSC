@@ -2774,12 +2774,12 @@ export function tandaTanganiCatatan(jenis, id, { nama, username, role, ttd, waki
   const path = saveSignature(ttd, t.prefix);
   if (!path) throw new Error('Tanda tangannya kosong.');
 
-  // Lewat PH, yang tercetak nama PH sendiri berikut nama pejabat yang ia wakili
-  // ("Uji Teknisi (PH Uji Pejabat)") — bukan nama pejabat saja seperti yang
-  // diketik teknisi di formulir. TTD si PH di atas nama orang lain sama saja
-  // dengan memalsu arsip.
+  // Lewat PH, yang tercetak nama PH sendiri berikut kedudukan dan nama pejabat
+  // yang ia wakili ("Uji Teknisi (PH Manager Teknik Uji Pejabat)") — bukan nama
+  // pejabat saja seperti yang diketik teknisi di formulir. TTD si PH di atas
+  // nama orang lain sama saja dengan memalsu arsip.
   const namaTetap = sebagaiPh
-    ? namaCetakPh(nama || username, row.ttd_untuk, diwakili)
+    ? namaCetakPh(nama || username, row.ttd_untuk, diwakili, t.label)
     : (String(row.nama || '').trim() ? row.nama : String(nama || ''));
   const pada = nowIso();
   db.prepare(`UPDATE ${t.tabel} SET ${t.nama} = ?, ${t.ttd} = ?, ttd_oleh = ?, ttd_pada = ? WHERE id = ?`)

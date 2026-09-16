@@ -2464,7 +2464,7 @@ export async function tandaTanganiCatatan(jenis, id, { nama, username, role, ttd
   // diketik teknisi di formulir. TTD si PH di atas nama orang lain sama saja
   // dengan memalsu arsip.
   const namaTetap = sebagaiPh
-    ? namaCetakPh(nama || username, row.ttd_untuk, diwakili)
+    ? namaCetakPh(nama || username, row.ttd_untuk, diwakili, t.label)
     : (String(row.nama || '').trim() ? row.nama : String(nama || ''));
   const pada = nowIso();
   await jalankan(

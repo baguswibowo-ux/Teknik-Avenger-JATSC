@@ -39,13 +39,32 @@ export function hakTtd({ role, username, ttdUntuk, dibuatOleh, wakilDari }) {
   return { sebagaiPh };
 }
 
-/** Nama yang tercetak di bawah TTD kalau PH yang membubuhkan: nama PH berikut
-    nama pejabat yang ia wakili — "Budi Santoso (PH Arya Gunawan)".
-    `diwakili` = [{ username, nama }] pengalihan PH yang masih berlaku (disusun
-    server.js); pejabatnya dicari lewat `ttdUntuk` catatan. Nama kosong jatuh
-    ke username-nya. */
-export function namaCetakPh(nama, ttdUntuk, diwakili) {
+/**
+ * Nama yang tercetak di bawah TTD kalau PH yang membubuhkan: nama PH sendiri,
+ * berikut KEDUDUKAN dan nama pejabat yang ia wakili —
+ * "Uji Teknisi (PH Manager Teknik Uus Susanto)".
+ *
+ * Kedudukannya ikut disebut karena yang membaca lembar ini belum tentu kenal
+ * siapa yang diwakili; yang perlu dipastikannya lembar itu ditandatangani pada
+ * kedudukan yang benar. Kedudukan datang dari SLOT TTD yang dibubuhkan
+ * (JENIS_TTD di db.js), bukan dari jabatan orangnya — satu orang bisa mewakili
+ * kedudukan yang berbeda di lembar yang berbeda, dan pada lembar Monitoring
+ * slotnya memang Personil Operasi, bukan Manager Teknik.
+ *
+ * Keterangan dalam kurung pada label slot dibuang: "Manager Teknik (BAPB)" ada
+ * untuk membedakan slot di kotak masuk, dan membawanya ke bawah tanda tangan
+ * menghasilkan "PH Manager Teknik (BAPB) Uus Susanto".
+ *
+ * Tanpa kedudukan, bentuknya kembali seperti semula — "Budi Santoso (PH Arya
+ * Gunawan)" — supaya pemanggil yang belum menyebutkannya tidak ikut berubah.
+ *
+ * 'diwakili' = [{ username, nama }] pengalihan PH yang masih berlaku (disusun
+ * server.js); pejabatnya dicari lewat 'ttdUntuk' catatan. Nama kosong jatuh ke
+ * username-nya.
+ */
+export function namaCetakPh(nama, ttdUntuk, diwakili, kedudukan = '') {
   const p = (diwakili || []).find((w) => kecil(w && w.username) === kecil(ttdUntuk));
   const atas = (p && String(p.nama || '').trim()) || String(ttdUntuk || '').trim();
-  return `${String(nama || '').trim()} (PH ${atas})`;
+  const jabatan = String(kedudukan || '').replace(/\s*\([^)]*\)\s*$/, '').trim();
+  return `${String(nama || '').trim()} (PH ${jabatan ? jabatan + ' ' : ''}${atas})`;
 }
