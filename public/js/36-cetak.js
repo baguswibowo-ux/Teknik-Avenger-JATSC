@@ -1519,7 +1519,7 @@ function gambarArsipCetak(unit){
         <th>${T('Catatan pembuat','Requester note')}</th>
         <th style="width:170px">${T('Diminta oleh','Requested by')}</th>
         <th style="width:170px">${T('Diteken oleh','Signed by')}</th>
-        <th style="width:90px;text-align:right">${T('Aksi','Action')}</th>
+        <th style="width:150px;text-align:right">${T('Aksi','Action')}</th>
       </tr></thead>
       <tbody>${arsip.map(p=>{
         const tgl = p.tanggalTtd
@@ -1538,6 +1538,7 @@ function gambarArsipCetak(unit){
           <td>${esc(p.ttdPejabatNama || p.pejabatNama || p.pejabatUser || '—')}</td>
           <td style="text-align:right">
             <button class="btn garis kecil" data-arsip-cetak="${esc(p.id)}">${T('Cetak','Print')}</button>
+            ${bolehHapusArsip(p) ? `<button class="btn garis kecil" data-arsip-hapus="${esc(p.id)}">${T('Hapus','Delete')}</button>` : ''}
           </td>
         </tr>`;
       }).join('')}</tbody>
@@ -1551,6 +1552,41 @@ function gambarArsipCetak(unit){
       if(p) cetakDariPermintaan(p);
     });
   });
+
+  // Tombol Hapus — memakai DELETE /cetak-antrian/:id yang sama dengan
+  // kotak masuk; server tetap yang menentukan siapa yang boleh.
+  kotak.querySelectorAll('[data-arsip-hapus]').forEach(b=>{
+    b.addEventListener('click', async ()=>{
+      const id = b.dataset.arsipHapus;
+      if(!confirm(T('Hapus lembar ini dari arsip? Tanda tangannya ikut hilang dan tidak bisa dikembalikan.',
+                    'Delete this sheet from the archive? Its signatures are removed and cannot be restored.'))) return;
+      b.disabled = true;
+      try{
+        const jawab = await fetch('/cetak-antrian/' + encodeURIComponent(id),
+          { method:'DELETE', credentials:'include' });
+        if(!jawab.ok){
+          const j = await jawab.json().catch(()=>({}));
+          throw new Error(j.error || `HTTP ${jawab.status}`);
+        }
+        pesan(T('Lembar dihapus dari arsip.','Sheet deleted from the archive.'));
+        await muatArsipCetak(unit);
+        if(typeof muatAntrianCetak === 'function') muatAntrianCetak().then(()=>gambarKotakMasuk?.());
+      }catch(e){
+        b.disabled = false;
+        pesan(T('Gagal menghapus: ','Failed to delete: ') + (e && e.message || e));
+      }
+    });
+  });
+}
+
+/* Sepadan dengan penjagaan DELETE /cetak-antrian/:id di server: pembuat,
+   pejabat/deputy lembar itu, admin, atau super-admin. */
+function bolehHapusArsip(p){
+  if(!akun) return false;
+  if(akun.role === 'admin' || akun.superadmin) return true;
+  const saya = String(akun.user || '').toLowerCase();
+  return !!saya && (saya === p.pembuatUser || saya === p.pejabatUser
+                    || (!!p.deputyUser && saya === p.deputyUser));
 }
 
 async function cetakDariPermintaan(p){
