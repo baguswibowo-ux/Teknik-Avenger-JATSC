@@ -64,7 +64,10 @@
    dengan rasio bermacam-macam, dan tinggi tetap membuat barisnya bergerigi.
    object-fit:cover memotong ke tengah, jadi ubinnya rata tanpa foto penyok. */
 .foto-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;}
-.foto-kartu{border:1px solid var(--line);border-radius:13px;background:var(--panel);overflow:hidden;
+/* margin:0 wajib — <figure> membawa margin bawaan peramban 40px kiri-kanan.
+   Di kolom HP selebar 150px itu menyisakan kartu ~70px, dan nama berkasnya
+   turun satu huruf per baris. */
+.foto-kartu{margin:0;border:1px solid var(--line);border-radius:13px;background:var(--panel);overflow:hidden;
   cursor:zoom-in;box-shadow:var(--bayang);transition:transform .25s cubic-bezier(.2,.7,.3,1),border-color .2s;}
 .foto-kartu:hover{transform:translateY(-4px);border-color:var(--accent);}
 .foto-kartu .bing{position:relative;aspect-ratio:4/3;background:var(--panel-2);overflow:hidden;
@@ -97,7 +100,10 @@
    muncul, dan satu-satunya jalan tersisa adalah menyodok-nyodok sampai
    fokusnya kebetulan mendarat di situ. Di sana ia tampil sejak awal. */
 @media (hover:none),(pointer:coarse){
-  .foto-kartu .buang{opacity:1;}
+  /* Tombolnya ikut mengalir di bawah nama berkas, bukan menumpang di pojok:
+     kartu HP terlalu sempit untuk menyisihkan 64px bagi tombol yang melayang. */
+  .foto-kartu .buang{opacity:1;position:static;margin-top:8px;}
+  .foto-kartu .meta{padding-right:0;}
 }
 
 .gal-kabar{margin-top:12px;font-size:12px;line-height:1.6;color:var(--muted);}

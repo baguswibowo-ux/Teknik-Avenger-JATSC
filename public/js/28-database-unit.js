@@ -496,7 +496,7 @@ function gambarUnit(){
           ${radkom?`<td><span class="mono">${esc(r.selesai||'—')}</span></td>
                     <td><span class="mono">${esc(r.frek||'—')}</span></td>`:''}
           <td><span class="sel-shift s-${esc(r.dinas)}" style="padding:2px 8px;display:inline-block">${esc(r.dinas)}</span></td>
-          <td>${esc(r.uraian)}</td>
+          <td class="log-uraian">${esc(r.uraian)}</td>
           <td><div>${esc(r.pj)}</div>
               <div style="font-size:11.5px;color:var(--muted);margin-top:2px">${T('Onduty','Duty')}: ${esc(r.teknisi)}</div></td></tr>`).join('')}</tbody></table>
       </div>

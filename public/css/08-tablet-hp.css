@@ -49,6 +49,13 @@
   .hal-baris,.bkl-grid{grid-template-columns:1fr;}
   .alat-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:11px;}
   .foto-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));}
+  /* Tabel yang langsung duduk di panel (Trouble, Cuplikan Logbook, dst.)
+     tidak punya .gulir, dan .panel memotong luapannya — kolom kanan hilang
+     tanpa bisa digeser. Tabelnya dijadikan kotak gulir mendatar sendiri. */
+  .panel > table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  /* Uraian logbook tetap selebar kalimat yang terbaca, bukan diperas jadi
+     dua-tiga kata per baris; sisanya digeser. */
+  .panel > table td.log-uraian{min-width:240px;}
   .judul-seksi h2{font-size:16px;}
   /* Sasaran sentuh: 38px sudah cukup untuk ibu jari, dan subtab yang digulir
      mendatar perlu jarak antar tombol supaya tidak salah tekan saat menggeser. */
