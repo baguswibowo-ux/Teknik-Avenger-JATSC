@@ -43,7 +43,9 @@ function bukaDashboard(){
   gambarSemua();
   simpanSesi();
   // Notifikasi HP (40-notif-hp.js): tidak ditunggu, tidak memunculkan izin.
-  hpSelaraskan();
+  // typeof: sesudah pemasangan dan sebelum server dinyalakan ulang, gabungan
+  // js masih memakai daftar lama tanpa 40-notif-hp.js — dashboard tetap jalan.
+  if(typeof hpSelaraskan === 'function') hpSelaraskan();
   // Tiga modul server menyusul: layar tidak perlu menunggunya, dan yang berubah
   // begitu ia datang cukup digambar ulang di tempatnya masing-masing.
   //

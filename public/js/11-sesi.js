@@ -139,6 +139,6 @@ el('tombolKeluar').addEventListener('click', async ()=>{
   // tertinggal di keadaan sebelum keluar.
   await putusSesiServer();
   segarkanKartuMasuk();
-  hpGambar();               // spanduk HP ikut pergi bersama sesinya
+  if(typeof hpGambar === 'function') hpGambar();   // spanduk HP ikut pergi bersama sesinya
 });
 
