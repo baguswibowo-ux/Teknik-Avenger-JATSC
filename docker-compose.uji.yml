@@ -1,0 +1,57 @@
+# SERVER UJI DI DOCKER - dijalankan bersama docker-compose.yml sebagai lapisan
+# penimpa, dengan NAMA PROYEK yang berbeda:
+#
+#   docker compose -p avenger-uji -f docker-compose.yml -f docker-compose.uji.yml up -d --build
+#   docker compose -p avenger-uji -f docker-compose.yml -f docker-compose.uji.yml down
+#
+# Nama proyek yang beda membuat Docker memakai volume yang beda juga
+# (avenger-uji_data, dst). Produksi dan uji tidak pernah menyentuh berkas yang
+# sama - itu pagar yang di tools/uji.ps1 harus dijaga dengan tangan.
+#
+# Pagar yang sama seperti uji.ps1, diterjemahkan ke sini:
+#   1. KODE   : image dibangun dari folder yang sedang di-checkout. Kalau mau
+#               mencoba cabang lain, pakai git worktree - JANGAN pindahkan
+#               cabang di folder produksi ini.
+#   2. DATA   : volume terpisah, diisi SALINAN lewat tools/docker-data.ps1.
+#   3. LOKASI : volume uji tidak bisa dilihat container produksi.
+#   4. PORT   : 3900/3910, produksi 3000/3100 tidak disentuh.
+#   5. NOTIF  : token Telegram dikosongkan di bawah, dan kunci push-vapid.json
+#               tidak disalin oleh tools/docker-data.ps1 -> server uji bikin
+#               kuncinya sendiri, HP produksi tidak mungkin kena notif uji.
+
+services:
+  elogbook:
+    restart: "no"
+    environment:
+      TZ: Asia/Jakarta
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: "3000"
+      ELOGBOOK_DATA_DIR: /app/elogbook/data
+      ELOGBOOK_UPLOAD_DIR: /app/elogbook/uploads
+      ELOGBOOK_DB: ""
+      DATABASE_URL: ""
+      # Pagar notifikasi: menang atas isi .env yang ikut terbaca dari env_file.
+      TELEGRAM_BOT_TOKEN: ""
+      TELEGRAM_POLLING: "0"
+      PUSH_MATI: ""
+    ports: !override
+      - "127.0.0.1:3900:3000"
+
+  dashboard:
+    restart: "no"
+    environment:
+      TZ: Asia/Jakarta
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: "3100"
+      ELOGBOOK_ASAL: http://elogbook:3000
+      TELEGRAM_BOT_TOKEN: ""
+      TELEGRAM_POLLING: "0"
+    ports: !override
+      - "3910:3100"
+
+  # Cadangan tidak berlaku untuk uji - kalau dipanggil dengan -p avenger-uji,
+  # ia menulis ke ./cadangan yang sama dengan produksi. Dimatikan di sini.
+  cadangan:
+    profiles: ["jangan-dipakai-di-uji"]

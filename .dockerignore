@@ -1,0 +1,42 @@
+# Apa yang TIDAK ikut masuk image.
+#
+# Aturannya satu: image berisi KODE saja. Semua yang berubah saat server jalan
+# (database, unggahan, foto, cadangan) tinggal di volume, dan semua rahasia
+# (.env) disuntikkan compose saat container menyala. Dengan begitu image yang
+# sama persis bisa diangkat ke VPS tanpa membawa data atau token siapa pun.
+
+.git/
+.gitattributes
+node_modules/
+**/node_modules/
+
+# Rahasia: token Telegram, kunci VAPID, DATABASE_URL Supabase. Jangan pernah
+# ikut ke dalam lapisan image - image bisa dikirim ke mesin lain.
+# Pola ini juga menutup elogbook/.env yang berisi DATABASE_URL Supabase;
+# kalau ia ikut, E-Logbook di container bisa menoleh ke Postgres, bukan SQLite.
+**/.env
+**/.env.*
+!.env.example
+
+# Data hidup - diisi lewat volume, lihat docs/DOCKER.md
+data/
+elogbook/data/
+elogbook/uploads/
+public/foto/
+cadangan/
+_cadangan-lokal-*/
+
+# Jejak kerja, bukan bagian aplikasi
+.claude/
+.vercel/
+Claude outputs/
+*.log
+restart.minta
+matikan-uji.minta
+.playwright-mcp/
+
+# Alat khusus Windows - tidak berguna di dalam container Linux
+tools/*.cmd
+tools/*.ps1
+jalankan.cmd
+tarik-terbaru.cmd

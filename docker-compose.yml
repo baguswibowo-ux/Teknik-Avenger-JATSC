@@ -1,0 +1,131 @@
+# PRODUKSI - dua container, satu jaringan.
+#
+#   docker compose up -d --build     nyalakan (bangun kalau kode berubah)
+#   docker compose restart dashboard nyalakan ulang, tanpa admin, tanpa nunggu
+#   docker compose logs -f           lihat keluaran dua-duanya
+#   docker compose down              matikan (volume TIDAK ikut terhapus)
+#
+# Yang menggantikan apa:
+#   tools/server.cmd + Task Scheduler "Avenger\Server"  ->  restart: unless-stopped
+#   tools/jaga-server.cmd + restart.minta               ->  docker compose restart
+#   jalankan-semua.js (induk dua anak)                  ->  compose (dua service)
+#
+# Cloudflare tunnel tidak perlu diubah: dashboard tetap didengarkan di port
+# 3100 di mesin ini, persis seperti sebelumnya.
+
+name: avenger
+
+services:
+  elogbook:
+    build: .
+    image: avenger:terkini
+    working_dir: /app/elogbook
+    command: ["node", "server.js"]
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      TZ: Asia/Jakarta
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: "3000"
+      ELOGBOOK_DATA_DIR: /app/elogbook/data
+      ELOGBOOK_UPLOAD_DIR: /app/elogbook/uploads
+      # Dua pagar, sengaja dikosongkan di sini supaya tidak ada setelan yang
+      # bisa membelokkan E-Logbook dari SQLite lokal ke Postgres/Supabase.
+      # Itu pernah jadi jalur tak sengaja: elogbook/.env berisi DATABASE_URL.
+      ELOGBOOK_DB: ""
+      DATABASE_URL: ""
+    volumes:
+      - elogbook-data:/app/elogbook/data
+      - elogbook-uploads:/app/elogbook/uploads
+    # Hanya dari mesin ini. E-Logbook adalah komponen internal; pintu masuk
+    # pengguna satu-satunya adalah dashboard di 3100.
+    ports:
+      - "127.0.0.1:3000:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.status<500?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+    stop_grace_period: 15s
+
+  dashboard:
+    build: .
+    image: avenger:terkini
+    command: ["node", "server.js"]
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      TZ: Asia/Jakarta
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: "3100"
+      # Nama service, bukan 127.0.0.1: di compose tiap container punya alamat
+      # sendiri, dan "localhost" di dalam dashboard berarti dashboard sendiri.
+      ELOGBOOK_ASAL: http://elogbook:3000
+    volumes:
+      - data:/app/data
+      - foto:/app/public/foto
+    ports:
+      - "3100:3100"
+    depends_on:
+      elogbook:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3100/').then(r=>process.exit(r.status<500?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+    stop_grace_period: 15s
+
+  # Cadangan - bukan server, jalan sekali lalu keluar:
+  #   docker compose run --rm cadangan
+  # Isinya tools/cadangkan.js yang sudah dipakai selama ini (VACUUM INTO untuk
+  # elogbook.db, cermin untuk uploads dan foto, rotasi harian). Bedanya cuma
+  # sumbernya: volume, bukan folder Windows. Hasilnya tetap mendarat di
+  # ./cadangan di mesin ini supaya tetap terlihat dan ikut tersalin ke Drive.
+  cadangan:
+    build: .
+    image: avenger:terkini
+    profiles: ["alat"]
+    command: ["node", "tools/cadangkan.js"]
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      TZ: Asia/Jakarta
+      CADANGAN_DIR: /app/cadangan
+      # Salinan kedua ke C:\... sengaja dikosongkan: folder itu tidak ada di
+      # dalam container, dan membiarkannya menunjuk ke folder cadangan sendiri
+      # berarti cadangan menyalin dirinya sendiri tiap kali jalan. Pengangkatan
+      # ke folder luar (dan ke Drive) tetap urusan mesin ini - lihat
+      # docs/DOCKER.md bagian 4.
+      CADANGAN_LUAR: ""
+    volumes:
+      - data:/app/data:ro
+      # Satu-satunya yang TIDAK :ro, dan bukan karena ceroboh: cadangkan.js
+      # membuka elogbook.db dengan readOnly lalu VACUUM INTO. Database WAL
+      # tetap perlu membuat berkas -shm di sebelahnya bahkan untuk dibaca,
+      # jadi foldernya harus bisa ditulis atau cadangan gagal terbuka.
+      - elogbook-data:/app/elogbook/data
+      - elogbook-uploads:/app/elogbook/uploads:ro
+      - foto:/app/public/foto:ro
+      - ./cadangan:/app/cadangan
+
+volumes:
+  # Kenapa volume, bukan bind mount ke folder D:\ seperti sekarang:
+  # elogbook.db jalan dengan WAL, dan WAL butuh shared-memory (berkas -shm)
+  # yang tidak didukung penuh di jembatan berkas Windows->container. Di volume,
+  # berkasnya duduk di filesystem Linux asli: penguncian benar dan jauh lebih
+  # cepat. Bonusnya, bentuk ini sama persis nanti di VPS.
+  # Cara mengisi dan mengeluarkan datanya: tools/docker-data.ps1
+  data:
+  foto:
+  elogbook-data:
+  elogbook-uploads:
