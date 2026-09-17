@@ -56,6 +56,12 @@
   /* Uraian logbook tetap selebar kalimat yang terbaca, bukan diperas jadi
      dua-tiga kata per baris; sisanya digeser. */
   .panel > table td.log-uraian{min-width:240px;}
+  /* Kolom Berkas di Dokumen: lencana (DRIVE/PDF/foto) di atas, nama di
+     bawahnya. Berdampingan, lencana 44px memakan separuh kolom dan nama
+     dipatahkan per huruf ("Sharin / g"). Kata tidak dipatahkan lagi kecuali
+     memang lebih panjang dari kolomnya. */
+  .brk-nama{flex-direction:column;align-items:flex-start;gap:7px;min-width:150px;}
+  .brk-nama .n{word-break:normal;overflow-wrap:break-word;}
   .judul-seksi h2{font-size:16px;}
   /* Sasaran sentuh: 38px sudah cukup untuk ibu jari, dan subtab yang digulir
      mendatar perlu jarak antar tombol supaya tidak salah tekan saat menggeser. */
