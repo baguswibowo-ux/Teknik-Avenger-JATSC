@@ -1579,14 +1579,12 @@ function gambarArsipCetak(unit){
   });
 }
 
-/* Sepadan dengan penjagaan DELETE /cetak-antrian/:id di server: pembuat,
-   pejabat/deputy lembar itu, admin, atau super-admin. */
+/* Sepadan dengan penjagaan DELETE /cetak-antrian/:id di server untuk lembar
+   yang sudah disetujui: administrator, atau admin unit di unitnya sendiri. */
 function bolehHapusArsip(p){
   if(!akun) return false;
   if(akun.role === 'admin' || akun.superadmin) return true;
-  const saya = String(akun.user || '').toLowerCase();
-  return !!saya && (saya === p.pembuatUser || saya === p.pejabatUser
-                    || (!!p.deputyUser && saya === p.deputyUser));
+  return akun.role === 'adminunit' && !!p.unit && bolehBuka(p.unit);
 }
 
 async function cetakDariPermintaan(p){

@@ -4509,8 +4509,10 @@ app.post('/cetak-antrian/:id/tolak', badanCetak, async (req, res) => {
   res.json({ ok: true, permintaan: b });
 });
 
-/** Hapus — pembuat boleh menarik permintaannya, pejabat/admin boleh
-    membuang yang sudah dicetak. */
+/** Hapus — pembuat boleh menarik permintaannya yang belum final, pejabat
+    boleh membuang yang ditujukan kepadanya. Lembar yang sudah DISETUJUI
+    adalah arsip bertanda tangan: hanya administrator, atau admin unit di
+    unitnya sendiri, yang boleh membuangnya. */
 app.delete('/cetak-antrian/:id', async (req, res) => {
   const user = await siapa(req);
   if (!user) return res.status(401).json({ error: 'Masuk dulu.' });
@@ -4521,9 +4523,11 @@ app.delete('/cetak-antrian/:id', async (req, res) => {
 
   const b = daftar[i];
   const saya = String(user.username || '').toLowerCase();
-  const boleh = saya === b.pembuatUser || saya === b.pejabatUser
-             || (b.deputyUser && saya === b.deputyUser)
-             || user.role === 'admin' || user.superadmin === true;
+  const adminLembar = adminDiUnit(user, b.unit) || user.superadmin === true;
+  const boleh = b.status === 'disetujui'
+    ? adminLembar
+    : adminLembar || saya === b.pembuatUser || saya === b.pejabatUser
+      || (b.deputyUser && saya === b.deputyUser);
   if (!boleh) return res.status(403).json({ error: 'Bukan pihak yang berhak menghapus.' });
 
   daftar.splice(i, 1);

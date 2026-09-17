@@ -142,8 +142,9 @@ function cetakAntrianKartu(p){
           belumFinal ? T('Buka & TTD','Open & sign')
           : disetujui ? T('Cetak lagi','Reprint')
           : T('Lihat','View')}</button>
-        <button class="btn garis kecil" data-cetak-hapus="${esc(p.id)}">${
-          T('Hapus','Delete')}</button>
+        ${!disetujui || (typeof bolehHapusArsip === 'function' && bolehHapusArsip(p))
+          ? `<button class="btn garis kecil" data-cetak-hapus="${esc(p.id)}">${
+              T('Hapus','Delete')}</button>` : ''}
       </span>
     </div>
   </article>`;
