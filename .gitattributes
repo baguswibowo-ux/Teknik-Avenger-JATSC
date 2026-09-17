@@ -3,3 +3,11 @@
 # dan itu tidak tergantung setelan core.autocrlf masing-masing PC.
 *.cmd text eol=crlf
 *.bat text eol=crlf
+
+# Kebalikannya untuk berkas yang dibaca di dalam container Linux: harus ber-LF
+# walaupun di-checkout di Windows. Baris sambungan "\" di Dockerfile yang
+# diikuti CR terbaca patah, dan build gagal dengan pesan yang tidak menyebut
+# penyebabnya sama sekali.
+Dockerfile text eol=lf
+.dockerignore text eol=lf
+*.yml text eol=lf
