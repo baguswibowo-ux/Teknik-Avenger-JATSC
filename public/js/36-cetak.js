@@ -615,6 +615,7 @@ async function cetakLakukan(){
      Mode lain (peralatan, sparepart) tetap potret bawaan. */
   area.classList.toggle('lanskap', CETAK.mode === 'dinas');
   pasangOrientasiCetak(CETAK.mode === 'dinas' ? 'landscape' : null);
+  if(CETAK.mode === 'sparepart') muatkanSatuHalaman(area);
   /* Kalau TTD-nya digambar putih di E-Logbook, ubah jadi hitam untuk
      kertas putih. Piksel bergaris (alpha > 0) dipaksa hitam pekat. */
   const imgs = Array.from(area.querySelectorAll('img[data-perlu-hitam]'));
@@ -644,6 +645,28 @@ async function cetakLakukan(){
       pasangOrientasiCetak(null);   // kembalikan @page ke bawaan potret
     }, 500);
   }, 200);
+}
+
+/**
+ * Lembar sparepart yang lewat sedikit dari satu halaman dikecilkan
+ * proporsional supaya muat satu halaman A4 potret. Yang jauh lebih panjang
+ * dibiarkan bersambung — TTD tetap ikut paket riwayatnya (.spr-paket).
+ * Diukur di luar layar dengan lebar dan huruf yang sama dengan kertas.
+ */
+function muatkanSatuHalaman(area){
+  const lembar = area.querySelector('.cetak-lembar');
+  if(!lembar) return;
+  const mm = 96 / 25.4;
+  const tinggiHalaman = (297 - 28) * mm;   // @page potret: margin 14mm atas-bawah
+  const gayaLama = area.getAttribute('style') || '';
+  area.style.cssText = `display:block;position:fixed;left:-10000px;top:0;
+    width:${(210 - 24) * mm}px;font-family:'Times New Roman',Times,serif;font-size:10.5pt;`;
+  const tinggi = lembar.getBoundingClientRect().height;
+  area.setAttribute('style', gayaLama);
+  const BATAS = 1.35;   // lebih dari ini huruf terlalu kecil — biar bersambung saja
+  if(tinggi > tinggiHalaman && tinggi <= tinggiHalaman * BATAS){
+    lembar.style.zoom = String((tinggiHalaman / tinggi) * 0.94);
+  }
 }
 
 /**
@@ -766,8 +789,7 @@ function ttdTunggalHtml(url, nama, kosongTeks){
 
 async function cetakLembarHtml(){
   let isi = '';
-  if(CETAK.mode === 'sparepart')      isi = htmlSparepart();
-  else if(CETAK.mode === 'peralatan') isi = htmlPeralatan();
+  if(CETAK.mode === 'peralatan')      isi = htmlPeralatan();
   else if(CETAK.mode === 'dinas')     isi = htmlDinas();
 
   if(CETAK.mode === 'dinas'){
@@ -788,18 +810,31 @@ async function cetakLembarHtml(){
     });
     return `<div class="cetak-lembar">${kopLembar()}${isi}${foot}</div>`;
   }
+  // Sparepart menaruh TTD-nya sendiri, satu paket dengan tabel riwayat.
+  if(CETAK.mode === 'sparepart'){
+    return `<div class="cetak-lembar">${kopLembar()}${htmlSparepart(blokTtd())}</div>`;
+  }
   return `<div class="cetak-lembar">${kopLembar()}${isi}${blokTtd()}</div>`;
 }
 
-function htmlSparepart(){
+function htmlSparepart(ttd = ''){
   // Urutan simpan — sama dengan nomor di lembar SAP gudang dan di layar unit.
   const rows = PART.filter(p=>p.unit === CETAK.unit);
   if(!rows.length){
     return `<div style="text-align:center;font-style:italic;padding:12pt 0">${
       T('Belum ada sparepart terdaftar untuk unit ini.',
-        'No spare parts registered for this unit yet.')}</div>`;
+        'No spare parts registered for this unit yet.')}</div>${ttd}`;
   }
-  return tabelSparepartCetak(rows) + tabelRiwayatPartCetak(PART_RIWAYAT[CETAK.unit] || []);
+  return sparepartIsiHtml(rows, PART_RIWAYAT[CETAK.unit] || [], ttd);
+}
+
+/** Daftar sparepart, lalu tabel riwayat dan TTD dalam satu paket yang tidak
+    boleh terbelah halaman — supaya TTD tidak tercetak sendirian di halaman
+    berikutnya. Kalau paketnya tidak muat di sisa halaman, riwayat ikut
+    pindah bersama TTD. */
+function sparepartIsiHtml(rows, riwayat, ttd){
+  return tabelSparepartCetak(rows) +
+    `<div class="spr-paket">${tabelRiwayatPartCetak(riwayat)}${ttd}</div>`;
 }
 
 /** Tanggal ringkas untuk kertas potret: 21/08/26. Yang cuma bulan atau
@@ -1614,6 +1649,7 @@ async function cetakDariPermintaan(p){
   // langsung (lakukanCetak). Snapshot lain (peralatan/sparepart) tetap potret.
   area.classList.toggle('lanskap', p.jenis === 'dinas');
   pasangOrientasiCetak(p.jenis === 'dinas' ? 'landscape' : null);
+  if(p.jenis === 'sparepart') muatkanSatuHalaman(area);
   const imgs = Array.from(area.querySelectorAll('img[data-perlu-hitam]'));
   await Promise.all(imgs.map(async img=>{
     try{
@@ -1642,12 +1678,12 @@ async function cetakDariPermintaan(p){
     snapshot. Dipakai baik oleh lembar cetak final maupun pratinjau di
     kartu review pejabat — supaya keduanya menampilkan tabel yang persis
     sama, dan pejabat tahu apa yang mereka TTD-i. */
-function cetakIsiSnapshotHtml(p, snap){
+function cetakIsiSnapshotHtml(p, snap, ttd = ''){
   if(p.jenis === 'sparepart'){
     const rows = Array.isArray(snap.rows) ? snap.rows : [];
-    return rows.length ? tabelSparepartCetak(rows) + tabelRiwayatPartCetak(snap.riwayat)
+    return rows.length ? sparepartIsiHtml(rows, snap.riwayat, ttd)
       : `<div style="text-align:center;font-style:italic;padding:12pt 0">${
-        T('Belum ada sparepart terdaftar.','No spare parts registered.')}</div>`;
+        T('Belum ada sparepart terdaftar.','No spare parts registered.')}</div>${ttd}`;
   }
   if(p.jenis === 'dinas'){
     const bulan = snap.bulan || p.bulan;
@@ -1815,8 +1851,6 @@ async function cetakLembarPermintaanHtml(p, snap){
     <h1>${esc(judul)}${esc(bulan)}</h1>
     <h2>${esc(u.nama || p.unit)}</h2>`;
 
-  const isi = cetakIsiSnapshotHtml(p, snap);
-
   const mengertUrl = CETAK.ttdPejabat && CETAK.ttdPejabat.ada ? CETAK.ttdPejabat.url : '';
   let blok;
   if(p.jenis === 'dinas'){
@@ -1842,7 +1876,11 @@ async function cetakLembarPermintaanHtml(p, snap){
       T('(belum ada TTD tersimpan)','(no saved signature)'));
   }
 
-  return `<div class="cetak-lembar">${kop}${isi}${blok}</div>`;
+  // Sparepart: TTD dimasukkan ke paket riwayat supaya tidak terpisah halaman.
+  if(p.jenis === 'sparepart'){
+    return `<div class="cetak-lembar">${kop}${cetakIsiSnapshotHtml(p, snap, blok)}</div>`;
+  }
+  return `<div class="cetak-lembar">${kop}${cetakIsiSnapshotHtml(p, snap)}${blok}</div>`;
 }
 
 /**

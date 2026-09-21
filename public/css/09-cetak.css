@@ -520,6 +520,12 @@
    Huruf dan jarak dirapatkan; nama barang dan keterangan boleh melipat,
    kode/angka/tanggal tidak. Judul kolom boleh melipat dua baris. */
 .cetak-lembar table.data.spr-cetak { font-size: 7.5pt; }
+/* Riwayat + TTD satu paket: kalau tidak muat di sisa halaman, keduanya
+   pindah bersama ke halaman berikutnya — TTD tidak tercetak sendirian. */
+.cetak-lembar .spr-paket {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
 .cetak-lembar .spr-cetak-judul {
   font-weight: 600;
   font-size: 10pt;
