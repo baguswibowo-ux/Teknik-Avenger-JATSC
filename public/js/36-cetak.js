@@ -2142,3 +2142,298 @@ function htmlDinas(){
       <tbody>${barisOrang}</tbody>
     </table>`;
 }
+
+/* =======================================================================
+   REKAP STOK OPNAME SEMUA UNIT
+
+   Meniru tab "Per Divisi" di berkas Stok Opname bulanan gudang: satu lembar,
+   tiap unit jadi satu bagian (No, Kode Material, Nama Barang, Plant, SLOC,
+   Status, Satuan, Jumlah, IDR) dengan subtotal, lalu total keseluruhan.
+   Hanya barang yang stoknya lebih dari nol. Isinya stok saat ini; judulnya
+   bulan berjalan.
+
+   Plant dan SLOC: berkas gudang menamai kolom yang sama berbeda-beda. Di tab
+   "All" (dan di dashboard) A001 disebut SLOC dan 2 disebut Kode Gudang; di
+   tab "Per Divisi" A001 disebut PLANT dan 2 disebut SLOC. Rekap ini mengikuti
+   tab Per Divisi: Plant <- SLOC dashboard, SLOC <- Kode Gudang dashboard.
+
+   TTD di lembar ini masih kosong (sementara) — bentuk akhirnya menunggu
+   PIC sparepart. Dua keluaran: cetak (PDF lewat dialog cetak) dan Excel.
+   ======================================================================= */
+
+/** Bagian-bagian rekap: [{ unit, nama, baris:[...], jumlah, nilai }]. */
+function rekapSparepartData(){
+  const urutUnit = UNIT.map(u=>u.kode);
+  // Unit yang punya sparepart tapi tidak ada di daftar unit tetap ikut, di belakang.
+  PART.forEach(p=>{ if(!urutUnit.includes(p.unit)) urutUnit.push(p.unit); });
+  return urutUnit.map(kode=>{
+    const baris = PART.filter(p=>p.unit === kode && (Number(p.stok) || 0) > 0)
+      .slice().sort((a,b)=>String(a.pn || '').localeCompare(String(b.pn || ''), 'id', { numeric:true }));
+    return {
+      unit: kode,
+      nama: infoUnit(kode).nama || kode,
+      baris,
+      jumlah: baris.reduce((n,p)=>n + (Number(p.stok) || 0), 0),
+      nilai:  baris.reduce((n,p)=>n + (Number(p.nilai) || 0), 0)
+    };
+  }).filter(b=>b.baris.length);
+}
+
+const rekapPeriode = () => new Date().toLocaleDateString('id-ID', { month:'long', year:'numeric' }).toUpperCase();
+const REKAP_JUDUL = 'STOCK OPNAME PERSEDIAAN BARANG FASILITAS TEKNIK JATSC';
+const rekapTotal = (bagian) => bagian.reduce((a,b)=>({ jumlah:a.jumlah + b.jumlah, nilai:a.nilai + b.nilai }),
+  { jumlah:0, nilai:0 });
+
+function rekapSparepartHtml(bagian){
+  const kop = `<h1>${REKAP_JUDUL}</h1><h2>PERIODE ${rekapPeriode()}</h2>`;
+  if(!bagian.length){
+    return `<div class="cetak-lembar">${kop}
+      <div style="text-align:center;font-style:italic;padding:12pt 0">Belum ada sparepart dengan stok.</div></div>`;
+  }
+  const kosong = (v) => esc(v == null || v === '' ? '—' : v);
+  /* Lebar kolom dikunci (table-layout: fixed) supaya tabel unit terakhir yang
+     dipotong jadi dua — lihat EKOR di bawah — tetap sejajar kolomnya. */
+  const kolom = `<colgroup>${[4, 12, 35, 7, 6, 8, 8, 8, 12].map(w=>`<col style="width:${w}%">`).join('')}</colgroup>`;
+  const gayaTabel = 'table-layout:fixed';
+  const kepala = `<thead><tr>
+    <th>NO</th><th>KODE MATERIAL</th><th>NAMA BARANG</th><th>PLANT</th>
+    <th>SLOC</th><th>STATUS</th><th>SATUAN</th><th>JUMLAH</th><th>IDR</th></tr></thead>`;
+  const barisHtml = (p, no) => `<tr>
+    <td class="tengah mono">${no}</td>
+    <td class="mono">${esc(p.pn || '')}</td>
+    <td>${esc(p.nama || '')}</td>
+    <td class="tengah mono">${kosong(p.sloc)}</td>
+    <td class="tengah mono">${kosong(p.gudang)}</td>
+    <td class="tengah">${kosong(p.status)}</td>
+    <td class="tengah">${kosong(p.satuan)}</td>
+    <td class="tengah mono">${Number(p.stok) || 0}</td>
+    <td class="kanan mono">${partRupiah(p.nilai)}</td></tr>`;
+  // Baris jumlah sengaja di <tbody>, bukan <tfoot>: tfoot diulang peramban di
+  // tiap halaman untuk unit yang bersambung, dan terbaca sebagai jumlah halaman itu.
+  const barisJumlah = (b) => `<tr>
+    <td colspan="7" class="kanan"><b>Jumlah</b></td>
+    <td class="tengah mono"><b>${b.jumlah}</b></td>
+    <td class="kanan mono"><b>${partRupiah(b.nilai)}</b></td></tr>`;
+  const judul = (b) => `<div class="spr-cetak-judul">${esc(String(b.nama).toUpperCase())}</div>`;
+  const tabel = (b) => `${judul(b)}
+    <table class="data spr-cetak" style="${gayaTabel}">${kolom}${kepala}
+      <tbody>${b.baris.map((p,i)=>barisHtml(p, i + 1)).join('')}${barisJumlah(b)}</tbody>
+    </table>`;
+  const total = rekapTotal(bagian);
+  const tabelTotal = `
+    <table class="data spr-cetak" style="${gayaTabel};margin-top:10pt">${kolom}
+      <tr><td colspan="7" class="kanan"><b>TOTAL KESELURUHAN (${bagian.length} unit)</b></td>
+        <td class="tengah mono"><b>${total.jumlah}</b></td>
+        <td class="kanan mono"><b>${partRupiah(total.nilai)}</b></td></tr>
+    </table>`;
+  // TTD sementara: kotak dan nama kosong, diisi tangan sampai bentuk akhirnya disepakati.
+  const ttd = ttdTunggalHtml('', '', '');
+
+  /* TTD tidak boleh tercetak sendirian. Yang dipaketkan bersamanya cuma
+     EKOR baris terakhir unit terakhir + total — kalau seluruh unit terakhir
+     ikut dipaket dan unit itu lebih panjang dari sehalaman, peramban tetap
+     memotongnya dan TTD jatuh sendiri di halaman kosong. Potongan ekor
+     digambar tanpa kepala tabel dan menempel ke atasnya (margin -1px),
+     jadi di kertas tetap terbaca sebagai satu tabel. */
+  const EKOR = 5;
+  const terakhir = bagian[bagian.length - 1];
+  const awal = bagian.slice(0, -1).map(tabel).join('');
+  let akhir;
+  if(terakhir.baris.length <= EKOR){
+    akhir = `<div class="spr-paket">${tabel(terakhir)}${tabelTotal}${ttd}</div>`;
+  }else{
+    const potong = terakhir.baris.length - EKOR;
+    akhir = `${judul(terakhir)}
+      <table class="data spr-cetak" style="${gayaTabel}">${kolom}${kepala}
+        <tbody>${terakhir.baris.slice(0, potong).map((p,i)=>barisHtml(p, i + 1)).join('')}</tbody>
+      </table>
+      <div class="spr-paket">
+        <table class="data spr-cetak" style="${gayaTabel};margin-top:-1px">${kolom}
+          <tbody>${terakhir.baris.slice(potong).map((p,i)=>barisHtml(p, potong + i + 1)).join('')}${barisJumlah(terakhir)}</tbody>
+        </table>${tabelTotal}${ttd}
+      </div>`;
+  }
+  return `<div class="cetak-lembar">${kop}${awal}${akhir}</div>`;
+}
+
+function rekapSparepartCetak(){
+  const area = el('printArea');
+  area.innerHTML = rekapSparepartHtml(rekapSparepartData());
+  area.classList.remove('lanskap');
+  pasangOrientasiCetak(null);
+  muatkanSatuHalaman(area);
+  setTimeout(()=>{
+    window.print();
+    setTimeout(()=>{ area.innerHTML = ''; }, 500);
+  }, 200);
+}
+
+/* ---------- Excel (.xlsx) tanpa pustaka ----------
+   Berkas xlsx = zip berisi beberapa XML. Zip-nya disusun sendiri dengan
+   metode "store" (tanpa kompresi) — cukup untuk lembar sekecil ini dan
+   tidak perlu pustaka tambahan. */
+const XLSX_CRC = (()=>{
+  const t = new Uint32Array(256);
+  for(let n = 0; n < 256; n++){
+    let c = n;
+    for(let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1;
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+
+function xlsxCrc32(bytes){
+  let c = 0xFFFFFFFF;
+  for(let i = 0; i < bytes.length; i++) c = XLSX_CRC[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+/** berkas: [{ nama, isi:string }] -> Blob xlsx. */
+function xlsxZip(berkas){
+  const enc = new TextEncoder();
+  const u16 = (v)=>[v & 0xFF, (v >>> 8) & 0xFF];
+  const u32 = (v)=>[v & 0xFF, (v >>> 8) & 0xFF, (v >>> 16) & 0xFF, (v >>> 24) & 0xFF];
+  const potong = [], pusat = [];
+  let posisi = 0;
+  for(const f of berkas){
+    const nama = enc.encode(f.nama), isi = enc.encode(f.isi), crc = xlsxCrc32(isi);
+    // 0x0800 = nama berkas UTF-8; tanggal/jam 0x21 = 1 Jan 1980 (tidak dipakai Excel).
+    const kepala = new Uint8Array([...u32(0x04034b50), ...u16(20), ...u16(0x0800), ...u16(0), ...u16(0),
+      ...u16(0x21), ...u32(crc), ...u32(isi.length), ...u32(isi.length), ...u16(nama.length), ...u16(0)]);
+    potong.push(kepala, nama, isi);
+    pusat.push(new Uint8Array([...u32(0x02014b50), ...u16(20), ...u16(20), ...u16(0x0800), ...u16(0),
+      ...u16(0), ...u16(0x21), ...u32(crc), ...u32(isi.length), ...u32(isi.length), ...u16(nama.length),
+      ...u16(0), ...u16(0), ...u16(0), ...u16(0), ...u32(0), ...u32(posisi)]), nama);
+    posisi += kepala.length + nama.length + isi.length;
+  }
+  const besarPusat = pusat.reduce((n,b)=>n + b.length, 0);
+  const akhir = new Uint8Array([...u32(0x06054b50), ...u16(0), ...u16(0), ...u16(berkas.length),
+    ...u16(berkas.length), ...u32(besarPusat), ...u32(posisi), ...u16(0)]);
+  return new Blob([...potong, ...pusat, akhir],
+    { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+}
+
+/** Isi sheet1.xml rekap — dipisah dari unduhan supaya bisa diuji tanpa peramban. */
+function rekapSparepartSheetXml(bagian){
+  const xe = (s)=>String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const KOLOM = 'ABCDEFGHI';
+  const baris = [], gabung = [];
+  let r = 0;
+  /* Nomor gaya = urutan <xf> di rekapSparepartStylesXml: 1 judul tebal tengah,
+     2 kepala tabel, 3 sel berbingkai, 4 sel berbingkai tengah, 5 rupiah
+     berbingkai, 6 subjudul tebal, 7 jumlah tebal tengah, 8 rupiah tebal,
+     9 teks tengah tanpa bingkai. */
+  const teks  = (k, v, s) => `<c r="${k}${r}" t="inlineStr" s="${s}"><is><t xml:space="preserve">${xe(v)}</t></is></c>`;
+  const angka = (k, v, s, f) => `<c r="${k}${r}" s="${s}">${f ? `<f>${f}</f>` : ''}<v>${Number(v) || 0}</v></c>`;
+  const tambah = (sel) => baris.push(`<row r="${r}">${sel.join('')}</row>`);
+
+  r = 1; tambah([teks('A', REKAP_JUDUL, 1)]); gabung.push('A1:I1');
+  r = 2; tambah([teks('A', 'PERIODE ' + rekapPeriode(), 1)]); gabung.push('A2:I2');
+  r = 3;
+  const selSubtotal = [];
+  for(const b of bagian){
+    r += 1; tambah([teks('B', String(b.nama).toUpperCase(), 6)]); gabung.push(`B${r}:I${r}`);
+    r += 1; tambah(['NO','KODE MATERIAL','NAMA BARANG','PLANT','SLOC','STATUS','SATUAN','JUMLAH','IDR']
+      .map((h,i)=>teks(KOLOM[i], h, 2)));
+    const mulai = r + 1;
+    b.baris.forEach((p,i)=>{
+      r += 1;
+      tambah([angka('A', i + 1, 4), teks('B', p.pn || '', 4), teks('C', p.nama || '', 3),
+        teks('D', p.sloc || '', 4), teks('E', p.gudang || '', 4), teks('F', p.status || '', 4),
+        teks('G', p.satuan || '', 4), angka('H', p.stok, 4), angka('I', p.nilai, 5)]);
+    });
+    r += 1;
+    tambah([teks('G', 'Jumlah', 7), angka('H', b.jumlah, 7, `SUM(H${mulai}:H${r - 1})`),
+      angka('I', b.nilai, 8, `SUM(I${mulai}:I${r - 1})`)]);
+    selSubtotal.push(r);
+    r += 1;   // baris kosong pemisah
+  }
+  const total = rekapTotal(bagian);
+  r += 1;
+  tambah([teks('G', 'TOTAL', 7),
+    angka('H', total.jumlah, 7, selSubtotal.map(n=>'H' + n).join('+') || '0'),
+    angka('I', total.nilai, 8, selSubtotal.map(n=>'I' + n).join('+') || '0')]);
+  // TTD sementara — bentuk akhirnya menunggu PIC sparepart.
+  r += 2; tambah([teks('H', 'Mengetahui,', 9)]); gabung.push(`H${r}:I${r}`);
+  r += 1; tambah([teks('H', 'Manager Teknik', 9)]); gabung.push(`H${r}:I${r}`);
+  r += 4; tambah([teks('H', '(..............................)', 9)]); gabung.push(`H${r}:I${r}`);
+
+  // Lebar kolom disamakan dengan tab Per Divisi di berkas gudang.
+  const lebar = [8.8, 14.7, 33.7, 10.8, 10.8, 10.8, 10.8, 12.5, 16];
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>
+<cols>${lebar.map((w,i)=>`<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join('')}</cols>
+<sheetData>${baris.join('')}</sheetData>
+<mergeCells count="${gabung.length}">${gabung.map(g=>`<mergeCell ref="${g}"/>`).join('')}</mergeCells>
+<pageSetup paperSize="9" orientation="portrait" fitToWidth="1" fitToHeight="0"/>
+</worksheet>`;
+}
+
+function rekapSparepartStylesXml(){
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<numFmts count="1"><numFmt numFmtId="164" formatCode="#,##0"/></numFmts>
+<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>
+<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>
+<fill><patternFill patternType="solid"><fgColor rgb="FFEEEEEE"/></patternFill></fill></fills>
+<borders count="2"><border/><border><left style="thin"/><right style="thin"/><top style="thin"/><bottom style="thin"/></border></borders>
+<cellStyleXfs count="1"><xf/></cellStyleXfs>
+<cellXfs count="10">
+<xf/>
+<xf fontId="1" applyFont="1" applyAlignment="1"><alignment horizontal="center"/></xf>
+<xf fontId="1" fillId="2" borderId="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
+<xf borderId="1" applyBorder="1"/>
+<xf borderId="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center"/></xf>
+<xf numFmtId="164" borderId="1" applyNumberFormat="1" applyBorder="1"/>
+<xf fontId="1" applyFont="1"/>
+<xf fontId="1" borderId="1" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center"/></xf>
+<xf numFmtId="164" fontId="1" borderId="1" applyNumberFormat="1" applyFont="1" applyBorder="1"/>
+<xf applyAlignment="1"><alignment horizontal="center"/></xf>
+</cellXfs>
+</styleSheet>`;
+}
+
+/** Berkas-berkas penyusun xlsx rekap. */
+function rekapSparepartXlsxBerkas(bagian){
+  const namaLembar = ('Rekap ' + rekapPeriode()).slice(0, 31);
+  const XML = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
+  const REL = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const CT  = 'application/vnd.openxmlformats-officedocument.spreadsheetml';
+  return [
+    { nama:'[Content_Types].xml', isi: XML +
+      `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+<Default Extension="xml" ContentType="application/xml"/>
+<Override PartName="/xl/workbook.xml" ContentType="${CT}.sheet.main+xml"/>
+<Override PartName="/xl/worksheets/sheet1.xml" ContentType="${CT}.worksheet+xml"/>
+<Override PartName="/xl/styles.xml" ContentType="${CT}.styles+xml"/>
+</Types>` },
+    { nama:'_rels/.rels', isi: XML +
+      `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="${REL}/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>` },
+    { nama:'xl/workbook.xml', isi: XML +
+      `<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="${REL}">
+<sheets><sheet name="${namaLembar}" sheetId="1" r:id="rId1"/></sheets>
+</workbook>` },
+    { nama:'xl/_rels/workbook.xml.rels', isi: XML +
+      `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="${REL}/worksheet" Target="worksheets/sheet1.xml"/>
+<Relationship Id="rId2" Type="${REL}/styles" Target="styles.xml"/>
+</Relationships>` },
+    { nama:'xl/styles.xml', isi: rekapSparepartStylesXml() },
+    { nama:'xl/worksheets/sheet1.xml', isi: rekapSparepartSheetXml(bagian) }
+  ];
+}
+
+function rekapSparepartExcel(){
+  const blob = xlsxZip(rekapSparepartXlsxBerkas(rekapSparepartData()));
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `Rekap Stok Opname ${rekapPeriode()}.xlsx`;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
