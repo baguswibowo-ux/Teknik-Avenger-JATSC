@@ -389,9 +389,9 @@ function kotakPapanNama(alatIni){
           'Fields filled from the photo are rewritten; anything you typed yourself is left alone.')}</span>
     </div>
     <div class="bantu" id="pnKabar">${alatIni
-      ? T('Merk, tipe, S/N, P/N, dan tahunnya dibaca dari foto lalu diisikan ke bawah — dan tetap bisa '
+      ? T('Merk, tipe, S/N, P/N, dan tahunnya dibaca dari foto lalu diisikan ke isiannya — dan tetap bisa '
         + 'Anda perbaiki. Pembacaannya berjalan di dalam peramban ini; tidak ada yang dikirim ke luar.',
-          'The make, type, S/N, P/N, and year are read from the photo and filled in below — and remain '
+          'The make, type, S/N, P/N, and year are read from the photo and filled into the fields — and remain '
         + 'yours to correct. The reading runs inside this browser; nothing is sent outside.')
       : T('Part number, merk, tipe, dan S/N dibaca dari foto lalu diisikan ke bawah. Kalau nomor partnya '
         + 'tercetak tanpa label, kode yang paling berbentuk nomor part yang ditebak — periksa lagi '

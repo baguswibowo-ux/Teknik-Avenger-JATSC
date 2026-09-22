@@ -80,6 +80,50 @@ function gambarKartuPasang(){
   ilus.addEventListener('click', ()=>{ nilai.value = ''; tandai(); });
 }
 
+/* Formulir lebar peralatan: isian yang sama dengan bentuk lama, disusun empat
+   lajur dalam kotak bernomor supaya satu alat terisi sekali pandang. Id
+   isiannya tidak berubah — simpanData dan pembaca papan nama tetap memakainya. */
+function fIsian(id, label, nilai, o = {}){
+  return `
+  <div class="isian${o.lebar ? ' dua' : ''}"><label for="${id}">${esc(label)}${
+    o.wajib ? ' <span class="wajib">*</span>' : ''}</label>
+    <input type="${o.jenis || 'text'}" id="${id}" value="${esc(nilai == null ? '' : nilai)}"
+      placeholder="${esc(o.contoh || '')}" autocomplete="off" spellcheck="false"></div>`;
+}
+
+function formulirPeralatan(asal){
+  const a = asal || {};
+  const status = ALAT_STATUS.map(s=>
+    `<option value="${esc(s)}"${s === (a.status || 'Normal') ? ' selected' : ''}>${esc(s)}</option>`).join('');
+  return `
+  <section class="bagian">
+    <h4>I. ${T('Data Peralatan','Equipment Data')}</h4>
+    <div class="isian-grid empat">
+      ${fIsian('dNama', T('Nama Peralatan','Equipment Name'), a.nama,
+        { wajib: true, lebar: true, contoh: T('mis. VHF A/G Tx 120.1','e.g. VHF A/G Tx 120.1') })}
+      ${fIsian('dMerk', T('Merk Peralatan','Make'), a.merk, { contoh: 'Park Air Systems' })}
+      ${fIsian('dTipe', T('Type Peralatan','Type / Model'), a.tipe === '—' ? '' : a.tipe, { contoh: 'T6' })}
+      ${fIsian('dSn', T('Serial Number (S/N)','Serial Number (S/N)'), a.sn)}
+      ${fIsian('dPnAlat', T('Part Number (P/N)','Part Number (P/N)'), a.pn)}
+      ${fIsian('dTahun', T('Tahun Pembuatan','Year of Manufacture'), a.tahun, { contoh: '2019' })}
+      ${fIsian('dLokasi', T('Lokasi','Location'), a.lokasi === '—' ? '' : a.lokasi,
+        { contoh: T('Ruang / shelter','Room / shelter') })}
+      <div class="isian dua"><label for="dStatus">${T('Status Peralatan','Equipment Status')}
+        <span class="wajib">*</span></label><select id="dStatus">${status}</select></div>
+      ${fIsian('dGrup', T('Grup Lokasi','Location Group'), a.grup || (!asal ? grupDipilih : ''),
+        { lebar: true, contoh: 'JATSC · NEW JATSC · Radio ACC Primary' })}
+    </div>
+  </section>
+  <section class="bagian">
+    <h4>II. ${T('Papan Nama & Gambar','Nameplate & Images')}</h4>
+    <div class="isian-grid">
+      ${kotakPapanNama(true)}
+      ${kotakDokumentasi(asal)}
+      ${kotakGambarKartu(asal)}
+    </div>
+  </section>`;
+}
+
 function bukaKartuData(jenis, asal, parentAlatId){
   const baru = !asal;
   const alatIni = jenis === 'peralatan';
@@ -93,8 +137,10 @@ function bukaKartuData(jenis, asal, parentAlatId){
   //     tidak menuntut isian yang belum tentu ada saat alatnya baru masuk.
   //  2. Menyunting alat yang sudah punya sub — field teknis pindah ke sub,
   //     yang tersisa di induk cuma nama & gambar kartu.
-  const kompak = alatIni && (!asal
-    || (Array.isArray(asal.sub) && asal.sub.length > 0));
+  // Alat baru tidak lagi ringkas: seluruh isiannya diminta sekaligus dalam
+  // formulir lebar (formulirPeralatan). Yang tetap ringkas hanya alat yang
+  // sudah punya sub-unit, karena isian teknisnya memang sudah pindah ke sub.
+  const kompak = alatIni && !!asal && Array.isArray(asal.sub) && asal.sub.length > 0;
   dataDibuka = { jenis, unit: unitDibuka, asal: asal ? { ...asal } : null,
                  parentAlatId: parentAlatId || null, kompak };
 
@@ -114,6 +160,8 @@ function bukaKartuData(jenis, asal, parentAlatId){
     ? `${namaUnit(unitDibuka)} · ${parentAlat.nama}`
     : namaUnit(unitDibuka);
   el('btnSimpanData').textContent  = baru ? T('Tambahkan','Add') : T('Simpan perubahan','Save changes');
+  const lebar = alatIni && !kompak;
+  el('lapisData').querySelector('.kartu-ubah').classList.toggle('formulir', lebar);
 
   /* Kotak hapus hanya untuk yang memang boleh menghapus. Menggambarnya untuk
      semua orang dan menunggu server menolak berarti menawarkan sesuatu yang
@@ -172,6 +220,17 @@ function bukaKartuData(jenis, asal, parentAlatId){
       ${kotakDokumentasi(asal)}
       ${kotakHapus}`;
     el('btnHapusData')?.addEventListener('click', hapusData);
+    gambarKartuPasang();
+    dokumentasiPasang(asal);
+    el('lapisData').classList.add('buka');
+    el('dNama').focus();
+    return;
+  }
+
+  if(lebar){
+    el('badanKartuData').innerHTML = formulirPeralatan(asal) + kotakHapus;
+    el('btnHapusData')?.addEventListener('click', hapusData);
+    papanNamaPasang();
     gambarKartuPasang();
     dokumentasiPasang(asal);
     el('lapisData').classList.add('buka');
@@ -383,11 +442,11 @@ async function simpanData(){
         // (server mengisi default di rapikanAlat, tapi klien tidak baca ulang
         // setelah simpan). Server akan menimpa kalau isinya tak sah, jadi
         // memasang default lokal aman.
-        const bakuKompak = kompak ? {
+        const baku = {
           merk: '', tipe: '', sn: '', pn: '', tahun: '', lokasi: '',
           status: 'Normal', sub: []
-        } : {};
-        daftar.push({ id, ...bakuKompak, ...isi, dibuat: new Date().toISOString() });
+        };
+        daftar.push({ id, ...baku, ...isi, dibuat: new Date().toISOString() });
         alatDipilih = id;
       }
     }else if(jenis === 'subunit'){

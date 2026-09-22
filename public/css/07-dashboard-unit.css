@@ -260,6 +260,31 @@ tr.kelompok-akun .jumlah{color:var(--muted);margin-left:8px;letter-spacing:.04em
    memutuskannya, bukan lebar layar: kartu ini juga dipakai di tablet. */
 .isian-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(245px,1fr));gap:0 14px;}
 .isian-grid > .penuh{grid-column:1/-1;}
+
+/* Formulir lebar peralatan: kotak bernomor berisi isian empat lajur, label
+   biasa di atas isiannya. Tetap memakai warna tema, jadi gelap di mode biasa. */
+.kartu-ubah.data.formulir{width:min(1120px,100%);}
+.kartu-ubah.formulir .badan{background:var(--bg);padding:18px;}
+.bagian{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+  padding:18px 20px 8px;margin-bottom:16px;}
+.bagian > h4{font-family:var(--font-display);font-size:14.5px;font-weight:600;margin:0 0 18px;}
+.isian-grid.empat{grid-template-columns:repeat(4,minmax(0,1fr));gap:4px 16px;}
+.isian-grid.empat > .dua{grid-column:span 2;}
+.formulir .isian{margin-bottom:14px;}
+.formulir .isian > label:not(.jatuh){font-family:var(--font-body);font-size:12.5px;font-weight:500;
+  letter-spacing:0;text-transform:none;color:var(--text);margin-bottom:7px;}
+.formulir .isian > label .wajib{color:var(--muted);}
+.formulir .isian input,.formulir .isian select{padding:9px 12px;font-size:13px;min-height:38px;}
+.formulir .isian input::placeholder{color:var(--muted);opacity:.6;}
+@media (max-width:900px){
+  .isian-grid.empat{grid-template-columns:repeat(2,minmax(0,1fr));}
+}
+@media (max-width:560px){
+  .isian-grid.empat{grid-template-columns:minmax(0,1fr);}
+  .isian-grid.empat > .dua{grid-column:auto;}
+  .kartu-ubah.formulir .badan{padding:12px;}
+  .bagian{padding:14px 14px 4px;}
+}
 /* Isian yang baru saja diisikan dari foto papan nama. Ditandai supaya yang
    perlu diperiksa terlihat tanpa harus mengingat mana yang diketik sendiri. */
 .isian input.dari-foto,.isian select.dari-foto{border-color:var(--accent);
