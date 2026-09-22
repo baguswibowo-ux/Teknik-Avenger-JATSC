@@ -51,6 +51,9 @@ const CETAK = {
      yang tampil, sisanya dikosongkan). Dua tombol terpisah di baris pengatur
      Jadwal Dinas menentukan nilainya waktu tombolnya ditekan. */
   formatDinas: 'teknik',
+  /* Rekap stok opname seluruh unit — tetap jenis 'sparepart' (pejabat dan
+     hak TTD-nya sama), tapi isinya semua unit. Lihat REKAP STOK OPNAME. */
+  rekap: false,
   pejabat: [],      // hasil listPejabatUnit — [{username,nama}]
   pejabatDipilih: null,   // username yang dipilih di dropdown
   ttdPejabat: null,       // { ada, nama, path, ... } untuk yang terpilih
@@ -112,6 +115,7 @@ async function cetakBuka(mode, unit, opts){
      Cetak PUM / Cetak Teknik. Mode non-dinas tetap set ke 'teknik' sebagai
      bawaan yang aman (tidak dipakai, tapi tidak boleh undefined). */
   CETAK.formatDinas = (mode === 'dinas' && opts && opts.formatDinas === 'pum') ? 'pum' : 'teknik';
+  CETAK.rekap = mode === 'sparepart' && !!(opts && opts.rekap);
   CETAK.pejabatDipilih = null;
   CETAK.ttdPejabat = null;
   CETAK.ttdSaya = null;
@@ -330,9 +334,24 @@ function cetakKartuGambar(){
     const ragam = CETAK.mode === 'dinas'
       ? ' — ' + (CETAK.formatDinas === 'pum' ? T('PUM','PUM') : T('Teknik','Teknik'))
       : '';
-    kepJudul.textContent = T('Cetak: ','Print: ') + (CETAK_JUDUL[CETAK.mode]?.() || CETAK.mode) +
-      (u && u.nama ? ' — ' + u.nama : '') + ragam;
+    kepJudul.textContent = CETAK.rekap
+      ? T('Cetak: Rekap Stok Opname — Semua Unit','Print: Stock Count Summary — All Units')
+      : T('Cetak: ','Print: ') + (CETAK_JUDUL[CETAK.mode]?.() || CETAK.mode) +
+        (u && u.nama ? ' — ' + u.nama : '') + ragam;
   }
+  /* Ringkasan isi rekap di atas pilihan pejabat, supaya pengirim tahu apa
+     yang akan dibekukan dan dikirim. */
+  const ringkasRekap = (()=>{
+    if(!CETAK.rekap) return '';
+    const bagian = rekapSparepartData();
+    const total = rekapTotal(bagian);
+    const barang = bagian.reduce((n,b)=>n + b.baris.length, 0);
+    return `<div class="cetak-ket" style="margin-bottom:10px">${esc(T(
+      `Periode ${rekapPeriode()} · ${bagian.length} unit · ${barang} barang · Rp ${partRupiah(total.nilai)}. `
+      + 'Setelah disetujui, lembarnya bisa dicetak (PDF) dan diunduh sebagai Excel dari Kotak Masuk.',
+      `Period ${rekapPeriode()} · ${bagian.length} units · ${barang} items · Rp ${partRupiah(total.nilai)}. `
+      + 'Once approved, the sheet can be printed (PDF) and downloaded as Excel from the Inbox.'))}</div>`;
+  })();
 
   const pilihanPejabat = CETAK.pejabat.length
     ? `<select id="cetakPilihPejabat">${CETAK.pejabat.map(p=>
@@ -371,7 +390,7 @@ function cetakKartuGambar(){
       'This date appears at the foot of the printed sheet. Editable; defaults to today.')}</div>
   ` : '';
 
-  const badanHtml = kirimSaja ? `
+  const badanHtml = kirimSaja ? `${ringkasRekap}
     <div class="cetak-baris">
       <label>${T('Kirim untuk disetujui oleh','Send for approval by')}</label>
       ${pilihanPejabat}
@@ -387,7 +406,7 @@ function cetakKartuGambar(){
         placeholder="${T(`mis. rekap sparepart bulan ini, mohon disetujui`,
                          `e.g. this month's spare-part recap, please approve`)}"></textarea>
     </div>`}
-  ` : `
+  ` : `${ringkasRekap}
     <div class="cetak-baris">
       <label>${T('Mengetahui','Approved by')}</label>
       ${pilihanPejabat}
@@ -810,6 +829,10 @@ async function cetakLembarHtml(){
     });
     return `<div class="cetak-lembar">${kopLembar()}${isi}${foot}</div>`;
   }
+  // Rekap semua unit: kop dan paket TTD-nya milik rekap sendiri.
+  if(CETAK.mode === 'sparepart' && CETAK.rekap){
+    return `<div class="cetak-lembar">${rekapSparepartHtml(rekapSparepartData(), blokTtd())}</div>`;
+  }
   // Sparepart menaruh TTD-nya sendiri, satu paket dengan tabel riwayat.
   if(CETAK.mode === 'sparepart'){
     return `<div class="cetak-lembar">${kopLembar()}${htmlSparepart(blokTtd())}</div>`;
@@ -1080,6 +1103,10 @@ function htmlPeralatan(){
 /** Bangun snapshot data supaya pejabat melihat lembar persis yang dikirim,
     walau data di database berubah setelahnya. */
 function cetakSnapshot(){
+  if(CETAK.mode === 'sparepart' && CETAK.rekap){
+    // Seluruh unit dibekukan beserta periodenya — pejabat menandatangani angka hari ini.
+    return { jenis:'sparepart', rekap:true, unit:CETAK.unit, periode:rekapPeriode(), bagian:rekapSparepartData() };
+  }
   if(CETAK.mode === 'sparepart'){
     /* Tanggal ditambahkan/dipakai dihitung sekarang dan dibekukan ke barisnya
        (tanpa kode unit, supaya riwayat yang bertambah sesudahnya tidak ikut
@@ -1281,8 +1308,10 @@ function cetakKartuReviewGambar(){
   const menungguDeputy = p.status === 'menunggu-deputy';
   const giliranSaya = (sayaMT && menungguMT) || (sayaDeputy && menungguDeputy);
 
-  const jenisNama = CETAK_JUDUL[p.jenis]?.() || p.jenis;
-  const bulanTag = p.jenis === 'dinas' && p.bulan ? ' · ' + namaBulan(p.bulan) : '';
+  const snapRekap = !!(p.snapshot && p.snapshot.rekap);
+  const jenisNama = snapRekap ? T('Rekap Stok Opname','Stock Count Summary') : (CETAK_JUDUL[p.jenis]?.() || p.jenis);
+  const bulanTag = p.jenis === 'dinas' && p.bulan ? ' · ' + namaBulan(p.bulan)
+                 : snapRekap && p.snapshot.periode ? ' · ' + p.snapshot.periode : '';
   const statusRupa = p.status === 'disetujui' ? 'aman'
                    : p.status === 'ditolak' ? 'bahaya' : 'awas';
   const statusTeks = p.status === 'disetujui' ? T('Sudah Disetujui','Approved')
@@ -1295,7 +1324,7 @@ function cetakKartuReviewGambar(){
     <div class="cetak-review-cip">
       <span class="cip ${statusRupa}">${esc(statusTeks.toUpperCase())}</span>
       <span class="cip">${esc(jenisNama.toUpperCase())}</span>
-      <span class="cip">${esc((u && u.nama || p.unit).toUpperCase())}${esc(bulanTag.toUpperCase())}</span>
+      <span class="cip">${esc((snapRekap ? T('Semua unit','All units') : (u && u.nama || p.unit)).toUpperCase())}${esc(bulanTag.toUpperCase())}</span>
       <span class="cip">${esc(cetakWaktuRingkas(p.tanggalKirim))}</span>
     </div>
 
@@ -1391,10 +1420,22 @@ function cetakKartuReviewGambar(){
        menunggu — meneruskan permintaan ke Deputy MT untuk tanda tangan
        "Mengetahui". */
     const tampil = sayaMT && menungguMT && p.jenis === 'dinas';
-    btnKirim.hidden = !tampil;
+    // Rekap yang sudah disetujui: tombol yang sama jadi "Unduh Excel" di
+    // samping "Cetak / Simpan PDF" — satu persetujuan, dua keluaran.
+    const excel = snapRekap && p.status === 'disetujui';
+    btnKirim.hidden = !tampil && !excel;
     if(tampil){
       btnKirim.textContent = T('Setujui & Kirim','Approve & Send');
       btnKirim.onclick = cetakTeruskanKeDeputy;
+    }else if(excel){
+      btnKirim.disabled = false;
+      btnKirim.textContent = T('Unduh Excel','Download Excel');
+      btnKirim.onclick = async ()=>{
+        btnKirim.disabled = true;
+        try{ await rekapExcelDariPermintaan(p); }
+        catch(e){ pesan(T('Gagal membuat Excel: ','Could not build Excel: ') + (e && e.message || e)); }
+        finally{ btnKirim.disabled = false; }
+      };
     }else{
       btnKirim.onclick = null;
     }
@@ -1679,6 +1720,10 @@ async function cetakDariPermintaan(p){
     kartu review pejabat — supaya keduanya menampilkan tabel yang persis
     sama, dan pejabat tahu apa yang mereka TTD-i. */
 function cetakIsiSnapshotHtml(p, snap, ttd = ''){
+  if(p.jenis === 'sparepart' && snap.rekap){
+    return rekapSparepartHtml(Array.isArray(snap.bagian) ? snap.bagian : [],
+      ttd || ttdTunggalHtml('', '', ''), snap.periode || rekapPeriode());
+  }
   if(p.jenis === 'sparepart'){
     const rows = Array.isArray(snap.rows) ? snap.rows : [];
     return rows.length ? sparepartIsiHtml(rows, snap.riwayat, ttd)
@@ -1876,6 +1921,10 @@ async function cetakLembarPermintaanHtml(p, snap){
       T('(belum ada TTD tersimpan)','(no saved signature)'));
   }
 
+  // Rekap semua unit membawa kopnya sendiri (judul stok opname + periode).
+  if(p.jenis === 'sparepart' && snap.rekap){
+    return `<div class="cetak-lembar">${cetakIsiSnapshotHtml(p, snap, blok)}</div>`;
+  }
   // Sparepart: TTD dimasukkan ke paket riwayat supaya tidak terpisah halaman.
   if(p.jenis === 'sparepart'){
     return `<div class="cetak-lembar">${kop}${cetakIsiSnapshotHtml(p, snap, blok)}</div>`;
@@ -2157,9 +2206,17 @@ function htmlDinas(){
    tab "Per Divisi" A001 disebut PLANT dan 2 disebut SLOC. Rekap ini mengikuti
    tab Per Divisi: Plant <- SLOC dashboard, SLOC <- Kode Gudang dashboard.
 
-   TTD di lembar ini masih kosong (sementara) — bentuk akhirnya menunggu
-   PIC sparepart. Dua keluaran: cetak (PDF lewat dialog cetak) dan Excel.
+   Jalurnya sama dengan Cetak sparepart per unit: PIC sparepart atau
+   administrator mengirim ke pejabat (jenis 'sparepart', snapshot bertanda
+   `rekap:true` dan membawa seluruh bagian yang dibekukan), pejabat
+   menyetujui dari Kotak Masuk. Satu kali disetujui, lembarnya bisa keluar
+   dua rupa: PDF (dialog cetak) dan Excel dengan gambar TTD pejabat — di
+   Excel gambarnya bisa dihapus kalau lembarnya mau ditandatangani basah.
    ======================================================================= */
+
+/** Yang boleh mengirim rekap: PIC sparepart dan administrator (permintaan Bagus). */
+const bolehRekapSparepart = () =>
+  !!akun && (akun.role === 'pic-sparepart' || akun.role === 'admin' || akun.superadmin === true);
 
 /** Bagian-bagian rekap: [{ unit, nama, baris:[...], jumlah, nilai }]. */
 function rekapSparepartData(){
@@ -2167,8 +2224,10 @@ function rekapSparepartData(){
   // Unit yang punya sparepart tapi tidak ada di daftar unit tetap ikut, di belakang.
   PART.forEach(p=>{ if(!urutUnit.includes(p.unit)) urutUnit.push(p.unit); });
   return urutUnit.map(kode=>{
+    // Hanya kolom yang tercetak — bagian ini ikut dibekukan ke snapshot permintaan.
     const baris = PART.filter(p=>p.unit === kode && (Number(p.stok) || 0) > 0)
-      .slice().sort((a,b)=>String(a.pn || '').localeCompare(String(b.pn || ''), 'id', { numeric:true }));
+      .map(({ pn, nama, sloc, gudang, status, satuan, stok, nilai })=>({ pn, nama, sloc, gudang, status, satuan, stok, nilai }))
+      .sort((a,b)=>String(a.pn || '').localeCompare(String(b.pn || ''), 'id', { numeric:true }));
     return {
       unit: kode,
       nama: infoUnit(kode).nama || kode,
@@ -2184,11 +2243,12 @@ const REKAP_JUDUL = 'STOCK OPNAME PERSEDIAAN BARANG FASILITAS TEKNIK JATSC';
 const rekapTotal = (bagian) => bagian.reduce((a,b)=>({ jumlah:a.jumlah + b.jumlah, nilai:a.nilai + b.nilai }),
   { jumlah:0, nilai:0 });
 
-function rekapSparepartHtml(bagian){
-  const kop = `<h1>${REKAP_JUDUL}</h1><h2>PERIODE ${rekapPeriode()}</h2>`;
+/** Isi lembar rekap (kop sampai TTD), tanpa pembungkus .cetak-lembar. `ttd` = blok TTD jadi; bawaannya
+    kotak kosong untuk pratinjau sebelum disetujui. */
+function rekapSparepartHtml(bagian, ttd = ttdTunggalHtml('', '', ''), periode = rekapPeriode()){
+  const kop = `<h1>${REKAP_JUDUL}</h1><h2>PERIODE ${esc(periode)}</h2>`;
   if(!bagian.length){
-    return `<div class="cetak-lembar">${kop}
-      <div style="text-align:center;font-style:italic;padding:12pt 0">Belum ada sparepart dengan stok.</div></div>`;
+    return `${kop}<div style="text-align:center;font-style:italic;padding:12pt 0">Belum ada sparepart dengan stok.</div>${ttd}`;
   }
   const kosong = (v) => esc(v == null || v === '' ? '—' : v);
   /* Lebar kolom dikunci (table-layout: fixed) supaya tabel unit terakhir yang
@@ -2226,9 +2286,6 @@ function rekapSparepartHtml(bagian){
         <td class="tengah mono"><b>${total.jumlah}</b></td>
         <td class="kanan mono"><b>${partRupiah(total.nilai)}</b></td></tr>
     </table>`;
-  // TTD sementara: kotak dan nama kosong, diisi tangan sampai bentuk akhirnya disepakati.
-  const ttd = ttdTunggalHtml('', '', '');
-
   /* TTD tidak boleh tercetak sendirian. Yang dipaketkan bersamanya cuma
      EKOR baris terakhir unit terakhir + total — kalau seluruh unit terakhir
      ikut dipaket dan unit itu lebih panjang dari sehalaman, peramban tetap
@@ -2253,19 +2310,7 @@ function rekapSparepartHtml(bagian){
         </table>${tabelTotal}${ttd}
       </div>`;
   }
-  return `<div class="cetak-lembar">${kop}${awal}${akhir}</div>`;
-}
-
-function rekapSparepartCetak(){
-  const area = el('printArea');
-  area.innerHTML = rekapSparepartHtml(rekapSparepartData());
-  area.classList.remove('lanskap');
-  pasangOrientasiCetak(null);
-  muatkanSatuHalaman(area);
-  setTimeout(()=>{
-    window.print();
-    setTimeout(()=>{ area.innerHTML = ''; }, 500);
-  }, 200);
+  return `${kop}${awal}${akhir}`;
 }
 
 /* ---------- Excel (.xlsx) tanpa pustaka ----------
@@ -2288,7 +2333,7 @@ function xlsxCrc32(bytes){
   return (c ^ 0xFFFFFFFF) >>> 0;
 }
 
-/** berkas: [{ nama, isi:string }] -> Blob xlsx. */
+/** berkas: [{ nama, isi:string|Uint8Array }] -> Blob xlsx. */
 function xlsxZip(berkas){
   const enc = new TextEncoder();
   const u16 = (v)=>[v & 0xFF, (v >>> 8) & 0xFF];
@@ -2296,7 +2341,9 @@ function xlsxZip(berkas){
   const potong = [], pusat = [];
   let posisi = 0;
   for(const f of berkas){
-    const nama = enc.encode(f.nama), isi = enc.encode(f.isi), crc = xlsxCrc32(isi);
+    const nama = enc.encode(f.nama);
+    const isi = typeof f.isi === 'string' ? enc.encode(f.isi) : f.isi;   // gambar TTD = biner
+    const crc = xlsxCrc32(isi);
     // 0x0800 = nama berkas UTF-8; tanggal/jam 0x21 = 1 Jan 1980 (tidak dipakai Excel).
     const kepala = new Uint8Array([...u32(0x04034b50), ...u16(20), ...u16(0x0800), ...u16(0), ...u16(0),
       ...u16(0x21), ...u32(crc), ...u32(isi.length), ...u32(isi.length), ...u16(nama.length), ...u16(0)]);
@@ -2313,8 +2360,13 @@ function xlsxZip(berkas){
     { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 }
 
-/** Isi sheet1.xml rekap — dipisah dari unduhan supaya bisa diuji tanpa peramban. */
-function rekapSparepartSheetXml(bagian){
+/**
+ * Isi sheet1.xml rekap — dipisah dari unduhan supaya bisa diuji tanpa peramban.
+ * opsi: { periode, nama (pejabat), gambar:{ lebar, tinggi } | null }. Kalau ada
+ * gambar, baris TTD memberi tempat untuk gambar yang dijangkar di drawing1.xml.
+ */
+function rekapSparepartSheetXml(bagian, opsi = {}){
+  const periode = opsi.periode || rekapPeriode();
   const xe = (s)=>String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
     .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   const KOLOM = 'ABCDEFGHI';
@@ -2329,7 +2381,7 @@ function rekapSparepartSheetXml(bagian){
   const tambah = (sel) => baris.push(`<row r="${r}">${sel.join('')}</row>`);
 
   r = 1; tambah([teks('A', REKAP_JUDUL, 1)]); gabung.push('A1:I1');
-  r = 2; tambah([teks('A', 'PERIODE ' + rekapPeriode(), 1)]); gabung.push('A2:I2');
+  r = 2; tambah([teks('A', 'PERIODE ' + periode, 1)]); gabung.push('A2:I2');
   r = 3;
   const selSubtotal = [];
   for(const b of bagian){
@@ -2354,21 +2406,27 @@ function rekapSparepartSheetXml(bagian){
   tambah([teks('G', 'TOTAL', 7),
     angka('H', total.jumlah, 7, selSubtotal.map(n=>'H' + n).join('+') || '0'),
     angka('I', total.nilai, 8, selSubtotal.map(n=>'I' + n).join('+') || '0')]);
-  // TTD sementara — bentuk akhirnya menunggu PIC sparepart.
   r += 2; tambah([teks('H', 'Mengetahui,', 9)]); gabung.push(`H${r}:I${r}`);
   r += 1; tambah([teks('H', 'Manager Teknik', 9)]); gabung.push(`H${r}:I${r}`);
-  r += 4; tambah([teks('H', '(..............................)', 9)]); gabung.push(`H${r}:I${r}`);
+  // Gambar TTD dijangkar di baris sesudah jabatan (baris 0-based = r) dan
+  // menempati kira-kira empat baris; nama pejabat di bawahnya.
+  const barisGambar = r;
+  r += 5; tambah([teks('H', opsi.nama || '(..............................)', 9)]); gabung.push(`H${r}:I${r}`);
 
   // Lebar kolom disamakan dengan tab Per Divisi di berkas gudang.
   const lebar = [8.8, 14.7, 33.7, 10.8, 10.8, 10.8, 10.8, 12.5, 16];
-  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  return {
+    barisGambar,
+    xml: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
 <sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>
 <cols>${lebar.map((w,i)=>`<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join('')}</cols>
 <sheetData>${baris.join('')}</sheetData>
 <mergeCells count="${gabung.length}">${gabung.map(g=>`<mergeCell ref="${g}"/>`).join('')}</mergeCells>
 <pageSetup paperSize="9" orientation="portrait" fitToWidth="1" fitToHeight="0"/>
-</worksheet>`;
+${opsi.gambar ? '<drawing r:id="rId1"/>' : ''}
+</worksheet>`
+  };
 }
 
 function rekapSparepartStylesXml(){
@@ -2395,23 +2453,32 @@ function rekapSparepartStylesXml(){
 </styleSheet>`;
 }
 
-/** Berkas-berkas penyusun xlsx rekap. */
-function rekapSparepartXlsxBerkas(bagian){
-  const namaLembar = ('Rekap ' + rekapPeriode()).slice(0, 31);
+/**
+ * Berkas-berkas penyusun xlsx rekap.
+ * opsi: { periode, nama, gambar:{ png:Uint8Array, lebar, tinggi } | null }.
+ */
+function rekapSparepartXlsxBerkas(bagian, opsi = {}){
+  const periode = opsi.periode || rekapPeriode();
+  const namaLembar = ('Rekap ' + periode).slice(0, 31);
   const XML = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
   const REL = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const PKG = 'http://schemas.openxmlformats.org/package/2006/relationships';
   const CT  = 'application/vnd.openxmlformats-officedocument.spreadsheetml';
-  return [
+  const gambar = opsi.gambar && opsi.gambar.png ? opsi.gambar : null;
+  const sheet = rekapSparepartSheetXml(bagian, { periode, nama: opsi.nama, gambar });
+  const berkas = [
     { nama:'[Content_Types].xml', isi: XML +
       `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
 <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
 <Default Extension="xml" ContentType="application/xml"/>
+${gambar ? '<Default Extension="png" ContentType="image/png"/>' : ''}
 <Override PartName="/xl/workbook.xml" ContentType="${CT}.sheet.main+xml"/>
 <Override PartName="/xl/worksheets/sheet1.xml" ContentType="${CT}.worksheet+xml"/>
 <Override PartName="/xl/styles.xml" ContentType="${CT}.styles+xml"/>
+${gambar ? '<Override PartName="/xl/drawings/drawing1.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>' : ''}
 </Types>` },
     { nama:'_rels/.rels', isi: XML +
-      `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+      `<Relationships xmlns="${PKG}">
 <Relationship Id="rId1" Type="${REL}/officeDocument" Target="xl/workbook.xml"/>
 </Relationships>` },
     { nama:'xl/workbook.xml', isi: XML +
@@ -2419,21 +2486,94 @@ function rekapSparepartXlsxBerkas(bagian){
 <sheets><sheet name="${namaLembar}" sheetId="1" r:id="rId1"/></sheets>
 </workbook>` },
     { nama:'xl/_rels/workbook.xml.rels', isi: XML +
-      `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+      `<Relationships xmlns="${PKG}">
 <Relationship Id="rId1" Type="${REL}/worksheet" Target="worksheets/sheet1.xml"/>
 <Relationship Id="rId2" Type="${REL}/styles" Target="styles.xml"/>
 </Relationships>` },
     { nama:'xl/styles.xml', isi: rekapSparepartStylesXml() },
-    { nama:'xl/worksheets/sheet1.xml', isi: rekapSparepartSheetXml(bagian) }
+    { nama:'xl/worksheets/sheet1.xml', isi: sheet.xml }
   ];
+  if(gambar){
+    /* Gambar TTD: satu jangkar di kolom H (indeks 7), mulai baris sesudah
+       "Manager Teknik". Ukurannya dalam EMU (9525 per piksel). Orang yang
+       mau tanda tangan basah cukup memilih gambarnya di Excel lalu Delete. */
+    const EMU = 9525;
+    berkas.push(
+      { nama:'xl/worksheets/_rels/sheet1.xml.rels', isi: XML +
+        `<Relationships xmlns="${PKG}">
+<Relationship Id="rId1" Type="${REL}/drawing" Target="../drawings/drawing1.xml"/>
+</Relationships>` },
+      { nama:'xl/drawings/drawing1.xml', isi: XML +
+        `<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="${REL}">
+<xdr:oneCellAnchor>
+<xdr:from><xdr:col>7</xdr:col><xdr:colOff>${30 * EMU}</xdr:colOff><xdr:row>${sheet.barisGambar}</xdr:row><xdr:rowOff>${4 * EMU}</xdr:rowOff></xdr:from>
+<xdr:ext cx="${Math.round(gambar.lebar * EMU)}" cy="${Math.round(gambar.tinggi * EMU)}"/>
+<xdr:pic>
+<xdr:nvPicPr><xdr:cNvPr id="2" name="TTD Pejabat"/><xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr></xdr:nvPicPr>
+<xdr:blipFill><a:blip r:embed="rId1"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill>
+<xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${Math.round(gambar.lebar * EMU)}" cy="${Math.round(gambar.tinggi * EMU)}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr>
+</xdr:pic>
+<xdr:clientData/>
+</xdr:oneCellAnchor>
+</xdr:wsDr>` },
+      { nama:'xl/drawings/_rels/drawing1.xml.rels', isi: XML +
+        `<Relationships xmlns="${PKG}">
+<Relationship Id="rId1" Type="${REL}/image" Target="../media/ttd.png"/>
+</Relationships>` },
+      { nama:'xl/media/ttd.png', isi: gambar.png }
+    );
+  }
+  return berkas;
 }
 
-function rekapSparepartExcel(){
-  const blob = xlsxZip(rekapSparepartXlsxBerkas(rekapSparepartData()));
+/**
+ * TTD pejabat sebagai PNG hitam untuk ditempel ke Excel: { png, lebar, tinggi }
+ * dengan ukuran tampil paling besar 170×64 piksel. null kalau tidak ada TTD
+ * atau gambarnya gagal dimuat — Excel tetap diunduh, tanpa gambar.
+ */
+async function ttdPngUntukExcel(url){
+  if(!url) return null;
+  try{
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    await new Promise((res, rej)=>{ img.onload = res; img.onerror = rej; img.src = url; });
+    const hitam = ttdKeHitam(img);
+    // ttdKeHitam mengembalikan src asli untuk gambar yang sudah pekat — bisa
+    // saja JPEG. Digambar ulang ke kanvas supaya yang masuk Excel selalu PNG.
+    const sumber = new Image();
+    await new Promise((res, rej)=>{ sumber.onload = res; sumber.onerror = rej; sumber.src = hitam || url; });
+    const c = document.createElement('canvas');
+    c.width = sumber.naturalWidth; c.height = sumber.naturalHeight;
+    c.getContext('2d').drawImage(sumber, 0, 0);
+    const dataUrl = c.toDataURL('image/png');
+    const biner = atob(dataUrl.split(',')[1]);
+    const png = new Uint8Array(biner.length);
+    for(let i = 0; i < biner.length; i++) png[i] = biner.charCodeAt(i);
+    const skala = Math.min(170 / c.width, 64 / c.height, 1);
+    return { png, lebar: c.width * skala, tinggi: c.height * skala };
+  }catch(e){
+    console.warn('[rekap] TTD untuk Excel gagal dimuat:', e && e.message || e);
+    return null;
+  }
+}
+
+/** Unduh Excel dari permintaan rekap yang SUDAH disetujui — isi dari snapshot. */
+async function rekapExcelDariPermintaan(p){
+  const snap = (p && p.snapshot) || {};
+  const ttd = await ttdAkunAmbil(p.pejabatUser).catch(()=>({ ada:false }));
+  const gambar = (ttd && ttd.ada) ? await ttdPngUntukExcel(ttd.url) : null;
+  const periode = snap.periode || rekapPeriode();
+  const blob = xlsxZip(rekapSparepartXlsxBerkas(Array.isArray(snap.bagian) ? snap.bagian : [], {
+    periode,
+    nama: p.ttdPejabatNama || p.pejabatNama || p.pejabatUser || '',
+    gambar
+  }));
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `Rekap Stok Opname ${rekapPeriode()}.xlsx`;
+  a.download = `Rekap Stok Opname ${periode}.xlsx`;
   document.body.appendChild(a);
   a.click();
   setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  if(!gambar) pesan(T('Excel diunduh tanpa gambar TTD — TTD pejabat tidak terbaca.',
+                      'Excel downloaded without the signature image — the officer\'s signature could not be read.'));
 }

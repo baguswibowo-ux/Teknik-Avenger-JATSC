@@ -119,7 +119,9 @@ function cetakAntrianKartu(p){
                 : menungguDeputy ? T('Menunggu TTD Deputy','Awaiting Deputy signature')
                 : disetujui ? T('Disetujui','Approved')
                 : T('Ditolak','Rejected');
-  const jenisNama = p.jenis === 'sparepart'
+  const rekap = !!(p.snapshot && p.snapshot.rekap);
+  const jenisNama = rekap ? T('Rekap Stok Opname','Stock Count Summary')
+    : p.jenis === 'sparepart'
     ? T('Sparepart','Spare Part')
     : p.jenis === 'dinas' ? T('Jadwal Dinas','Duty Roster')
     : p.jenis === 'peralatan' ? T('Sejarah Peralatan','Equipment History')
@@ -129,7 +131,8 @@ function cetakAntrianKartu(p){
       <div class="kmk-jd">
         <span class="cip ${rupaCip}">${esc(teksCip.toUpperCase())}</span>
         <span class="cip">${esc(jenisNama.toUpperCase())}</span>
-        <b>${esc(namaUnit(p.unit))}${p.bulan ? ' · ' + esc(namaBulan(p.bulan)) : ''}</b>
+        <b>${rekap ? esc(T('Semua unit','All units') + (p.snapshot.periode ? ' · ' + p.snapshot.periode : ''))
+          : esc(namaUnit(p.unit)) + (p.bulan ? ' · ' + esc(namaBulan(p.bulan)) : '')}</b>
       </div>
       <div class="kmk-rn">${T('Dari','From')}: <b>${esc(p.pembuatNama || p.pembuatUser)}</b>
         · ${T('untuk','for')}: <b>${esc(p.pejabatNama || p.pejabatUser)}</b>

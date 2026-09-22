@@ -402,11 +402,10 @@ function gambarUnit(){
         <span class="tombol">
           ${part.length ? `<button class="btn garis kecil" data-cetak="sparepart">${
             T('Cetak','Print')}</button>` : ''}
-          ${PART.length ? `<button class="btn garis kecil" data-rekap-spr="cetak" title="${
-            T('Stok opname seluruh unit, bulan ini','Stock count of every unit, this month')}">${
-            T('Rekap semua unit','All-unit summary')}</button>
-            <button class="btn garis kecil" data-rekap-spr="excel">${
-            T('Rekap Excel','Summary Excel')}</button>` : ''}
+          ${PART.length && bolehRekapSparepart() ? `<button class="btn garis kecil" data-rekap-spr title="${
+            T('Stok opname seluruh unit bulan ini — dikirim ke pejabat, hasilnya PDF dan Excel',
+              'Stock count of every unit this month — sent to an officer, result as PDF and Excel')}">${
+            T('Rekap semua unit','All-unit summary')}</button>` : ''}
           ${bolehSuntingDb('sparepart') ? `<button class="btn garis kecil" data-spr-impor>${
             T('Impor dari berkas','Import from a file')}</button>
             <button class="btn kecil" data-db-tambah="sparepart">${
@@ -665,7 +664,7 @@ function gambarUnit(){
     b.addEventListener('click', ()=>cetakBuka(b.dataset.cetak, unitDibuka));
   });
   el('isiUnit').querySelectorAll('button[data-rekap-spr]').forEach(b=>{
-    b.addEventListener('click', ()=>b.dataset.rekapSpr === 'excel' ? rekapSparepartExcel() : rekapSparepartCetak());
+    b.addEventListener('click', ()=>cetakBuka('sparepart', unitDibuka, { rekap:true }));
   });
 
   el('subtab').addEventListener('click', e=>{
