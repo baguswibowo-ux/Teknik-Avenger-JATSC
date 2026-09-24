@@ -368,6 +368,7 @@ function buildDcPrintHtml(r, state){
   if(state && state.__format === 'pengamatan') return buildDcPgmPrintHtml(r, state);
   if(state && state.__format === 'fgk') return buildDcFgkPrintHtml(r, state);
   if(state && state.__format === 'listrik') return buildDcLkPrintHtml(r, state);
+  if(state && state.__format === 'rdps') return buildDcRdpsPrintHtml(r, state);
   if(dcRadkomAktif()) return buildDcRkPrintHtml(r, state);
   if(state && state.__lokasi === 'navigasi') return buildDcNavPrintHtml(r, state);
   if(state && state.__lokasi === 'jatsc') return buildDcJatscPrintHtml(r, state);
@@ -439,10 +440,11 @@ function printCurrentDailyCheck(){
   const pgm   = (typeof dcPengamatanAktif === 'function') && dcPengamatanAktif();
   const fgk   = (typeof dcGedungKeamananAktif === 'function') && dcGedungKeamananAktif();
   const lk    = (typeof dcListrikAktif === 'function') && dcListrikAktif();
+  const rdps  = (typeof dcRdpsAktif === 'function') && dcRdpsAktif();
   const r = {
     tanggal: tanggalDcTersimpan(),
     dinas: document.getElementById('dcDinas').value,
-    suhu: (jatsc || nav || pgm || fgk || lk) ? '' : document.getElementById('dcSuhu').value.trim(),
+    suhu: (jatsc || nav || pgm || fgk || lk || rdps) ? '' : document.getElementById('dcSuhu').value.trim(),
     remark: document.getElementById('dcRemark').value.trim(),
     teknisiNamaList: collectTeknisiNama(),
     teknisiTtd: getSigDataUrl('sigDcTeknisi'),
@@ -451,12 +453,13 @@ function printCurrentDailyCheck(){
   const state = pgm   ? { ...dcPgmState[dcPgmForm], __format:'pengamatan', __pgmForm:dcPgmForm }
               : fgk   ? { ...dcFgkState[dcFgkForm], __format:'fgk', __fgkForm:dcFgkForm }
               : lk    ? { ...dcLkState[dcLkForm], __format:'listrik', __lkForm:dcLkForm }
+              : rdps  ? { ...dcRdpsState, __format:'rdps' }
               : nav   ? { ...dcNState, __lokasi:'navigasi' }
               : jatsc ? { ...dcJState, __lokasi:'jatsc' }
                       : dcState;
   // Pengamatan, Gedung & Keamanan, dan Listrik & Mekanik mengikuti lembar
   // Excel-nya yang portrait; unit lain landscape.
-  doPrint(buildDcPrintHtml(r, state), (pgm || fgk || lk) ? 'portrait' : 'landscape');
+  doPrint(buildDcPrintHtml(r, state), (pgm || fgk || lk || rdps) ? 'portrait' : 'landscape');
 }
 
 /** Cetak daily check yang sudah tersimpan di database. Detailnya dulu diambil
@@ -480,9 +483,10 @@ async function printSavedDailyCheck(id){
     const isPgm  = fmt === 'pengamatan';
     const isFgk  = fmt === 'fgk';
     const isLk   = fmt === 'listrik';
+    const isRdps = fmt === 'rdps';
     if(!isAmhs && !tolakCetakBilaBelumTtd(rPrint, 'dc')) return;
-    // AMHS, Pengamatan, Gedung-Keamanan, & Listrik-Mekanik mengikuti lembar
-    // aslinya yang portrait; sisanya landscape.
-    doPrint(buildDcPrintHtml(rPrint, detail.state || {}), (isAmhs || isPgm || isFgk || isLk) ? 'portrait' : 'landscape');
+    // AMHS, Pengamatan, Gedung-Keamanan, Listrik-Mekanik, & NEW-JAATS mengikuti
+    // lembar aslinya yang portrait; sisanya landscape.
+    doPrint(buildDcPrintHtml(rPrint, detail.state || {}), (isAmhs || isPgm || isFgk || isLk || isRdps) ? 'portrait' : 'landscape');
   }catch(e){ toast('Gagal mengambil detail daily check.'); }
 }

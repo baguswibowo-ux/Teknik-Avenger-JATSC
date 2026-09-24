@@ -956,9 +956,11 @@ export const UNIT = [
     pakaiFrek: false,
     labelUraian: 'Uraian Pekerjaan / Kejadian',
     labelPj: 'Manager Teknik',
-    // Formulir khusus unit ini menunggu form aslinya. Sampai itu ada, yang
-    // tersedia baru Logbook Fasilitas, Isu, dan LTK yang memang berlaku umum.
-    adaDailyCheck: false,
+    // Daily Check punya form sendiri: lembar NEW-JAATS DAILY REPORT (Server ·
+    // Radar Source · Network · Workstation, satu catatan per dinas) — lihat
+    // js/12h-daily-check-rdps.js. Monitoring, DS Test, dan berkala belum berlaku.
+    adaDailyCheck: true,
+    dcJudul: 'Daily Check NEW-JAATS — Server · Radar Source · Network · Workstation',
     adaMonitoring: false,
     adaDsTest: false,
     adaBerkala: false,
