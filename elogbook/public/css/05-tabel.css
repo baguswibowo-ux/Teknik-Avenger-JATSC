@@ -246,6 +246,25 @@ table.lk-tbl input.lk-isi{width:100%; min-width:52px; box-sizing:border-box;
 table.lk-tbl input.lk-isi:focus{border-color:var(--accent); outline:none;}
 /* Kolom KETERANGAN memuat kalimat, bukan angka — lebih lebar dan rata kiri. */
 table.lk-tbl td.lk-ket input.lk-isi{min-width:130px; text-align:left;}
+/* ---------- Daily Check NEW-JAATS unit FDPS-RDPS (js/12h-daily-check-rdps.js) ----------
+   Memakai .lk-tbl di atas untuk tabelnya; yang di sini hanya pembungkusnya:
+   kartu kecil per tabel yang disusun grid (tabel sempit berdampingan, tabel
+   status software server selebar penuh) dan tombol status berlabel kata. */
+.rdps-info{margin-bottom:10px; font-size:12px; color:var(--muted); padding:6px 10px;
+           border:1px solid var(--line); border-radius:6px; background:var(--panel-2); line-height:1.6;}
+#dcRdpsSubtabs .rdps-hitung{font-family:var(--font-mono); font-size:10px; color:var(--muted); margin-left:4px;}
+.rdps-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(min(100%, 290px), 1fr)); gap:12px; align-items:start;}
+.rdps-kartu{border:1px solid var(--line); border-radius:8px; overflow:hidden; background:var(--panel);}
+.rdps-kartu.rdps-penuh{grid-column:1 / -1;}
+.rdps-kartu-kepala{display:flex; justify-content:space-between; align-items:center; gap:8px;
+                   padding:6px 10px; background:var(--panel-2); border-bottom:1px solid var(--line);
+                   font-family:var(--font-mono); font-size:11px; color:var(--accent);}
+.rdps-kartu table.lk-tbl{border:none;}
+.status-btn.rdps-pilih{width:auto; min-width:46px; padding:0 6px; font-size:10px;
+                       font-family:var(--font-mono); letter-spacing:.03em;}
+table.lk-tbl input.lk-isi.rdps-angka{min-width:46px; max-width:64px;}
+table.lk-tbl input.lk-isi.rdps-remark{min-width:90px; text-align:left;}
+
 .status-btn.lk-kondisi{width:auto; min-width:44px; padding:0 8px; font-size:10px;
                        font-family:var(--font-mono); letter-spacing:.04em;}
 

@@ -180,6 +180,7 @@ function terapkanUnit(){
   const pengamatan = u.kode === 'pengamatan';// Radar CKG 3 + Fasilitas Pengamatan
   const fgk = u.kode === 'gedungkeamanan';   // ceklis New JATSC + JATSC
   const lk = u.kode === 'listrikmekanik';    // STS · MDS · Beban Listrik · UPS
+  const rdps = u.kode === 'fdpsrdps';        // NEW-JAATS: Server · Radar · Network · Workstation
   const punyaLokasi = u.kode === 'radtel';   // JATSC vs New JATSC
   // Radtel yang sedang menunjuk lembar JATSC (Frequentis 3020X). Dihitung di
   // sini — bukan di bawah bersama wadah-wadahnya — karena kolom Suhu MER pun
@@ -219,7 +220,7 @@ function terapkanUnit(){
   // dengan UNIT_TANPA_SUHU_MER di 14-daily-check-umum.js (yang menyembunyikan
   // kolom itu di riwayat & detail) dan dengan syarat suhu di saveDailyCheck;
   // kalau nambah unit ber-form sendiri, tambah di ketiga tempat.
-  document.getElementById('dcSuhuWrap').style.display    = (radkom || nav || pengamatan || fgk || lk || jatsc) ? 'none' : '';
+  document.getElementById('dcSuhuWrap').style.display    = (radkom || nav || pengamatan || fgk || lk || rdps || jatsc) ? 'none' : '';
   // dcAlatWrap sekarang cuma menampung dua <select> tersembunyi (dcLokasi &
   // dcTempat) — sumber kebenaran yang ditulis lewat setDcLokasi(). Selalu
   // sembunyi, apa pun unitnya.
@@ -244,8 +245,10 @@ function terapkanUnit(){
   const dcPgmWrap = document.getElementById('dcPgmWrap');
   const dcFgkWrap = document.getElementById('dcFgkWrap');
   const dcLkWrap = document.getElementById('dcLkWrap');
-  dcGarexWrap.style.display = (radkom || jatsc || nav || pengamatan || fgk || lk) ? 'none' : '';
-  if(dcJatscWrap) dcJatscWrap.style.display = (!radkom && !nav && !fgk && !lk && jatsc) ? '' : 'none';
+  const dcRdpsWrap = document.getElementById('dcRdpsWrap');
+  dcGarexWrap.style.display = (radkom || jatsc || nav || pengamatan || fgk || lk || rdps) ? 'none' : '';
+  if(dcJatscWrap) dcJatscWrap.style.display = (!radkom && !nav && !fgk && !lk && !rdps && jatsc) ? '' : 'none';
+  if(dcRdpsWrap) dcRdpsWrap.style.display = rdps ? '' : 'none';
   if(dcNavWrap) dcNavWrap.style.display = nav ? '' : 'none';
   if(dcPgmWrap) dcPgmWrap.style.display = pengamatan ? '' : 'none';
   if(dcFgkWrap) dcFgkWrap.style.display = fgk ? '' : 'none';
@@ -260,7 +263,9 @@ function terapkanUnit(){
   // Rusak) — istilahnya beda, jadi legenda umum disembunyikan.
   // Listrik & Mekanik pun tidak memakainya: lembarnya angka ukur, dan arti tiga
   // keadaan kolom KONDISI sudah disebut di dalam #dcLkInfo.
-  if(dcLegendGarex) dcLegendGarex.style.display = (radkom || fgk || lk) ? 'none' : '';
+  // FDPS-RDPS juga: label tombolnya kata (OPR/FAIL/GREEN/AMBER…), artinya
+  // diterangkan di bilah info di dalam #dcRdpsWrap.
+  if(dcLegendGarex) dcLegendGarex.style.display = (radkom || fgk || lk || rdps) ? 'none' : '';
   // Judul tab tetap "Daily Check" apa pun peralatannya — nama alat sudah
   // disebut di selector di dalam form, tidak perlu diulang di kepala.
   const dcJudul = document.querySelector('[data-t="dcJudul"]');
@@ -285,6 +290,9 @@ function terapkanUnit(){
     renderDcLkTable();
     if(typeof sinkronSubtabLk === 'function') sinkronSubtabLk();
   }
+  // State RDPS tidak di-reset di sini — pindah unit bolak-balik tidak boleh
+  // menghapus isian yang belum disimpan. Reset lewat resetDcForm().
+  if(rdps && typeof renderDcRdpsTable === 'function') renderDcRdpsTable();
   if(punyaLokasi && typeof sinkronSubtabDc === 'function') sinkronSubtabDc();
 
   // Judul seksi logbook mengikuti nama form unit itu

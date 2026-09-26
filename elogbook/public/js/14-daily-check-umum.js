@@ -42,7 +42,7 @@ const dcRadkomAktif = () => unitAktif === 'radkom';
     ada pengukuran yang lupa diisi. Daftarnya kembar dengan yang menyembunyikan
     #dcSuhuWrap di 07-unit.js; kalau nambah unit ber-form sendiri, tambah di
     kedua tempat. */
-const UNIT_TANPA_SUHU_MER = ['radkom', 'ppabn', 'pengamatan', 'gedungkeamanan', 'amhsadps', 'listrikmekanik'];
+const UNIT_TANPA_SUHU_MER = ['radkom', 'ppabn', 'pengamatan', 'gedungkeamanan', 'amhsadps', 'listrikmekanik', 'fdpsrdps'];
 const unitPakaiSuhuMer = () => !UNIT_TANPA_SUHU_MER.includes(unitAktif);
 
 function resetDcForm(){
@@ -53,6 +53,7 @@ function resetDcForm(){
   if(typeof initDcPgmState === 'function'){ initDcPgmState(); renderDcPgmTable(); }
   if(typeof initDcFgkState === 'function'){ initDcFgkState(); renderDcFgkTable(); }
   if(typeof initDcLkState === 'function'){ initDcLkState(); renderDcLkTable(); }
+  if(typeof initDcRdpsState === 'function'){ initDcRdpsState(); if(dcRdpsAktif()) renderDcRdpsTable(); }
   document.getElementById('dcSuhu').value=''; document.getElementById('dcRemark').value='';
   document.getElementById('dcManagerNama').value='';
   document.getElementById('dcManagerAkun').value='';
@@ -218,6 +219,7 @@ async function saveDailyCheck(){
   const pgm    = (typeof dcPengamatanAktif === 'function') && dcPengamatanAktif();
   const fgk    = (typeof dcGedungKeamananAktif === 'function') && dcGedungKeamananAktif();
   const lk     = (typeof dcListrikAktif === 'function') && dcListrikAktif();
+  const rdps   = (typeof dcRdpsAktif === 'function') && dcRdpsAktif();
   const fails = [], warns = [];
 
   if(radkom){
@@ -243,6 +245,11 @@ async function saveDailyCheck(){
     // Lembar listrik seluruhnya angka ukur — lkTemuan() memang selalu kosong;
     // dipanggil apa adanya supaya bentuk cabangnya kembar dengan unit lain.
     const t = lkTemuan(dcLkForm);
+    fails.push(...t.fails);
+    warns.push(...t.warns);
+  }else if(rdps){
+    if(Object.keys(dcRdpsState).length === 0){ toast('Lembar NEW-JAATS masih kosong — belum ada yang dicek.'); return; }
+    const t = rdpsTemuan(dcRdpsState);
     fails.push(...t.fails);
     warns.push(...t.warns);
   }else{
@@ -275,12 +282,13 @@ async function saveDailyCheck(){
                      : pgm    ? { ...dcPgmState[dcPgmForm], __format:'pengamatan', __pgmForm:dcPgmForm }
                      : fgk    ? { ...dcFgkState[dcFgkForm], __format:'fgk', __fgkForm:dcFgkForm }
                      : lk     ? { ...dcLkState[dcLkForm], __format:'listrik', __lkForm:dcLkForm }
+                     : rdps   ? { ...dcRdpsState, __format:'rdps' }
                               : { ...dcState,  ...meta };
   const payload = {
     tanggal: tanggalDcTersimpan(),
     tanggalIso: document.getElementById('dcTanggal').value,
     dinas: document.getElementById('dcDinas').value,
-    suhu: (radkom || jatsc || nav || pgm || fgk || lk) ? '' : document.getElementById('dcSuhu').value.trim(),
+    suhu: (radkom || jatsc || nav || pgm || fgk || lk || rdps) ? '' : document.getElementById('dcSuhu').value.trim(),
     remark: document.getElementById('dcRemark').value.trim(),
     teknisiNamaList: namaList,
     teknisiNama: namaList.join(', '),
@@ -564,6 +572,7 @@ async function openDcDetail(id){
   const pgmTersimpan   = state && state.__format === 'pengamatan';
   const fgkTersimpan   = state && state.__format === 'fgk';
   const lkTersimpan    = state && state.__format === 'listrik';
+  const rdpsTersimpan  = state && state.__format === 'rdps';
   body.innerHTML = `
     <div style="font-size:13px;margin-bottom:10px;line-height:1.7;">
       <b>${escapeHtml(r.tanggal)}</b><br>
@@ -571,6 +580,8 @@ async function openDcDetail(id){
     </div>
     ${dcRadkomAktif()
       ? dcRkDetailHtml(state)
+      : rdpsTersimpan
+      ? dcRdpsDetailHtml(state)
       : (lkTersimpan
         ? dcLkDetailHtml(state)
         : (fgkTersimpan
@@ -626,6 +637,7 @@ async function openDcEditModal(id){
   const isPgm   = state && state.__format === 'pengamatan';
   const isFgk   = state && state.__format === 'fgk';
   const isLk    = state && state.__format === 'listrik';
+  const isRdps  = state && state.__format === 'rdps';
   const tempat  = (state && state.__tempat) || 'new-jatsc';
   // Pengamatan: kembalikan dulu form yang tersimpan (Radar CKG 3 / Fasilitas
   // Pengamatan) sebelum layar unit dipasang, supaya wrap-nya menggambar
@@ -677,6 +689,13 @@ async function openDcEditModal(id){
     });
     renderDcLkTable();
     if(typeof sinkronSubtabLk === 'function') sinkronSubtabLk();
+  }else if(isRdps){
+    initDcRdpsState();
+    Object.entries(state).forEach(([k, v])=>{
+      if(k.startsWith('__')) return;
+      dcRdpsState[k] = v;
+    });
+    renderDcRdpsTable();
   }else if(isNav){
     initDcNState();
     Object.entries(state).forEach(([k, v])=>{

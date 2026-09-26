@@ -320,6 +320,12 @@
         <span id="dcLkInfoHint">&nbsp;·&nbsp; Kolom KONDISI diklik untuk berputar: ON → STBY → OFF</span>
       </div>
       <div id="dcLkWrap" style="display:none;"></div>
+      <!-- Daily Check NEW-JAATS unit FDPS-RDPS: satu lembar berisi empat bagian
+           (Server · Radar Source · Network · Workstation). Sub-tab bagiannya
+           digambar di dalam wadah ini oleh renderDcRdpsTable() di
+           js/12h-daily-check-rdps.js — keempatnya disimpan & dicetak bersama.
+           07-unit.js menampilkannya hanya untuk unit fdpsrdps. -->
+      <div id="dcRdpsWrap" style="display:none;"></div>
       <div id="dcRadkomWrap" style="display:none;"></div>
       <div class="field" style="margin-top:14px;"><label data-t="remark">Remark / Catatan Tambahan</label><textarea id="dcRemark" data-t-ph="phRemark" placeholder="cth. VR3 partial failure of element, masih dalam remote expert Madrid..."></textarea></div>
       <div class="grid2" style="margin-top:8px;">
@@ -2556,6 +2562,7 @@
 <script src="js/12e-daily-check-pengamatan.js"></script>
 <script src="js/12f-daily-check-fgk.js"></script>
 <script src="js/12g-daily-check-listrik.js"></script>
+<script src="js/12h-daily-check-rdps.js"></script>
 <script src="js/13-daily-check-radkom.js"></script>
 <script src="js/14-daily-check-umum.js?v=20260915ph"></script>
 <script src="js/15-isu.js?v=20260916adminunit"></script>

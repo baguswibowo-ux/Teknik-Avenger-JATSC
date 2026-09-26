@@ -373,7 +373,7 @@ const BKL_LEMBAR_ML = [
 
 Object.assign(BERKALA_SUMBER, {
   /* ---- Daily Check ---- */
-  dailycheck:      bklSumberDc(['radkom', 'ppabn'], '', ''),
+  dailycheck:      bklSumberDc(['radkom', 'ppabn', 'fdpsrdps'], '', ''),
   'dc-pgm-ckg3':   bklSumberDc('pengamatan', 'ckg3', 'Radar CKG 3'),
   'dc-pgm-mer':    bklSumberDc('pengamatan', 'mer',  'Fasilitas Pengamatan'),
   'dc-fgk-toilet': bklSumberDc('gedungkeamanan', 'toilet', 'New JATSC'),
