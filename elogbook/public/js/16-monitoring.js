@@ -35,6 +35,7 @@ const mapMon = m => ({ id:m.ID, tanggal:m.Tanggal, baris:m.Baris||[],
                        personilOpsTtd:m.PersonilOpsTTD||'',
                        teknisiNamaList:m.TeknisiNamaListJSON||[],
                        teknisiTtd:m.TeknisiTTD||'', diinputOleh:m.DiinputOleh||'', dibuatPada:m.DibuatPada||'',
+                       dibuatOlehUsername:m.DibuatOlehUsername||'',
                        ttdOleh:m.TtdOleh||'', ttdPada:m.TtdPada||'', ttdUntuk:m.TtdUntuk||'' });
 
 function barisMonKosong(){ const o = { key:'m'+(monSeq++) }; KOLOM_MON.forEach(k=>o[k]=''); return o; }
@@ -118,14 +119,14 @@ function renderMonList(){
       <div style="display:flex;gap:4px;">
         <button class="btn ghost" style="padding:6px 10px;" onclick="openMonDetail('${m.id}')">${T('detail')}</button>
         <button class="icon-btn" title="${T('cetak')}" onclick="printMon('${m.id}')">🖨</button>
-        <button class="icon-btn hanya-hapus" title="${T('hapus')}" onclick="hapusMon('${m.id}')">✕</button>
+        ${bolehHapusLembarForm(m.dibuatOlehUsername, !!m.personilOpsTtd) ? `<button class="icon-btn" title="${T('hapus')}" onclick="hapusMon('${m.id}')">✕</button>` : ''}
       </div>
     </div>`).join('');
 }
 
 async function hapusMon(id){
-  if(!bolehHapusCatatan()){ toast(T('hanyaAdminHapus')); return; }
   const m = monitoring.find(x=>x.id===id);
+  if(!m || !bolehHapusLembarForm(m.dibuatOlehUsername, !!m.personilOpsTtd)){ toast(T('hanyaPembuatHapus')); return; }
   if(!confirm(`${T('konfirmasiHapus')} ${m ? m.tanggal : ''}?`)) return;
   const salinan = monitoring.slice();
   monitoring = monitoring.filter(x=>x.id!==id);
@@ -164,7 +165,7 @@ function openMonDetail(id){
 function printMon(id){
   const m = monitoring.find(x=>x.id===id);
   if(!m) return;
-  if(!tolakCetakBilaBelumTtd(m, 'monitoring')) return;
+  // Boleh dicetak sebelum Personil Ops TTD — kolom TTD-nya keluar kosong.
   doPrint(`
     <div style="text-align:center;font-weight:bold;font-size:12pt;margin-bottom:4px;">MONITORING FREKUENSI NEW JATSC</div>
     <div style="text-align:center;font-size:9pt;margin-bottom:10px;">TANGGAL : ${escapeHtml(m.tanggal)}</div>

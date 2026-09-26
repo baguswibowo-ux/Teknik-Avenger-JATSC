@@ -92,7 +92,7 @@ const {
   listLtk, insertLtk, removeLtk,
   listBapb, insertBapb, updateBapb, removeBapb, suntingLampiranBapb,
   getUserByUsername, verifyPassword, createUser, countUsers, hapusUser,
-  jenisTtdSah, unitCatatan, unitHapus, tandaTanganiCatatan, listPejabatAktif, listPejabatUnit, listTeknisiUnit, listAkunAktif, getInboxTtd,
+  jenisTtdSah, unitCatatan, unitHapus, pemilikLembarForm, tandaTanganiCatatan, listPejabatAktif, listPejabatUnit, listTeknisiUnit, listAkunAktif, getInboxTtd,
   getTtdTersimpan, simpanTtdTersimpan, hapusTtdTersimpan, pilihTtdTersimpanAktif, rekapMentah,
   listUsers, setPassword, setAktif, setRole, setNama, setUsername, ROLE_VALID, SEMUA_UNIT, jumlahAdminAktif,
   UNIT, KODE_UNIT, unitSah, unitUntukUser, setUnitUser,
@@ -2166,6 +2166,25 @@ const HAPUS_ADMINUNIT = {
 /* Fungsi admin yang juga dibuka untuk admin unit, di unitnya sendiri: mengubah
    kolom trouble dan menambah lampiran trouble/LTK. Sama bentuknya dengan
    HAPUS_ADMINUNIT — [jenis catatan, posisi argumen id] untuk mencari unitnya. */
+/* Lembar tab FORM yang boleh dihapus PEMBUATNYA SENDIRI (teknisi biasa),
+   selama pejabatnya belum TTD — lihat pemilikLembarForm di db.js. Nilai =
+   jenis catatannya. Admin & admin unit tetap lewat jalur di atas. */
+const HAPUS_PEMBUAT = { deleteLtk: 'ltk', deleteBapb: 'bapb', deleteMonitoring: 'monitoring' };
+
+/** null = boleh; [status, pesan] = tolak. */
+async function tolakHapusPembuat(fn, req) {
+  if (!bolehMenulis(req.user)) return [403, 'Peran Anda hanya dapat melihat, tidak menghapus data.'];
+  if (typeof pemilikLembarForm !== 'function') return [403, 'Hanya administrator yang boleh melakukan ini.'];
+  const args = Array.isArray(req.body?.args) ? req.body.args : [];
+  const p = await pemilikLembarForm(HAPUS_PEMBUAT[fn], args[0]);
+  if (!p) return [404, 'Catatan tidak ditemukan — mungkin sudah dihapus.'];
+  if (!p.dibuatOleh || p.dibuatOleh !== req.user?.username) {
+    return [403, 'Hanya pembuat lembar ini (atau admin) yang boleh menghapusnya.'];
+  }
+  if (p.sudahTtd) return [403, 'Lembar ini sudah ditandatangani pejabat — hanya admin yang boleh menghapusnya.'];
+  return null;
+}
+
 const UBAH_ADMINUNIT = {
   updateIssueField: ['isu', 0],
   addIssueLampiran: ['isu', 0],
@@ -2478,11 +2497,16 @@ app.post('/api/:fn', requireAuth, async (req, res) => {
     const hapusUnit = punya(HAPUS_ADMINUNIT);
     const ubahUnit = punya(UBAH_ADMINUNIT);
     const bolehAdminUnit = peran === 'adminunit' && (API_ADMIN_UNTUK_ADMINUNIT.has(fn) || hapusUnit || ubahUnit);
-    if (!bolehAdminUnit) {
+    // Teknisi menghapus lembar tab FORM buatannya sendiri (belum di-TTD pejabat).
+    const hapusSendiri = !bolehAdminUnit && punya(HAPUS_PEMBUAT);
+    if (hapusSendiri) {
+      const tolak = await tolakHapusPembuat(fn, req);
+      if (tolak) return res.status(tolak[0]).json({ error: tolak[1] });
+    } else if (!bolehAdminUnit) {
       return res.status(403).json({ error: 'Hanya administrator yang boleh melakukan ini.' });
     }
     // Admin unit menghapus atau mengubah: catatannya harus milik unit yang dipegangnya.
-    if (hapusUnit || ubahUnit) {
+    if (!hapusSendiri && (hapusUnit || ubahUnit)) {
       const [jenis, posisi] = hapusUnit ? HAPUS_ADMINUNIT[fn] : UBAH_ADMINUNIT[fn];
       const argsUnit = Array.isArray(req.body?.args) ? req.body.args : [];
       const unit = await unitHapus(jenis, argsUnit[posisi]);

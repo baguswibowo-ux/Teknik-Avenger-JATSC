@@ -18,6 +18,14 @@ function bolehMenulis(){ return PERAN_TULIS.has(userSaatIni?.role); }
     membuka unit yang dipegangnya, jadi semua yang tampil memang unitnya —
     server tetap memeriksa unit tiap catatan (HAPUS_ADMINUNIT di server.js). */
 function bolehHapusCatatan(){ return adminAktif() || userSaatIni?.role === 'adminunit'; }
+/** Lembar tab FORM (LTK / BAPB / Monitoring): selain admin & admin unit,
+    PEMBUATNYA SENDIRI boleh menghapus selama pejabatnya belum TTD. Server
+    memeriksa ulang aturan yang sama (HAPUS_PEMBUAT di server.js). */
+function bolehHapusLembarForm(dibuatOlehUsername, sudahTtd){
+  if(bolehHapusCatatan()) return true;
+  if(sudahTtd || !userSaatIni || !bolehMenulis()) return false;
+  return !!dibuatOlehUsername && userSaatIni.username === dibuatOlehUsername;
+}
 /** Pengelola catatan: administrator, atau admin unit (yang memang hanya
     melihat unitnya sendiri). Boleh membetulkan catatan siapa pun di unit itu,
     mengubah status trouble, dan menempel lampiran. Server menjaga unitnya. */

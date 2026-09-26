@@ -1362,6 +1362,22 @@ export function tambahLampiranIsu(issueId, fase, daftar) {
  * tidak dikenal unitCatatan (hanya jenis ber-TTD): isu, dan lampiran LTK/isu
  * yang unitnya diambil dari catatan induknya. '' = tidak ditemukan.
  */
+/**
+ * Pembuat & keadaan TTD pejabat sebuah lembar tab FORM (LTK / BAPB /
+ * Monitoring). Server memakainya untuk mengizinkan PEMBUATNYA SENDIRI
+ * menghapus lembar itu selama pejabatnya belum menandatangani — Manager
+ * Teknik untuk LTK & BAPB, Personil Ops untuk Monitoring. Sesudah TTD itu
+ * ada, lembarnya jadi arsip sah dan hanya admin / admin unit yang boleh
+ * menghapus. null = catatan tidak ditemukan.
+ */
+const TTD_KUNCI_HAPUS = { ltk: 'manager_ttd', bapb: 'teknik_ttd', monitoring: 'personil_ops_ttd' };
+export function pemilikLembarForm(jenis, id) {
+  const kol = TTD_KUNCI_HAPUS[jenis];
+  if (!kol) return null;
+  const r = db.prepare(`SELECT dibuat_oleh, ${kol} AS ttd FROM ${jenis} WHERE id = ?`).get(String(id || ''));
+  return r ? { dibuatOleh: r.dibuat_oleh || '', sudahTtd: !!r.ttd } : null;
+}
+
 export function unitHapus(jenis, id) {
   const kunci = String(id || '');
   const satu = (sql) => { const r = db.prepare(sql).get(kunci); return r ? (r.unit || '') : ''; };
@@ -2165,6 +2181,7 @@ const rowToMonitoring = (r, extra = {}) => ({
   TeknisiNamaListJSON: parseJson(r.teknisi_nama_list, []),
   DiinputOleh: extra.diinputOleh ?? (r.dibuat_oleh || ''),
   DibuatPada: r.dibuat_pada || '',
+  DibuatOlehUsername: r.dibuat_oleh || '',
   TtdOleh: extra.ttdOleh ?? (r.ttd_oleh || ''), TtdPada: r.ttd_pada || '', TtdUntuk: r.ttd_untuk || ''
 });
 
@@ -2490,6 +2507,7 @@ const rowToLtk = (r, extra = {}) => ({
   Lampiran: extra.lampiran || [],
   DiinputOleh: extra.diinputOleh ?? (r.dibuat_oleh || ''),
   DibuatPada: r.dibuat_pada || '',
+  DibuatOlehUsername: r.dibuat_oleh || '',
   TtdOleh: extra.ttdOleh ?? (r.ttd_oleh || ''), TtdPada: r.ttd_pada || '', TtdUntuk: r.ttd_untuk || ''
 });
 

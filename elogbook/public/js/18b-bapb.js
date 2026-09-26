@@ -216,12 +216,13 @@ function renderBapbList(){
       ${diinputOlehHtml(b.diinputOleh, b.dibuatPada, String(b.tanggal || '').slice(0, 10))}
       <div style="display:flex;gap:4px;">
         <button class="btn ghost" style="padding:6px 10px;" onclick="openBapbDetail('${b.id}')">${T('detail')}</button>
-        <button class="icon-btn hanya-hapus" title="${T('hapus')}" onclick="hapusBapb('${b.id}')">✕</button>
+        <button class="icon-btn" title="${T('cetak')}" onclick="printBapb('${b.id}')">🖨</button>
+        ${bolehHapusLembarForm(b.dibuatOlehUsername, !!b.teknikTtd) ? `<button class="icon-btn" title="${T('hapus')}" onclick="hapusBapb('${b.id}')">✕</button>` : ''}
       </div>
     </div>`).join('');
 }
 
-/* ---------- Detail (pratinjau, cetakan menyusul di langkah 4) ---------- */
+/* ---------- Detail ---------- */
 
 function openBapbDetail(id){
   const b = bapbList.find(x => x.id === id);
@@ -271,9 +272,8 @@ function openBapbDetail(id){
     ${bolehKelolaLampiranBapb(b) ? `<div style="margin-top:10px;"><button class="btn ghost" style="padding:6px 10px;"
       onclick="openBapbLampiranModal('${b.id}')">${T('bapbKelolaLampiran')}</button></div>` : ''}
     <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line);">${diinputOlehHtml(b.diinputOleh, b.dibuatPada, String(b.tanggal || '').slice(0, 10))}</div>`;
-  // Cetakan resmi masih di langkah 4 — tombol print disembunyikan dulu.
   const pb = document.getElementById('formDetailPrintBtn');
-  if (pb) { pb.style.display = 'none'; pb.onclick = null; }
+  if (pb) { pb.style.display = ''; pb.onclick = () => { closeFormDetail(); printBapb(id); }; }
   pasangTombolCatatanDariDokumen('bapb', id);
   document.getElementById('formDetailBg').classList.add('show');
 }
@@ -420,8 +420,8 @@ async function simpanBapbLampiran(){
 /* ---------- Hapus ---------- */
 
 async function hapusBapb(id){
-  if (!bolehHapusCatatan()) { toast(T('hanyaAdminHapus')); return; }
   const b = bapbList.find(x => x.id === id);
+  if (!b || !bolehHapusLembarForm(b.dibuatOlehUsername, !!b.teknikTtd)) { toast(T('hanyaPembuatHapus')); return; }
   const nama = b ? (b.nomor || b.untukPekerjaan || '') : '';
   if (!confirm(`${T('konfirmasiHapus')} ${nama}?`)) return;
   const salinan = bapbList.slice();
@@ -432,4 +432,78 @@ async function hapusBapb(id){
     bapbList = salinan; renderBapbList();
     toast(T('gagalHapus') + ' — ' + (e.message || T('coba')));
   }
+}
+
+/* ---------- Cetak ----------
+   Tata letaknya mengikuti berkas resminya (Radtel/BAPB.xlsx, sheet BAPB):
+   kop tiga baris di kiri atas, judul di tengah, Nomor/Tanggal/Untuk
+   Pekerjaan/Lokasi, tabel barang (NOMOR URUT · NAMA BARANG · UKURAN ·
+   BANYAKNYA · TANGGAL PEMASANGAN · KETERANGAN), lalu tiga kolom tanda tangan:
+   Mengetahui Manager Pemakai · Mengetahui/Menyetujui Manager Teknik ·
+   Petugas Pemasangan (nama + tanda tangan bernomor).
+
+   Boleh dicetak kapan saja. TTD yang belum ada keluar sebagai ruang kosong
+   untuk ditandatangani basah. Tabel barang diberi baris kosong sampai
+   minimal sepuluh supaya bentuknya tetap seperti kertas aslinya. */
+function printBapb(id){
+  const b = bapbList.find(x => x.id === id);
+  if (!b) return;
+  const fs = 'font-size:9pt;';
+  const baris = b.items.slice();
+  while (baris.length < 10) baris.push(null);
+  const itemRows = baris.map((it, i) => it ? `<tr>
+      <td style="${fs}text-align:center;">${i + 1}</td>
+      <td style="${fs}">${escapeHtml(it.namaBarang)}</td>
+      <td style="${fs}text-align:center;">${escapeHtml(it.ukuran)}</td>
+      <td style="${fs}text-align:center;">${escapeHtml(it.banyaknya)}</td>
+      <td style="${fs}text-align:center;">${escapeHtml(it.tanggalPemasangan)}</td>
+      <td style="${fs}">${escapeHtml(it.keterangan)}</td></tr>`
+    : `<tr><td style="${fs}">&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>`).join('');
+  const petugas = (b.petugasNamaList && b.petugasNamaList.length) ? b.petugasNamaList
+                : String(b.petugasNama || '').split(',').map(x => x.trim()).filter(Boolean);
+  const petugasBaris = (petugas.length ? petugas : ['', '', '']).map((n, i) => `<tr>
+      <td style="${fs}text-align:left;">${i + 1}. ${escapeHtml(n) || '……………………………'}</td>
+      <td style="${fs}text-align:left;">${i + 1}. …………………</td></tr>`).join('');
+  const ttdBlok = (judul1, judul2, ttd, nama) => `<td style="width:33%;text-align:center;vertical-align:top;">
+      <div>${judul1}</div><div style="margin-bottom:4px;">${judul2}</div>
+      <div style="height:48px;">${ttdImg(ttd, 42)}</div>
+      <div style="border-top:1px solid #000;display:inline-block;min-width:150px;padding:0 10px;">${escapeHtml(nama) || '&nbsp;'}</div>
+    </td>`;
+  doPrint(`
+    <div style="font-size:9pt;font-weight:bold;line-height:1.3;">PERUM LPPNPI<br>KANTOR CABANG GEDUNG 611<br>BANDARA SOEKARNO-HATTA</div>
+    <div style="text-align:center;font-weight:bold;font-size:12pt;margin:12px 0 10px;text-decoration:underline;">BERITA ACARA PEMASANGAN BARANG (BAPB)</div>
+    <table class="no-border" style="${fs}width:auto;margin-bottom:6px;">
+      <tr><td style="width:120px;">Nomor</td><td>: ${escapeHtml(b.nomor)}</td></tr>
+      <tr><td>Tanggal</td><td>: ${escapeHtml(b.tanggal)}</td></tr>
+      <tr><td>Untuk Pekerjaan</td><td>: ${escapeHtml(b.untukPekerjaan)}</td></tr>
+      <tr><td>Lokasi</td><td>: ${escapeHtml(b.lokasi)}</td></tr>
+    </table>
+    <div style="${fs}margin-bottom:4px;">Telah diadakan pemasangan alat-alat sebagai berikut :</div>
+    <table>
+      <thead><tr class="p-kepala">
+        <td style="${fs}width:52px;text-align:center;"><b>NOMOR URUT</b></td>
+        <td style="${fs}text-align:center;"><b>NAMA BARANG</b></td>
+        <td style="${fs}width:70px;text-align:center;"><b>UKURAN</b></td>
+        <td style="${fs}width:70px;text-align:center;"><b>BANYAKNYA</b></td>
+        <td style="${fs}width:95px;text-align:center;"><b>TANGGAL PEMASANGAN</b></td>
+        <td style="${fs}text-align:center;"><b>KETERANGAN</b></td>
+      </tr></thead>
+      <tbody>${itemRows}</tbody>
+    </table>
+    ${typeof lampiranPrintHtml === 'function' ? lampiranPrintHtml(b.lampiran, 'LAMPIRAN') : ''}
+    <table class="no-border" style="${fs}margin-top:18px;break-inside:avoid;">
+      <tr>
+        ${ttdBlok('MENGETAHUI', 'MANAGER PEMAKAI', b.pemakaiTtd, b.pemakaiNama)}
+        ${ttdBlok('MENGETAHUI / MENYETUJUI', 'MANAGER TEKNIK', b.teknikTtd, b.teknikNama)}
+        <td style="text-align:center;vertical-align:top;">
+          <div>Tangerang, ${escapeHtml(b.tanggal)}</div>
+          <div style="margin-bottom:4px;">PETUGAS PEMASANGAN</div>
+          <div style="height:48px;">${ttdImg(b.petugasTtd, 42)}</div>
+          <table class="no-border" style="width:100%;">
+            <tr><td style="${fs}text-align:left;">NAMA :</td><td style="${fs}text-align:left;">TANDA TANGAN :</td></tr>
+            ${petugasBaris}
+          </table>
+        </td>
+      </tr>
+    </table>`, 'portrait');
 }

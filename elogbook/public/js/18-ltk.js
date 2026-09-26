@@ -8,6 +8,7 @@ const mapLtk = l => ({ id:l.ID, lampiran:l.Lampiran||[], tanggalLapor:l.TanggalL
   tanggalRusak:l.TanggalRusak, jamRusak:l.JamRusak, tanggalSelesai:l.TanggalSelesai, jamSelesai:l.JamSelesai,
   jamTerputus:l.JamTerputus, kota:l.Kota, managerNama:l.ManagerNama, managerTtd:l.ManagerTTD,
   teknisiNama:l.TeknisiNama, teknisiTtd:l.TeknisiTTD, diinputOleh:l.DiinputOleh||'', dibuatPada:l.DibuatPada||'',
+  dibuatOlehUsername:l.DibuatOlehUsername||'',
   ttdOleh:l.TtdOleh||'', ttdPada:l.TtdPada||'', ttdUntuk:l.TtdUntuk||'' });
 
 function openLtkModal(){
@@ -110,15 +111,15 @@ function renderLtkList(){
       <div style="display:flex;gap:4px;">
         <button class="btn ghost" style="padding:6px 10px;" onclick="openLtkDetail('${l.id}')">${T('detail')}</button>
         <button class="icon-btn" title="${T('cetak')}" onclick="printLtk('${l.id}')">🖨</button>
-        <button class="icon-btn hanya-hapus" title="${T('hapus')}" onclick="hapusLtk('${l.id}')">✕</button>
+        ${bolehHapusLembarForm(l.dibuatOlehUsername, !!l.managerTtd) ? `<button class="icon-btn" title="${T('hapus')}" onclick="hapusLtk('${l.id}')">✕</button>` : ''}
       </div>
     </div>`;
   }).join('');
 }
 
 async function hapusLtk(id){
-  if(!bolehHapusCatatan()){ toast(T('hanyaAdminHapus')); return; }
   const l = ltkList.find(x=>x.id===id);
+  if(!l || !bolehHapusLembarForm(l.dibuatOlehUsername, !!l.managerTtd)){ toast(T('hanyaPembuatHapus')); return; }
   if(!confirm(`${T('konfirmasiHapus')} ${l ? l.peralatan : ''}?`)) return;
   const salinan = ltkList.slice();
   ltkList = ltkList.filter(x=>x.id!==id);
@@ -181,7 +182,8 @@ function openLtkDetail(id){
 function printLtk(id){
   const l = ltkList.find(x=>x.id===id);
   if(!l) return;
-  if(!tolakCetakBilaBelumTtd(l, 'ltk')) return;
+  // Boleh dicetak sebelum Manager Teknik TTD — kolom TTD-nya keluar kosong
+  // untuk ditandatangani basah.
   doPrint(`
     <div style="text-align:center;font-weight:bold;font-size:12pt;">LAPORAN TERJADINYA KERUSAKAN DAN KEGIATAN PERBAIKAN</div>
     <div style="text-align:center;font-weight:bold;font-size:11pt;margin-bottom:10px;">FASILITAS TELEKOMUNIKASI PENERBANGAN</div>
