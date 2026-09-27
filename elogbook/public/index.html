@@ -2437,6 +2437,13 @@
       <div class="field" id="feeFrekWrap" style="display:none;"><label data-t="frek">Frekuensi</label><input type="text" id="feeFrek" data-t-ph="phFrek" placeholder="cth. 132.900 MHz"></div>
     </div>
     <div class="field"><label id="feeUraianLabel">Uraian Pekerjaan / Kejadian</label><textarea id="feeUraian"></textarea></div>
+    <!-- Manager Teknik sepaket: nama yang tercetak (boleh sebutan PH) + akun
+         yang menerima TTD-nya. Sama dengan form tambah; beku begitu MT/PJ
+         sudah membubuhkan TTD (modal ini memang tidak terbuka lagi). -->
+    <div class="grid2">
+      <div class="field"><label id="feePjLabel" data-t="pjNama">Manager Teknik (nama)</label><input type="text" id="feePjNama" list="pejabatDatalist" data-t-ph="phNamaPj" placeholder="Nama manager teknik"></div>
+      <div class="field"><label data-t="kirimTtdKe">Kirim TTD ke akun</label><select id="feePjAkun"><option value="" data-t="kirimTtdOtomatis">Otomatis (dari nama di atas)</option></select></div>
+    </div>
     <div class="field">
       <label data-t="tautanDokumen">Tautan Dokumen</label>
       <div class="tautan-baris" id="feeTautanList"></div>

@@ -300,9 +300,9 @@ function openEntryDetail(id){
 }
 
 /* ---------- Sunting catatan logbook tersimpan ----------
-   Tanggal, jam, dinas, lokasi, uraian, dan lampiran — bukan nama teknisi atau
-   tanda tangan. Itu bukti kerja yang sudah dibubuhkan, bukan metadata yang
-   boleh ditimpa diam-diam.
+   Tanggal, jam, dinas, lokasi, uraian, lampiran, dan Manager Teknik (nama +
+   akun tujuan TTD) — bukan nama teknisi atau tanda tangan. Itu bukti kerja
+   yang sudah dibubuhkan, bukan metadata yang boleh ditimpa diam-diam.
 
    Lampiran ikut bisa disunting karena hasil scan sering baru dipegang setelah
    catatannya tersimpan; jendelanya sama dengan jendela sunting yang lain —
@@ -381,6 +381,7 @@ function openEntryEditModal(id){
   document.getElementById('feeFrek').value = e.frek || '';
   document.getElementById('feeUraian').value = e.uraian || '';
   isiPilihanLokasiEdit(e.lokasi);
+  isiManagerEdit(e);
 
   entryEditLampiranAda = e.lampiran || [];
   entryEditLampiranBuang = [];
@@ -411,6 +412,23 @@ function isiPilihanLokasiEdit(nilai){
   if([...el.options].some(o=>o.value===nilai)) el.value = nilai;
 }
 
+/** Manager Teknik sepaket: nama yang tercetak dan akun penerima TTD-nya.
+    Namanya teks bebas — boleh ditambahi sebutan PH ("Budi (PH Manager
+    Teknik)") — sedangkan TTD-nya tetap diarahkan lewat pilihan akun.
+    Akun yang sudah dituju dipasang lagi, supaya menyimpan tanpa menyentuh
+    bagian ini tidak diam-diam mengosongkan tujuan TTD-nya. */
+function isiManagerEdit(e){
+  const u = infoUnit();
+  const labelPj = (u && u.labelPj) || 'Manager Teknik';
+  document.getElementById('feePjLabel').textContent = labelPj + ' (' + T('namaKecil') + ')';
+  const nama = document.getElementById('feePjNama');
+  nama.value = e.pjNama || '';
+  nama.placeholder = (bahasa === 'en' ? 'Name of ' : 'Nama ') + labelPj.toLowerCase();
+  nama.removeAttribute('data-t-ph');
+  const akun = document.getElementById('feePjAkun');
+  akun.value = [...akun.options].some(o=>o.value===e.ttdUntuk) ? e.ttdUntuk : '';
+}
+
 function closeEntryEditModal(){
   document.getElementById('entryEditModalBg').classList.remove('show');
   if(typeof resetTautanForm === 'function') resetTautanForm('sunting', []);
@@ -435,6 +453,8 @@ async function saveEntryEdit(){
     dinas: document.getElementById('feeDinas').value,
     lokasi: document.getElementById('feeLokasi').value,
     uraian,
+    pjNama: document.getElementById('feePjNama').value.trim(),
+    ttdUntuk: ttdUntukTerpilih('feePjAkun', document.getElementById('feePjNama').value),
     lampiranBaru: kirimLampiran('feeLampiran'),
     lampiranHapus: entryEditLampiranBuang,
     // Daftar utuh, bukan tambah/buang: jendelanya memang menampilkan seluruh

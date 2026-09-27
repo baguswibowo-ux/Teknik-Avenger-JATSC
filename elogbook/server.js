@@ -1311,7 +1311,11 @@ const API = {
     if (!unit) throw new Error('Catatan tidak ditemukan — mungkin sudah dihapus.');
     await pastikanUnit(user, unit);
     const sebelum = await tujuanTtdSebelum('logbook', id);
-    const hasil = await updateEntry(String(id), patch || {}, { username: user.username, admin: kelolaUnit(user) });
+    // Akun tujuan TTD disaring ulang seperti di addEntry — klien tidak boleh
+    // menunjuk akun yang bukan pejabat/admin aktif.
+    const p = { ...(patch || {}) };
+    if (p.ttdUntuk !== undefined) p.ttdUntuk = await ttdUntukSah(p.ttdUntuk);
+    const hasil = await updateEntry(String(id), p, { username: user.username, admin: kelolaUnit(user) });
     await notifJikaTujuanBaru('logbook', id, sebelum, user);
     return hasil;
   },
