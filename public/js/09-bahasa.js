@@ -65,12 +65,15 @@ let grupDipilih = '';
 
 /** Unit yang dipegang PENUH akun ini — semua isinya terbuka. */
 const bolehBuka = (kode) => !!akun && (akun.unit === 'semua' || akun.unit.includes(kode));
-/** Boleh masuk ke layar unit ini: unit penuh, atau PIC dokumen — modul PIC-nya
-    terbuka di semua unit, dan di unit yang bukan unitnya hanya subtab itu yang
-    tampil (modulPicDi di 20-hak-modul.js). */
+/** Unit ini "milik" akun ini untuk daftar pilihan: unit penuh, atau PIC dokumen
+    — modul PIC-nya terbuka di semua unit (subtabTerbatasDi di 20-hak-modul.js). */
 const bolehMasukUnit = (kode) => bolehBuka(kode)
   || (typeof modulPicAkun === 'function' && !!modulPicAkun());
 const unitBoleh = () => UNIT.filter(u=>bolehMasukUnit(u.kode));
+/** Boleh MEMBUKA layar unit ini sama sekali. Semua akun yang masuk boleh: di
+    unit yang bukan miliknya hanya subtab Jadwal Dinas (dan modul PIC) yang
+    tampil, untuk dilihat saja. */
+const bolehLihatUnit = (kode) => !!akun && UNIT.some(u=>u.kode === kode);
 
 /**
  * Petak dinas hari ini untuk satu unit.

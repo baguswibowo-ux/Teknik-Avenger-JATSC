@@ -56,7 +56,8 @@ function gambarCincin(){
         <span class="lampu ${lampu}"></span>
         ${adegan(u.adegan)}${foto}
         ${buka ? '' : `<span class="gembok" title="${
-          T('Akun ini tidak berhak membuka unit tersebut','This account may not open that unit')}">
+          T('Bukan unit akun ini — hanya jadwal dinasnya yang bisa dilihat',
+            'Not this account’s unit — only its duty roster can be viewed')}">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></span>`}
         ${foto ? '' : `<span class="tanda-ilus">${T('ILUSTRASI · SLOT FOTO','ILLUSTRATION · PHOTO SLOT')}</span>`}
@@ -95,8 +96,10 @@ function gambarCincin(){
     });
     k.addEventListener('click', ()=>{
       const kode = k.dataset.unit;
-      if(!bolehMasukUnit(kode)){ pesan(T('Akun '+akun.user+' tidak berhak membuka unit '+namaUnit(kode)+'.',
-    'Account '+akun.user+' may not open the '+namaUnit(kode)+' unit.')); return; }
+      if(!bolehLihatUnit(kode)){ pesan(T('Masuk dulu untuk membuka unit '+namaUnit(kode)+'.',
+    'Sign in first to open the '+namaUnit(kode)+' unit.')); return; }
+      // Unit yang bukan miliknya tetap terbuka — bukaUnit sendiri yang
+      // membatasinya ke jadwal dinas (subtabTerbatasDi).
       bukaUnit(kode);
     });
   });

@@ -27,27 +27,31 @@ function gambarPilihUnit(){
       : T(`Peran ${peranAkun()} — ${boleh.length} unit terbuka untuk akun ini.`,
           `Role ${peranAkun()} — ${boleh.length} units are open to this account.`);
 
-  if(!boleh.length){
-    // Akun tanpa unit sama sekali. Layar kosong tanpa keterangan akan terbaca
-    // sebagai kerusakan, padahal ini soal penugasan yang belum diberikan.
-    el('pilihUnit').innerHTML = `<div style="color:var(--muted);font-size:12.5px;padding:4px 0">${
-      T('Akun ini belum ditugaskan ke unit mana pun. Mintalah administrator menugaskannya lewat Kelola Akun.',
-        'This account has not been assigned to any unit yet. Ask an administrator to assign one under Manage Accounts.')}</div>`;
-    return;
-  }
+  // Akun tanpa unit sama sekali. Layar kosong tanpa keterangan akan terbaca
+  // sebagai kerusakan, padahal ini soal penugasan yang belum diberikan.
+  const tanpaUnit = boleh.length ? '' : `<div style="color:var(--muted);font-size:12.5px;padding:4px 0">${
+    T('Akun ini belum ditugaskan ke unit mana pun. Mintalah administrator menugaskannya lewat Kelola Akun.',
+      'This account has not been assigned to any unit yet. Ask an administrator to assign one under Manage Accounts.')}</div>`;
 
-  el('pilihUnit').innerHTML = boleh.map(u=>
+  /* Unit lain menyusul di belakang, lebih kecil dan terpisah: di sana hanya
+     jadwal dinasnya yang bisa dibuka, untuk dilihat saja. */
+  const lain = UNIT.filter(u=>!bolehMasukUnit(u.kode));
+  el('pilihUnit').innerHTML = tanpaUnit + boleh.map(u=>
     `<button class="btn ${u.kode===unitDibuka?'':'garis'}" data-unit="${u.kode}">${esc(u.nama)}</button>`
-  ).join('');
+  ).join('') + (lain.length ? `<span class="pilih-unit-lain">${T('Jadwal dinas unit lain:','Other units’ rosters:')}</span>`
+    + lain.map(u=>`<button class="btn kecil ${u.kode===unitDibuka?'':'garis'}" data-unit="${u.kode}" title="${
+        T('Hanya jadwal dinasnya, untuk dilihat','Duty roster only, view-only')}">${esc(u.nama)}</button>`).join('') : '');
   el('pilihUnit').querySelectorAll('button[data-unit]').forEach(b=>{
     b.addEventListener('click', ()=>bukaUnit(b.dataset.unit));
   });
 }
 
 function bukaUnit(kode){
-  // PIC dokumen di unit yang bukan unitnya langsung mendarat di satu-satunya
-  // subtab yang dibukanya — subtab Peralatan tidak digambar di sana.
-  unitDibuka = kode; subtabAktif = modulPicDi(kode) || 'peralatan';
+  // Di unit yang bukan miliknya, orang langsung mendarat di subtab pertama
+  // yang boleh ia lihat (modul PIC, atau Jadwal Dinas) — subtab Peralatan
+  // tidak digambar di sana.
+  const batas = subtabTerbatasDi(kode);
+  unitDibuka = kode; subtabAktif = batas ? batas[0] : 'peralatan';
   alatDipilih = (PERALATAN[kode] || [])[0] ? PERALATAN[kode][0].id : null;
   subDipilih = null;
   // Grup lokasi milik unit — waktu pindah unit tab aktifnya balik ke Semua,
@@ -227,15 +231,15 @@ function gambarUnit(){
   const radkom = unitDibuka === 'radkom';
   const foto = FOTO[unitDibuka] || [];
 
-  // PIC dokumen di unit yang bukan unitnya hanya membuka satu subtab. Dipaksa
-  // di sini — bukan cuma disembunyikan tombolnya — supaya jalan pintas dari
-  // beranda / kotak masuk yang menyetel subtabAktif ke modul lain tidak sempat
-  // menampilkan panelnya. Di unitnya sendiri PIC melihat semua subtab.
-  const pic = modulPicDi(unitDibuka);
-  if(pic) subtabAktif = pic;
+  // Di unit yang bukan miliknya, orang hanya membuka subtab tertentu (Jadwal
+  // Dinas, dan modul PIC kalau ia PIC). Dipaksa di sini — bukan cuma
+  // disembunyikan tombolnya — supaya jalan pintas dari beranda / kotak masuk
+  // yang menyetel subtabAktif ke modul lain tidak sempat menampilkan panelnya.
+  const batas = subtabTerbatasDi(unitDibuka);
+  if(batas && !batas.includes(subtabAktif)) subtabAktif = batas[0];
 
-  // Untuk PIC, hanya tombol subtab miliknya yang digambar; sisanya '' (hilang).
-  const tab = (id,teks,lencana)=> (pic && id !== pic) ? '' :
+  // Subtab di luar batas tidak digambar; sisanya '' (hilang).
+  const tab = (id,teks,lencana)=> (batas && !batas.includes(id)) ? '' :
     `<button data-sub="${id}" class="${subtabAktif===id?'aktif':''}">
     ${teks}${lencana?` <span class="mono" style="opacity:.75">(${lencana})</span>`:''}</button>`;
 
@@ -259,7 +263,7 @@ function gambarUnit(){
         <!-- Bukan "unit ini": E-Logbook tidak membaca satu pun parameter URL,
              dan unit aktifnya cuma ada di memori — tidak ada cara menunjuknya
              dari luar. Yang dijanjikan tombol ini hanya membuka aplikasinya. -->
-        ${pic ? '' : `<a class="btn" href="#" data-elogbook>${T('Buka E-Logbook','Open E-Logbook')}</a>`}
+        ${batas ? '' : `<a class="btn" href="#" data-elogbook>${T('Buka E-Logbook','Open E-Logbook')}</a>`}
       </div>
     </div>
 

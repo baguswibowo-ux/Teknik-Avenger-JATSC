@@ -370,7 +370,7 @@ function jdwTabel(unit){
     ${JDW.sunting ? '<td></td>' : ''}</tr>` : '';
 
   if(!baris.length){
-    const bolehPola = !JDW.sunting && BOLEH.dinas && JDW.bisaTulis;
+    const bolehPola = !JDW.sunting && bolehSuntingDb('dinas') && JDW.bisaTulis;
     return `<table class="jdw"><thead>${kepala}</thead><tbody>${barisBerkala}
       <tr><td colspan="${hariN + 3 + (JDW.sunting?1:0)}" style="text-align:center;color:var(--muted);padding:22px">
         ${T('Belum ada jadwal untuk bulan ini.','No roster for this month yet.')}
@@ -420,7 +420,11 @@ function jdwTabel(unit){
 function jdwIsi(unit){
   const u = infoUnit(unit);
   const bulan = JDW.lihat;
-  const bolehSunting = BOLEH.dinas && JDW.bisaTulis;
+  /* bolehSuntingDb, bukan BOLEH saja: hak modul berlaku untuk perannya, dan
+     jadwal unit lain yang dibuka untuk dilihat tidak boleh menawarkan Sunting
+     atau Cetak yang pasti ditolak server. */
+  const bolehSunting = bolehSuntingDb('dinas') && JDW.bisaTulis;
+  const unitLain = !bolehBuka(unit) && !modulPicSemuaUnit('dinas');
 
   const kepala = `
     <div class="atur-data">
@@ -440,7 +444,7 @@ function jdwIsi(unit){
           : `${bolehSunting
               ? `<button class="btn kecil" id="jdwSunting">${T('Sunting jadwal','Edit roster')}</button>`
               : ''}
-             ${BOLEH['dinas-cetak'] ? `
+             ${bolehSuntingDb('dinas-cetak') ? `
              <button class="btn garis kecil" id="jdwCetakPum" title="${
                T('Versi untuk PUM: hanya kode PS/M/P/S; SPKL, cuti, dan lainnya dikosongkan.',
                  'PUM version: only PS/M/P/S codes; SPKL, leave, and others are blanked.')}">${
@@ -452,7 +456,9 @@ function jdwIsi(unit){
       </span>
     </div>
     ${bolehSunting || JDW.sunting ? '' : `<div class="catatan" style="margin-top:0"><b>${
-      T('Anda hanya bisa melihat jadwal ini.','You can only view this roster.')}</b> ${esc(JDW.sebab)} ${
+      T('Anda hanya bisa melihat jadwal ini.','You can only view this roster.')}</b> ${unitLain
+        ? esc(T('Unit ini bukan unit akun Anda.','This unit is not assigned to your account.'))
+        : esc(JDW.sebab)} ${
       T('Jadwal bulan berjalan sengaja terbuka untuk semua akun; yang boleh mengisinya ditentukan per '
         + 'peran oleh administrator, di panel Siapa Boleh Mengisi Apa pada layar Kelola Akun.',
         'The current month roster is deliberately open to every account; who may fill it in is decided '

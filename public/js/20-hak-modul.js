@@ -37,10 +37,13 @@ const PERAN_PIC_MODUL = {
 /** Modul semua-unit milik peran PIC ini ('dinas'|'sparepart'|'isr'), atau null
     kalau bukan PIC. */
 const modulPicAkun = () => (akun && PERAN_PIC_MODUL[akun.role]) ? PERAN_PIC_MODUL[akun.role][0] : null;
-/** Satu-satunya subtab yang tampil di unit ini, atau null kalau semua subtab
-    tampil. Terisi hanya untuk PIC yang membuka unit di luar unitnya sendiri —
-    di unitnya sendiri PIC melihat semuanya seperti teknisi. */
-const modulPicDi = (kode) => bolehBuka(kode) ? null : modulPicAkun();
+/** Subtab yang tampil di unit ini, atau null kalau semua subtab tampil.
+    Terisi untuk unit yang bukan milik akun ini: Jadwal Dinas selalu (jadwal
+    sengaja terbuka untuk semua akun, hanya untuk dilihat), ditambah modul PIC
+    kalau akunnya PIC — modul itu yang jadi subtab pertama. Di unitnya sendiri
+    semua orang melihat semuanya. */
+const subtabTerbatasDi = (kode) => bolehBuka(kode) ? null
+  : [...new Set([modulPicAkun(), 'dinas'].filter(Boolean))];
 /** Modul ini modul semua-unit milik PIC yang sedang masuk? */
 const modulPicSemuaUnit = (modul) => !!akun && (PERAN_PIC_MODUL[akun.role] || []).includes(modul);
 /* Peran yang dipertimbangkan di layar Hak Akses. Peran view-only sengaja tidak

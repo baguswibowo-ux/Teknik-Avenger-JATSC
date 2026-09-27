@@ -29,7 +29,8 @@
    sisa kartu belakang yang ikut terbaca, dan tidak ada yang bisa tersentuh. */
 .kartu-orbit[data-sembunyi="1"]{opacity:0;pointer-events:none;}
 .kartu-orbit:hover{border-color:var(--accent);}
-.kartu-orbit.terkunci{cursor:not-allowed;}
+/* Terkunci = bukan unit akun ini; masih bisa diklik untuk melihat jadwal dinasnya. */
+.kartu-orbit.terkunci{cursor:pointer;}
 
 /* Bingkai 4:3 (230×172) untuk SEMUA kartu — foto unit dari kamera/HP umumnya 4:3, jadi muat utuh. */
 .bingkai{position:relative;height:172px;overflow:hidden;border-bottom:1px solid var(--line);}
