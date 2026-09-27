@@ -34,6 +34,7 @@ import {
   kegiatanUntukDinas, paketDibutuhkan, kunciPengingatBerkala
 } from './pengingat-berkala.js';
 import { pesanDinasMendatang, pesanBerkalaDinas } from './pesan-notif.js';
+import { htmlKePdf, susunDokumen, pdfTersedia } from './cetak-pdf.js';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import {
@@ -3903,6 +3904,37 @@ const pesanTanpaHakTtd = (siapa, jenis) =>
   + 'Administrator mencentangnya di Kelola Akun → akun pejabat → "Boleh menandatangani dokumen jenis".';
 
 const badanCetak = express.json({ limit: '8mb' });
+
+/* =====================================================================
+   KIRIM PDF — lembar cetak yang sudah jadi, dijadikan PDF di sini
+
+   Halaman (dashboard maupun E-Logbook di /logbook/) mengirim isi #printArea
+   yang siap cetak berikut CSS-nya; cetak-pdf.js mencetaknya ke PDF dengan
+   Edge headless. PDF-nya pulang ke peramban, dan dari sana orangnya
+   mengirim lewat aplikasi email MILIKNYA sendiri (menu Bagikan, atau unduh
+   lalu lampirkan) — server ini tidak menyimpan akun email siapa pun.
+
+   Hanya yang sudah masuk. Tidak menyimpan apa pun: berkas kerjanya dibuang
+   begitu PDF terbaca.
+   ===================================================================== */
+const badanPdf = express.json({ limit: '30mb' });
+
+app.post('/cetak/pdf', badanPdf, async (req, res) => {
+  const user = await siapa(req);
+  if (!user) return res.status(401).json({ error: 'Masuk dengan akun E-Logbook Anda dulu.' });
+  if (!pdfTersedia()) return res.status(503).json({ error: 'Server ini belum bisa membuat PDF (Edge/Chrome tidak ditemukan).' });
+  const { html, css, kelas, judul, akar, badan } = req.body || {};
+  if (!html || typeof html !== 'string') return res.status(400).json({ error: 'Isi lembar kosong.' });
+  try {
+    const pdf = await htmlKePdf(susunDokumen({ html, css, kelas, judul, akar, badan }));
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(pdf);
+  } catch (e) {
+    console.error('[cetak/pdf]', e?.message || e);
+    res.status(500).json({ error: 'Gagal membuat PDF: ' + (e?.message || e) });
+  }
+});
 
 const cetakId = () => 'cet_' + crypto.randomBytes(8).toString('hex');
 

@@ -654,17 +654,34 @@ async function cetakLakukan(){
      pilih pejabat dulu, supaya tidak menutupi kertas di layar preview
      peramban. */
   el('lapisCetak').classList.remove('buka');
-  setTimeout(()=>{
-    window.print();
-    /* Setelah dialog cetak selesai (fokus kembali), bersihkan area cetak
-       supaya isinya tidak menempel di background layar dashboard. */
-    setTimeout(()=>{
-      area.innerHTML = '';
-      area.classList.remove('lanskap');
-      pasangOrientasiCetak(null);   // kembalikan @page ke bawaan potret
-    }, 500);
-  }, 200);
+  /* Setelah dialog cetak (atau kiriman PDF) selesai, bersihkan area cetak
+     supaya isinya tidak menempel di background layar dashboard. */
+  await cetakAtauKirimPdf(area, CETAK.mode, CETAK.unit);
+  area.innerHTML = '';
+  area.classList.remove('lanskap');
+  pasangOrientasiCetak(null);   // kembalikan @page ke bawaan potret
 }
+
+/**
+ * Titik akhir semua cetak di dashboard: tawarkan Cetak atau Kirim PDF lewat
+ * email (/kirim-pdf.js), lalu selesai begitu orangnya selesai. Kalau
+ * modulnya tidak termuat, langsung dialog cetak seperti dulu.
+ */
+async function cetakAtauKirimPdf(area, jenis, unit){
+  const cetak = ()=> window.print();
+  if(typeof window.cetakAtauKirim !== 'function'){
+    await new Promise(ok=>setTimeout(()=>{ cetak(); setTimeout(ok, 500); }, 200));
+    return;
+  }
+  const nama = area.querySelector('.cetak-lembar h1, h1');
+  const judul = [
+    (nama && nama.textContent.replace(/\s+/g, ' ').trim()) || NAMA_JENIS_CETAK_KLIEN[jenis] || 'Lembar',
+    unit ? namaUnit(unit) : '',
+    new Date().toLocaleDateString('sv-SE')   // YYYY-MM-DD waktu lokal
+  ].filter(Boolean).join(' - ');
+  await window.cetakAtauKirim({ area, judul, cetak });
+}
+const NAMA_JENIS_CETAK_KLIEN = { sparepart:'Sparepart', dinas:'Jadwal Dinas', peralatan:'Sejarah Peralatan' };
 
 /**
  * Lembar sparepart yang lewat sedikit dari satu halaman dikecilkan
@@ -1704,15 +1721,14 @@ async function cetakDariPermintaan(p){
     }catch{ /* biarkan */ }
   }));
   el('lapisCetak').classList.remove('buka');
-  setTimeout(()=>{
-    window.print();
-    setTimeout(()=>{
-      area.innerHTML = '';
-      area.classList.remove('lanskap');
-      pasangOrientasiCetak(null);
-      Object.assign(CETAK, asal);
-    }, 500);
-  }, 200);
+  try{
+    await cetakAtauKirimPdf(area, p.jenis, p.unit);
+  }finally{
+    area.innerHTML = '';
+    area.classList.remove('lanskap');
+    pasangOrientasiCetak(null);
+    Object.assign(CETAK, asal);
+  }
 }
 
 /** Bangun bagian isi lembar (tabel sparepart / matriks dinas) dari

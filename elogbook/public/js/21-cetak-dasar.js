@@ -131,5 +131,21 @@ async function doPrint(html, orientation){
   const waits = imgs.map(img => img.complete ? Promise.resolve() :
     new Promise(res => { img.onload = res; img.onerror = res; setTimeout(res, 2500); }));
   await Promise.all(waits);
+  /* Pilihan Cetak / Kirim PDF (/kirim-pdf.js, milik dashboard). Kalau
+     berkasnya tidak termuat, langsung cetak seperti dulu. */
+  if(typeof window.cetakAtauKirim === 'function'){
+    await window.cetakAtauKirim({ area, judul: judulLembarCetak(area), cetak: ()=>window.print() });
+    return;
+  }
   setTimeout(()=> window.print(), 150);
+}
+
+/** Nama lembar untuk subjek email dan nama berkas PDF: judul di kop, unit,
+    tanggal hari ini — "BUKU CATATAN FASILITAS … - Radtel - 2026-09-28". */
+function judulLembarCetak(area){
+  const bersih = (s)=> String(s || '').replace(/\s+/g, ' ').trim();
+  const pertama = Array.from(area.querySelectorAll('h1,h2,h3,div,td'))
+    .map(e=>bersih(e.textContent)).find(t=>t && t.length <= 120) || 'Lembar E-Logbook';
+  const unit = (typeof infoUnit === 'function' && infoUnit()?.nama) || '';
+  return [pertama, unit, new Date().toLocaleDateString('sv-SE')].filter(Boolean).join(' - ');
 }
