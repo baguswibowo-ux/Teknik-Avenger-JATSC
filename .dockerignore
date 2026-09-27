@@ -10,10 +10,9 @@
 node_modules/
 **/node_modules/
 
-# Rahasia: token Telegram, kunci VAPID, DATABASE_URL Supabase. Jangan pernah
+# Rahasia: kunci VAPID dan kredensial lama di .env. Jangan pernah
 # ikut ke dalam lapisan image - image bisa dikirim ke mesin lain.
-# Pola ini juga menutup elogbook/.env yang berisi DATABASE_URL Supabase;
-# kalau ia ikut, E-Logbook di container bisa menoleh ke Postgres, bukan SQLite.
+# Pola ini juga menutup elogbook/.env yang masih berisi kredensial Supabase lama.
 **/.env
 **/.env.*
 !.env.example

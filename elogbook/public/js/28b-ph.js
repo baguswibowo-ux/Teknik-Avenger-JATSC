@@ -1,12 +1,12 @@
 /* E-Logbook · js/28b-ph.js — PH (pelaksana harian) milik pejabat sendiri
-   Dimuat dari index.html sesuai nomor berkas; urutannya berpengaruh (setelah
-   28-telegram.js karena panelnya menumpang di modal "TTD Saya" yang sama).
+   Dimuat dari index.html sesuai nomor berkas; panelnya menumpang di modal
+   "TTD Saya".
 
    Pejabat yang akan tidak di tempat mencari nama PH-nya — siapa pun kecuali
    pejabat non-operasional — dan mengisi PERIODE-nya: mulai dan sampai tanggal
    berapa. Lembar yang ditujukan ke pejabat tersebut dan BERTANGGAL KEGIATAN
    di dalam periode itu muncul juga di Kotak Masuk TTD milik PH,
-   PH ikut menerima notifikasi Telegram "perlu tanda tangan", dan PH bisa
+   PH ikut menerima notifikasi HP "perlu tanda tangan", dan PH bisa
    menandatanganinya dari akunnya sendiri dengan TTD tersimpannya sendiri —
    tanpa meminjam login pejabat. Yang tercetak nama PH berikut keterangannya.
    Pejabat aslinya tetap menerima juga. Setelah tanggalnya lewat, pengalihan

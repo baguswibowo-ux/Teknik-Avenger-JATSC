@@ -20,7 +20,7 @@
    Check (17d), dan Maintenance Radio (17c): dibedakan lewat state.__format ===
    'mrreading' + state.__mrForm (id lembar). Seluruh rangkaian TTD Manager Teknik,
    kotak masuk TTD, hapus, dan cetak sudah tersedia untuk 'dstest'. Guard daftar-site
-   di insertDsTest (db.js + db-pg.js) dilewati untuk format ini.
+   di insertDsTest (db.js) dilewati untuk format ini.
 
    Lembar dibangun dari SKEMA: tiap lembar = deret "seksi", tiap seksi = satu tabel
    (kepala baris-ganda ditulis tangan agar merge kolomnya benar; baris data digenerik

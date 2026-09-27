@@ -285,7 +285,7 @@ sebelumnya.
 
 Formulir lain (daily check, monitoring, DS test, LTK) belum mencatat gedung.
 
-Daftar gedungnya ada di satu tempat — `LOKASI` di `db.js` dan `db-pg.js` —
+Daftar gedungnya ada di satu tempat — `LOKASI` di `db.js` —
 jadi menambah gedung ketiga kelak cukup di baris itu; form dan filternya
 menyesuaikan sendiri.
 
@@ -367,37 +367,7 @@ Diatur lewat environment variable:
 | `HOST` | alamat bind | `0.0.0.0` (semua antarmuka) |
 | `ELOGBOOK_SESSION_DAYS` | umur sesi login | `30` hari |
 | `ELOGBOOK_SECURE_COOKIE` | set `1` kalau diakses lewat HTTPS | kosong |
-| `PGPOOL_MAX` | jumlah koneksi Postgres sekaligus | `4` di serverless, `5` di server kantor |
 | `ELOGBOOK_CACHE_NAMA_MS` | umur simpanan peta nama pengguna | `15000` (15 detik) |
-
-## 5b. Kalau dijalankan di Vercel
-
-Di server kantor database ada di mesin yang sama, jadi tiap kueri praktis tanpa
-biaya. Di Vercel tidak: databasenya di Supabase, dan **satu kueri berarti satu
-perjalanan pulang-pergi lewat internet**. Yang menentukan lamanya memuat layar
-bukan berat kuerinya, melainkan berapa kali perjalanan itu dilakukan dan sejauh
-apa jaraknya.
-
-**Region harus sama.** Database Supabase proyek ini ada di Singapura
-(`aws-0-ap-southeast-1`). Kalau fungsi Vercel dibiarkan di region bawaan
-(`iad1`, Washington DC), tiap kueri menyeberang setengah dunia — sekitar 230 ms
-sekali jalan, dan sekali memuat layar butuh belasan kueri. Karena itu
-`vercel.json` mengunci `"regions": ["sin1"]`. **Kalau databasenya dipindah,
-baris itu harus ikut diganti.**
-
-**Halaman depan tidak lewat fungsi.** Berkas di `public/` sudah disajikan CDN,
-tetapi alamat `/` tanpa nama berkas dulu jatuh ke aturan tangkap-semua dan
-dilayani fungsi — artinya orang yang baru membuka aplikasi menunggu fungsi
-dinyalakan dulu hanya untuk menerima `index.html`. Karena itu ada satu aturan
-tersendiri untuk `/` di atas aturan tangkap-semua; urutannya berpengaruh.
-
-Sambungannya juga memakai **transaction pooler** Supabase (port `6543`), bukan
-sambungan langsung ke port `5432`. Di serverless wadahnya datang dan pergi terus,
-dan sambungan langsung sebanyak itu akan menghabiskan jatah koneksi database.
-
-Databasenya disiapkan sekali di luar aplikasi (`npm run migrasi`). Berbeda dari
-server kantor, permintaan HTTP di Vercel **tidak** membuat akun admin awal kalau
-databasenya kosong — jangan menunggu itu terjadi.
 
 ## 6. Backup
 
@@ -446,7 +416,6 @@ kebijakan, bukan teknis.
 ```
 server.js              API (umum + khusus admin), login, penyajian halaman
 db.js                  skema SQLite, query, penyimpanan tanda tangan & lampiran
-db-pg.js               versi Postgres/Supabase dari db.js, dipakai di Vercel
 public/index.html      kerangka halaman: markup tiap tab, tanpa gaya & kode
 public/css/            gaya tampilan, dipecah 10 berkas menurut bagian layar
 public/js/             kode aplikasi, dipecah 26 berkas menurut tab dan fungsinya

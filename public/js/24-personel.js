@@ -526,40 +526,8 @@ async function psnBerkasMuat(){
   }
 }
 
-/**
- * Unggah satu bukti.
- *
- * Dua jalan, dan yang dipakai ditentukan server — persis seperti rak dokumen
- * unit. Di Vercel berkasnya pergi langsung ke simpanan lewat URL bertanda
- * tangan, karena badan permintaan ke fungsi di sana berhenti di 4.500.000 byte
- * dan pindaian sertifikat A4 berwarna lewat dengan mudah di atas itu.
- */
+/** Unggah satu bukti, sebagai base64 — persis seperti rak dokumen unit. */
 async function psnBerkasKirim(orangId, f, sertId){
-  const r0 = await srvFetch(`/personel/${encodeURIComponent(orangId)}/berkas/siap`, {
-    method:'POST', headers:{ 'Content-Type':'application/json' },
-    body: JSON.stringify({ nama:f.name, ukuran:f.size })
-  }, 15000);
-  const siap = await r0.json().catch(()=>({}));
-  if(!r0.ok) throw new Error(siap.error || 'server menjawab ' + r0.status);
-
-  if(siap.langsung){
-    // fetch polos, bukan srvFetch: 25 MB lewat jaringan lambat bisa melampaui
-    // batas waktu apa pun yang pantas dipasang untuk API biasa.
-    const taruh = await fetch(siap.url, {
-      method:'PUT',
-      headers:{ 'Content-Type': f.type || 'application/octet-stream' },
-      body: f
-    });
-    if(!taruh.ok) throw new Error('gagal menaruh berkas di simpanan (' + taruh.status + ')');
-    const r = await srvFetch(`/personel/${encodeURIComponent(orangId)}/berkas/catat`, {
-      method:'POST', headers:{ 'Content-Type':'application/json' },
-      body: JSON.stringify({ id:siap.id, nama:f.name, jenis:f.type || '', sert:sertId })
-    }, 30000);
-    const j = await r.json().catch(()=>({}));
-    if(!r.ok) throw new Error(j.error || 'server menjawab ' + r.status);
-    return j.baris;
-  }
-
   const isi = await berkasBase64(f);
   const r = await srvFetch(`/personel/${encodeURIComponent(orangId)}/berkas`, {
     method:'POST', headers:{ 'Content-Type':'application/json' },

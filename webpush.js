@@ -1,10 +1,9 @@
 /**
  * NOTIFIKASI HP (WEB PUSH) — pengirim tanpa pustaka tambahan
  *
- * Saudara telegram.js: yang itu mengirim ke chat Telegram, yang ini ke HP yang
- * sudah menekan "Aktifkan notifikasi" di dashboard. Isi pesannya sengaja sama —
- * teks Telegram (HTML) diubah jadi judul + isi oleh pesanUntukPush(), jadi
- * kalimatnya tetap disusun di satu tempat.
+ * Mengirim ke HP yang sudah menekan "Aktifkan notifikasi" di dashboard.
+ * Kalimatnya disusun pesan-notif.js sebagai HTML sederhana, lalu diubah jadi
+ * judul + isi oleh pesanUntukPush().
  *
  * Dua standar yang dikerjakan di sini, dua-duanya cukup dengan node:crypto:
  *   RFC 8292  VAPID   — server membuktikan dirinya ke layanan notifikasi
@@ -171,7 +170,7 @@ const lepasHtml = (s) => String(s == null ? '' : s)
   .replace(/&amp;/g, '&');
 
 /**
- * Pesan Telegram (HTML, baris dipisah \n) → muatan notifikasi HP.
+ * Pesan (HTML, baris dipisah \n) → muatan notifikasi HP.
  * Baris pertama jadi judul, sisanya isi. Baris "Buka E-Logbook → …" dibuang:
  * di HP, mengetuk notifikasinya sendiri yang membuka tempatnya.
  */

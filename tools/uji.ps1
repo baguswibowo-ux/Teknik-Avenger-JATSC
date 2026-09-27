@@ -27,12 +27,12 @@
     2. DATA   : DISALIN dari produksi ke folder uji, tidak disambung.
                 Arah salin hanya produksi -> uji, tidak pernah sebaliknya.
     3. LOKASI : ELOGBOOK_DATA_DIR dan ELOGBOOK_UPLOAD_DIR disetel ke folder
-                uji secara eksplisit, dan ELOGBOOK_DB dikosongkan, supaya
+                uji secara eksplisit, supaya
                 tidak ada setelan yang bisa membelokkan ke data produksi.
     4. PORT   : 3900 (E-Logbook) dan 3910 (dashboard). Produksi 3000/3100
                 tidak disentuh, termasuk waktu mematikan.
-    5. NOTIF  : token Telegram dikosongkan dan folder uji tidak punya .env,
-                jadi uji tidak mengirim pesan ke grup sungguhan.
+    5. NOTIF  : folder uji tidak punya .env,
+                jadi uji tidak membaca setelan produksi.
                 Notifikasi HP: kunci push-vapid.json dari produksi DIHAPUS
                 dari salinan, jadi server uji membuat kuncinya sendiri. HP
                 yang berlangganan di produksi terikat kunci produksi dan
@@ -178,7 +178,7 @@ if (-not (Test-Path (Join-Path $Uji 'elogbook\data\push-vapid.json'))) {
 }
 
 if (Test-Path (Join-Path $Uji '.env')) {
-  Gagal "Folder uji punya berkas .env. Hapus berkas itu dulu - isinya bisa menyalakan Telegram atau membelokkan data ke produksi."
+  Gagal "Folder uji punya berkas .env. Hapus berkas itu dulu - isinya bisa membelokkan data atau notifikasi ke produksi."
 }
 
 # ---------------------------------------------------------------- jalankan
@@ -188,11 +188,6 @@ if (Test-Path (Join-Path $Uji '.env')) {
 # tanpa ada tanda apa pun di layar.
 $env:ELOGBOOK_DATA_DIR       = Join-Path $Uji 'elogbook\data'
 $env:ELOGBOOK_UPLOAD_DIR     = Join-Path $Uji 'elogbook\uploads'
-$env:ELOGBOOK_DB             = ''
-$env:TELEGRAM_BOT_TOKEN      = ''
-$env:TELEGRAM_BOT_USERNAME   = ''
-$env:TELEGRAM_POLLING        = ''
-$env:TELEGRAM_WEBHOOK_SECRET = ''
 # Kunci notifikasi HP tidak boleh datang dari lingkungan (bisa kunci produksi).
 $env:VAPID_PUBLIK            = ''
 $env:VAPID_PRIVAT            = ''

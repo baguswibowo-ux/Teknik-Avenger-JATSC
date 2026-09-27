@@ -1,8 +1,8 @@
 /**
  * E-LOGBOOK — RINGKASAN DOKUMEN UNTUK NOTIFIKASI
  *
- * Dari satu baris database (kolom snake_case, dibaca ringkasCatatan di db.js /
- * db-pg.js) menyusun dua hal untuk pesan Telegram:
+ * Dari satu baris database (kolom snake_case, dibaca ringkasCatatan di db.js)
+ * menyusun dua hal untuk notifikasi:
  *   judul    — jenis lembar yang sebenarnya, berikut lokasinya kalau ada
  *              ("Logbook — New JATSC"). Tabel dstest menampung sebelas lembar
  *              berbeda, dari DS Test Domestik sampai Maintenance Radio;
@@ -14,7 +14,7 @@
  *
  * Kolom yang dibaca per jenis ditentukan di sini juga (KOLOM_RINGKAS),
  * berdampingan dengan kode yang memakainya. Murni — tanpa database — jadi bisa
- * diuji langsung. Pengamanan HTML dikerjakan telegram.js saat menyusun pesan.
+ * diuji langsung. Pengamanan HTML dikerjakan pesan-notif.js saat menyusun pesan.
  */
 
 /** Nama jenis dokumen, dipakai juga kalau ringkasan tidak bisa dibaca. */

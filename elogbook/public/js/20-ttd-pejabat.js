@@ -113,7 +113,7 @@ function sigPejabatHtml(jenis, id, ttdUrl, rec){
 
    Kalau MT/PJ sudah tanda tangan, kolomnya beku — mengganti nama di bawah
    tanda tangan yang tercetak sama dengan memalsu arsip; server juga menolak
-   (lihat updateTtdRouting di db.js dan db-pg.js). */
+   (lihat updateTtdRouting di db.js). */
 
 /** Daftar akun kandidat untuk kirim TTD — dipakai bersama dengan create-form.
     pejabatList sudah dihimpun listPejabatAktif dari server — admin + pejabat

@@ -288,13 +288,8 @@ CREATE TABLE IF NOT EXISTS user_unit (
   PRIMARY KEY (user_id, unit)
 );
 
-CREATE TABLE IF NOT EXISTS telegram_akun (
-  username       TEXT PRIMARY KEY COLLATE NOCASE,
-  chat_id        TEXT NOT NULL DEFAULT '',
-  tautan_token   TEXT NOT NULL DEFAULT '',
-  ditautkan_pada TEXT NOT NULL DEFAULT '',
-  dibuat_pada    TEXT NOT NULL DEFAULT ''
-);
+-- Sambungan Telegram lama (fitur dihapus 27 Sep 2026; isinya ada di cadangan).
+DROP TABLE IF EXISTS telegram_akun;
 
 -- Notifikasi HP (Web Push): satu baris per HP/peramban yang menekan "Aktifkan
 -- notifikasi". endpoint = alamat unik perangkat itu di layanan notifikasi;
@@ -927,8 +922,7 @@ export function setUsername(oldUsername, newUsername) {
     ['berkala',     ['dibuat_oleh', 'ttd_oleh', 'ttd_untuk']],
     ['bapb',        ['dibuat_oleh']],
     // Sambungan notifikasi ikut pindah — username akan diganti NIK, dan tanpa
-    // ini Telegram serta HP orangnya diam-diam berhenti menerima kabar.
-    ['telegram_akun',  ['username']],
+    // ini HP orangnya diam-diam berhenti menerima kabar.
     ['push_langganan', ['username']]
   ];
   const setUname = db.prepare('UPDATE users SET username = ? WHERE id = ?');
@@ -2123,7 +2117,7 @@ export function tambahBuktiTutupIsu(id, daftar) {
 
 /* ============== RUTE TTD (Nama pihak-kedua + akun tujuan) ==============
  *
- * Cerminan Postgres di db-pg.js. Nama Manager Teknik/PJ dan akun tujuan TTD
+ * Nama Manager Teknik/PJ dan akun tujuan TTD
  * (ttd_untuk) bisa diedit selama pihak keduanya BELUM membubuhkan tanda tangan;
  * setelah tercetak, rute-nya beku — mengganti nama di bawah TTD yang sudah ada
  * sama dengan memalsu arsip. Berlaku untuk kelima form yang punya slot pihak
@@ -2234,7 +2228,7 @@ export function removeMonitoring(id) {
 
 /* ============== DS TEST ============== */
 
-/* Daftar site-nya pindah ke ds-site.js supaya db.js dan db-pg.js memakai
+/* Daftar site-nya pindah ke ds-site.js supaya db.js dan berkas lain memakai
    sumber yang sama (diimpor di atas). Diekspor ulang di sini agar
    pemanggilnya — server.js — tidak perlu tahu asalnya. */
 export { DS_SITE, KATEGORI_DS, kategoriDsSah, dsSiteUntuk };
@@ -2986,7 +2980,7 @@ export function getInboxTtd(username) {
  * menerima notifikasi "perlu tanda tangan". Pejabat aslinya tetap menerima
  * juga. Kapan "berlaku" dihitung di server.js (phAktifUntuk) — di sini hanya
  * simpan dan baca. Tidak berantai: PH dari PH tidak ikut diwakili.
- * Cermin Postgres-nya di db-pg.js. */
+ */
 export function getPh(username) {
   const row = db.prepare(`SELECT u.ph_username, u.ph_mulai, u.ph_sampai, p.nama AS ph_nama, p.aktif AS ph_aktif
                             FROM users u LEFT JOIN users p ON p.username = u.ph_username
@@ -3043,71 +3037,12 @@ export function listCalonPh() {
                       ORDER BY nama COLLATE NOCASE`).all();
 }
 
-/* ============== TAUTAN TELEGRAM ==============
- * Pemetaan akun E-Logbook ↔ chat Telegram, plus token taut sekali-pakai.
- * Notifikasi dikirim ke chat_id, dan chat_id hanya bisa didapat setelah orang
- * itu menekan Start di bot — jadi tiap akun menautkan dirinya sekali:
- *   1. buatTautanTelegram → token acak yang ditaruh di tautan t.me/<bot>?start=…
- *   2. orang membuka tautan, bot menerima /start <token>
- *   3. tautkanTelegram(token, chatId) mengunci chat itu ke akun tersebut
- * Cermin Postgres-nya ada di db-pg.js — kalau yang satu diubah, yang lain ikut. */
-
-export function buatTautanTelegram(username) {
-  const u = String(username || '').trim();
-  if (!u) throw new Error('Akun tidak dikenal.');
-  const token = crypto.randomBytes(24).toString('base64url');
-  const ada = db.prepare('SELECT username FROM telegram_akun WHERE username = ?').get(u);
-  if (ada) {
-    db.prepare('UPDATE telegram_akun SET tautan_token = ? WHERE username = ?').run(token, u);
-  } else {
-    db.prepare(`INSERT INTO telegram_akun (username, chat_id, tautan_token, ditautkan_pada, dibuat_pada)
-                VALUES (?, '', ?, '', ?)`).run(u, token, nowIso());
-  }
-  return token;
-}
-
-export function tautkanTelegram(token, chatId) {
-  const t = String(token || '').trim();
-  const c = String(chatId || '').trim();
-  if (!t || !c) return null;
-  const row = db.prepare(`SELECT username FROM telegram_akun
-                           WHERE tautan_token = ? AND tautan_token <> ''`).get(t);
-  if (!row) return null;
-  // Satu chat Telegram hanya boleh menempel ke satu akun: lepas tautan lama chat ini.
-  db.prepare("UPDATE telegram_akun SET chat_id = '' WHERE chat_id = ? AND username <> ?")
-    .run(c, row.username);
-  db.prepare(`UPDATE telegram_akun SET chat_id = ?, tautan_token = '', ditautkan_pada = ?
-               WHERE username = ?`).run(c, nowIso(), row.username);
-  const usr = db.prepare('SELECT nama FROM users WHERE username = ?').get(row.username);
-  return { username: row.username, nama: (usr && usr.nama) || row.username };
-}
-
-export function getChatIdTelegram(username) {
-  const u = String(username || '').trim();
-  if (!u) return '';
-  const row = db.prepare('SELECT chat_id FROM telegram_akun WHERE username = ?').get(u);
-  return (row && row.chat_id) || '';
-}
-
-export function putusTautanTelegram(username) {
-  const u = String(username || '').trim();
-  if (u) db.prepare("UPDATE telegram_akun SET chat_id = '', tautan_token = '' WHERE username = ?").run(u);
-  return { tertaut: false };
-}
-
-export function statusTautanTelegram(username) {
-  const u = String(username || '').trim();
-  if (!u) return { tertaut: false, ditautkanPada: '' };
-  const row = db.prepare('SELECT chat_id, ditautkan_pada FROM telegram_akun WHERE username = ?').get(u);
-  return { tertaut: !!(row && row.chat_id), ditautkanPada: (row && row.ditautkan_pada) || '' };
-}
-
 /* ============== LANGGANAN NOTIFIKASI HP ==============
  * Satu HP satu baris, dikunci endpoint-nya. HP yang dipakai bergantian dan
  * berlangganan lagi sesudah orang lain masuk berpindah ke akun yang terakhir —
  * satu perangkat tidak menerima kabar milik dua orang. Satu akun paling banyak
  * PUSH_MAKS_PERANGKAT perangkat; yang paling lama tidak diperbarui dibuang.
- * Cermin Postgres-nya di db-pg.js. */
+ */
 const PUSH_MAKS_PERANGKAT = 10;
 
 export function simpanLanggananPush({ username, endpoint, p256dh, auth, kunci = '', perangkat = '' }) {
@@ -3180,13 +3115,13 @@ export function tandaiPengingatTtd(jenis, id, waktuIso) {
 
 /* ============== RINGKASAN UNTUK NOTIFIKASI ==============
  * Kolom perihal satu catatan, apa adanya (snake_case), untuk disusun jadi
- * judul dan cuplikan pesan Telegram oleh ringkas-dokumen.js. Kolom yang dibaca
+ * judul dan cuplikan notifikasi oleh ringkas-dokumen.js. Kolom yang dibaca
  * per jenis juga ditentukan di sana (KOLOM_RINGKAS), berdampingan dengan kode
- * yang memakainya. Cermin Postgres-nya di db-pg.js. */
+ * yang memakainya. */
 /** Ke siapa sebuah catatan menunggu TTD, dan apakah sudah dibubuhkan — dibaca
     sebelum dan sesudah penyuntingan supaya notifikasi "perlu TTD" terkirim
     ketika tujuannya BARU dipilih atau diganti, bukan cuma saat lembar dibuat.
-    Cermin Postgres-nya di db-pg.js. */
+    */
 export function tujuanTtdCatatan(jenis, id) {
   const t = JENIS_TTD[jenis];
   if (!t) return null;
@@ -3217,7 +3152,7 @@ export function ringkasCatatan(jenis, id) {
  * satunya berarti mengirim dokumen orang lain ke orang yang keliru; diam lebih
  * aman daripada salah alamat.
  *
- * Cermin Postgres-nya di db-pg.js. */
+ */
 export const KOLOM_PELAKSANA = {
   logbook:    { list: 'teknisi_nama_list', tunggal: 'teknisi_nama' },
   dailycheck: { list: 'teknisi_nama_list', tunggal: 'teknisi_nama' },

@@ -32,11 +32,6 @@ services:
       PORT: "3000"
       ELOGBOOK_DATA_DIR: /app/elogbook/data
       ELOGBOOK_UPLOAD_DIR: /app/elogbook/uploads
-      # Dua pagar, sengaja dikosongkan di sini supaya tidak ada setelan yang
-      # bisa membelokkan E-Logbook dari SQLite lokal ke Postgres/Supabase.
-      # Itu pernah jadi jalur tak sengaja: elogbook/.env berisi DATABASE_URL.
-      ELOGBOOK_DB: ""
-      DATABASE_URL: ""
     volumes:
       - elogbook-data:/app/elogbook/data
       - elogbook-uploads:/app/elogbook/uploads

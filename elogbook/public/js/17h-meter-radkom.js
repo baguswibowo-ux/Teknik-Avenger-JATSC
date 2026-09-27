@@ -36,7 +36,7 @@
    state.__format === 'mrradkom' + state.__rkForm (id lembar). Seluruh rangkaian
    TTD Manager Teknik, kotak masuk TTD, sunting (updateDsTest), hapus, dan
    cetak sudah tersedia untuk 'dstest'. Guard daftar-site di insertDsTest
-   (db.js + db-pg.js) dilewati untuk format ini.
+   (db.js) dilewati untuk format ini.
 
    BENTUK LEMBAR = GRID. Berbeda dengan 17g yang tabelnya "baris item × kolom
    ukur", lembar Radkom banyak sel yang di-merge menurun (satu frekuensi dua

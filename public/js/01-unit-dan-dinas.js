@@ -10,7 +10,7 @@
      ADEGAN_UNIT   ilustrasi vektor tiap unit
 
    NAMA DAN PERALATAN UNIT TIDAK ADA DI SINI, DAN ITU DISENGAJA. Daftar unit
-   yang berlaku milik E-Logbook (UNIT di db.js dan db-pg.js); dashboard ini
+   yang berlaku milik E-Logbook (UNIT di db.js); dashboard ini
    menerimanya lewat getAllData dan menyusun UNIT dari situ — lihat srvPasang().
 
    Sebabnya pernah terlihat: berkas ini menulis ppabn sebagai "Pendaratan

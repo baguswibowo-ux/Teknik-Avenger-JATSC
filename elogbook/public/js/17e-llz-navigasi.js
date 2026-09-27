@@ -19,7 +19,7 @@
    'llzgc' + state.__llzForm (07l/07r/25r/25l). Seluruh rangkaian TTD Manager
    Teknik, kotak masuk TTD, hapus, dan cetak sudah tersedia untuk 'dstest',
    jadi lembar ini ikut memakainya tanpa tabel/rute baru. Guard daftar-site di
-   insertDsTest (db.js + db-pg.js) dilewati untuk format ini. */
+   insertDsTest (db.js) dilewati untuk format ini. */
 
 /* ---------- Bentuk lembar ---------- */
 

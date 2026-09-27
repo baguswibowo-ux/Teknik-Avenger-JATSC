@@ -19,7 +19,7 @@
    (ckg3/smrt1/smrt3). Seluruh rangkaian TTD pihak-kedua (Manager Teknik),
    kotak masuk TTD, hapus, dan cetak sudah tersedia untuk 'dstest' — jadi
    weekly check ikut memakainya tanpa tabel/rute baru. Guard daftar-site di
-   insertDsTest (db.js + db-pg.js) dilewati untuk format ini. */
+   insertDsTest (db.js) dilewati untuk format ini. */
 
 /* ---------- Bentuk lembar: seksi → blok {judul, kolom, baris} ---------- */
 

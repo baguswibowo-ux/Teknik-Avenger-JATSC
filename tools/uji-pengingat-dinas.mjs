@@ -26,7 +26,7 @@ import {
   SHIFT_MULAI, kodeBaku, jamMulai, dinasDalamRentang, usernameUntukPetak,
   kunciPengingat, jamWib, tanggalWib
 } from '../pengingat-dinas.js';
-import { pesanDinasMendatang } from '../telegram.js';
+import { pesanDinasMendatang } from '../pesan-notif.js';
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const AKAR = path.resolve(DIR, '..');

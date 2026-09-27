@@ -2,12 +2,12 @@
  * PENGINGAT KEGIATAN BERKALA — "sejam sesudah dinas mulai, ini yang belum dikerjakan"
  *
  * Kembaran pengingat-dinas.js untuk kegiatan berkala, dengan pola yang sama:
- * modul ini MURNI (tidak menyentuh berkas, jaringan, atau Telegram), server.js
+ * modul ini MURNI (tidak menyentuh berkas atau jaringan), server.js
  * dashboard yang menyambungkannya (periksaPengingatBerkala), dan ujinya di
  * tools/uji-pengingat-berkala.mjs.
  *
  * Permintaan Bagus, 14 September 2026: tiap orang yang berdinas menerima SATU
- * pesan Telegram satu jam sesudah dinasnya mulai, berisi kegiatan berkala unit
+ * notifikasi HP satu jam sesudah dinasnya mulai, berisi kegiatan berkala unit
  * itu yang harus dikerjakan. Pengingat saja — pengisiannya tetap di E-Logbook.
  *
  * YANG DISEBUT DI PESAN harus sama dengan yang dibunyikan lonceng dashboard

@@ -4,10 +4,10 @@
  * Modul milik dashboard. Bagian yang bisa dihitung tanpa server: membaca
  * jadwal dinas (data/dinas.json), menentukan siapa masuk kapan, dan
  * mencocokkan tiap petak dengan akun. Tidak menyentuh simpanan, tidak
- * menyentuh Telegram — teks pesannya disusun telegram.js (pesanDinasMendatang),
- * server.js dashboard yang menyambungkan semuanya (periksaPengingatDinas), dan
- * pengirimannya dititipkan ke E-Logbook lewat pintu internal
- * /internal/telegram/kirim, karena tabel chat_id tinggal di sana. Karena
+ * menyentuh jaringan — teks pesannya disusun pesan-notif.js
+ * (pesanDinasMendatang), server.js dashboard yang menyambungkan semuanya
+ * (periksaPengingatDinas), dan pengirimannya dititipkan ke E-Logbook lewat
+ * pintu internal /internal/notif/kirim, karena langganan HP tinggal di sana. Karena
  * murni, seluruh aturannya bisa diuji dengan jadwal buatan: lihat
  * tools/uji-pengingat-dinas.mjs.
  *

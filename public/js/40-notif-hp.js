@@ -1,7 +1,7 @@
 /* =======================================================================
    NOTIFIKASI HP — pasang Avengers di layar utama & terima notifikasi
 
-   Pengganti Telegram bagi yang tidak memakainya. Server E-Logbook yang
+   Satu-satunya kanal notifikasi. Server E-Logbook yang
    mengirim (webpush.js + pushStatus/pushLangganan/pushCoba), sw.js yang
    menampilkan notifikasinya di HP. Yang di sini hanya sisi orangnya:
 

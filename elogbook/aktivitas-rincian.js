@@ -11,7 +11,7 @@
  * sebelum/sesudahnya dikerjakan server.js (PENCATAT_AKTIVITAS).
  *
  * Isi dokumennya tidak disalin: cukup judul dan kepala perihalnya, lewat
- * ringkasDokumen yang sama dengan notifikasi Telegram.
+ * ringkasDokumen yang sama dengan notifikasi HP.
  */
 
 import { ringkasDokumen } from './ringkas-dokumen.js';

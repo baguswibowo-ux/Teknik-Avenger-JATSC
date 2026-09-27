@@ -33,7 +33,7 @@ const bulanKode = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2
    tampilan "hari ini" di layar dinas memakai tanggal UTC.
 
    Yang TIDAK ikut: umur peralatan, tanggal dokumen, dan sebagainya — itu
-   tanggal kalender biasa, bukan hari dinas. Pengingat Telegram di server
+   tanggal kalender biasa, bukan hari dinas. Pengingat dinas di server
    (pengingat-dinas.js) memang sudah menghitung dengan hari UTC sejak awal.
    ======================================================================= */
 
@@ -198,7 +198,7 @@ function dinasHariIni(kode){
  *
  * Hasilnya DRAF di mode sunting, bukan jadwal tersimpan: huruf gedung (J/N)
  * dan SPKL tidak berpola, dan jadwal yang terlanjur tersimpan langsung dipakai
- * pengingat Telegram. Yang mengisi tetap memeriksa, membetulkan, lalu Simpan.
+ * pengingat dinas. Yang mengisi tetap memeriksa, membetulkan, lalu Simpan.
  */
 
 /* Hari terakhir yang dibaca untuk menebak panjang putaran. Enam minggu dulu;

@@ -15,7 +15,7 @@
 #   2. DATA   : volume terpisah, diisi SALINAN lewat tools/docker-data.ps1.
 #   3. LOKASI : volume uji tidak bisa dilihat container produksi.
 #   4. PORT   : 3900/3910, produksi 3000/3100 tidak disentuh.
-#   5. NOTIF  : token Telegram dikosongkan di bawah, dan kunci push-vapid.json
+#   5. NOTIF  : kunci push-vapid.json
 #               tidak disalin oleh tools/docker-data.ps1 -> server uji bikin
 #               kuncinya sendiri, HP produksi tidak mungkin kena notif uji.
 
@@ -29,11 +29,7 @@ services:
       PORT: "3000"
       ELOGBOOK_DATA_DIR: /app/elogbook/data
       ELOGBOOK_UPLOAD_DIR: /app/elogbook/uploads
-      ELOGBOOK_DB: ""
-      DATABASE_URL: ""
-      # Pagar notifikasi: menang atas isi .env yang ikut terbaca dari env_file.
-      TELEGRAM_BOT_TOKEN: ""
-      TELEGRAM_POLLING: "0"
+      # Pagar notifikasi HP: menang atas isi .env yang ikut terbaca dari env_file.
       PUSH_MATI: ""
     ports: !override
       - "127.0.0.1:3900:3000"
@@ -46,8 +42,6 @@ services:
       HOST: 0.0.0.0
       PORT: "3100"
       ELOGBOOK_ASAL: http://elogbook:3000
-      TELEGRAM_BOT_TOKEN: ""
-      TELEGRAM_POLLING: "0"
     ports: !override
       - "3910:3100"
 

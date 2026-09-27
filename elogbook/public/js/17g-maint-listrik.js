@@ -35,8 +35,8 @@
    Weekly Check (17d), Ground Check (17e), dan Meter Reading (17f): dibedakan
    lewat state.__format === 'maintlistrik' + state.__mlForm (id lembar).
    Seluruh rangkaian TTD Manager Teknik, kotak masuk TTD, hapus, dan cetak
-   sudah tersedia untuk 'dstest'. Guard daftar-site di insertDsTest (db.js +
-   db-pg.js) dilewati untuk format ini.
+   sudah tersedia untuk 'dstest'. Guard daftar-site di insertDsTest (db.js)
+   dilewati untuk format ini.
 
    SEMUA KOTAK ISIAN DIWARNAI SENDIRI (--panel-2 / --line / --text) lewat kelas
    .ml-isi di css/05-tabel.css. Kotak bawaan peramban berlatar putih dan di

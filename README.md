@@ -923,10 +923,6 @@ Mengeluarkan: administrator saja, dan berkasnya ikut terhapus dari server.
 Membuka: siapa pun yang sudah masuk. Penjagaannya di server; kotak unggahnya
 memang padam sendiri kalau akun itu tidak berhak, tapi itu cuma kenyamanan.
 
-Di Vercel dan sejenisnya penyimpanannya tidak permanen, jadi unggahnya
-dimatikan dengan sebabnya — bukan 500 dari `fs.writeFile` yang tidak berarti
-apa-apa bagi pemakai. Sama seperti galeri dan jadwal dinas.
-
 ## Log aktivitas
 
 Layar **Aktivitas** di rel navigasi menjawab pertanyaan yang selalu datang
@@ -1049,10 +1045,6 @@ Satu lagi milik E-Logbook, dipasang di `elogbook/.env`:
 | ------------------------ | ------ | ------------------------------------------------- |
 | `ELOGBOOK_DAFTAR_AKUN`   | `1`    | set `0` untuk menutup daftar akun pra-login — dashboard sudah tidak memakainya |
 
-`GALERI_MATI` menyala sendiri kalau `VERCEL` terdeteksi — di sana berkas
-aplikasi baca-saja dan yang tertulis ke `/tmp` hilang begitu fungsinya selesai.
-Jadwal dinas ikut aturan yang sama: bisa dibaca di sana, tidak bisa disimpan.
-
 `DATA_CONTOH` pernah ada di tabel ini — set `0` supaya halaman tidak pernah
 jatuh ke data contoh. Data contohnya sudah dibuang, jadi tidak ada lagi yang
 membacanya; variabel yang terlanjur terpasang boleh dibiarkan.
@@ -1062,31 +1054,6 @@ servernya menunjuk ke E-Logbook yang benar. Tiga kolomnya — `galeriBisaTulis`,
 `dokumenBisaTulis`, dan `elogbookTerjangkau` — dipakai halaman untuk tidak
 menawarkan sesuatu yang pasti gagal: ketiganya tidak bisa ditebak dari sisi
 peramban, gagalnya baru ketahuan setelah tombolnya terlanjur ditekan.
-
-## Deploy ke Vercel
-
-Bagian ini sudah dilewati keadaan, dan yang berlaku sekarang ada di
-[DEPLOY.md](DEPLOY.md). Ringkasnya: sejak 19 Agustus 2026 kedua aplikasi hidup
-di Vercel dengan Supabase sebagai simpanannya, jadi yang ter-deploy memegang
-data yang sungguhan — bukan etalase. Yang tertulis di bawah ini berasal dari
-masa sebelum itu dan dibiarkan sebagai catatan sejarah.
-
-Berkas yang mengurus itu:
-
-- `api/index.js` — satu baris, menyerahkan app Express ke Vercel. Vercel
-  memanggil fungsi tiap permintaan, bukan menyalakan server; `server.js` karena
-  itu hanya memanggil `listen()` kalau dijalankan langsung.
-- `vercel.json` — `/api/*`, `/galeri/*`, dan `/_info` diarahkan ke fungsinya.
-  Sisanya berkas statis dari `public/`, disajikan Vercel langsung.
-
-Setel `ELOGBOOK_MATI=1` di environment variable proyek Vercel-nya. Tanpa itu tiap
-panggilan data menunggu 30 detik sampai batas waktu penerusan habis, baru gagal.
-Galeri mati dengan sendirinya di sana lewat deteksi `VERCEL`.
-
-Halaman menyesuaikan diri tanpa perlu diberi tahu: tombol **Buka E-Logbook**
-tidak dipasang kalau tidak ada alamat yang masuk akal untuk dituju, kotak unggah
-foto dan dokumen diganti keterangan kalau simpanannya tidak permanen, dan tombol
-hapus tidak digambar untuk yang tidak berhak.
 
 ## Asal-usul
 

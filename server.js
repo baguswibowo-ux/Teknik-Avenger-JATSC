@@ -33,13 +33,12 @@ import {
 import {
   kegiatanUntukDinas, paketDibutuhkan, kunciPengingatBerkala
 } from './pengingat-berkala.js';
-import { pesanDinasMendatang, pesanBerkalaDinas } from './telegram.js';
+import { pesanDinasMendatang, pesanBerkalaDinas } from './pesan-notif.js';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import {
-  bacaJson, tulisJson, DI_TABEL,
+  bacaJson, tulisJson,
   hapusJson, tulisBiner, bacaBiner, hapusBiner, mimeDari,
-  urlUnggahBertanda, ukuranBiner,
   BISA_TULIS_JSON, BISA_TULIS_BINER
 } from './simpanan.js';
 
@@ -109,19 +108,8 @@ if (PROXY_TEPERCAYA) {
    ===================================================================== */
 
 /* Jalur yang diteruskan APA ADANYA: prefiksnya memang milik E-Logbook juga,
-   jadi tidak ada yang perlu dipotong sebelum dikirim ke sana.
-
-   '/telegram' ikut di sini karena yang mengetuk pintunya BUKAN peramban
-   melainkan server Telegram: alamat webhook didaftarkan sekali ke Bot API, dan
-   sesudah itu tidak ada yang bisa membelokkannya lewat /logbook/. Tanpa baris
-   ini POST /telegram/webhook berhenti di 404 dashboard — dan gagalnya tidak
-   terlihat di mana pun, Telegram cuma diam dan penautan akun tidak pernah
-   terjadi. Kepala rahasianya (X-Telegram-Bot-Api-Secret-Token) ikut terusan
-   apa adanya, jadi pemeriksaan keaslian tetap terjadi di E-Logbook.
-
-   Selama TELEGRAM_POLLING=1 jalur ini menganggur — polling menarik update
-   sendiri. Ia baru dipakai kalau webhook diarahkan ke https://teknik-avengers.com. */
-const JALUR_TERUS = ['/api', '/uploads', '/telegram'];
+   jadi tidak ada yang perlu dipotong sebelum dikirim ke sana. */
+const JALUR_TERUS = ['/api', '/uploads'];
 
 /* =====================================================================
    /logbook — PINTU E-LOGBOOK DI DALAM ASAL INI
@@ -619,16 +607,8 @@ function galeriHidup(_req, res, next) {
  * .vercelignore menutup sebabnya. Jalur ini menutup KELASNYA: di bawah
  * /galeri/ tidak ada dan tidak akan pernah ada berkas di public/ yang bisa
  * membayanginya, apa pun yang terlanjur terunggah nanti.
- *
- * Sesinya dituntut hanya di jalur tabel — sama persis dengan syarat fotonya
- * sendiri di bawah, supaya jalur kantor tidak berubah sedikit pun.
  */
 app.get('/galeri/daftar', async (req, res) => {
-  if (DI_TABEL && !(await siapa(req))) {
-    return res.status(401).json({
-      error: 'Masuk dengan akun E-Logbook Anda dulu untuk melihat daftar galeri.'
-    });
-  }
   // Indeksnya berubah tiap unggahan, dan salinan lama di cache peramban membuat
   // foto yang baru masuk seolah tidak tersimpan.
   res.set('Cache-Control', 'no-store');
@@ -865,8 +845,8 @@ async function targetSuperadmin(username, req) {
      teknisi    Satu unit: mengisi dan mengubah, sebatas modul yang dibuka
 
    Peran `pic` sudah dihapus — akun lama dengan role='pic' dimigrasikan
-   otomatis jadi `adminunit` saat E-Logbook cold start (lihat elogbook/db.js
-   dan elogbook/db-pg.js).
+   otomatis jadi `adminunit` saat E-Logbook cold start (lihat elogbook/db.js).
+
    --------------------------------------------------------------------- */
 
 const MODUL_HAK = ['dinas', 'dinas-ttd', 'dinas-cetak', 'berkala', 'personel',
@@ -3352,133 +3332,6 @@ async function dokPenjagaIsi(req, res, unit) {
   return user;
 }
 
-/* =====================================================================
-   UNGGAH LANGSUNG — dua langkah, dan berkasnya tidak lewat sini
-
-   Vercel membatasi badan permintaan ke fungsi serverless di 4.500.000 byte
-   dan tidak menyediakan cara menaikkannya. Dikirim sebagai base64 di dalam
-   JSON, itu berarti berkas asli hanya ±3,2 MB yang muat — sementara layar rak
-   dokumen menjanjikan 25 MB. Selama berkasnya harus melewati fungsi ini,
-   janji itu mustahil ditepati, dan yang didapat pemakai adalah 413 telanjang
-   dari Vercel sebelum satu baris pun kode di sini sempat berjalan.
-
-   Jadi berkasnya tidak dilewatkan. '/siap' memeriksa hak dan menentukan nama
-   objeknya, lalu menjawab URL bertanda tangan berumur pendek; peramban menaruh
-   berkasnya langsung ke Storage. '/catat' memasukkannya ke daftar — dengan
-   ukuran yang dibaca dari simpanan, bukan dari angka yang dikirim layar.
-
-   Yang sengaja tidak dijaga: berkas yang sudah mendarat tapi '/catat'-nya tidak
-   pernah datang akan tinggal di bucket tanpa tercatat. Ia tidak muncul di layar
-   dan tidak merusak apa pun selain memakan ruang. Membereskannya butuh penyapu
-   berkala, dan itu pekerjaan tersendiri yang belum ada — disebut di sini supaya
-   tidak ditemukan orang lain sebagai kejutan.
-
-   Di kantor jalur ini tidak terpakai: '/siap' menjawab { langsung:false } dan
-   layar kembali ke unggahan base64 biasa, yang di sana memang tidak berbatas.
-   ===================================================================== */
-
-app.post('/dokumen/:unit/siap', dokumenHidup, badanDinas, async (req, res) => {
-  const unit = String(req.params.unit || '').toLowerCase();
-  const user = await dokPenjagaIsi(req, res, unit);
-  if (!user) return;
-
-  const nama = String(req.body?.nama || '').trim();
-  const ext = dokEkstensi(nama);
-  if (!ext) {
-    return res.status(400).json({
-      error: 'Jenis berkas ini tidak diterima. Yang boleh: '
-           + [...DOK_EXT].map((x) => x.slice(1).toUpperCase()).join(', ') + '.'
-    });
-  }
-
-  /* Ukuran di sini masih angka dari layar, jadi ia hanya dipakai untuk menolak
-     lebih awal — bukan untuk dicatat. Yang dicatat nanti dibaca dari simpanan. */
-  const ukuran = Number(req.body?.ukuran);
-  if (!Number.isFinite(ukuran) || ukuran <= 0) {
-    return res.status(400).json({ error: 'Ukuran berkas tidak disebut.' });
-  }
-  if (ukuran > DOK_BATAS) {
-    return res.status(413).json({ error: `Berkas lebih dari ${Math.round(DOK_BATAS / 1024 / 1024)} MB.` });
-  }
-
-  const id = crypto.randomBytes(8).toString('hex');
-  const berkas = id + ext;
-  try {
-    const url = await urlUnggahBertanda(path.join(DOK_DIR, unit, berkas));
-    // Tidak ada Storage yang bisa dituju — di kantor memang begitu, dan itu
-    // bukan kegagalan. Layar akan memakai jalur base64 yang lama.
-    if (!url) return res.json({ langsung: false });
-    res.json({ langsung: true, id, berkas, url });
-  } catch (e) {
-    console.error('[dokumen] gagal meminta izin unggah:', e);
-    res.status(502).json({ error: 'Simpanan tidak memberi izin unggah. Coba lagi sebentar lagi.' });
-  }
-});
-
-app.post('/dokumen/:unit/catat', dokumenHidup, badanDinas, async (req, res) => {
-  const unit = String(req.params.unit || '').toLowerCase();
-  const user = await dokPenjagaIsi(req, res, unit);
-  if (!user) return;
-
-  const nama = String(req.body?.nama || '').trim();
-  const ext = dokEkstensi(nama);
-  if (!ext) {
-    return res.status(400).json({
-      error: 'Jenis berkas ini tidak diterima. Yang boleh: '
-           + [...DOK_EXT].map((x) => x.slice(1).toUpperCase()).join(', ') + '.'
-    });
-  }
-
-  /* Penanda harus persis seperti yang dibuat '/siap'. Tanpa syarat ini, isinya
-     bisa dipakai menunjuk nama objek lain di dalam folder unit ini. */
-  const id = String(req.body?.id || '');
-  if (!/^[0-9a-f]{16}$/.test(id)) {
-    return res.status(400).json({ error: 'Penanda unggahan tidak sah.' });
-  }
-  const berkas = id + ext;
-  const jalur = path.join(DOK_DIR, unit, berkas);
-
-  try {
-    /* Sekaligus dua hal: bukti bahwa berkasnya memang mendarat, dan ukuran
-       sebenarnya. Unggahan yang putus di tengah mendarat lebih kecil daripada
-       yang dijanjikan layar, dan catatan yang berbohong soal itu lebih buruk
-       daripada tidak mencatat sama sekali. */
-    const ukuran = await ukuranBiner(jalur);
-    if (!ukuran) {
-      return res.status(404).json({
-        error: 'Berkasnya tidak ada di simpanan — unggahannya mungkin terputus. Coba ulangi.'
-      });
-    }
-    if (ukuran > DOK_BATAS) {
-      await hapusBiner(jalur);
-      return res.status(413).json({ error: `Berkas lebih dari ${Math.round(DOK_BATAS / 1024 / 1024)} MB.` });
-    }
-
-    const daftar = await bacaJson(DOK_JSON, {});
-    const isiUnit = daftar[unit] || (daftar[unit] = []);
-    const baris = dokBaris({
-      id, berkas, nama,
-      jenis: req.body?.jenis,
-      ukuran,
-      kategori: req.body?.kategori,
-      alat: req.body?.alat,
-      isr: req.body?.isr,
-      notam: req.body?.notam,
-      waktu: new Date().toISOString(),
-      oleh: user.username,
-      olehNama: user.nama || user.username
-    });
-    isiUnit.unshift(baris);
-    await tulisJson(DOK_JSON, daftar);
-
-    await catat(user, { modul: 'dokumen', aksi: 'unggah', unit, rincian: nama });
-    res.json({ ok: true, baris, jumlah: isiUnit.length });
-  } catch (e) {
-    console.error('[dokumen] gagal mencatat unggahan langsung:', e);
-    res.status(500).json({ error: 'Gagal mencatat berkas: ' + (e?.message || e) });
-  }
-});
-
 /** Unggah satu berkas. Bentuk badannya sama dengan galeri: base64 di dalam JSON. */
 app.post('/dokumen/:unit', dokumenHidup, badanGaleri, async (req, res) => {
   const unit = String(req.params.unit || '').toLowerCase();
@@ -3829,80 +3682,7 @@ app.get('/personel/berkas', async (req, res) => {
   res.json({ berkas: await bacaJson(PSN_JSON, {}), bisaTulis: DOK_TULIS });
 });
 
-/** Minta izin unggah langsung. Bentuknya sama dengan /dokumen/:unit/siap, dan
-    alasannya sama: batas 4.500.000 byte di Vercel. Pindaian sertifikat A4
-    berwarna lewat dengan mudah di atas angka itu. */
-app.post('/personel/:id/berkas/siap', badanDinas, async (req, res) => {
-  const penjaga = await psnPenjagaIsi(req, res);
-  if (!penjaga) return;
-
-  const nama = String(req.body?.nama || '').trim();
-  const ext = dokEkstensi(nama);
-  if (!ext) {
-    return res.status(400).json({
-      error: 'Jenis berkas ini tidak diterima. Yang boleh: '
-           + [...DOK_EXT].map((x) => x.slice(1).toUpperCase()).join(', ') + '.'
-    });
-  }
-  const ukuran = Number(req.body?.ukuran);
-  if (!Number.isFinite(ukuran) || ukuran <= 0) {
-    return res.status(400).json({ error: 'Ukuran berkas tidak disebut.' });
-  }
-  if (ukuran > DOK_BATAS) {
-    return res.status(413).json({ error: `Berkas lebih dari ${Math.round(DOK_BATAS / 1024 / 1024)} MB.` });
-  }
-
-  const bid = crypto.randomBytes(8).toString('hex');
-  const berkas = bid + ext;
-  try {
-    const url = await urlUnggahBertanda(path.join(PSN_DIR, penjaga.id, berkas));
-    if (!url) return res.json({ langsung: false });
-    res.json({ langsung: true, id: bid, berkas, url });
-  } catch (e) {
-    console.error('[personel] gagal meminta izin unggah:', e);
-    res.status(502).json({ error: 'Simpanan tidak memberi izin unggah. Coba lagi sebentar lagi.' });
-  }
-});
-
-/** Catat berkas yang sudah mendarat lewat URL bertanda tangan. */
-app.post('/personel/:id/berkas/catat', badanDinas, async (req, res) => {
-  const penjaga = await psnPenjagaIsi(req, res);
-  if (!penjaga) return;
-
-  const nama = String(req.body?.nama || '').trim();
-  const ext = dokEkstensi(nama);
-  if (!ext) return res.status(400).json({ error: 'Jenis berkas ini tidak diterima.' });
-
-  const bid = String(req.body?.id || '');
-  if (!/^[0-9a-f]{16}$/.test(bid)) {
-    return res.status(400).json({ error: 'Penanda unggahan tidak sah.' });
-  }
-  const berkas = bid + ext;
-  const jalur = path.join(PSN_DIR, penjaga.id, berkas);
-
-  try {
-    // Ukurannya dibaca dari simpanan, bukan dari angka yang dikirim layar:
-    // unggahan yang putus di tengah mendarat lebih kecil daripada yang
-    // dijanjikan, dan catatan yang berbohong soal itu lebih buruk daripada
-    // tidak mencatat sama sekali.
-    const ukuran = await ukuranBiner(jalur);
-    if (!ukuran) {
-      return res.status(404).json({
-        error: 'Berkasnya tidak ada di simpanan — unggahannya mungkin terputus. Coba ulangi.'
-      });
-    }
-    if (ukuran > DOK_BATAS) {
-      await hapusBiner(jalur);
-      return res.status(413).json({ error: `Berkas lebih dari ${Math.round(DOK_BATAS / 1024 / 1024)} MB.` });
-    }
-    res.json({ ok: true, baris: await psnBerkasSimpan(penjaga, { id: bid, berkas, nama, ukuran, req }) });
-  } catch (e) {
-    console.error('[personel] gagal mencatat unggahan langsung:', e);
-    res.status(500).json({ error: 'Gagal mencatat berkas: ' + (e?.message || e) });
-  }
-});
-
-/** Unggah base64 — jalur kantor, dan cadangan kalau Storage tidak menjawab. */
+/** Unggah base64. */
 app.post('/personel/:id/berkas', badanGaleri, async (req, res) => {
   const penjaga = await psnPenjagaIsi(req, res);
   if (!penjaga) return;
@@ -4561,15 +4341,8 @@ app.get('/_info', (_req, res) => {
        yang terbelah — jangan diisi tanpa alasan yang lebih kuat dari itu. */
     tautanElogbook: process.env.ELOGBOOK_TAUTAN || (TERUS ? JALUR_LOGBOOK + '/' : null),
     portElogbook: TERUS ? Number(new URL(ASAL).port || 80) : null,
-    /* Ke mana simpanan menulis. Bukan rahasia — ia cuma menyebut jalurnya,
-       bukan alamat atau kuncinya.
-
-       Ini yang paling menentukan dan paling tidak terlihat: kalau AVENGER_DB
-       tidak sampai ke deployment, aplikasinya tetap menjawab 200 di semua
-       halaman, cuma isinya kosong. Tanpa baris ini, satu-satunya cara
-       membedakan "belum ada datanya" dari "melihat ke tempat yang salah"
-       adalah menebak. */
-    simpanan: DI_TABEL ? 'tabel' : 'berkas',
+    // Ke mana simpanan menulis. Sejak jalur tabel dibuang, selalu berkas.
+    simpanan: 'berkas',
     // Dua kemampuan yang tidak selalu ada, supaya halaman tidak menawarkan
     // tombol yang pasti gagal. Menebaknya dari sisi peramban tidak mungkin:
     // gagalnya baru ketahuan setelah tombolnya terlanjur ditekan.
@@ -4581,67 +4354,6 @@ app.get('/_info', (_req, res) => {
     elogbookTerjangkau: TERUS || !!process.env.ELOGBOOK_TAUTAN
   });
 });
-
-/* =====================================================================
-   FOTO DI JALUR TABEL
-
-   Di server kantor foto ada di public/foto/ dan express.static di bawah yang
-   menyajikannya — tidak ada yang berubah di sana, dan rute ini tidak dipasang
-   sama sekali.
-
-   Di jalur tabel fotonya tidak ada di disk, jadi ia harus diambilkan dari
-   Storage. Rute ini dipasang SEBELUM express.static supaya ia yang menjawab.
-
-   SATU HAL YANG BERUBAH ARTINYA, DAN PANTAS DIKATAKAN TERANG-TERANGAN
-
-   Selama Avenger di kantor, /foto/ terbuka tanpa masuk — dan itu tidak apa-apa,
-   karena yang bisa menjangkaunya cuma orang di dalam jaringan kantor. Begitu
-   Avenger pindah ke Vercel, rute yang sama terbuka untuk seluruh internet.
-   Bucket yang privat TIDAK menutup itu: privat cuma menghalangi jalan langsung
-   ke Supabase, sedangkan rute ini berdiri di depannya.
-
-   Karena isinya wajah pegawai di ruang terbatas, di jalur tabel foto unit
-   MENUNTUT SESI. Logo unit tidak — ia memang lambang yang untuk dilihat, dan
-   menutupnya cuma membuat kop halaman rusak bagi yang belum masuk.
-
-   Kalau suatu saat galeri memang ingin terbuka untuk umum, itu keputusan
-   tersendiri yang pantas diambil sadar-sadar, bukan diwarisi diam-diam dari
-   cara berkasnya kebetulan disajikan. */
-if (DI_TABEL) {
-  app.get('/foto/:unit/:berkas', async (req, res) => {
-    const unit = String(req.params.unit || '').toLowerCase();
-    const logo = unit === '_logo';
-    if (!logo && !unitSah(unit)) return res.status(400).json({ error: 'Kode unit tidak sah.' });
-
-    /* Sesi diperiksa SEBELUM daftarnya dibuka, dan urutan itu bukan kebetulan.
-       Kalau dibalik, yang terdaftar menjawab 401 sementara yang tidak menjawab
-       404 — dan selisih dua angka itu sudah cukup untuk menebak-nebak nama
-       berkas dari luar sampai ketemu. Nama foto di sini memuat kode unit dan
-       tanggal, jadi yang bocor bukan cuma "ada berkas". */
-    if (!logo && !(await siapa(req))) {
-      return res.status(401).json({
-        error: 'Masuk dengan akun E-Logbook Anda dulu untuk melihat foto unit.'
-      });
-    }
-
-    /* Yang disajikan hanya yang memang terdaftar. Tanpa syarat ini, rute ini
-       jadi jalan membaca objek apa pun di dalam bucket dengan menebak namanya. */
-    const nama = path.basename(String(req.params.berkas || ''));
-    const terdaftar = logo
-      ? Object.values(await bacaJson(LOGO_JSON, {})).some((l) => l && l.berkas === nama)
-      : ((await bacaDaftar())[unit] || []).some((f) => f.berkas === nama);
-    if (!terdaftar) return res.status(404).json({ error: 'Foto tidak ada dalam daftar.' });
-
-    try {
-      const berkas = await bacaBiner(path.join(FOTO_DIR, unit, nama));
-      if (!berkas) return res.status(404).json({ error: 'Berkasnya tidak ada lagi di simpanan.' });
-      res.type(berkas.mime || mimeDari(nama)).send(berkas.buf);
-    } catch (e) {
-      console.error('[foto] gagal mengambil:', e);
-      res.status(502).json({ error: 'Simpanan foto tidak terjawab.' });
-    }
-  });
-}
 
 /* =====================================================================
    SATU BERKAS JS, SATU BERKAS CSS
@@ -4859,18 +4571,18 @@ app.use(express.static(path.join(ROOT, 'public'), {
 }));
 
 /* =====================================================================
-   PENGINGAT DINAS — sejam sebelum masuk, lewat Telegram
+   PENGINGAT DINAS — sejam sebelum masuk, lewat notifikasi HP
 
    Tiap orang yang tercantum di jadwal dinas (data/dinas.json) diberi tahu
    satu jam sebelum dinasnya mulai — "Anda dijadwalkan dinas PS JATSC, mulai
    07:00 WIB". Sekali per orang per petak dinas.
 
-   Hitungannya di sini, di dashboard: jadwalnya milik dashboard, tautan
-   Telegram dibuat dari Profil di dashboard, dan pengingat berikutnya
-   (kegiatan berkala) datanya juga di sini. Yang dititipkan ke E-Logbook hanya
-   dua hal yang memang tinggal di sana — daftar akun (username = NIK) beserta
-   nama unit, dan pengiriman ke chat_id — lewat pintu internal /internal/daftar
-   dan /internal/telegram/kirim, yang hanya menerima dari loopback.
+   Hitungannya di sini, di dashboard: jadwalnya milik dashboard, dan pengingat
+   berikutnya (kegiatan berkala) datanya juga di sini. Yang dititipkan ke
+   E-Logbook hanya dua hal yang memang tinggal di sana — daftar akun (username
+   = NIK) beserta nama unit, dan pengiriman ke HP yang berlangganan — lewat
+   pintu internal /internal/daftar dan /internal/notif/kirim, yang hanya
+   menerima dari loopback.
 
    Aturan jam, pembakuan kode, dan pencocokan orang → akun ada di
    pengingat-dinas.js (murni, teruji: tools/uji-pengingat-dinas.mjs). Yang di
@@ -4887,9 +4599,9 @@ app.use(express.static(path.join(ROOT, 'public'), {
    menulis. Pengingat jenis lain nanti memakai berkas yang sama dengan awalan
    kunci sendiri.
 
-   Yang belum menautkan Telegram, atau yang petaknya tidak ketemu akun (NIK
-   kosong DAN namanya tidak cocok), dilewati tanpa ditandai — kalau ia
-   menautkan masih di dalam jendela, pengingatnya tetap sampai. Gagal kirim
+   Yang belum mengaktifkan notifikasi HP, atau yang petaknya tidak ketemu akun
+   (NIK kosong DAN namanya tidak cocok), dilewati tanpa ditandai — kalau ia
+   mengaktifkannya masih di dalam jendela, pengingatnya tetap sampai. Gagal kirim
    juga tidak ditandai. Jadwal dibaca ulang tiap putaran: tukar dinas hari itu
    langsung berlaku. PENGINGAT_DINAS_MENIT di .env mengganti 60 menit, khusus
    untuk menguji.
@@ -4910,14 +4622,14 @@ async function daftarELogbook() {
 }
 
 /** Titipkan satu pesan ke E-Logbook → { aktif, tertaut, terkirim }. */
-async function kirimTelegramKeAkun(username, teks) {
-  const jawab = await fetch(ASAL + '/internal/telegram/kirim', {
+async function kirimNotifKeAkun(username, teks) {
+  const jawab = await fetch(ASAL + '/internal/notif/kirim', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, teks }),
     signal: AbortSignal.timeout(15000)
   });
-  if (!jawab.ok) throw new Error(`E-Logbook menjawab ${jawab.status} untuk /internal/telegram/kirim`);
+  if (!jawab.ok) throw new Error(`E-Logbook menjawab ${jawab.status} untuk /internal/notif/kirim`);
   return await jawab.json();
 }
 
@@ -4955,7 +4667,7 @@ async function periksaPengingatDinas() {
         unit: namaUnit(p.unit), namaShift: p.namaShift, kode: p.kode,
         tanggal: tanggalWib(p.mulaiMs), jam: jamWib(p.mulaiMs), menit: sisaMenit
       });
-      const hasil = await kirimTelegramKeAkun(username, teks);
+      const hasil = await kirimNotifKeAkun(username, teks);
       if (!hasil.aktif) return;            // bot tidak dikonfigurasi: percuma lanjut
       if (hasil.terkirim) { terkirim[kunci] = new Date().toISOString(); berubah = true; }
     }
@@ -4980,7 +4692,7 @@ async function periksaPengingatDinas() {
    PENGINGAT KEGIATAN BERKALA — sejam sesudah dinas mulai
 
    Tiap orang yang berdinas (jadwal dashboard, bukan CUTI/CAP/IJIN/DL) menerima
-   satu pesan Telegram PENGINGAT_BERKALA_MENIT (bawaan 60) sesudah dinasnya
+   satu notifikasi HP PENGINGAT_BERKALA_MENIT (bawaan 60) sesudah dinasnya
    mulai, berisi kegiatan berkala unitnya yang jatuh hari ini atau sudah lewat
    dan belum dikerjakan. Tidak ada yang belum dikerjakan → tidak ada pesan.
    Permintaan Bagus 14 September 2026; aturan pemilihan kegiatannya di
@@ -5054,7 +4766,7 @@ async function periksaPengingatBerkala() {
         unit: namaUnit(p.unit), namaShift: p.namaShift, kode: p.kode,
         tanggal: tanggalWib(p.mulaiMs), jam: jamWib(p.mulaiMs), daftar
       });
-      const hasil = await kirimTelegramKeAkun(username, teks);
+      const hasil = await kirimNotifKeAkun(username, teks);
       if (!hasil.aktif) break;             // bot tidak dikonfigurasi: percuma lanjut
       if (hasil.terkirim) baru[kunci] = new Date().toISOString();
     }
@@ -5095,9 +4807,7 @@ if (dijalankanLangsung) {
     /* Ke mana simpanan menulis adalah hal yang paling mahal kalau salah dan
        paling tidak terlihat kalau tidak dikatakan: jadwal yang tersimpan ke
        tempat yang keliru baru ketahuan waktu orang lain tidak melihatnya. */
-    console.log(DI_TABEL
-      ? 'Simpanan modul Avenger: tabel avenger_state di Postgres.'
-      : `Simpanan modul Avenger: berkas di ${DATA_DIR}`);
+    console.log(`Simpanan modul Avenger: berkas di ${DATA_DIR}`);
     if (!GALERI) console.log('Galeri dimatikan — penyimpanan tidak permanen.');
   });
 

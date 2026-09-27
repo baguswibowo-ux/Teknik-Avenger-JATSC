@@ -28,7 +28,7 @@ import {
   kegiatanUntukDinas, kunciPengingatBerkala
 } from '../pengingat-berkala.js';
 import { SHIFT_MULAI } from '../pengingat-dinas.js';
-import { pesanBerkalaDinas } from '../telegram.js';
+import { pesanBerkalaDinas } from '../pesan-notif.js';
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const AKAR = path.resolve(DIR, '..');

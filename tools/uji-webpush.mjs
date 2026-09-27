@@ -8,13 +8,13 @@
  *   2. Pesan yang dienkripsi bisa dibuka lagi dengan cara HP membukanya.
  *   3. Token VAPID sah menurut kunci publiknya, dan audiensnya asal layanan.
  *   4. Hanya alamat layanan notifikasi yang dikenal yang diterima.
- *   5. Teks Telegram berubah jadi judul + isi yang benar.
+ *   5. Teks pesan-notif.js berubah jadi judul + isi yang benar.
  */
 import crypto from 'node:crypto';
 import {
   buatKunciVapid, kunciVapidSah, tokenVapid, enkripsi, endpointSah, kunciLanggananSah, pesanUntukPush
 } from '../webpush.js';
-import { pesanPerluTtd, pesanBelumTtd } from '../telegram.js';
+import { pesanPerluTtd, pesanBelumTtd } from '../pesan-notif.js';
 
 let lulus = 0, gagal = 0;
 function cek(nama, benar, rinci) {
@@ -107,7 +107,7 @@ cek('akhiran tanpa titik ditolak', !endpointSah('https://evilpush.apple.com/x'))
 cek('sampah ditolak', !endpointSah('bukan url') && !endpointSah(''));
 cek('kunci langganan pendek ditolak', !kunciLanggananSah('BAAA', 'AAAA'));
 
-console.log('\n5. Teks Telegram → notifikasi HP');
+console.log('\n5. Teks pesan → notifikasi HP');
 {
   const m = pesanUntukPush(pesanPerluTtd({
     dokumen: 'Logbook — JATSC', unit: 'Radtel', tanggal: '2026-09-15', pembuat: 'Bagus Wibowo',
