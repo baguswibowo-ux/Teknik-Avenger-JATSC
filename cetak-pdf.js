@@ -19,6 +19,8 @@
  *   - --proxy-server ke port mati: kalaupun ada yang lolos, tidak ada
  *     permintaan jaringan yang sampai ke mana pun.
  *   - Satu proses sekaligus (antrean), dan batas waktu 45 detik.
+ *   - Sandbox peramban dicoba dulu; tanpa sandbox hanya kalau proses server
+ *     berhak tinggi (SYSTEM / administrator) dan sandbox-nya menolak jalan.
  *
  * Peramban dicari di PDF_PERAMBAN (env) lalu di lokasi baku Windows dan Linux.
  * Tidak ketemu → pdfTersedia() false dan tombolnya menjawab dengan jelas.
@@ -50,7 +52,11 @@ function peramban() {
 export const pdfTersedia = () => !!peramban();
 
 const DIR_KERJA = path.join(os.tmpdir(), 'avenger-pdf');
-const PROFIL = path.join(DIR_KERJA, 'profil');   // dipakai ulang — start berikutnya lebih cepat
+/* Profil peramban dipakai ulang (start berikutnya lebih cepat), tapi satu per
+   server: server uji dan server lain yang jalan di akun Windows yang sama
+   punya %TEMP% yang sama, dan dua peramban yang berebut satu profil membuat
+   yang kedua keluar diam-diam tanpa PDF. */
+const PROFIL = path.join(DIR_KERJA, 'profil-' + String(process.env.PORT || 'bawaan').replace(/\W/g, ''));
 
 /** Buang unsur yang bisa menjalankan kode atau memanggil jaringan. CSP di
     dokumen sudah menutupnya; ini lapis kedua. */
@@ -108,18 +114,31 @@ async function jalankan(dokumen) {
   const keluar = path.join(dir, 'lembar.pdf');
   try {
     await fs.promises.writeFile(masuk, dokumen, 'utf8');
-    await new Promise((selesai, gagal) => {
+    const coba = (ekstra) => new Promise((selesai) => {
       execFile(exe, [
         '--headless', '--disable-gpu', '--no-first-run', '--no-default-browser-check',
         '--disable-extensions', '--user-data-dir=' + PROFIL, '--proxy-server=127.0.0.1:9',
-        '--no-pdf-header-footer', '--print-to-pdf=' + keluar, pathToFileURL(masuk).href
-      ], { timeout: 45000, windowsHide: true }, (err) => {
+        ...ekstra, '--no-pdf-header-footer', '--print-to-pdf=' + keluar, pathToFileURL(masuk).href
+      ], { timeout: 45000, windowsHide: true }, (err, _keluaran, galat) => {
         // Edge sering keluar dengan kode bukan-nol walau PDF-nya jadi; yang
         // menentukan adalah berkasnya.
-        if (fs.existsSync(keluar)) return selesai();
-        gagal(new Error('Peramban tidak menghasilkan PDF' + (err ? ` (${err.code || err.message})` : '') + '.'));
+        selesai({ jadi: fs.existsSync(keluar), err, galat: String(galat || '') });
       });
     });
+    /* Proses yang berhak tinggi — server produksi jalan sebagai SYSTEM, dan
+       server uji dari PowerShell "Run as administrator" — tidak bisa
+       menyalakan sandbox peramban, dan peramban lalu keluar diam-diam tanpa
+       PDF. Percobaan kedua tanpa sandbox. Dokumennya tetap terkunci CSP:
+       tidak ada skrip yang jalan dan tidak ada jaringan. */
+    let hasil = await coba([]);
+    if (!hasil.jadi) hasil = await coba(['--no-sandbox']);
+    if (!hasil.jadi) {
+      const ekor = hasil.galat.split(/\r?\n/)
+        .filter((b) => b && !/language_detection|Extensions\\|vbs_encoder|get_updates_processor|task_manager/.test(b))
+        .slice(-2).join(' | ').slice(0, 300);
+      throw new Error('Peramban tidak menghasilkan PDF'
+        + (hasil.err ? ` (${hasil.err.code || hasil.err.message})` : '') + (ekor ? `: ${ekor}` : '') + '.');
+    }
     return await fs.promises.readFile(keluar);
   } finally {
     fs.promises.rm(dir, { recursive: true, force: true }).catch(() => {});
