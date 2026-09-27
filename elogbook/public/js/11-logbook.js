@@ -300,7 +300,8 @@ function openEntryDetail(id){
 }
 
 /* ---------- Sunting catatan logbook tersimpan ----------
-   Tanggal, jam, dinas, lokasi, uraian, dan lampiran — bukan nama teknisi atau
+   Tanggal, jam, dinas, lokasi, uraian, lampiran, dan Manager Teknik tujuan
+   TTD (nama + akun, seperti lembar checklist) — bukan nama teknisi atau
    tanda tangan. Itu bukti kerja yang sudah dibubuhkan, bukan metadata yang
    boleh ditimpa diam-diam.
 
@@ -381,6 +382,10 @@ function openEntryEditModal(id){
   document.getElementById('feeFrek').value = e.frek || '';
   document.getElementById('feeUraian').value = e.uraian || '';
   isiPilihanLokasiEdit(e.lokasi);
+  document.getElementById('feePjNama').value = e.pjNama || '';
+  const akunPj = document.getElementById('feePjAkun');
+  akunPj.value = e.ttdUntuk || '';
+  if(akunPj.value !== (e.ttdUntuk || '')) akunPj.value = '';
 
   entryEditLampiranAda = e.lampiran || [];
   entryEditLampiranBuang = [];
@@ -435,6 +440,8 @@ async function saveEntryEdit(){
     dinas: document.getElementById('feeDinas').value,
     lokasi: document.getElementById('feeLokasi').value,
     uraian,
+    pjNama: document.getElementById('feePjNama').value.trim(),
+    ttdUntuk: ttdUntukTerpilih('feePjAkun', document.getElementById('feePjNama').value),
     lampiranBaru: kirimLampiran('feeLampiran'),
     lampiranHapus: entryEditLampiranBuang,
     // Daftar utuh, bukan tambah/buang: jendelanya memang menampilkan seluruh

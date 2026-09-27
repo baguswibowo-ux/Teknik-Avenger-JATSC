@@ -2458,6 +2458,12 @@
       </div>
       <div class="lampiran-hint" id="feeTtdHint"></div>
     </div>
+    <!-- Manager Teknik tujuan TTD — boleh diganti selama belum menandatangani,
+         sama seperti lembar checklist (DS test, daily check, dst). -->
+    <div class="grid2">
+      <div class="field"><label data-t="pjNama">Manager Teknik (nama)</label><input type="text" id="feePjNama" list="pejabatDatalist" data-t-ph="phNamaPj" placeholder="Nama manager teknik"></div>
+      <div class="field"><label data-t="kirimTtdKe">Kirim TTD ke akun</label><select id="feePjAkun"><option value="" data-t="kirimTtdOtomatis">Otomatis (dari nama di atas)</option></select></div>
+    </div>
     <div class="modal-footer">
       <button class="btn ghost" onclick="closeEntryEditModal()" data-t="batal">Batal</button>
       <button class="btn" id="feeSaveBtn" onclick="saveEntryEdit()" data-t="simpanPerubahan">💾 Simpan Perubahan</button>

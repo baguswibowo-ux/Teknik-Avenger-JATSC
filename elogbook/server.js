@@ -1310,8 +1310,10 @@ const API = {
     const unit = await unitCatatan('logbook', String(id));
     if (!unit) throw new Error('Catatan tidak ditemukan — mungkin sudah dihapus.');
     await pastikanUnit(user, unit);
+    const p = { ...(patch || {}) };
+    if (p.ttdUntuk !== undefined) p.ttdUntuk = await ttdUntukSah(p.ttdUntuk);
     const sebelum = await tujuanTtdSebelum('logbook', id);
-    const hasil = await updateEntry(String(id), patch || {}, { username: user.username, admin: kelolaUnit(user) });
+    const hasil = await updateEntry(String(id), p, { username: user.username, admin: kelolaUnit(user) });
     await notifJikaTujuanBaru('logbook', id, sebelum, user);
     return hasil;
   },

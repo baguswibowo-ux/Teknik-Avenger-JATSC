@@ -1432,6 +1432,10 @@ export async function updateEntry(id, patch = {}, actor = {}) {
     dinas: patch.dinas !== undefined ? String(patch.dinas || '') : row.dinas,
     lokasi: patch.lokasi !== undefined ? (lokasiSah(patch.lokasi) ? patch.lokasi : '') : row.lokasi,
     uraian,
+    // Manager Teknik tujuan TTD boleh diganti selama belum menandatangani —
+    // pagar pj_ttd di atas sudah menjamin itu.
+    pj_nama: patch.pjNama !== undefined ? String(patch.pjNama || '').trim() : row.pj_nama,
+    ttd_untuk: patch.ttdUntuk !== undefined ? String(patch.ttdUntuk || '').trim() : row.ttd_untuk,
     // Daftar utuh, bukan tambah/buang — alasannya sama dengan versi SQLite.
     tautan_json: patch.tautan !== undefined
       ? JSON.stringify(await siapkanTautan(patch.tautan))
@@ -1445,10 +1449,10 @@ export async function updateEntry(id, patch = {}, actor = {}) {
 
   await jalankan(
     `UPDATE entries SET tanggal = $1, jam = $2, jam_selesai = $3, frek = $4, dinas = $5, lokasi = $6, uraian = $7,
-                        tautan_json = $8, teknisi_ttd = $9
-     WHERE id = $10`,
+                        tautan_json = $8, teknisi_ttd = $9, pj_nama = $10, ttd_untuk = $11
+     WHERE id = $12`,
     [next.tanggal, next.jam, next.jam_selesai, next.frek, next.dinas, next.lokasi, next.uraian,
-     next.tautan_json, next.teknisi_ttd, String(id)]
+     next.tautan_json, next.teknisi_ttd, next.pj_nama, next.ttd_untuk, String(id)]
   );
 
   const nama = await petaNamaPengguna();

@@ -482,7 +482,7 @@ async function bukaDetailTitipan(jenis, id){
 /* Daftar ini HARUS ditambah setiap kali ada modal baru ber-<select> akun —
    kalau terlewat, pilihannya cuma "Otomatis" dan nama pejabat tidak muncul
    (itu yang terjadi pada mlManagerAkun sebelum masuk daftar ini). */
-const AKUN_TTD_SELECT_ID = ['fePjAkun','dcManagerAkun','dcAmhsAkun_amhs','dcAmhsAkun_aadps','dcAmhsAkun_datis','monOpsAkun','dsManagerAkun','radioManagerAkun','wkManagerAkun','llzManagerAkun','mrManagerAkun','mlManagerAkun','rkManagerAkun','bkManagerAkun','ltkManagerAkun','bapbTeknikAkun'];
+const AKUN_TTD_SELECT_ID = ['fePjAkun','feePjAkun','dcManagerAkun','dcAmhsAkun_amhs','dcAmhsAkun_aadps','dcAmhsAkun_datis','monOpsAkun','dsManagerAkun','radioManagerAkun','wkManagerAkun','llzManagerAkun','mrManagerAkun','mlManagerAkun','rkManagerAkun','bkManagerAkun','ltkManagerAkun','bapbTeknikAkun'];
 
 /** Isi <datalist> saran nama akun dan tiap <select> pilihan akun eksplisit —
     dipanggil sekali saat data dimuat. */

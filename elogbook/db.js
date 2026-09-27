@@ -1681,6 +1681,10 @@ export function updateEntry(id, patch = {}, actor = {}) {
     dinas: patch.dinas !== undefined ? String(patch.dinas || '') : row.dinas,
     lokasi: patch.lokasi !== undefined ? (lokasiSah(patch.lokasi) ? patch.lokasi : '') : row.lokasi,
     uraian,
+    // Manager Teknik tujuan TTD boleh diganti selama belum menandatangani —
+    // pagar pj_ttd di atas sudah menjamin itu.
+    pj_nama: patch.pjNama !== undefined ? String(patch.pjNama || '').trim() : row.pj_nama,
+    ttd_untuk: patch.ttdUntuk !== undefined ? String(patch.ttdUntuk || '').trim() : row.ttd_untuk,
     // Dikirim sebagai daftar utuh, bukan tambah/buang satu per satu: jendela
     // suntingnya memang menampilkan seluruh tautan sekaligus, dan daftar utuh
     // tidak bisa salah urutan kalau dua penyimpanan saling susul.
@@ -1699,10 +1703,10 @@ export function updateEntry(id, patch = {}, actor = {}) {
   next.teknisi_ttd = bubuhTtd ? saveSignature(bubuhTtd, 'logbook_teknisi') : row.teknisi_ttd;
 
   db.prepare(`UPDATE entries SET tanggal = ?, jam = ?, jam_selesai = ?, frek = ?, dinas = ?, lokasi = ?, uraian = ?,
-                                 tautan_json = ?, teknisi_ttd = ?
+                                 tautan_json = ?, teknisi_ttd = ?, pj_nama = ?, ttd_untuk = ?
               WHERE id = ?`)
     .run(next.tanggal, next.jam, next.jam_selesai, next.frek, next.dinas, next.lokasi, next.uraian,
-         next.tautan_json, next.teknisi_ttd, String(id));
+         next.tautan_json, next.teknisi_ttd, next.pj_nama, next.ttd_untuk, String(id));
 
   const nama = petaNamaPengguna();
   const lampiran = lampiranUntuk([String(id)]).get(String(id)) || [];
