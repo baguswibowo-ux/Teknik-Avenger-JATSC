@@ -118,10 +118,20 @@ async function jalankan(dokumen) {
       execFile(exe, [
         '--headless', '--disable-gpu', '--no-first-run', '--no-default-browser-check',
         '--disable-extensions', '--user-data-dir=' + PROFIL, '--proxy-server=127.0.0.1:9',
+        /* Edge/Chrome yang dijalankan dari proses administrator menjalankan
+           ULANG dirinya sebagai pengguna biasa lewat Explorer, lalu yang asli
+           keluar dengan kode 21 sebelum PDF-nya ditulis. Flag ini
+           mematikan perilaku itu. */
+        '--do-not-de-elevate',
         ...ekstra, '--no-pdf-header-footer', '--print-to-pdf=' + keluar, pathToFileURL(masuk).href
-      ], { timeout: 45000, windowsHide: true }, (err, _keluaran, galat) => {
+      ], { timeout: 45000, windowsHide: true }, async (err, _keluaran, galat) => {
         // Edge sering keluar dengan kode bukan-nol walau PDF-nya jadi; yang
-        // menentukan adalah berkasnya.
+        // menentukan adalah berkasnya. Kode 21 = tugasnya diserahkan ke
+        // proses lain: beri waktu proses itu menulis PDF-nya.
+        if (err && err.code === 21) {
+          for (let i = 0; i < 40 && !fs.existsSync(keluar); i++) await new Promise((r) => setTimeout(r, 500));
+          await new Promise((r) => setTimeout(r, 300));   // biar selesai ditulis
+        }
         selesai({ jadi: fs.existsSync(keluar), err, galat: String(galat || '') });
       });
     });
