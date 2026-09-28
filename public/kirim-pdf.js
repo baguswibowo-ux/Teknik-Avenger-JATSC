@@ -9,13 +9,13 @@
      ✉ Kirim PDF       — server mencetak lembar yang SAMA ke PDF
                          (POST /cetak/pdf, Edge headless — cetak-pdf.js),
                          lalu PDF-nya dikirim dari email orang itu sendiri:
-                         menu Bagikan sistem (HP, Windows) langsung
-                         membuka Gmail/Outlook dengan lampirannya; kalau
-                         peramban tidak punya menu itu, PDF diunduh dan
-                         aplikasi email dibuka dengan subjek terisi.
+                         di HP lewat menu Bagikan (PDF langsung terlampir di
+                         Gmail/WhatsApp/…); di PC lewat "Tulis di Gmail" —
+                         Gmail web tidak menerima lampiran dari situs lain,
+                         jadi isinya tautan PDF (/pdf/<token>, 30 hari).
 
    Server tidak menyimpan akun email siapa pun, dan tidak mengirim email
-   sendiri. Alamat tujuan diketik bebas; yang pernah dipakai diingat di
+   sendiri. Alamat tujuan (PC) diketik bebas; yang pernah dipakai diingat di
    peramban ini saja (localStorage) supaya lain kali tinggal pilih.
 
    Berdiri sendiri — tidak memakai fungsi milik salah satu aplikasi — karena
@@ -188,21 +188,26 @@
         const bisaBagikan = !!(navigator.canShare && navigator.canShare({ files:[berkas] }));
         const kb = Math.max(1, Math.round(berkas.size / 1024));
         const subjek = String(judul || berkas.name.replace(/\.pdf$/i, ''));
+        /* HP: menu Bagikan membawa PDF-nya langsung ke aplikasi (sudah
+           terbukti). PC/laptop: Gmail dibuka di peramban dan tidak bisa
+           menerima lampiran dari situs lain — jadi "Tulis di Gmail" membuka
+           jendela tulis Gmail milik orangnya sendiri dengan TAUTAN PDF di isi
+           emailnya. Di HP tanpa menu Bagikan, jalan Gmail itu juga muncul. */
+        const diHp = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+        const pakaiGmail = !diHp || !bisaBagikan;
         lapis.innerHTML = `<div class="kpdf-kartu" role="dialog" aria-modal="true">
           <h3>PDF siap</h3>
           <div class="kpdf-ket">${escK(berkas.name)} · ${kb} KB</div>
+          ${pakaiGmail ? `
+          <div class="kpdf-baris" style="margin:0 0 8px">
+            <input type="email" multiple list="kpdfDaftar" placeholder="Kepada: nama@contoh.com" aria-label="Alamat email tujuan">
+            <datalist id="kpdfDaftar">${bacaAlamat().map(a=>`<option value="${escK(a)}">`).join('')}</datalist>
+          </div>` : ''}
           <div class="kpdf-tombol">
-            ${bisaBagikan ? `<button class="utama" data-k="bagikan">📤 Kirim / Bagikan PDF<small>Pilih aplikasinya (Gmail, Outlook, WhatsApp, …) — PDF sudah terlampir</small></button>` : ''}
+            ${pakaiGmail ? `<button class="utama" data-k="gmail">✉ Tulis di Gmail<small>Gmail Anda terbuka dengan tautan PDF di isi email (berlaku 30 hari)</small></button>` : ''}
+            ${bisaBagikan ? `<button class="${pakaiGmail ? '' : 'utama'}" data-k="bagikan">📤 Kirim / Bagikan PDF<small>Pilih aplikasinya (Gmail, Outlook, WhatsApp, …) — PDF sudah terlampir</small></button>` : ''}
             <button data-k="unduh">⬇ Unduh PDF</button>
           </div>
-          ${bisaBagikan ? '' : /* mailto tidak bisa membawa lampiran — hanya untuk
-             peramban tanpa menu Bagikan, supaya di HP tidak tertukar */ `
-          <div class="kpdf-ket" style="margin:12px 0 0">Atau ketik alamat tujuan — PDF diunduh, lalu aplikasi email terbuka; lampirkan berkas yang baru diunduh.</div>
-          <div class="kpdf-baris">
-            <input type="email" multiple list="kpdfDaftar" placeholder="nama@contoh.com" aria-label="Alamat email tujuan">
-            <datalist id="kpdfDaftar">${bacaAlamat().map(a=>`<option value="${escK(a)}">`).join('')}</datalist>
-            <button data-k="email">✉ Buka email</button>
-          </div>`}
           <div class="kpdf-kaki"><button data-k="selesai">Selesai</button></div></div>`;
         const bagikan = lapis.querySelector('[data-k="bagikan"]');
         /* Berkas SAJA — tanpa title/text. Gmail di Android yang menerima teks
@@ -212,16 +217,38 @@
           catch(e){ if(e && e.name !== 'AbortError') unduh(berkas); }
         };
         lapis.querySelector('[data-k="unduh"]').onclick = ()=>unduh(berkas);
-        const tombolEmail = lapis.querySelector('[data-k="email"]');
-        if(tombolEmail) tombolEmail.onclick = ()=>{
+        const tombolGmail = lapis.querySelector('[data-k="gmail"]');
+        if(tombolGmail) tombolGmail.onclick = async ()=>{
           const ke = lapis.querySelector('input').value.trim();
           ingatAlamat(ke);
-          unduh(berkas);
-          const isi = `Terlampir: ${berkas.name}\n\n(Lampirkan berkas PDF yang baru saja terunduh.)`;
-          setTimeout(()=>{
-            location.href = 'mailto:' + encodeURIComponent(ke).replace(/%40/g,'@').replace(/%2C/g,',')
-              + '?subject=' + encodeURIComponent(subjek) + '&body=' + encodeURIComponent(isi);
-          }, 400);
+          /* Jendela dibuka SEKARANG, selagi masih di dalam klik — kalau dibuka
+             sesudah menunggu server, peramban menganggapnya pop-up dan
+             memblokirnya. Alamatnya diisi begitu tautannya jadi. */
+          const jendela = window.open('about:blank', '_blank');
+          tombolGmail.disabled = true;
+          tombolGmail.innerHTML = '⏳ Menyiapkan tautan…';
+          try{
+            const r = await fetch('/cetak/pdf/tautan?nama=' + encodeURIComponent(berkas.name), {
+              method:'POST', credentials:'same-origin', headers:{ 'Content-Type':'application/pdf' }, body: berkas
+            });
+            const j = await r.json().catch(()=>null);
+            if(!r.ok || !j || !j.token) throw new Error((j && j.error) || ('server menjawab ' + r.status));
+            const tautan = location.origin + '/pdf/' + j.token;
+            const isi = `${subjek}\n\nPDF: ${tautan}\n\n(Tautan berlaku ${j.hari || 30} hari.)`;
+            const url = 'https://mail.google.com/mail/?view=cm&fs=1'
+              + (ke ? '&to=' + encodeURIComponent(ke) : '')
+              + '&su=' + encodeURIComponent(subjek) + '&body=' + encodeURIComponent(isi);
+            if(jendela && !jendela.closed){ jendela.location.href = url; tutup('kirim'); }
+            else{
+              // Pop-up tetap diblokir: beri tautannya untuk diklik sendiri.
+              tombolGmail.outerHTML = `<a class="utama" href="${escK(url)}" target="_blank" rel="noopener"
+                style="display:block;background:#1f6feb;color:#fff;border-radius:8px;padding:10px 12px;text-decoration:none;font-weight:600">✉ Buka Gmail</a>`;
+            }
+          }catch(e){
+            if(jendela) jendela.close();
+            tombolGmail.disabled = false;
+            tombolGmail.innerHTML = '✉ Tulis di Gmail<small>Gagal: ' + escK(e && e.message || e) + ' — coba lagi</small>';
+          }
         };
         lapis.querySelector('[data-k="selesai"]').onclick = ()=>tutup('kirim');
       };

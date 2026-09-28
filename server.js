@@ -3936,6 +3936,64 @@ app.post('/cetak/pdf', badanPdf, async (req, res) => {
   }
 });
 
+/* TAUTAN PDF — untuk "Tulis di Gmail" dari PC. Gmail di peramban tidak bisa
+   menerima lampiran dari situs lain, jadi PDF-nya disimpan di sini dan yang
+   masuk ke isi email adalah tautannya. Tautannya 32 digit heksa acak (tidak
+   bisa ditebak), terbuka tanpa masuk supaya penerima di luar bisa membuka,
+   dan kedaluwarsa sesudah PDF_TAUTAN_HARI; berkas yang lewat dibuang tiap
+   kali ada tautan baru dibuat. */
+const PDF_TAUTAN_DIR = path.join(DATA_DIR, 'pdf-tautan');
+const PDF_TAUTAN_HARI = 30;
+const badanPdfMentah = express.raw({ type: 'application/pdf', limit: '30mb' });
+
+async function sapuPdfTautan() {
+  const batas = Date.now() - PDF_TAUTAN_HARI * 86400000;
+  for (const nama of await fs.promises.readdir(PDF_TAUTAN_DIR).catch(() => [])) {
+    const jalur = path.join(PDF_TAUTAN_DIR, nama);
+    const st = await fs.promises.stat(jalur).catch(() => null);
+    if (st && st.mtimeMs < batas) await fs.promises.rm(jalur, { force: true }).catch(() => {});
+  }
+}
+
+app.post('/cetak/pdf/tautan', badanPdfMentah, async (req, res) => {
+  const user = await siapa(req);
+  if (!user) return res.status(401).json({ error: 'Masuk dengan akun E-Logbook Anda dulu.' });
+  const buf = req.body;
+  if (!Buffer.isBuffer(buf) || buf.length < 5 || buf.subarray(0, 5).toString('latin1') !== '%PDF-') {
+    return res.status(400).json({ error: 'Berkasnya bukan PDF.' });
+  }
+  const nama = String(req.query.nama || 'Dokumen.pdf').replace(/[\\/:*?"<>|\r\n]+/g, ' ').trim().slice(0, 140) || 'Dokumen.pdf';
+  const token = crypto.randomBytes(16).toString('hex');
+  try {
+    await fs.promises.mkdir(PDF_TAUTAN_DIR, { recursive: true });
+    await fs.promises.writeFile(path.join(PDF_TAUTAN_DIR, token + '.pdf'), buf);
+    await fs.promises.writeFile(path.join(PDF_TAUTAN_DIR, token + '.json'),
+      JSON.stringify({ nama, oleh: user.username, dibuat: new Date().toISOString() }));
+    sapuPdfTautan().catch(() => {});
+    res.json({ token, hari: PDF_TAUTAN_HARI });
+  } catch (e) {
+    console.error('[cetak/pdf/tautan]', e?.message || e);
+    res.status(500).json({ error: 'Gagal menyimpan PDF.' });
+  }
+});
+
+app.get('/pdf/:token', async (req, res) => {
+  const token = String(req.params.token || '');
+  if (!/^[0-9a-f]{32}$/.test(token)) return res.status(404).send('Tautan tidak dikenal.');
+  const jalur = path.join(PDF_TAUTAN_DIR, token + '.pdf');
+  const st = await fs.promises.stat(jalur).catch(() => null);
+  if (!st || st.mtimeMs < Date.now() - PDF_TAUTAN_HARI * 86400000) {
+    return res.status(404).send('Tautan PDF ini sudah kedaluwarsa atau tidak ada.');
+  }
+  const meta = await bacaJson(path.join(PDF_TAUTAN_DIR, token + '.json'), {});
+  const nama = String(meta.nama || 'Dokumen.pdf');
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `inline; filename="${nama.replace(/[^\x20-\x7e]/g, '_').replace(/"/g, '')}"; filename*=UTF-8''${encodeURIComponent(nama)}`);
+  res.setHeader('Cache-Control', 'private, max-age=3600');
+  res.setHeader('X-Robots-Tag', 'noindex');
+  fs.createReadStream(jalur).pipe(res);
+});
+
 const cetakId = () => 'cet_' + crypto.randomBytes(8).toString('hex');
 
 async function bacaAntrianCetak() {

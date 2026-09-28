@@ -41,15 +41,21 @@ const CALON_PERAMBAN = [
   '/usr/bin/chromium', '/usr/bin/chromium-browser', '/usr/bin/google-chrome'
 ].filter(Boolean);
 
-let perambanDitemukan;   // undefined = belum dicari, '' = tidak ada
-function peramban() {
+/* SEMUA peramban yang terpasang, bukan cuma yang pertama: Edge menolak jalan
+   sebagai SYSTEM (server produksi) dan keluar dengan kode 1002, sedangkan
+   Chrome di mesin yang sama mau. Dicoba berurutan sampai ada yang jadi. */
+let perambanDitemukan;   // undefined = belum dicari
+function daftarPeramban() {
   if (perambanDitemukan === undefined) {
-    perambanDitemukan = CALON_PERAMBAN.find((p) => { try { return fs.statSync(p).isFile(); } catch { return false; } }) || '';
+    perambanDitemukan = [...new Set(CALON_PERAMBAN)]
+      .filter((p) => { try { return fs.statSync(p).isFile(); } catch { return false; } });
   }
   return perambanDitemukan;
 }
+/** Peramban yang terakhir berhasil — dicoba lebih dulu berikutnya. */
+let perambanJitu = '';
 
-export const pdfTersedia = () => !!peramban();
+export const pdfTersedia = () => daftarPeramban().length > 0;
 
 const DIR_KERJA = path.join(os.tmpdir(), 'avenger-pdf');
 /* Profil peramban dipakai ulang (start berikutnya lebih cepat), tapi satu per
@@ -105,8 +111,9 @@ export function htmlKePdf(dokumen) {
 }
 
 async function jalankan(dokumen) {
-  const exe = peramban();
-  if (!exe) throw new Error('Peramban untuk membuat PDF (Edge/Chrome) tidak ditemukan di server.');
+  const semua = daftarPeramban();
+  if (!semua.length) throw new Error('Peramban untuk membuat PDF (Edge/Chrome) tidak ditemukan di server.');
+  const urutan = perambanJitu ? [perambanJitu, ...semua.filter((p) => p !== perambanJitu)] : semua;
   const id = crypto.randomBytes(8).toString('hex');
   const dir = path.join(DIR_KERJA, id);
   await fs.promises.mkdir(dir, { recursive: true });
@@ -114,10 +121,12 @@ async function jalankan(dokumen) {
   const keluar = path.join(dir, 'lembar.pdf');
   try {
     await fs.promises.writeFile(masuk, dokumen, 'utf8');
-    const coba = (ekstra) => new Promise((selesai) => {
+    const coba = (exe, ekstra) => new Promise((selesai) => {
+      // Profil sendiri per peramban: Edge dan Chrome tidak boleh berbagi satu.
+      const profil = PROFIL + (/chrome/i.test(exe) ? '-chrome' : '');
       execFile(exe, [
         '--headless', '--disable-gpu', '--no-first-run', '--no-default-browser-check',
-        '--disable-extensions', '--user-data-dir=' + PROFIL, '--proxy-server=127.0.0.1:9',
+        '--disable-extensions', '--user-data-dir=' + profil, '--proxy-server=127.0.0.1:9',
         /* Edge/Chrome yang dijalankan dari proses administrator menjalankan
            ULANG dirinya sebagai pengguna biasa lewat Explorer, lalu yang asli
            keluar dengan kode 21 sebelum PDF-nya ditulis. Flag ini
@@ -140,16 +149,22 @@ async function jalankan(dokumen) {
        menyalakan sandbox peramban, dan peramban lalu keluar diam-diam tanpa
        PDF. Percobaan kedua tanpa sandbox. Dokumennya tetap terkunci CSP:
        tidak ada skrip yang jalan dan tidak ada jaringan. */
-    let hasil = await coba([]);
-    if (!hasil.jadi) hasil = await coba(['--no-sandbox']);
-    if (!hasil.jadi) {
-      const ekor = hasil.galat.split(/\r?\n/)
-        .filter((b) => b && !/language_detection|Extensions\\|vbs_encoder|get_updates_processor|task_manager/.test(b))
-        .slice(-2).join(' | ').slice(0, 300);
-      throw new Error('Peramban tidak menghasilkan PDF'
-        + (hasil.err ? ` (${hasil.err.code || hasil.err.message})` : '') + (ekor ? `: ${ekor}` : '') + '.');
+    const catatan = [];
+    for (const exe of urutan) {
+      for (const ekstra of [[], ['--no-sandbox']]) {
+        const hasil = await coba(exe, ekstra);
+        if (hasil.jadi) {
+          perambanJitu = exe;
+          return await fs.promises.readFile(keluar);
+        }
+        const ekor = hasil.galat.split(/\r?\n/)
+          .filter((b) => b && !/language_detection|Extensions\\|vbs_encoder|get_updates_processor|task_manager/.test(b))
+          .slice(-1).join('').slice(0, 160);
+        catatan.push(`${path.basename(exe, '.exe')}${ekstra.length ? ' tanpa sandbox' : ''}: `
+          + (hasil.err ? String(hasil.err.code || hasil.err.message) : 'tanpa PDF') + (ekor ? ` ${ekor}` : ''));
+      }
     }
-    return await fs.promises.readFile(keluar);
+    throw new Error('Peramban tidak menghasilkan PDF (' + catatan.join('; ') + ').');
   } finally {
     fs.promises.rm(dir, { recursive: true, force: true }).catch(() => {});
   }
