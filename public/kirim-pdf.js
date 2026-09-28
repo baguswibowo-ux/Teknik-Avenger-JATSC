@@ -192,23 +192,28 @@
           <h3>PDF siap</h3>
           <div class="kpdf-ket">${escK(berkas.name)} · ${kb} KB</div>
           <div class="kpdf-tombol">
-            ${bisaBagikan ? `<button class="utama" data-k="bagikan">📤 Kirim lewat aplikasi email<small>Pilih Gmail / Outlook, lalu ketik alamat tujuan di sana</small></button>` : ''}
+            ${bisaBagikan ? `<button class="utama" data-k="bagikan">📤 Kirim lewat aplikasi email<small>Pilih Gmail / Outlook — PDF sudah terlampir, tinggal isi alamat tujuan</small></button>` : ''}
             <button data-k="unduh">⬇ Unduh PDF</button>
           </div>
+          ${bisaBagikan ? '' : /* mailto tidak bisa membawa lampiran — hanya untuk
+             peramban tanpa menu Bagikan, supaya di HP tidak tertukar */ `
           <div class="kpdf-ket" style="margin:12px 0 0">Atau ketik alamat tujuan — PDF diunduh, lalu aplikasi email terbuka; lampirkan berkas yang baru diunduh.</div>
           <div class="kpdf-baris">
             <input type="email" multiple list="kpdfDaftar" placeholder="nama@contoh.com" aria-label="Alamat email tujuan">
             <datalist id="kpdfDaftar">${bacaAlamat().map(a=>`<option value="${escK(a)}">`).join('')}</datalist>
             <button data-k="email">✉ Buka email</button>
-          </div>
+          </div>`}
           <div class="kpdf-kaki"><button data-k="selesai">Selesai</button></div></div>`;
         const bagikan = lapis.querySelector('[data-k="bagikan"]');
+        /* Berkas SAJA — tanpa title/text. Gmail di Android yang menerima teks
+           dan berkas sekaligus mengambil teksnya dan membuang lampirannya. */
         if(bagikan) bagikan.onclick = async ()=>{
-          try{ await navigator.share({ files:[berkas], title: subjek, text: subjek }); tutup('kirim'); }
+          try{ await navigator.share({ files:[berkas] }); tutup('kirim'); }
           catch(e){ if(e && e.name !== 'AbortError') unduh(berkas); }
         };
         lapis.querySelector('[data-k="unduh"]').onclick = ()=>unduh(berkas);
-        lapis.querySelector('[data-k="email"]').onclick = ()=>{
+        const tombolEmail = lapis.querySelector('[data-k="email"]');
+        if(tombolEmail) tombolEmail.onclick = ()=>{
           const ke = lapis.querySelector('input').value.trim();
           ingatAlamat(ke);
           unduh(berkas);
