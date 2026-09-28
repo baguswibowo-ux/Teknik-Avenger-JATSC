@@ -8,11 +8,10 @@
      🖨 Cetak          — dialog cetak peramban seperti biasa
      ✉ Kirim PDF       — server mencetak lembar yang SAMA ke PDF
                          (POST /cetak/pdf, Edge headless — cetak-pdf.js),
-                         lalu PDF-nya dikirim dari email orang itu sendiri:
-                         di HP lewat menu Bagikan (PDF langsung terlampir di
-                         Gmail/WhatsApp/…); di PC lewat "Tulis di Gmail" —
-                         Gmail web tidak menerima lampiran dari situs lain,
-                         jadi isinya tautan PDF (/pdf/<token>, 30 hari).
+                         lalu PDF-nya dikirim dari aplikasi orang itu
+                         sendiri lewat menu Bagikan sistem (HP dan Windows:
+                         Gmail, Outlook, WhatsApp, … — PDF terlampir), atau
+                         diunduh.
 
    Server tidak menyimpan akun email siapa pun, dan tidak mengirim email
    sendiri. Alamat tujuan diketik langsung di aplikasi emailnya.
@@ -170,21 +169,17 @@
       const tahapKirim = (berkas)=>{
         const bisaBagikan = !!(navigator.canShare && navigator.canShare({ files:[berkas] }));
         const kb = Math.max(1, Math.round(berkas.size / 1024));
-        const subjek = String(judul || berkas.name.replace(/\.pdf$/i, ''));
-        /* HP: menu Bagikan membawa PDF-nya langsung ke aplikasi (sudah
-           terbukti). PC/laptop: Gmail dibuka di peramban dan tidak bisa
-           menerima lampiran dari situs lain — jadi "Tulis di Gmail" membuka
-           jendela tulis Gmail milik orangnya sendiri dengan TAUTAN PDF di isi
-           emailnya. Di HP tanpa menu Bagikan, jalan Gmail itu juga muncul. */
-        const diHp = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
-        const pakaiGmail = !diHp || !bisaBagikan;
+        /* Menu Bagikan sistem (HP, Windows) membawa PDF-nya langsung ke
+           aplikasi terpasang — Gmail, Outlook, WhatsApp — sebagai lampiran.
+           Gmail yang dibuka di peramban tidak bisa menerima lampiran dari
+           situs lain; jalan lewat tautan sempat dicoba lalu dibuang atas
+           permintaan Bagus (29 Sep 2026). */
         lapis.innerHTML = `<div class="kpdf-kartu" role="dialog" aria-modal="true">
           <h3>PDF siap</h3>
           <div class="kpdf-ket">${escK(berkas.name)} · ${kb} KB</div>
           <div class="kpdf-tombol">
             ${bisaBagikan ? `<button class="utama" data-k="bagikan">📤 Kirim / Bagikan PDF<small>Pilih aplikasinya (Gmail, Outlook, WhatsApp, …) — PDF sudah terlampir</small></button>` : ''}
-            ${pakaiGmail ? `<button class="${bisaBagikan ? '' : 'utama'}" data-k="gmail">✉ Tulis di Gmail (Chrome)<small>Gmail di peramban tidak bisa menerima lampiran — PDF masuk sebagai tautan, berlaku 30 hari</small></button>` : ''}
-            <button data-k="unduh">⬇ Unduh PDF</button>
+            <button class="${bisaBagikan ? '' : 'utama'}" data-k="unduh">⬇ Unduh PDF</button>
           </div>
           <div class="kpdf-kaki"><button data-k="selesai">Selesai</button></div></div>`;
         const bagikan = lapis.querySelector('[data-k="bagikan"]');
@@ -195,37 +190,6 @@
           catch(e){ if(e && e.name !== 'AbortError') unduh(berkas); }
         };
         lapis.querySelector('[data-k="unduh"]').onclick = ()=>unduh(berkas);
-        const tombolGmail = lapis.querySelector('[data-k="gmail"]');
-        if(tombolGmail) tombolGmail.onclick = async ()=>{
-          /* Jendela dibuka SEKARANG, selagi masih di dalam klik — kalau dibuka
-             sesudah menunggu server, peramban menganggapnya pop-up dan
-             memblokirnya. Alamatnya diisi begitu tautannya jadi. */
-          const jendela = window.open('about:blank', '_blank');
-          tombolGmail.disabled = true;
-          tombolGmail.innerHTML = '⏳ Menyiapkan tautan…';
-          try{
-            const r = await fetch('/cetak/pdf/tautan?nama=' + encodeURIComponent(berkas.name), {
-              method:'POST', credentials:'same-origin', headers:{ 'Content-Type':'application/pdf' }, body: berkas
-            });
-            const j = await r.json().catch(()=>null);
-            if(!r.ok || !j || !j.token) throw new Error((j && j.error) || ('server menjawab ' + r.status));
-            const tautan = location.origin + '/pdf/' + j.token;
-            const isi = `${subjek}\n\nPDF: ${tautan}\n\n(Tautan berlaku ${j.hari || 30} hari.)`;
-            // Alamat tujuan diketik langsung di Gmail.
-            const url = 'https://mail.google.com/mail/?view=cm&fs=1'
-              + '&su=' + encodeURIComponent(subjek) + '&body=' + encodeURIComponent(isi);
-            if(jendela && !jendela.closed){ jendela.location.href = url; tutup('kirim'); }
-            else{
-              // Pop-up tetap diblokir: beri tautannya untuk diklik sendiri.
-              tombolGmail.outerHTML = `<a class="utama" href="${escK(url)}" target="_blank" rel="noopener"
-                style="display:block;background:#1f6feb;color:#fff;border-radius:8px;padding:10px 12px;text-decoration:none;font-weight:600">✉ Buka Gmail</a>`;
-            }
-          }catch(e){
-            if(jendela) jendela.close();
-            tombolGmail.disabled = false;
-            tombolGmail.innerHTML = '✉ Tulis di Gmail<small>Gagal: ' + escK(e && e.message || e) + ' — coba lagi</small>';
-          }
-        };
         lapis.querySelector('[data-k="selesai"]').onclick = ()=>tutup('kirim');
       };
 
