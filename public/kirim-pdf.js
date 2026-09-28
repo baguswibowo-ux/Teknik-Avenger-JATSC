@@ -157,7 +157,7 @@
           <div class="kpdf-ket">${escK(judul || '')}</div>
           <div class="kpdf-tombol">
             <button class="utama" data-k="cetak">🖨 Cetak<small>Buka dialog cetak / Simpan sebagai PDF</small></button>
-            <button data-k="kirim">✉ Kirim PDF lewat email<small>Dikirim dari email Anda sendiri (Gmail, Outlook, …)</small></button>
+            <button data-k="kirim">✉ Kirim PDF<small>Lewat email atau aplikasi lain milik Anda sendiri</small></button>
           </div>
           <div class="kpdf-kaki"><button data-k="batal">Batal</button></div></div>`;
         lapis.querySelector('[data-k="cetak"]').onclick = ()=>{
@@ -192,7 +192,7 @@
           <h3>PDF siap</h3>
           <div class="kpdf-ket">${escK(berkas.name)} · ${kb} KB</div>
           <div class="kpdf-tombol">
-            ${bisaBagikan ? `<button class="utama" data-k="bagikan">📤 Kirim lewat aplikasi email<small>Pilih Gmail / Outlook — PDF sudah terlampir, tinggal isi alamat tujuan</small></button>` : ''}
+            ${bisaBagikan ? `<button class="utama" data-k="bagikan">📤 Kirim / Bagikan PDF<small>Pilih aplikasinya (Gmail, Outlook, WhatsApp, …) — PDF sudah terlampir</small></button>` : ''}
             <button data-k="unduh">⬇ Unduh PDF</button>
           </div>
           ${bisaBagikan ? '' : /* mailto tidak bisa membawa lampiran — hanya untuk
