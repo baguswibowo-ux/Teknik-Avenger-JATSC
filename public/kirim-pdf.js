@@ -15,14 +15,12 @@
                          jadi isinya tautan PDF (/pdf/<token>, 30 hari).
 
    Server tidak menyimpan akun email siapa pun, dan tidak mengirim email
-   sendiri. Alamat tujuan (PC) diketik bebas; yang pernah dipakai diingat di
-   peramban ini saja (localStorage) supaya lain kali tinggal pilih.
+   sendiri. Alamat tujuan diketik langsung di aplikasi emailnya.
 
    Berdiri sendiri — tidak memakai fungsi milik salah satu aplikasi — karena
    dimuat oleh keduanya (/kirim-pdf.js). Gayanya pun dibawa sendiri.
    ======================================================================= */
 (function(){
-  const KUNCI_ALAMAT = 'avenger.kirimPdf.alamat';
 
   const escK = (s)=> String(s == null ? '' : s)
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -40,13 +38,11 @@
       .kpdf-kartu h3{margin:0 0 4px;font-size:16px;}
       .kpdf-ket{color:#5b6475;font-size:12.5px;margin-bottom:14px;word-break:break-word;}
       .kpdf-tombol{display:flex;flex-direction:column;gap:8px;}
-      .kpdf-tombol button,.kpdf-baris button{border:1px solid #c9d1de;background:#f4f6fa;color:#1b2230;
+      .kpdf-tombol button{border:1px solid #c9d1de;background:#f4f6fa;color:#1b2230;
         border-radius:8px;padding:10px 12px;font:inherit;cursor:pointer;text-align:left;}
       .kpdf-tombol button.utama{background:#1f6feb;border-color:#1f6feb;color:#fff;font-weight:600;}
       .kpdf-tombol button:disabled{opacity:.6;cursor:progress;}
       .kpdf-tombol small{display:block;font-weight:400;opacity:.8;font-size:12px;}
-      .kpdf-baris{display:flex;gap:8px;margin-top:10px;}
-      .kpdf-baris input{flex:1;min-width:0;border:1px solid #c9d1de;border-radius:8px;padding:9px 10px;font:inherit;}
       .kpdf-kaki{display:flex;justify-content:flex-end;margin-top:12px;}
       .kpdf-kaki button{border:none;background:none;color:#5b6475;font:inherit;cursor:pointer;padding:6px 8px;}
       .kpdf-galat{color:#b42318;font-size:12.5px;margin-top:10px;}
@@ -94,19 +90,6 @@
 
   const namaBerkas = (judul)=> (String(judul || 'Dokumen')
     .replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120) || 'Dokumen') + '.pdf';
-
-  function bacaAlamat(){
-    try{ const a = JSON.parse(localStorage.getItem(KUNCI_ALAMAT) || '[]'); return Array.isArray(a) ? a : []; }
-    catch(e){ return []; }
-  }
-  function ingatAlamat(teks){
-    const baru = String(teks || '').split(/[,;\s]+/).map(s=>s.trim()).filter(s=>/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s));
-    if(!baru.length) return;
-    try{
-      const semua = [...new Set([...baru, ...bacaAlamat()])].slice(0, 20);
-      localStorage.setItem(KUNCI_ALAMAT, JSON.stringify(semua));
-    }catch(e){}
-  }
 
   function unduh(berkas){
     const url = URL.createObjectURL(berkas);
@@ -198,14 +181,9 @@
         lapis.innerHTML = `<div class="kpdf-kartu" role="dialog" aria-modal="true">
           <h3>PDF siap</h3>
           <div class="kpdf-ket">${escK(berkas.name)} · ${kb} KB</div>
-          ${pakaiGmail ? `
-          <div class="kpdf-baris" style="margin:0 0 8px">
-            <input type="email" multiple list="kpdfDaftar" placeholder="Kepada: nama@contoh.com" aria-label="Alamat email tujuan">
-            <datalist id="kpdfDaftar">${bacaAlamat().map(a=>`<option value="${escK(a)}">`).join('')}</datalist>
-          </div>` : ''}
           <div class="kpdf-tombol">
-            ${pakaiGmail ? `<button class="utama" data-k="gmail">✉ Tulis di Gmail<small>Gmail Anda terbuka dengan tautan PDF di isi email (berlaku 30 hari)</small></button>` : ''}
-            ${bisaBagikan ? `<button class="${pakaiGmail ? '' : 'utama'}" data-k="bagikan">📤 Kirim / Bagikan PDF<small>Pilih aplikasinya (Gmail, Outlook, WhatsApp, …) — PDF sudah terlampir</small></button>` : ''}
+            ${bisaBagikan ? `<button class="utama" data-k="bagikan">📤 Kirim / Bagikan PDF<small>Pilih aplikasinya (Gmail, Outlook, WhatsApp, …) — PDF sudah terlampir</small></button>` : ''}
+            ${pakaiGmail ? `<button class="${bisaBagikan ? '' : 'utama'}" data-k="gmail">✉ Tulis di Gmail (Chrome)<small>Gmail di peramban tidak bisa menerima lampiran — PDF masuk sebagai tautan, berlaku 30 hari</small></button>` : ''}
             <button data-k="unduh">⬇ Unduh PDF</button>
           </div>
           <div class="kpdf-kaki"><button data-k="selesai">Selesai</button></div></div>`;
@@ -219,8 +197,6 @@
         lapis.querySelector('[data-k="unduh"]').onclick = ()=>unduh(berkas);
         const tombolGmail = lapis.querySelector('[data-k="gmail"]');
         if(tombolGmail) tombolGmail.onclick = async ()=>{
-          const ke = lapis.querySelector('input').value.trim();
-          ingatAlamat(ke);
           /* Jendela dibuka SEKARANG, selagi masih di dalam klik — kalau dibuka
              sesudah menunggu server, peramban menganggapnya pop-up dan
              memblokirnya. Alamatnya diisi begitu tautannya jadi. */
@@ -235,8 +211,8 @@
             if(!r.ok || !j || !j.token) throw new Error((j && j.error) || ('server menjawab ' + r.status));
             const tautan = location.origin + '/pdf/' + j.token;
             const isi = `${subjek}\n\nPDF: ${tautan}\n\n(Tautan berlaku ${j.hari || 30} hari.)`;
+            // Alamat tujuan diketik langsung di Gmail.
             const url = 'https://mail.google.com/mail/?view=cm&fs=1'
-              + (ke ? '&to=' + encodeURIComponent(ke) : '')
               + '&su=' + encodeURIComponent(subjek) + '&body=' + encodeURIComponent(isi);
             if(jendela && !jendela.closed){ jendela.location.href = url; tutup('kirim'); }
             else{
