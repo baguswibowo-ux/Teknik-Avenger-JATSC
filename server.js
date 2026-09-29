@@ -35,6 +35,7 @@ import {
 } from './pengingat-berkala.js';
 import { pesanDinasMendatang, pesanBerkalaDinas } from './pesan-notif.js';
 import { htmlKePdf, susunDokumen, pdfTersedia } from './cetak-pdf.js';
+import { svgQr } from './qr-kode/svg.js';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import {
@@ -2975,6 +2976,249 @@ app.put('/sejarah/:unit/:alat', badanDinas, async (req, res) => {
     res.status(500).json({ error: 'Gagal menyimpan sejarah: ' + (e?.message || e) });
   }
 });
+
+/* =====================================================================
+   QR SEJARAH PERALATAN — stiker di tiap alat, dipindai siapa saja
+
+   Permintaan Bagus (29 Sep 2026): satu QR per alat; yang memindai langsung
+   melihat LEMBAR RESMI terakhir — lembar Sejarah Peralatan yang sudah
+   disetujui pejabat lewat antrian cetak — dan boleh TANPA LOGIN (auditor,
+   tamu, teknisi yang HP-nya belum masuk).
+
+   Karena terbuka, alamatnya tidak memuat unit atau id alat yang bisa ditebak
+   ("/q/radtel/tx1"), melainkan TOKEN ACAK 12 huruf per alat, disimpan di
+   data/qr-alat.json: { token: { unit, alat, alatNama, unitNama, kelompok,
+   dibuat, oleh } }. Tanpa stikernya, orang tidak bisa menjelajah alat lain.
+   Satu alat selalu mendapat token yang sama, jadi mencetak ulang stiker tidak
+   membuat stiker lama mati.
+
+   Yang ditampilkan hanya bagian alat itu dari lembar yang disetujui (identitas,
+   riwayat kegiatan, TTD Manager Teknik) — bukan seluruh lembar unit, dan bukan
+   catatan sejarah yang belum pernah disetujui.
+
+   Tanpa pustaka di peramban: gambar QR dibuat di sini (qr-kode/svg.js).
+   ===================================================================== */
+const QR_ALAT_JSON = path.join(DATA_DIR, 'qr-alat.json');
+const ABJAD_TOKEN = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+
+function tokenQrBaru() {
+  const b = crypto.randomBytes(12);
+  return Array.from(b, (x) => ABJAD_TOKEN[x % ABJAD_TOKEN.length]).join('');
+}
+const tokenQrSah = (t) => /^[A-Za-z0-9]{12}$/.test(String(t || ''));
+
+/** Alamat dasar yang ditulis di dalam QR. Mengikuti alamat yang sedang
+    dipakai: stiker yang dicetak dari uji.teknik-avengers.com menunjuk ke uji
+    (tokennya memang hanya ada di data uji), yang dari produksi ke produksi.
+    ALAMAT_PUBLIK di .env memaksanya kalau perlu. */
+function alamatDasar(req) {
+  const paksa = String(process.env.ALAMAT_PUBLIK || '').trim().replace(/\/+$/, '');
+  if (paksa) return paksa;
+  const host = String(req.get('host') || '').trim();
+  const lokal = /^(localhost|127\.|\[::1\])/.test(host);
+  return (lokal ? 'http://' : 'https://') + host;
+}
+
+const teksBersih = (s, n = 160) => String(s ?? '').replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, n);
+
+/**
+ * Token untuk satu atau beberapa alat satu unit. Yang sudah punya token
+ * memakai token lamanya; nama alat/unit diperbarui supaya halaman pindai
+ * menyebut nama terbaru.
+ * Badan: { unit, unitNama, kelompok, alat: [{ id, nama }] }
+ */
+app.post('/qr-alat', badanDinas, async (req, res) => {
+  const user = await siapa(req);
+  if (!user) return res.status(401).json({ error: 'Masuk dengan akun E-Logbook Anda dulu.' });
+  const unit = String(req.body?.unit || '').toLowerCase();
+  if (!unitSah(unit)) return res.status(400).json({ error: 'Kode unit tidak sah.' });
+  if (!bolehUnit(user, unit)) return res.status(403).json({ error: 'Akun Anda tidak memegang unit ini.' });
+  if (!DINAS_TULIS) {
+    return res.status(503).json({ error: 'QR tidak bisa dibuat di lingkungan ini: penyimpanannya tidak permanen.' });
+  }
+  const daftar = (Array.isArray(req.body?.alat) ? req.body.alat : []).slice(0, 500)
+    .map((a) => ({ id: String(a?.id || '').trim().slice(0, 40).replace(/[^A-Za-z0-9_-]/g, ''), nama: teksBersih(a?.nama) }))
+    .filter((a) => a.id);
+  if (!daftar.length) return res.status(400).json({ error: 'Tidak ada alat yang dikirim.' });
+
+  const semua = await bacaJson(QR_ALAT_JSON, {});
+  const menurutAlat = new Map(Object.entries(semua).map(([t, v]) => [`${v.unit}/${v.alat}`, t]));
+  const unitNama = teksBersih(req.body?.unitNama, 80);
+  const kelompok = teksBersih(req.body?.kelompok, 120);
+  const hasil = {};
+  for (const a of daftar) {
+    let t = menurutAlat.get(`${unit}/${a.id}`);
+    if (!t) {
+      do { t = tokenQrBaru(); } while (semua[t]);
+      semua[t] = { unit, alat: a.id, dibuat: new Date().toISOString(), oleh: user.username };
+    }
+    Object.assign(semua[t], { alatNama: a.nama || semua[t].alatNama || '', unitNama: unitNama || semua[t].unitNama || '', kelompok: kelompok || semua[t].kelompok || '' });
+    hasil[a.id] = t;
+  }
+  await tulisJson(QR_ALAT_JSON, semua);
+  res.json({ token: hasil, dasar: alamatDasar(req) });
+});
+
+/** Gambar QR satu token (SVG). Terbuka — isinya cuma alamat halaman pindai. */
+app.get('/q/:token/qr.svg', async (req, res) => {
+  const t = String(req.params.token || '');
+  if (!tokenQrSah(t)) return res.status(400).send('token tidak sah');
+  res.type('image/svg+xml').set('Cache-Control', 'public, max-age=86400')
+    .send(svgQr(`${alamatDasar(req)}/q/${t}`));
+});
+
+/** Lembar resmi terakhir yang memuat alat ini (induk atau sub), atau null. */
+function lembarResmiAlat(antrian, unit, alat) {
+  const resmi = antrian
+    .filter((b) => b.unit === unit && b.jenis === 'peralatan' && b.status === 'disetujui')
+    .sort((a, b) => String(b.tanggalTtd || '').localeCompare(String(a.tanggalTtd || '')));
+  for (const b of resmi) {
+    for (const r of (Array.isArray(b.snapshot?.rows) ? b.snapshot.rows : [])) {
+      if (r?.id === alat) return { lembar: b, alat: r, induk: null };
+      const s = (Array.isArray(r?.sub) ? r.sub : []).find((x) => x?.id === alat);
+      if (s) return { lembar: b, alat: s, induk: r };
+    }
+  }
+  return null;
+}
+
+/** TTD pejabat sebagai data URL — halaman pindai terbuka dan tidak boleh
+    bergantung pada rute lain. */
+async function ttdSebagaiDataUrl(url) {
+  const u = String(url || '');
+  if (/^data:image\/(png|jpeg);base64,/.test(u)) return u;
+  const m = u.match(/^\/ttd-akun\/([^/]+)\/gambar$/);
+  if (!m) return '';
+  const nama = decodeURIComponent(m[1]);
+  if (!usernameSah(nama)) return '';
+  const gbr = await bacaBiner(path.join(DIR_TTD_AKUN, nama + '.png'));
+  return gbr?.buf ? `data:${gbr.mime || 'image/png'};base64,` + gbr.buf.toString('base64') : '';
+}
+
+const escHtml = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const BULAN_ID = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+function tglId(iso) {
+  const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${Number(m[3])} ${BULAN_ID[Number(m[2]) - 1]} ${m[1]}` : '—';
+}
+const TINGKAT_SJR = { '': 'Biasa', kuning: 'Perlu diperhatikan', merah: 'Gangguan' };
+
+function halamanPindai({ judul, isi }) {
+  return `<!doctype html><html lang="id"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>${escHtml(judul)}</title>
+<style>
+  :root{color-scheme:light}
+  body{margin:0;background:#eef1f4;color:#111;font:14px/1.5 Arial,Helvetica,sans-serif}
+  .kertas{max-width:820px;margin:16px auto;background:#fff;padding:22px 20px;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+  h1{font-size:17px;text-align:center;margin:0 0 2px;text-transform:uppercase;letter-spacing:.03em}
+  h2{font-size:14px;text-align:center;margin:0 0 14px;font-weight:normal;color:#444}
+  h3{font-size:14px;margin:16px 0 6px}
+  table{border-collapse:collapse;width:100%}
+  .spek td{padding:2px 4px;vertical-align:top}.spek td:first-child{width:42%;color:#333}
+  .data th,.data td{border:1px solid #444;padding:4px 5px;vertical-align:top;font-size:12.5px}
+  .data th{background:#f2f2f2}.tengah{text-align:center}
+  .gulir{overflow-x:auto}
+  .ttd{margin:18px 0 0 auto;width:220px;text-align:center}
+  .ttd img{max-height:70px;max-width:200px}.ttd .kotak{height:76px;display:flex;align-items:center;justify-content:center}
+  .ttd .nama{border-top:1px solid #111;padding-top:3px;font-weight:bold}
+  .ket{font-size:12px;color:#555;margin-top:14px;border-top:1px dashed #bbb;padding-top:8px}
+  .kosong{text-align:center;padding:30px 10px;color:#444}
+  .tombol{display:block;margin:12px auto 0;padding:9px 18px;font-size:14px;border:1px solid #333;background:#fff;border-radius:6px}
+  @media print{body{background:#fff}.kertas{box-shadow:none;margin:0;max-width:none}.tombol,.ket-layar{display:none}}
+</style></head><body><div class="kertas">${isi}</div>
+<script>
+/* TTD tersimpan bergaris putih (digambar di layar gelap): dihitamkan untuk
+   kertas putih, sama seperti ttdKeHitam di 36-cetak.js. */
+document.querySelectorAll('img[data-perlu-hitam]').forEach(function(img){
+  function ubah(){ try{
+    var c=document.createElement('canvas'); c.width=img.naturalWidth; c.height=img.naturalHeight;
+    var x=c.getContext('2d'); x.drawImage(img,0,0); var d=x.getImageData(0,0,c.width,c.height), p=d.data, tembus=false;
+    for(var i=3;i<p.length;i+=4){ if(p[i]<255){ tembus=true; break; } }
+    if(!tembus) return;
+    for(i=0;i<p.length;i+=4){ if(p[i+3]>0){ p[i]=0;p[i+1]=0;p[i+2]=0; } }
+    x.putImageData(d,0,0); img.removeAttribute('data-perlu-hitam'); img.src=c.toDataURL('image/png');
+  }catch(e){} }
+  if(img.complete) ubah(); else img.addEventListener('load', ubah);
+});
+</script></body></html>`;
+}
+
+/** Halaman yang dibuka waktu stiker dipindai. Tanpa login. */
+/* Galat apa pun dijawab halaman sopan, bukan jejak tumpukan kode — halaman
+   ini terbuka untuk siapa saja yang memindai. */
+app.get('/q/:token', (req, res) => {
+  halamanQr(req, res).catch((e) => {
+    console.error('[qr] halaman pindai gagal:', e);
+    if (!res.headersSent) res.status(500).type('html').send(halamanPindai({
+      judul: 'Sejarah Peralatan',
+      isi: '<div class="kosong">Lembar tidak bisa dibuka saat ini. Coba pindai lagi sebentar lagi.</div>'
+    }));
+  });
+});
+
+async function halamanQr(req, res) {
+  res.set('Cache-Control', 'no-store').set('X-Robots-Tag', 'noindex, nofollow');
+  const t = String(req.params.token || '');
+  const catatanQr = tokenQrSah(t) ? (await bacaJson(QR_ALAT_JSON, {}))[t] : null;
+  if (!catatanQr) {
+    return res.status(404).type('html').send(halamanPindai({
+      judul: 'QR tidak dikenal',
+      isi: '<div class="kosong"><b>QR ini tidak dikenal.</b><br>Stikernya mungkin sudah diganti. Hubungi teknisi unit.</div>'
+    }));
+  }
+  const { unit, alat, alatNama, unitNama, kelompok } = catatanQr;
+  const kepala = `<h1>Sejarah Peralatan</h1><h2>${escHtml(unitNama || unit)}</h2>`;
+  const ketemu = lembarResmiAlat(await bacaAntrianCetak(), unit, alat);
+  if (!ketemu) {
+    return res.type('html').send(halamanPindai({
+      judul: `Sejarah ${alatNama || alat}`,
+      isi: kepala + `<div class="kosong"><b>${escHtml(alatNama || alat)}</b><br><br>
+        Belum ada lembar sejarah resmi untuk alat ini.<br>
+        Lembar muncul di sini setelah dicetak lewat dashboard dan disetujui Manager Teknik.</div>`
+    }));
+  }
+
+  const { lembar, alat: a, induk } = ketemu;
+  const nama = induk ? `${induk.nama || ''} — ${a.nama || ''}` : (a.nama || alatNama || alat);
+  const bersih = (v) => (v && v !== '—' ? v : '');
+  const spek = [
+    ['Penyelenggara Pelayanan', 'Perum LPPNPI'],
+    ['Kelompok Fasilitas', kelompok],
+    ['Nama Peralatan', nama],
+    ['Merek dan Tipe Peralatan', [a.merk, a.tipe].map(bersih).filter(Boolean).join(' — ')],
+    ['Nomor Seri Peralatan', bersih(a.sn)],
+    ['Part Number (P/N)', bersih(a.pn)],
+    ['Tahun Pembuatan', bersih(a.tahun)],
+    ['Lokasi', bersih(a.lokasi)],
+    ['Status', bersih(a.status)]
+  ].filter(([k, v], i) => i < 5 || v);
+  const sejarah = Array.isArray(a.sejarah) ? a.sejarah : [];
+  const baris = sejarah.length
+    ? sejarah.map((k, i) => `<tr><td class="tengah">${i + 1}</td><td class="tengah">${escHtml(k.tgl ? tglId(k.tgl) : '—')}</td>
+        <td><b>${escHtml(k.judul || '')}</b>${k.rinci ? '<br>' + escHtml(k.rinci) : ''}</td>
+        <td>${escHtml(TINGKAT_SJR[k.warna || ''] || '—')}</td><td>${escHtml(k.olehNama || '—')}</td></tr>`).join('')
+    : '<tr><td colspan="5" class="tengah"><i>Belum ada kegiatan tercatat pada lembar ini.</i></td></tr>';
+  const ttd = await ttdSebagaiDataUrl(lembar.ttdPejabatUrl);
+
+  res.type('html').send(halamanPindai({
+    judul: `Sejarah ${nama}`,
+    isi: kepala + `
+      <table class="spek">${spek.map(([k, v]) => `<tr><td>${escHtml(k)}</td><td>: ${escHtml(v || '—')}</td></tr>`).join('')}</table>
+      <h3>Riwayat Kegiatan</h3>
+      <div class="gulir"><table class="data"><thead><tr><th style="width:28px">No</th><th style="width:88px">Tanggal</th>
+        <th>Uraian</th><th style="width:22%">Keterangan</th><th style="width:110px">Paraf</th></tr></thead>
+        <tbody>${baris}</tbody></table></div>
+      <div class="ttd">Mengetahui,<br>Manager Teknik
+        <div class="kotak">${ttd ? `<img src="${ttd}" data-perlu-hitam alt="TTD">` : ''}</div>
+        <div class="nama">${escHtml(lembar.ttdPejabatNama || lembar.pejabatNama || '')}</div></div>
+      <div class="ket">Lembar resmi, disetujui <b>${escHtml(tglId(lembar.tanggalTtd))}</b>.
+        <span class="ket-layar">Kegiatan yang dicatat sesudah tanggal itu belum tampil sampai lembar berikutnya disetujui.</span></div>
+      <button class="tombol" onclick="window.print()">Cetak / Simpan PDF</button>`
+  }));
+}
 
 /* =====================================================================
    LOGO UNIT — gambar pengenal tiap unit
