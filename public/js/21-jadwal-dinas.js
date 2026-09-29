@@ -339,6 +339,50 @@ function polaDraf(bulan, lalu, sebelumLalu){
 /** Baris orang untuk unit + bulan yang sedang dibuka. */
 const jdwBaris = (unit) => (JDW.jadwalLihat[unit] || []);
 
+/* TOTAL DINAS SEBULAN — kolom di kanan tabel, hanya di mode sunting, supaya
+   yang menyusun jadwal langsung tahu jatah tiap orang. Yang dihitung dinas
+   sungguhan per jenis (PS, M, P, S) lewat `pita` di SHIFT; J dan N digabung.
+   SPKL tidak dihitung (lembur, di luar jatah), begitu juga CUTI/CAP/IJIN/DL
+   (tanpa pita) dan kode yang tidak dikenal. */
+const jdwPitaDinas = (kode)=>{
+  const b = kodeBaku(kode);
+  return b && !b.startsWith('SPKL') && SHIFT[b] && SHIFT[b].pita ? SHIFT[b].pita : '';
+};
+
+/** Jenis dinas yang dipakai unit ini, urut PS, M, P, S. */
+const jdwPitaUnit = (unit)=>{
+  const ada = new Set((infoUnit(unit).dinas || []).map(jdwPitaDinas).filter(Boolean));
+  return URUT_PITA.filter(p=>ada.has(p));
+};
+
+function jdwHitungPita(hari){
+  const n = {};
+  (hari || []).forEach(k=>{ const p = jdwPitaDinas(k); if(p) n[p] = (n[p] || 0) + 1; });
+  return n;
+}
+
+/** Sel total satu orang. Kosong di luar mode sunting. */
+function jdwSelRekap(i, hari, pita){
+  if(!pita.length) return '';
+  const n = jdwHitungPita(hari);
+  const jml = pita.reduce((s, p)=>s + (n[p] || 0), 0);
+  return pita.map((p, k)=>`<td class="jdw-rekap${k ? '' : ' awal'}" data-rekap="${i}" data-pita="${p}">${n[p] || ''}</td>`).join('')
+    + `<td class="jdw-rekap jml" data-rekap="${i}" data-pita="jml">${jml || ''}</td>`;
+}
+
+/** Perbarui total satu baris sesudah selnya berubah. */
+function jdwPerbaruiRekap(kotak, r){
+  const n = jdwHitungPita((JDW.draf[r] || {}).hari);
+  let jml = 0;
+  kotak.querySelectorAll(`td.jdw-rekap[data-rekap="${r}"]`).forEach(td=>{
+    if(td.dataset.pita === 'jml') return;
+    jml += n[td.dataset.pita] || 0;
+    td.textContent = n[td.dataset.pita] || '';
+  });
+  const tdJml = kotak.querySelector(`td.jdw-rekap[data-rekap="${r}"][data-pita="jml"]`);
+  if(tdJml) tdJml.textContent = jml || '';
+}
+
 function jdwTabel(unit){
   const bulan = JDW.lihat;
   const hariN = jumlahHari(bulan);
@@ -346,9 +390,18 @@ function jdwTabel(unit){
   const iniBulanIni = bulan === JDW.bulanIni;
   const hariIni = iniBulanIni ? hariDinasKini() : 0;
 
+  // Total dinas sebulan per orang — hanya di mode sunting (jdwRekapPita).
+  const pitaRekap = JDW.sunting ? jdwPitaUnit(unit) : [];
+  const kepalaRekap = pitaRekap.map((p, n)=>`<th class="jdw-rekap${n ? '' : ' awal'}" title="${esc(T(
+      `Jumlah dinas ${p} bulan ini, J dan N digabung. SPKL, cuti, ijin, dan DL tidak dihitung.`,
+      `${p} shifts this month, J and N combined. SPKL, leave, and DL are not counted.`))}">${p}</th>`).join('')
+    + (pitaRekap.length ? `<th class="jdw-rekap jml" title="${esc(T('Jumlah dinas bulan ini (tanpa SPKL).',
+      'Shifts this month (excluding SPKL).'))}">${T('Jml','Tot')}</th>` : '');
+  const kosongRekap = pitaRekap.length ? `<td colspan="${pitaRekap.length + 1}"></td>` : '';
+
   const kepala = `<tr><th class="jdw-no">${T('No','No')}</th><th class="jdw-nama">${T('Nama','Name')}</th><th class="jdw-nik">NIK</th>` +
     Array.from({length:hariN}, (_,i)=>`<th class="${i+1===hariIni?'jdw-hari-ini':''}">${i+1}</th>`).join('') +
-    (JDW.sunting ? '<th></th>' : '') + '</tr>';
+    kepalaRekap + (JDW.sunting ? '<th></th>' : '') + '</tr>';
 
   /* Baris penanda kegiatan berkala, tepat di bawah tanggalnya. Di sinilah
      "kegiatan mingguan dan bulanan muncul pada jadwal yang sudah dibuat"
@@ -369,12 +422,12 @@ function jdwTabel(unit){
       return `<td class="${i+1===hariIni?'jdw-hari-ini':''}" title="${esc(judul)}">
         <span class="bkl-titik ${mingguan?'mingguan':'bulanan'}">${keg.length > 1 ? keg.length : '●'}</span></td>`;
     }).join('')}
-    ${JDW.sunting ? '<td></td>' : ''}</tr>` : '';
+    ${kosongRekap}${JDW.sunting ? '<td></td>' : ''}</tr>` : '';
 
   if(!baris.length){
     const bolehPola = !JDW.sunting && bolehSuntingDb('dinas') && JDW.bisaTulis;
     return `<table class="jdw"><thead>${kepala}</thead><tbody>${barisBerkala}
-      <tr><td colspan="${hariN + 3 + (JDW.sunting?1:0)}" style="text-align:center;color:var(--muted);padding:22px">
+      <tr><td colspan="${hariN + 3 + (JDW.sunting?1:0) + (pitaRekap.length ? pitaRekap.length + 1 : 0)}" style="text-align:center;color:var(--muted);padding:22px">
         ${T('Belum ada jadwal untuk bulan ini.','No roster for this month yet.')}
         ${bolehPola ? `<div style="margin-top:10px"><button class="btn kecil" data-jdw-pola>${
           T('Lanjutkan pola ','Continue the pattern of ') + esc(namaBulan(bulanGeser(bulan, -1)))}</button></div>` : ''}
@@ -409,6 +462,7 @@ function jdwTabel(unit){
             T('NIK pegawai','Employee ID')}">`
         : esc(o.nik || '—')}</td>
       ${Array.from({length:hariN}, (_,h)=>sel(h)).join('')}
+      ${jdwSelRekap(i, o.hari, pitaRekap)}
       ${JDW.sunting ? `<td><button class="btn garis kecil" data-jdw-buang="${i}">✕</button></td>` : ''}
     </tr>`;
   }).join('');
@@ -739,6 +793,7 @@ function jdwTulisSel(kotak, r, h, nilai){
     td.textContent = nilai;
     td.style.color = nilai ? warnaShift(nilai, 'var(--text)') : '';
   }
+  jdwPerbaruiRekap(kotak, r);
 }
 
 /** Isi seluruh blok terpilih dengan satu kode ('' = kosongkan). */
