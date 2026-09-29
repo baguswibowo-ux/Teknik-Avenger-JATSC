@@ -118,3 +118,21 @@ export function namaCetakPh(nama, ttdUntuk, diwakili, kedudukan = '') {
   const jabatan = String(kedudukan || '').replace(/\s*\([^)]*\)\s*$/, '').trim();
   return `${String(nama || '').trim()} (PH ${jabatan ? jabatan + ' ' : ''}${atas})`;
 }
+
+/**
+ * Nama penanda untuk notifikasi "sudah ditandatangani" kalau PH-nya DIKETIK
+ * teknisi di formulir, bukan lewat pengalihan PH akun. Kejadiannya: kolom
+ * pejabat diisi "PH Hendra Septa Nugroho" (Hendra tidak punya akun), tujuan
+ * TTD diarahkan ke Adit, dan Adit menandatangani sebagai dirinya sendiri —
+ * notifikasinya dulu hanya menyebut "Trianto Aditya Putra".
+ *
+ * Nama di lembar yang diawali "PH" / "PH." / "Plh" / "Plh." memberi
+ * "Trianto Aditya Putra (PH Hendra Septa Nugroho)". Selain itu nama penanda
+ * dipulangkan apa adanya. Yang tercetak di lembar tidak diubah.
+ */
+export function penandaPhDiketik(namaPenanda, namaDiLembar) {
+  const penanda = String(namaPenanda || '').trim();
+  const m = String(namaDiLembar || '').trim().match(/^(PH|Plh)\b\.?\s*(.+)$/i);
+  if (!m || !m[2].trim()) return penanda;
+  return `${penanda} (${m[1].toUpperCase() === 'PLH' ? 'Plh' : 'PH'} ${m[2].trim()})`;
+}

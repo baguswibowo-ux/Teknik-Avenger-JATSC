@@ -38,7 +38,7 @@
 import { ringkasDokumen, NAMA_DOKUMEN, potong } from './ringkas-dokumen.js';
 import { MODUL_DOKUMEN, JENIS_RUTE, unitCsv, rincianDokumen, rincianAkun } from './aktivitas-rincian.js';
 import { TAUTAN_MAKS } from './tautan-dokumen.js';
-import { dalamPeriodePh } from './ttd-hak.js';
+import { dalamPeriodePh, penandaPhDiketik } from './ttd-hak.js';
 import express from 'express';
 import path from 'node:path';
 import fs from 'node:fs';
@@ -1505,7 +1505,7 @@ const API = {
     // penandanya disebut lengkap dengan keterangan PH-nya, sama dengan yang
     // tercetak.
     notifSudahTtd(j, hasil.dibuatOleh, {
-      unit, tanggal: hasil.tanggal, penanda: hasil.sebagaiPh ? hasil.nama : (user.nama || user.username), id: String(id)
+      unit, tanggal: hasil.tanggal, penanda: hasil.sebagaiPh ? hasil.nama : penandaPhDiketik(user.nama || user.username, hasil.nama), id: String(id)
     });
     return hasil;
   },
