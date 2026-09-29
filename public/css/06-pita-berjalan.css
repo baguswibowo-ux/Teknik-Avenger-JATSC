@@ -118,6 +118,11 @@ table.jdw.sunting td.jdw-sel.jdw-pratinjau{outline:1px dashed var(--accent);outl
 .jdw-alat .ket{font-size:11.5px;color:var(--muted);margin-right:4px;}
 .jdw-alat .btn.kecil{font-family:var(--font-mono);min-width:38px;}
 #jdwKetik{font-family:var(--font-mono);color:var(--accent);}
+/* Total dinas sebulan per orang, di kanan tabel saat menyunting. */
+table.jdw td.jdw-rekap,table.jdw th.jdw-rekap{min-width:30px;color:var(--text);font-weight:600;
+  background:var(--zebra);}
+table.jdw .jdw-rekap.awal{border-left:2px solid var(--line);}
+table.jdw .jdw-rekap.jml{color:var(--accent);}
 .atur-data input[type=month]{background:var(--panel-2);color:var(--text);border:1px solid var(--line);
   border-radius:8px;padding:5px 9px;font-family:var(--font-mono);font-size:11.5px;}
 html[data-tema="gelap"] .atur-data input[type=month]::-webkit-calendar-picker-indicator{filter:invert(.7);}
