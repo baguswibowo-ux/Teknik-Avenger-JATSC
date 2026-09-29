@@ -3125,9 +3125,9 @@ export function tandaiPengingatTtd(jenis, id, waktuIso) {
 export function tujuanTtdCatatan(jenis, id) {
   const t = JENIS_TTD[jenis];
   if (!t) return null;
-  const r = db.prepare(`SELECT ttd_untuk, ${t.ttd} AS ttd, unit, ${t.tglKolom} AS tanggal
+  const r = db.prepare(`SELECT ttd_untuk, ${t.ttd} AS ttd, ${t.nama} AS nama, unit, ${t.tglKolom} AS tanggal
                           FROM ${t.tabel} WHERE id = ?`).get(String(id));
-  return r ? { ttdUntuk: r.ttd_untuk || '', sudahTtd: !!r.ttd, unit: r.unit || '', tanggal: r.tanggal || '' } : null;
+  return r ? { ttdUntuk: r.ttd_untuk || '', sudahTtd: !!r.ttd, unit: r.unit || '', tanggal: r.tanggal || '', nama: r.nama || '' } : null;
 }
 
 export function ringkasCatatan(jenis, id) {

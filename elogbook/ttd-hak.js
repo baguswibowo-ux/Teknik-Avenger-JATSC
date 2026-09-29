@@ -132,7 +132,18 @@ export function namaCetakPh(nama, ttdUntuk, diwakili, kedudukan = '') {
  */
 export function penandaPhDiketik(namaPenanda, namaDiLembar) {
   const penanda = String(namaPenanda || '').trim();
+  const ph = phDiketik(namaDiLembar);
+  return ph ? `${penanda} (${ph.sebutan} ${ph.nama})` : penanda;
+}
+
+/**
+ * Pejabat yang diwakili, dibaca dari kolom pejabat yang diketik teknisi:
+ * "PH. Hendra Septa Nugroho" → { sebutan: 'PH', nama: 'Hendra Septa Nugroho' }.
+ * Bukan PH (nama biasa, kosong, "PHILIP") → null. Dipakai kedua notifikasi:
+ * "perlu tanda tangan" ke akun yang dituju dan "sudah ditandatangani".
+ */
+export function phDiketik(namaDiLembar) {
   const m = String(namaDiLembar || '').trim().match(/^(PH|Plh)\b\.?\s*(.+)$/i);
-  if (!m || !m[2].trim()) return penanda;
-  return `${penanda} (${m[1].toUpperCase() === 'PLH' ? 'Plh' : 'PH'} ${m[2].trim()})`;
+  if (!m || !m[2].trim()) return null;
+  return { sebutan: m[1].toUpperCase() === 'PLH' ? 'Plh' : 'PH', nama: m[2].trim() };
 }

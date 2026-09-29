@@ -38,7 +38,7 @@
 import { ringkasDokumen, NAMA_DOKUMEN, potong } from './ringkas-dokumen.js';
 import { MODUL_DOKUMEN, JENIS_RUTE, unitCsv, rincianDokumen, rincianAkun } from './aktivitas-rincian.js';
 import { TAUTAN_MAKS } from './tautan-dokumen.js';
-import { dalamPeriodePh, penandaPhDiketik } from './ttd-hak.js';
+import { dalamPeriodePh, penandaPhDiketik, phDiketik } from './ttd-hak.js';
 import express from 'express';
 import path from 'node:path';
 import fs from 'node:fs';
@@ -492,7 +492,11 @@ async function notifPerluTtd(jenis, ttdUntukUsername, form, pembuatNama, id) {
       cuplikan: rk.cuplikan
     };
     const opsiPush = { url: tautanKotakTtd(jenis, id), tag: `ttd-${jenis}-${id}`, tetap: true };
-    await kirimPushKeAkun(ttdUntukUsername, pesanUntukPush(pesanPerluTtd(isi), opsiPush));
+    // Kolom pejabat diketik "PH Hendra Septa Nugroho" lalu dituju ke Adit:
+    // Adit perlu tahu ia menandatangani sebagai PH siapa.
+    const phKetik = phDiketik((await tujuanTtdCatatan(jenis, String(id)))?.nama);
+    const teksDituju = pesanPerluTtd(phKetik ? { ...isi, atasNama: phKetik.nama, sebutan: phKetik.sebutan } : isi);
+    await kirimPushKeAkun(ttdUntukUsername, pesanUntukPush(teksDituju, opsiPush));
     /* PH ikut dikabari selama pengalihannya berlaku (phAktifUntuk). Pejabat
        aslinya tetap menerima juga — siapa pun yang sempat duluan boleh
        menandatangani. Satu orang yang kebetulan PH untuk dirinya sendiri
