@@ -62,7 +62,10 @@ const JDW = {
   sebab:    '',      // kenapa tidak boleh, untuk ditampilkan apa adanya
   sunting:  false,   // subtab sedang dalam mode sunting
   draf:     null,    // salinan yang sedang disunting; null di luar mode sunting
-  pola:     null     // ringkasan draf hasil "Lanjutkan pola"; null kalau drafnya bukan dari sana
+  pola:     null,    // ringkasan draf hasil "Lanjutkan pola"; null kalau drafnya bukan dari sana
+  pilih:    null,    // blok sel terpilih di mode sunting: { r0,h0 (jangkar), r1,h1 (ujung) }
+  riwayat:  [],      // salinan hari[] tiap baris sebelum tiap perubahan, untuk Urungkan
+  riwayatDraf: null  // draf pemilik riwayat; draf baru (pola, impor, sunting ulang) = riwayat baru
 };
 
 /* ---------- Ambil dan simpan ---------- */
@@ -339,7 +342,6 @@ const jdwBaris = (unit) => (JDW.jadwalLihat[unit] || []);
 function jdwTabel(unit){
   const bulan = JDW.lihat;
   const hariN = jumlahHari(bulan);
-  const kodeShift = infoUnit(unit).dinas || [];
   const baris = JDW.sunting ? JDW.draf : jdwBaris(unit);
   const iniBulanIni = bulan === JDW.bulanIni;
   const hariIni = iniBulanIni ? hariDinasKini() : 0;
@@ -392,11 +394,10 @@ function jdwTabel(unit){
         return `<td class="${h+1===hariIni?'jdw-hari-ini':''}"${nilai
           ? ` style="color:${warnaShift(nilai, 'var(--text)')}"` : ''}>${esc(nilai) || '·'}</td>`;
       }
-      return `<td class="${h+1===hariIni?'jdw-hari-ini':''}"><select data-baris="${i}" data-hari="${h}">
-        <option value=""></option>${kodeShift.map(k=>
-          `<option value="${esc(k)}"${k===nilai?' selected':''}>${esc(k)}</option>`).join('')}
-        ${nilai && !kodeShift.includes(nilai) ? `<option value="${esc(nilai)}" selected>${esc(nilai)}</option>` : ''}
-      </select></td>`;
+      // Sel biasa, bukan dropdown: diblok, ditarik pojoknya, diketik, atau
+      // di-paste dari Excel — lihat "SUNTING ALA EXCEL" di bawah.
+      return `<td class="jdw-sel${h+1===hariIni?' jdw-hari-ini':''}" data-baris="${i}" data-hari="${h}"${nilai
+        ? ` style="color:${warnaShift(nilai, 'var(--text)')}"` : ''}>${esc(nilai)}</td>`;
     };
     return `<tr>
       <td class="jdw-no">${i+1}${tandaPola(o.nama)}</td>
@@ -412,7 +413,7 @@ function jdwTabel(unit){
     </tr>`;
   }).join('');
 
-  return `<table class="jdw"><thead>${kepala}</thead><tbody>${barisBerkala}${isi}</tbody></table>`;
+  return `<table class="jdw${JDW.sunting?' sunting':''}"><thead>${kepala}</thead><tbody>${barisBerkala}${isi}</tbody></table>`;
 }
 
 /** Seluruh isi subtab Jadwal Dinas. Digambar terpisah supaya tombol sunting
@@ -478,9 +479,31 @@ function jdwIsi(unit){
         ' The J/N building letter follows the latest rotation; SPKL, leave, and DL are not carried. Fix '
       + 'what is needed, then press <b>Save roster</b> — nothing changes until it is saved.')}</div>`;
 
+  const alat = !JDW.sunting ? '' : `<div class="jdw-alat">
+      <span class="ket">${T('Isi sel terpilih:','Fill selected cells:')}</span>
+      ${u.dinas.map(k=>`<button class="btn garis kecil" data-jdw-kode="${esc(k)}" style="color:${
+        warnaShift(k, 'var(--text)')}">${esc(k)}</button>`).join('')}
+      <button class="btn garis kecil" data-jdw-kode="">${T('Kosongkan','Clear')}</button>
+      <button class="btn garis kecil" id="jdwUrung" title="Ctrl+Z">↶ ${T('Urungkan','Undo')}</button>
+      <span class="ket" id="jdwKetik"></span>
+    </div>
+    <div class="catatan" style="margin-top:0">${T(
+      '<b>Seperti Excel:</b> klik lalu seret untuk memblok beberapa sel (atau Shift+klik). Tarik '
+      + '<b>kotak kecil di pojok kanan bawah</b> blok untuk mengulang isinya ke samping atau ke bawah — '
+      + 'blok <b>PS M L L</b> lalu tarik sampai akhir bulan, polanya berulang sendiri. Ketik kodenya '
+      + 'langsung di keyboard, <b>Delete</b> mengosongkan, panah berpindah sel, <b>Ctrl+C / Ctrl+V</b> '
+      + 'menyalin dan menempel (juga dari Excel), <b>Ctrl+Z</b> mengurungkan. Di HP: ketuk sel, tarik '
+      + 'kotak pojoknya, atau pakai tombol kode di atas.',
+      '<b>Like Excel:</b> click and drag to select several cells (or Shift+click). Drag the <b>small '
+      + 'square at the bottom-right corner</b> of the selection to repeat it sideways or down — select '
+      + '<b>PS M L L</b> and drag to the end of the month, the pattern repeats itself. Type a code on the '
+      + 'keyboard, <b>Delete</b> clears, arrows move, <b>Ctrl+C / Ctrl+V</b> copy and paste (also from '
+      + 'Excel), <b>Ctrl+Z</b> undoes. On a phone: tap a cell, drag its corner square, or use the code '
+      + 'buttons above.')}</div>`;
+
   const petak = dinasUnit(unit);
-  return kepala + catatanPola
-    + `<div class="jdw-gulir">${jdwTabel(unit)}</div>`
+  return kepala + catatanPola + alat
+    + `<div class="jdw-gulir"${JDW.sunting ? ' tabindex="0"' : ''}>${jdwTabel(unit)}</div>`
     + `<div class="dinas-baris" style="margin-top:18px">${
         petak.filter(s=>s.o.length).map(s=>kartuShift(s, kodeTerpakai(petak))).join('')}</div>`
     + `<div class="catatan"><b>${T('Kode yang bisa diisi:','Codes you can fill in:')}</b> ${u.dinas.join(' · ')}.
@@ -577,7 +600,7 @@ function jdwPasang(unit){
     // keadaan sebelum disunting, termasuk kalau sudah puluhan sel diubah.
     JDW.draf = jdwBaris(unit).map(o=>({ nama:o.nama, peran:o.peran, nik:o.nik || '', hari:[...(o.hari||[])] }));
     if(!JDW.draf.length) JDW.draf.push({ nama:'', peran:'', nik:'', hari:[] });
-    JDW.sunting = true; JDW.pola = null;
+    JDW.sunting = true; JDW.pola = null; JDW.pilih = null;
     jdwGambar();
   });
 
@@ -639,16 +662,7 @@ function jdwPasang(unit){
   // Sel dan isian dalam mode sunting menulis langsung ke draf. Tanpa
   // menggambar ulang: mengetik satu huruf lalu kehilangan kursor membuat
   // tabel selebar 31 kolom ini tidak mungkin diisi.
-  kotak.querySelectorAll('.jdw select[data-hari]').forEach(s=>{
-    s.addEventListener('change', ()=>{
-      const b = JDW.draf[Number(s.dataset.baris)];
-      if(!b) return;
-      if(!Array.isArray(b.hari)) b.hari = [];
-      b.hari[Number(s.dataset.hari)] = s.value;
-      s.style.color = warnaShift(s.value, '');
-    });
-    s.style.color = warnaShift(s.value, '');
-  });
+  jdwPasangExcel(kotak, unit);
   kotak.querySelectorAll('.jdw input[data-kolom]').forEach(i=>{
     i.addEventListener('input', ()=>{
       const b = JDW.draf[Number(i.dataset.baris)];
@@ -664,3 +678,340 @@ function jdwPasang(unit){
   });
 }
 
+
+/* =======================================================================
+   SUNTING ALA EXCEL — mode sunting tabel jadwal
+
+   Dulu tiap sel adalah dropdown: sebulan untuk 20 orang = 600 kali memilih.
+   Sekarang sel biasa yang diperlakukan seperti lembar Excel:
+
+   - klik lalu seret (atau Shift+klik) memblok beberapa sel;
+   - kotak kecil di pojok kanan bawah blok ditarik ke samping/bawah untuk
+     MENGULANG isi blok — blok "PS M L L" ditarik sampai tanggal 31 menjadi
+     putaran penuh sebulan;
+   - kode diketik langsung (tanpa membuka apa pun), Delete mengosongkan,
+     panah berpindah, Ctrl+C/Ctrl+V menyalin dan menempel teks bertab — juga
+     dari Excel —, Ctrl+Z mengurungkan;
+   - di HP: ketuk sel, tarik kotak pojoknya, atau pakai tombol kode.
+
+   Semua perubahan menulis langsung ke JDW.draf dan hanya memperbarui sel
+   yang berubah. Tabel tidak digambar ulang (kecuali Urungkan), jadi posisi
+   gulir tetap. Belum ada yang tersimpan sampai "Simpan jadwal" ditekan.
+   ======================================================================= */
+
+/** Blok terpilih sebagai kotak rapi { r0, r1, h0, h1 }, atau null. */
+function jdwRentang(){
+  const p = JDW.pilih;
+  if(!p || !JDW.draf || !JDW.draf.length) return null;
+  const rMaks = JDW.draf.length - 1, hMaks = jumlahHari(JDW.lihat) - 1;
+  const jepit = (v, m)=> Math.max(0, Math.min(m, v));
+  const r0 = jepit(p.r0, rMaks), r1 = jepit(p.r1, rMaks), h0 = jepit(p.h0, hMaks), h1 = jepit(p.h1, hMaks);
+  return { r0:Math.min(r0,r1), r1:Math.max(r0,r1), h0:Math.min(h0,h1), h1:Math.max(h0,h1) };
+}
+
+const jdwNilai = (r, h)=> String(((JDW.draf[r] || {}).hari || [])[h] || '');
+
+/** Catat keadaan sebelum perubahan. Draf baru (pola, impor) = riwayat baru. */
+function jdwCatatRiwayat(){
+  if(JDW.riwayatDraf !== JDW.draf){ JDW.riwayat = []; JDW.riwayatDraf = JDW.draf; }
+  JDW.riwayat.push(JDW.draf.map(o=>[...(o.hari || [])]));
+  if(JDW.riwayat.length > 60) JDW.riwayat.shift();
+}
+
+function jdwUrungkan(){
+  if(JDW.riwayatDraf !== JDW.draf || !JDW.riwayat.length){
+    pesan(T('Tidak ada yang bisa diurungkan.','Nothing to undo.'));
+    return;
+  }
+  const lama = JDW.riwayat.pop();
+  JDW.draf.forEach((o, i)=>{ if(lama[i]) o.hari = lama[i]; });
+  jdwGambar();
+}
+
+/** Tulis satu sel ke draf dan ke layar. */
+function jdwTulisSel(kotak, r, h, nilai){
+  const b = JDW.draf[r];
+  if(!b) return;
+  if(!Array.isArray(b.hari)) b.hari = [];
+  b.hari[h] = nilai;
+  const td = kotak.querySelector(`td.jdw-sel[data-baris="${r}"][data-hari="${h}"]`);
+  if(td){
+    td.textContent = nilai;
+    td.style.color = nilai ? warnaShift(nilai, 'var(--text)') : '';
+  }
+}
+
+/** Isi seluruh blok terpilih dengan satu kode ('' = kosongkan). */
+function jdwIsiBlok(kotak, kode){
+  const g = jdwRentang();
+  if(!g) return;
+  jdwCatatRiwayat();
+  for(let r = g.r0; r <= g.r1; r++) for(let h = g.h0; h <= g.h1; h++) jdwTulisSel(kotak, r, h, kode);
+  jdwTandai(kotak);
+}
+
+/** Tandai blok terpilih, pratinjau isian, dan pasang kotak pojok. */
+function jdwTandai(kotak, pratinjau){
+  kotak.querySelectorAll('td.jdw-sel.jdw-pilih, td.jdw-sel.jdw-pratinjau, td.jdw-sel.jdw-jangkar')
+    .forEach(td=>td.classList.remove('jdw-pilih','jdw-pratinjau','jdw-jangkar'));
+  kotak.querySelectorAll('.jdw-pegangan').forEach(x=>x.remove());
+  const g = jdwRentang();
+  if(!g) return;
+  const tandai = (k, cls)=>{
+    for(let r = k.r0; r <= k.r1; r++) for(let h = k.h0; h <= k.h1; h++){
+      const td = kotak.querySelector(`td.jdw-sel[data-baris="${r}"][data-hari="${h}"]`);
+      if(td) td.classList.add(cls);
+    }
+  };
+  if(pratinjau) tandai(pratinjau, 'jdw-pratinjau');
+  tandai(g, 'jdw-pilih');
+  const jangkar = kotak.querySelector(`td.jdw-sel[data-baris="${JDW.pilih.r0}"][data-hari="${JDW.pilih.h0}"]`);
+  if(jangkar) jangkar.classList.add('jdw-jangkar');
+  const pojok = kotak.querySelector(`td.jdw-sel[data-baris="${g.r1}"][data-hari="${g.h1}"]`);
+  if(pojok){
+    const p = document.createElement('span');
+    p.className = 'jdw-pegangan';
+    p.title = T('Tarik untuk mengulang isi blok','Drag to repeat the selection');
+    pojok.appendChild(p);
+  }
+}
+
+/** Blok hasil tarikan pojok ke sel (r, h): diperpanjang ke satu arah saja,
+    arah yang paling jauh ditarik — sama seperti Excel. */
+function jdwTargetIsi(asal, r, h){
+  const dh = h > asal.h1 ? h - asal.h1 : h < asal.h0 ? h - asal.h0 : 0;
+  const dr = r > asal.r1 ? r - asal.r1 : r < asal.r0 ? r - asal.r0 : 0;
+  if(!dh && !dr) return null;
+  if(Math.abs(dh) >= Math.abs(dr)){
+    return { r0:asal.r0, r1:asal.r1, h0:Math.min(asal.h0, h), h1:Math.max(asal.h1, h) };
+  }
+  return { r0:Math.min(asal.r0, r), r1:Math.max(asal.r1, r), h0:asal.h0, h1:asal.h1 };
+}
+
+/** Ulangi isi blok asal ke seluruh target (pola berulang, termasuk mundur). */
+function jdwTerapkanIsi(kotak, asal, target){
+  const tinggi = asal.r1 - asal.r0 + 1, lebar = asal.h1 - asal.h0 + 1;
+  const mod = (a, n)=> ((a % n) + n) % n;
+  const sumber = [];
+  for(let r = 0; r < tinggi; r++){
+    sumber.push([]);
+    for(let h = 0; h < lebar; h++) sumber[r].push(jdwNilai(asal.r0 + r, asal.h0 + h));
+  }
+  jdwCatatRiwayat();
+  for(let r = target.r0; r <= target.r1; r++) for(let h = target.h0; h <= target.h1; h++){
+    if(r >= asal.r0 && r <= asal.r1 && h >= asal.h0 && h <= asal.h1) continue;
+    jdwTulisSel(kotak, r, h, sumber[mod(r - asal.r0, tinggi)][mod(h - asal.h0, lebar)]);
+  }
+  JDW.pilih = { r0:target.r0, h0:target.h0, r1:target.r1, h1:target.h1 };
+  jdwTandai(kotak);
+}
+
+/** Kode unit yang cocok dengan teks bebas (huruf besar-kecil dimaafkan). */
+function jdwKodeSah(unit, teks){
+  const t = String(teks || '').trim().toUpperCase();
+  if(!t) return '';
+  return (infoUnit(unit).dinas || []).find(k=>String(k).toUpperCase() === t) || null;
+}
+
+function jdwPasangExcel(kotak, unit){
+  const gulir = kotak.querySelector('.jdw-gulir');
+  const tabel = kotak.querySelector('table.jdw');
+  if(!gulir || !tabel) return;
+  const kode = infoUnit(unit).dinas || [];
+  let ketik = '';
+  const ketikEl = kotak.querySelector('#jdwKetik');
+  const tampilKetik = ()=>{ if(ketikEl) ketikEl.textContent = ketik ? T('Ketik: ','Typing: ') + ketik + ' ↵' : ''; };
+
+  const selDari = (x, y)=>{
+    const t = document.elementFromPoint(x, y);
+    const td = t && t.closest && t.closest('td.jdw-sel');
+    return td && tabel.contains(td) ? { r:Number(td.dataset.baris), h:Number(td.dataset.hari) } : null;
+  };
+  const fokus = ()=>{ try{ gulir.focus({ preventScroll:true }); }catch(e){ gulir.focus(); } };
+
+  /* ---- Seret: memblok (mouse) atau menarik kotak pojok (mouse dan sentuh) ---- */
+  let mode = null, asal = null, target = null, titik = null, putar = 0;
+  const gerak = ()=>{
+    if(!mode || !titik) return;
+    const s = selDari(titik.x, titik.y);
+    if(s){
+      if(mode === 'pilih'){
+        JDW.pilih.r1 = s.r; JDW.pilih.h1 = s.h; jdwTandai(kotak);
+      }else{
+        target = jdwTargetIsi(asal, s.r, s.h); jdwTandai(kotak, target);
+      }
+    }
+  };
+  // Tabelnya 31 kolom dan lebih lebar dari layar: menyeret ke tepi kotak
+  // menggulirnya sendiri, seperti Excel.
+  const gulirTepi = ()=>{
+    if(!mode) return;
+    if(titik){
+      const k = gulir.getBoundingClientRect();
+      const kiri = k.left + 300;   // kolom No/Nama/NIK membeku di kiri
+      if(titik.x > k.right - 40) gulir.scrollLeft += 14;
+      else if(titik.x < kiri && gulir.scrollLeft > 0) gulir.scrollLeft -= 14;
+      gerak();
+    }
+    putar = requestAnimationFrame(gulirTepi);
+  };
+  const selesai = (terapkan)=>{
+    if(mode === 'isi' && terapkan && target) jdwTerapkanIsi(kotak, asal, target);
+    else if(mode) jdwTandai(kotak);
+    mode = null; asal = null; target = null; titik = null;
+    cancelAnimationFrame(putar);
+  };
+
+  tabel.addEventListener('pointerdown', (e)=>{
+    if(e.button !== 0) return;
+    if(e.target.classList.contains('jdw-pegangan')){
+      e.preventDefault();
+      asal = jdwRentang();
+      if(!asal) return;
+      mode = 'isi'; titik = { x:e.clientX, y:e.clientY };
+      try{ tabel.setPointerCapture(e.pointerId); }catch(_){}
+      putar = requestAnimationFrame(gulirTepi);
+      fokus();
+      return;
+    }
+    const td = e.target.closest('td.jdw-sel');
+    if(!td) return;
+    const r = Number(td.dataset.baris), h = Number(td.dataset.hari);
+    ketik = ''; tampilKetik();
+    if(e.shiftKey && JDW.pilih){ JDW.pilih.r1 = r; JDW.pilih.h1 = h; }
+    else JDW.pilih = { r0:r, h0:h, r1:r, h1:h };
+    jdwTandai(kotak);
+    fokus();
+    // Sentuhan tidak memblok dengan menyeret: jarinya dipakai menggulir tabel.
+    if(e.pointerType === 'mouse'){
+      e.preventDefault();
+      mode = 'pilih'; titik = { x:e.clientX, y:e.clientY };
+      try{ tabel.setPointerCapture(e.pointerId); }catch(_){}
+      putar = requestAnimationFrame(gulirTepi);
+    }
+  });
+  tabel.addEventListener('pointermove', (e)=>{
+    if(!mode) return;
+    titik = { x:e.clientX, y:e.clientY };
+    gerak();
+  });
+  tabel.addEventListener('pointerup', ()=>selesai(true));
+  tabel.addEventListener('pointercancel', ()=>selesai(false));
+
+  /* ---- Tombol kode dan Urungkan ---- */
+  kotak.querySelectorAll('[data-jdw-kode]').forEach(b=>b.addEventListener('click', ()=>{
+    if(!jdwRentang()){ pesan(T('Pilih dulu sel di tabel.','Select cells in the table first.')); return; }
+    jdwIsiBlok(kotak, b.dataset.jdwKode);
+    fokus();
+  }));
+  const btnUrung = kotak.querySelector('#jdwUrung');
+  if(btnUrung) btnUrung.addEventListener('click', jdwUrungkan);
+
+  /* ---- Keyboard ---- */
+  const pindah = (dr, dh, perluas)=>{
+    const g = jdwRentang();
+    if(!g) return;
+    const rMaks = JDW.draf.length - 1, hMaks = jumlahHari(JDW.lihat) - 1;
+    const p = JDW.pilih;
+    const r = Math.max(0, Math.min(rMaks, (perluas ? p.r1 : p.r0) + dr));
+    const h = Math.max(0, Math.min(hMaks, (perluas ? p.h1 : p.h0) + dh));
+    JDW.pilih = perluas ? { ...p, r1:r, h1:h } : { r0:r, h0:h, r1:r, h1:h };
+    jdwTandai(kotak);
+    const td = kotak.querySelector(`td.jdw-sel[data-baris="${r}"][data-hari="${h}"]`);
+    if(td) td.scrollIntoView({ block:'nearest', inline:'nearest' });
+  };
+  // Kode yang sudah pasti (tidak ada kode lain yang diawali ketikan ini)
+  // langsung dipakai; yang masih bisa bercabang menunggu Enter.
+  const pakaiKetik = (paksa)=>{
+    const t = ketik.toUpperCase();
+    const calon = kode.filter(k=>String(k).toUpperCase().startsWith(t));
+    const pas = kode.find(k=>String(k).toUpperCase() === t);
+    const pilihan = pas && (paksa || calon.length === 1) ? pas : (paksa && calon.length === 1 ? calon[0] : null);
+    if(!pilihan) return false;
+    const g = jdwRentang();
+    const tunggal = g && g.r0 === g.r1 && g.h0 === g.h1;
+    jdwIsiBlok(kotak, pilihan);
+    ketik = ''; tampilKetik();
+    // Satu sel: lanjut ke tanggal berikutnya, jadi sebaris bisa diketik terus.
+    if(tunggal) pindah(0, 1, false);
+    return true;
+  };
+
+  gulir.addEventListener('keydown', (e)=>{
+    if(e.target !== gulir || !jdwRentang()) return;
+    const ctrl = e.ctrlKey || e.metaKey;
+    const panah = { ArrowUp:[-1,0], ArrowDown:[1,0], ArrowLeft:[0,-1], ArrowRight:[0,1] }[e.key];
+    if(panah){ e.preventDefault(); ketik = ''; tampilKetik(); pindah(panah[0], panah[1], e.shiftKey); return; }
+    if(ctrl && (e.key === 'z' || e.key === 'Z')){ e.preventDefault(); jdwUrungkan(); return; }
+    if(ctrl) return;   // Ctrl+C / Ctrl+V lewat peristiwa copy/paste di bawah
+    if(e.key === 'Delete' || (e.key === 'Backspace' && !ketik)){
+      e.preventDefault(); jdwIsiBlok(kotak, ''); return;
+    }
+    if(e.key === 'Backspace'){ e.preventDefault(); ketik = ketik.slice(0, -1); tampilKetik(); return; }
+    if(e.key === 'Escape'){ ketik = ''; tampilKetik(); return; }
+    if(e.key === 'Enter' || e.key === 'Tab'){
+      if(ketik){
+        e.preventDefault();
+        if(!pakaiKetik(true)){
+          pesan(T(`Kode "${ketik}" tidak ada di unit ini.`, `Code "${ketik}" is not used by this unit.`));
+          ketik = ''; tampilKetik();
+        }
+      }else if(e.key === 'Enter'){ e.preventDefault(); pindah(1, 0, false); }
+      return;
+    }
+    if(e.key.length === 1 && /[A-Za-z0-9]/.test(e.key)){
+      e.preventDefault();
+      ketik += e.key.toUpperCase();
+      // Ketikan yang tak mungkin jadi kode apa pun dimulai ulang dari huruf ini.
+      if(!kode.some(k=>String(k).toUpperCase().startsWith(ketik))) ketik = e.key.toUpperCase();
+      tampilKetik();
+      pakaiKetik(false);
+    }
+  });
+
+  /* ---- Salin & tempel (teks bertab, sama dengan yang dipakai Excel) ---- */
+  gulir.addEventListener('copy', (e)=>{
+    const g = jdwRentang();
+    if(!g || e.target !== gulir) return;
+    const baris = [];
+    for(let r = g.r0; r <= g.r1; r++){
+      const isi = [];
+      for(let h = g.h0; h <= g.h1; h++) isi.push(jdwNilai(r, h));
+      baris.push(isi.join('\t'));
+    }
+    e.clipboardData.setData('text/plain', baris.join('\r\n'));
+    e.preventDefault();
+    pesan(T('Tersalin.','Copied.'));
+  });
+  gulir.addEventListener('paste', (e)=>{
+    const g = jdwRentang();
+    if(!g || e.target !== gulir) return;
+    e.preventDefault();
+    const teks = (e.clipboardData && e.clipboardData.getData('text/plain')) || '';
+    const kisi = teks.replace(/\r/g, '').replace(/\n+$/, '').split('\n').map(b=>b.split('\t'));
+    if(!teks) return;
+    const rMaks = JDW.draf.length - 1, hMaks = jumlahHari(JDW.lihat) - 1;
+    // Satu nilai ke blok besar = isi seluruh blok, seperti Excel.
+    const satu = kisi.length === 1 && kisi[0].length === 1;
+    const tinggi = satu ? g.r1 - g.r0 + 1 : kisi.length;
+    const lebar = satu ? g.h1 - g.h0 + 1 : Math.max(...kisi.map(b=>b.length));
+    let lewat = 0;
+    jdwCatatRiwayat();
+    for(let dr = 0; dr < tinggi; dr++) for(let dh = 0; dh < lebar; dh++){
+      const r = g.r0 + dr, h = g.h0 + dh;
+      if(r > rMaks || h > hMaks) continue;
+      // Baris tempelan yang lebih pendek tidak mengosongkan sel di sebelahnya.
+      if(!satu && dh >= (kisi[dr] || []).length) continue;
+      const mentah = satu ? kisi[0][0] : kisi[dr][dh];
+      const k = jdwKodeSah(unit, mentah);
+      if(k === null){ lewat++; continue; }
+      jdwTulisSel(kotak, r, h, k);
+    }
+    JDW.pilih = { r0:g.r0, h0:g.h0, r1:Math.min(rMaks, g.r0 + tinggi - 1), h1:Math.min(hMaks, g.h0 + lebar - 1) };
+    jdwTandai(kotak);
+    if(lewat) pesan(T(`${lewat} sel dilewati: kodenya tidak dipakai unit ini.`,
+                      `${lewat} cells skipped: code not used by this unit.`));
+  });
+
+  jdwTandai(kotak);
+}
