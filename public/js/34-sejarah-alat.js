@@ -212,3 +212,82 @@ async function sjrSimpan(unit, alat){
     if(tombol) tombol.disabled = false;
   }
 }
+
+/* =======================================================================
+   STIKER QR — satu per alat, ditempel di alatnya
+
+   Yang memindai (tanpa login) mendarat di /q/<token>: lembar Sejarah
+   Peralatan RESMI terakhir untuk alat itu — yang sudah disetujui Manager
+   Teknik lewat antrian cetak. Tokennya acak dan dibuat server (/qr-alat);
+   alat yang sama selalu mendapat token yang sama, jadi mencetak ulang tidak
+   mematikan stiker yang sudah tertempel. Gambar QR-nya juga dari server
+   (/q/<token>/qr.svg), jadi halaman ini tidak butuh pustaka apa pun.
+   ======================================================================= */
+
+/** Alat (induk + sub-unitnya) yang dicetak stikernya, dengan nama lengkap. */
+function qrDaftarAlat(daftar){
+  const hasil = [];
+  (daftar || []).forEach(a=>{
+    if(!a || !a.id) return;
+    hasil.push({ id:a.id, nama:a.nama || '', sn:a.sn || '' });
+    (Array.isArray(a.sub) ? a.sub : []).forEach(s=>{
+      if(s && s.id && s.nama) hasil.push({ id:s.id, nama:`${a.nama || ''} — ${s.nama}`, sn:s.sn || '' });
+    });
+  });
+  return hasil;
+}
+
+/**
+ * Minta token lalu buka lembar stiker siap cetak di jendela baru.
+ * Jendelanya dibuka DULU, sebelum menunggu server — peramban memblokir
+ * jendela yang dibuka sesudah await karena dianggap bukan dari klik.
+ */
+async function qrCetakStiker(unit, daftar){
+  if(!daftar.length){ pesan(T('Tidak ada alat untuk dibuatkan QR.','No equipment to make a QR for.')); return; }
+  const jendela = window.open('', '_blank');
+  if(!jendela){ pesan(T('Jendela baru diblokir peramban. Izinkan pop-up untuk dashboard ini.',
+                        'The browser blocked the new window. Allow pop-ups for this dashboard.')); return; }
+  jendela.document.write(`<p style="font:14px Arial;padding:20px">${T('Menyiapkan QR…','Preparing QR…')}</p>`);
+  try{
+    const u = infoUnit(unit);
+    const r = await srvFetch('/qr-alat', {
+      method:'POST', headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({ unit, unitNama:u.nama || unit, kelompok:u.alat || u.nama || '',
+                             alat: daftar.map(a=>({ id:a.id, nama:a.nama })) })
+    }, 20000);
+    const j = await r.json().catch(()=>null);
+    if(!r.ok || !j || !j.token) throw new Error((j && j.error) || ('server menjawab ' + r.status));
+    const stiker = daftar.filter(a=>j.token[a.id]).map(a=>{
+      const t = j.token[a.id];
+      return `<div class="stiker">
+        <img src="${esc(j.dasar)}/q/${esc(t)}/qr.svg" alt="QR">
+        <div class="nama">${esc(a.nama)}</div>
+        ${a.sn && a.sn !== '—' ? `<div class="kecil">S/N ${esc(a.sn)}</div>` : ''}
+        <div class="kecil">${esc(u.nama || unit)} · ${T('pindai untuk sejarah alat','scan for equipment history')}</div>
+      </div>`;
+    }).join('');
+    jendela.document.open();
+    jendela.document.write(`<!doctype html><html lang="id"><head><meta charset="utf-8">
+      <title>QR ${esc(u.nama || unit)}</title>
+      <style>
+        @page{size:A4;margin:10mm}
+        body{margin:0;font-family:Arial,Helvetica,sans-serif;color:#000;background:#fff}
+        .alat{display:flex;gap:8px;align-items:center;padding:10px;border-bottom:1px solid #ccc;font-size:13px}
+        .alat button{padding:6px 14px;font-size:13px}
+        .lembar{display:grid;grid-template-columns:repeat(auto-fill,52mm);gap:4mm;padding:4mm}
+        .stiker{width:52mm;border:1px dashed #999;padding:3mm;text-align:center;box-sizing:border-box;break-inside:avoid}
+        .stiker img{width:40mm;height:40mm;display:block;margin:0 auto 2mm}
+        .nama{font-size:9pt;font-weight:bold;line-height:1.2;word-break:break-word}
+        .kecil{font-size:7pt;color:#333;margin-top:1mm}
+        @media print{.alat{display:none}.lembar{padding:0}}
+      </style></head><body>
+      <div class="alat"><button onclick="print()">${T('Cetak','Print')}</button>
+        <span>${daftar.length} ${T('stiker · gunting di garis putus-putus. Cetak dengan skala 100%.',
+          'stickers · cut along the dashed lines. Print at 100% scale.')}</span></div>
+      <div class="lembar">${stiker}</div></body></html>`);
+    jendela.document.close();
+  }catch(e){
+    jendela.close();
+    pesan(T('QR gagal dibuat: ','Could not make the QR: ') + (e && e.message || e));
+  }
+}

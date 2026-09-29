@@ -297,6 +297,10 @@ function gambarUnit(){
         <span class="tombol">
           ${alat.length ? `<button class="btn garis kecil" data-cetak="peralatan">${
             T('Cetak','Print')}</button>` : ''}
+          ${alat.length && bolehBuka(unitDibuka) ? `<button class="btn garis kecil" data-qr-semua title="${
+            esc(T('Stiker QR untuk semua alat (dan sub-unitnya) di grup yang tampil',
+                  'QR stickers for every equipment (and sub-unit) in the shown group'))}">${
+            T('QR semua alat','QR for all')}</button>` : ''}
           ${bolehSuntingDb('peralatan') ? `<button class="btn kecil" data-db-tambah="peralatan">${
             T('Tambah peralatan','Add equipment')}</button>` : ''}
         </span>
@@ -666,6 +670,14 @@ function gambarUnit(){
 
   el('isiUnit').querySelectorAll('button[data-cetak]').forEach(b=>{
     b.addEventListener('click', ()=>cetakBuka(b.dataset.cetak, unitDibuka));
+  });
+  // Stiker QR seluruh alat di grup yang sedang tampil — sama dengan yang
+  // dicetak tombol Cetak (34-sejarah-alat.js).
+  el('isiUnit').querySelectorAll('button[data-qr-semua]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const semua = (PERALATAN[unitDibuka] || []).slice().sort((a,b)=>(a.nama||'').localeCompare(b.nama||''));
+      qrCetakStiker(unitDibuka, qrDaftarAlat(grupDipilih ? semua.filter(a=>(a.grup || '') === grupDipilih) : semua));
+    });
   });
   el('isiUnit').querySelectorAll('button[data-rekap-spr]').forEach(b=>{
     b.addEventListener('click', ()=>cetakBuka('sparepart', unitDibuka, { rekap:true }));
@@ -1100,14 +1112,20 @@ function gambarRinciAlat(){
 
   // Tombol di kepala panel — Ubah untuk yang sedang aktif (parent atau sub),
   // dan (kalau yang aktif itu sub) Hapus juga.
-  const tombolKepala = boleh ? `<span style="display:flex;gap:7px;align-items:center">
+  // QR: siapa saja yang memegang unit ini, bukan hanya yang boleh menyunting.
+  const tombolQr = bolehBuka(unitDibuka) ? `<button class="btn garis kecil" data-qr-alat="${
+    esc(sumber.id)}" title="${esc(T('Cetak stiker QR: dipindai, langsung membuka lembar sejarah resmi alat ini',
+    'Print a QR sticker: scanning opens this equipment\'s approved history sheet'))}">QR</button>` : '';
+  const tombolKepala = !boleh ? (tombolQr ? `<span style="display:flex;gap:7px">${tombolQr}</span>` : '')
+    : `<span style="display:flex;gap:7px;align-items:center">
+    ${tombolQr}
     ${sub
       ? `<button class="btn garis kecil" data-sub-ubah="${esc(sub.id)}">${T('Ubah','Edit')}</button>
          <button class="btn garis kecil bahaya-garis" data-sub-hapus="${esc(sub.id)}" title="${
            T('Hapus sub-unit ini','Delete this sub-unit')}">×</button>`
       : `<button class="btn garis kecil" data-db-ubah="peralatan" data-alat="${
           esc(alat.id)}">${T('Ubah','Edit')}</button>`}
-  </span>` : '';
+  </span>`;
 
   // Tab Induk yang punya sub-unit — identitas teknisnya hidup di masing-masing
   // sub, bukan pada induk. Yang tampil di sini cukup nama & grup, ditambah
@@ -1197,6 +1215,16 @@ function rinciAlatPasang(alat){
     b.addEventListener('click', ()=>{
       subDipilih = b.dataset.subTab || null;
       gambarRinciAlat();
+    });
+  });
+
+  // Stiker QR alat/sub yang sedang tampil (34-sejarah-alat.js).
+  document.querySelectorAll('[data-qr-alat]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const s = (alat.sub || []).find(x=>x.id === b.dataset.qrAlat);
+      qrCetakStiker(unitDibuka, [s
+        ? { id:s.id, nama:`${alat.nama || ''} — ${s.nama}`, sn:s.sn || '' }
+        : { id:alat.id, nama:alat.nama || '', sn:alat.sn || '' }]);
     });
   });
 
