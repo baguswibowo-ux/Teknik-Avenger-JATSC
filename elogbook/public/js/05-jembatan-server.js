@@ -64,3 +64,17 @@ async function gsRun(fn, ...args){
   }
   throw lastErr;
 }
+
+/* DENYUT "MASIH DI SINI" — pasangan denyutSesi di 11-sesi.js milik dashboard:
+   halaman E-Logbook yang terbuka tanpa diklik tetap terhitung aktif di kolom
+   Login layar Kelola Akun. Berhenti sendiri begitu server menjawab 401 (belum
+   masuk / sesi habis) sampai tabnya dilihat lagi. */
+let denyutMati = false;
+function denyutSesi(){
+  if(document.hidden || denyutMati) return;
+  fetch('/api/me', { cache:'no-store', credentials:'same-origin' })
+    .then(r=>{ if(r.status === 401) denyutMati = true; })
+    .catch(()=>{});
+}
+setInterval(denyutSesi, 120000);
+document.addEventListener('visibilitychange', ()=>{ denyutMati = false; denyutSesi(); });

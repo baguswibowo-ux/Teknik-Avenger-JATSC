@@ -252,6 +252,66 @@ function gambarSaringAkun(){
       kode === dipilih ? ' terpilih' : ''}"><b>${n}</b>${esc(nama)}</button>`).join('');
 }
 
+/* ---------- Status login ----------
+   Dari E-Logbook (listUsers): terakhir_aktif = kapan sesinya terakhir dipakai,
+   dicatat paling sering semenit sekali; halaman yang sedang terbuka berdenyut
+   tiap 2 menit (11-sesi.js), jadi "Online" = terlihat dalam 5 menit terakhir.
+   sesi_hidup = belum menekan Keluar (sesi berlaku 30 hari). */
+const LOGIN_ONLINE_MS = 5 * 60000;
+
+function lamaLalu(ms){
+  const m = Math.max(0, Math.round((Date.now() - ms) / 60000));
+  if(m < 1)  return T('baru saja','just now');
+  if(m < 60) return m + T(' menit lalu',' min ago');
+  const j = Math.round(m / 60);
+  if(j < 24) return j + T(' jam lalu',' h ago');
+  const h = Math.round(j / 24);
+  if(h < 31) return h + T(' hari lalu',' days ago');
+  return tglRingkas(new Date(ms).toISOString().slice(0, 10));
+}
+
+const loginOnline = (u)=> !!u.sesi_hidup && Date.now() - Date.parse(u.terakhir_aktif || '') < LOGIN_ONLINE_MS;
+
+/** Sel status login satu akun. Jam persisnya ada di tooltip. */
+function selLogin(u){
+  const t = Date.parse(u.terakhir_aktif || '');
+  const jam = isNaN(t) ? '' : new Date(t).toLocaleString(LOKAL(), { dateStyle:'medium', timeStyle:'short' });
+  const [kelas, teks] = loginOnline(u) ? ['online', T('Online','Online')]
+    : u.sesi_hidup ? ['diam', isNaN(t) ? T('Masuk','Signed in') : T('Aktif ','Active ') + lamaLalu(t)]
+    : ['keluar', isNaN(t) ? T('Belum terlihat','Not seen yet') : T('Keluar · aktif ','Signed out · active ') + lamaLalu(t)];
+  return `<span class="login ${kelas}" data-login="${esc(u.username)}" title="${esc(jam
+    ? T('Terakhir aktif: ','Last active: ') + jam : T('Belum ada catatan aktivitas.','No activity recorded yet.'))}">${esc(teks)}</span>`;
+}
+
+/**
+ * Segarkan kolom Login tanpa menggambar ulang layar. USERS admin diambil sekali
+ * waktu masuk, jadi tanpa ini "Online" membeku di jam login. Yang diganti cuma
+ * sel status dan angka "online sekarang": menggambar ulang seluruh layar akan
+ * membuang centang Hak yang belum disimpan dan isian yang sedang diketik.
+ * Dipanggil saat layar Kelola Akun dibuka (16-jam-navigasi.js) dan tiap menit
+ * selama layarnya tampil.
+ */
+async function segarkanLogin(){
+  const layar = el('l-akun');
+  if(!akun || !layar || !layar.classList.contains('aktif') || document.hidden || !USERS.length) return;
+  let baru;
+  try{ baru = await adminApi('listUsers'); }catch(e){ return; }
+  if(!Array.isArray(baru)) return;
+  const peta = new Map(baru.map(u=>[u.username, u]));
+  USERS.forEach(u=>{
+    const b = peta.get(u.username);
+    if(b){ u.terakhir_aktif = b.terakhir_aktif; u.sesi_hidup = b.sesi_hidup; }
+  });
+  layar.querySelectorAll('span.login[data-login]').forEach(s=>{
+    const u = USERS.find(x=>x.username === s.dataset.login);
+    if(u) s.outerHTML = selLogin(u);
+  });
+  const sub = el('ubinAkun') && el('ubinAkun').querySelector('.ubin.hijau .sub');
+  if(sub) sub.textContent = T('boleh masuk · ','may sign in · ')
+    + USERS.filter(u=>u.aktif && loginOnline(u)).length + T(' online sekarang',' online now');
+}
+setInterval(()=>{ segarkanLogin(); }, 60000);
+
 function gambarAkun(){
   // Admin unit boleh membuka layar untuk panel Hak, tapi tidak melewati
   // bagian pengelolaan akun. gambarHak() dipanggil terpisah supaya tetap
@@ -294,7 +354,8 @@ function gambarAkun(){
 
   el('ubinAkun').innerHTML = [
     [T('Akun terdaftar','Accounts Registered'), total, T('seluruh peran','all roles'), 'biru'],
-    [T('Aktif','Active'), hidup, T('boleh masuk','may sign in'), 'hijau'],
+    [T('Aktif','Active'), hidup, T('boleh masuk · ','may sign in · ')
+      + USERS.filter(u=>u.aktif && loginOnline(u)).length + T(' online sekarang',' online now'), 'hijau'],
     [T('Nonaktif','Deactivated'), total - hidup,
       (total - hidup) ? T('sesinya terputus','sessions ended') : T('tidak ada','none'),
       (total - hidup) ? 'kuning' : ''],
@@ -317,11 +378,11 @@ function gambarAkun(){
   el('tblAkun').innerHTML =
     `<thead><tr><th>Username</th><th>${T('Nama','Name')}</th><th>${T('Peran','Role')}</th>
       <th>${T('Unit logbook','Logbook units')}</th>
-      <th>Status</th><th></th></tr></thead><tbody>` +
-    (tampil.length ? '' : `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:22px">${
+      <th>Status</th><th>Login</th><th></th></tr></thead><tbody>` +
+    (tampil.length ? '' : `<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:22px">${
       T('Tidak ada akun yang cocok dengan saringan ini.','No account matches this filter.')}</td></tr>`) +
     kelompokAkun(tampil).map(([role, anggota])=>
-      `<tr class="kelompok-akun"><td colspan="6">${esc(peranTampil(role))}
+      `<tr class="kelompok-akun"><td colspan="7">${esc(peranTampil(role))}
         <span class="jumlah">${anggota.length} ${T('akun','accounts')}</span></td></tr>` +
     anggota.map(u=>{
       const semua = SEMUA_UNIT_PERAN.includes(u.role);
@@ -338,6 +399,7 @@ function gambarAkun(){
         <td><div class="unit-pil">${unit}</div></td>
         <td><span class="pil ${u.aktif ? 'aktif-ya' : 'aktif-tidak'}">${
           u.aktif ? T('Aktif','Active') : T('Nonaktif','Deactivated')}</span></td>
+        <td>${selLogin(u)}</td>
         <td style="text-align:right"><button class="btn garis kecil" data-ubah="${esc(u.username)}">${
           T('Ubah','Edit')}</button></td>
       </tr>`;
@@ -398,8 +460,8 @@ function gambarAktivasiUnit(){
 
   tbl.innerHTML =
     `<thead><tr><th>Username</th><th>${T('Nama','Name')}</th>
-      <th>${T('Unit logbook','Logbook units')}</th><th>Status</th><th></th></tr></thead><tbody>` +
-    (baris.length ? '' : `<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:22px">${
+      <th>${T('Unit logbook','Logbook units')}</th><th>Status</th><th>Login</th><th></th></tr></thead><tbody>` +
+    (baris.length ? '' : `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:22px">${
       USERS.length
         ? T('Belum ada akun teknisi di unit Anda.','No technician accounts in your unit yet.')
         : (muatUsersGalat
@@ -416,6 +478,7 @@ function gambarAktivasiUnit(){
         <td><div class="unit-pil">${unit}</div></td>
         <td><span class="pil ${u.aktif ? 'aktif-ya' : 'aktif-tidak'}">${
           u.aktif ? T('Aktif','Active') : T('Nonaktif','Deactivated')}</span></td>
+        <td>${selLogin(u)}</td>
         <td style="text-align:right;white-space:nowrap">
           <button class="btn garis kecil" data-ubah-unit="${esc(u.username)}">${T('Ubah','Edit')}</button>
           <button class="${kelas}" data-aktif-toggle="${esc(u.username)}"

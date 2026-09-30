@@ -425,6 +425,11 @@ tambahKolom('users', 'superadmin', "INTEGER NOT NULL DEFAULT 0");
 
 /* PH (pelaksana harian): siapa yang mewakili pejabat ini dan sampai tanggal
    berapa (YYYY-MM-DD, UTC). Kosong = tidak ada PH. Lihat getPh. */
+/* Kapan akun ini terakhir memakai sesinya (ISO UTC). Dibaca layar Kelola Akun
+   untuk status "online / terakhir aktif". Ditulis getSessionUser, paling
+   sering sekali per menit per akun. Kosong = belum pernah terlihat sejak
+   kolom ini ada. */
+tambahKolom('users', 'terakhir_aktif', "TEXT NOT NULL DEFAULT ''");
 tambahKolom('users', 'ph_username', "TEXT NOT NULL DEFAULT ''");
 tambahKolom('users', 'ph_sampai', "TEXT NOT NULL DEFAULT ''");
 /* Tanggal mulai tugas PH. Kosong pada penunjukan yang dibuat sebelum kolom ini
@@ -970,13 +975,26 @@ export const getUserByUsername = (username) =>
  * kotak centangnya mencerminkan pilihannya, bukan hasil sintesis "seluruh
  * unit" yang membuat semua kotak selalu tampak tercentang.
  */
+/* Status login ikut di sini (hanya admin dan admin unit yang boleh memanggil
+   listUsers): terakhir_aktif, dan sesi_hidup = masih punya sesi yang belum
+   kedaluwarsa (belum menekan Keluar). Akun yang terakhir_aktif-nya masih
+   kosong — belum terlihat sejak kolomnya ada — memakai waktu masuk terakhir
+   dari sesinya, kalau ada. */
 export const listUsers = () =>
-  db.prepare('SELECT id, username, nama, role, aktif, superadmin, dibuat_pada FROM users ORDER BY username')
-    .all()
-    .map((u) => {
+  db.prepare(`SELECT u.id, u.username, u.nama, u.role, u.aktif, u.superadmin, u.dibuat_pada, u.terakhir_aktif,
+                     (SELECT COUNT(*) FROM sessions s WHERE s.user_id = u.id AND s.kadaluarsa > ?) AS sesi_hidup,
+                     (SELECT MAX(s.dibuat_pada) FROM sessions s WHERE s.user_id = u.id) AS masuk_terakhir
+                FROM users u ORDER BY u.username`)
+    .all(nowIso())
+    .map(({ masuk_terakhir, ...u }) => {
       const rows = db.prepare('SELECT unit FROM user_unit WHERE user_id = ?').all(u.id);
       const punya = new Set(rows.map((r) => r.unit));
-      return { ...u, unit: KODE_UNIT.filter((k) => punya.has(k)) };
+      return {
+        ...u,
+        terakhir_aktif: u.terakhir_aktif || masuk_terakhir || '',
+        sesi_hidup: u.sesi_hidup > 0,
+        unit: KODE_UNIT.filter((k) => punya.has(k))
+      };
     });
 
 export const countUsers = () =>
@@ -1001,10 +1019,27 @@ export function getSessionUser(token) {
   if (!row) return null;
   if (row.kadaluarsa < nowIso()) { deleteSession(token); return null; }
   if (!row.aktif) return null;
+  tandaiAktif(row.id);
   return {
     id: row.id, username: row.username, nama: row.nama, role: row.role,
     superadmin: !!row.superadmin
   };
+}
+
+/* Terakhir aktif. getSessionUser dipanggil hampir di tiap permintaan, jadi
+   tulisannya dijarangkan: paling sering sekali per menit per akun, dicatat di
+   memori. Selisih semenit tidak berarti apa-apa untuk "online atau tidak". */
+const TERAKHIR_DITULIS = new Map();   // user_id -> ms epoch
+function tandaiAktif(userId) {
+  const kini = Date.now();
+  if (kini - (TERAKHIR_DITULIS.get(userId) || 0) < 60000) return;
+  TERAKHIR_DITULIS.set(userId, kini);
+  try {
+    db.prepare('UPDATE users SET terakhir_aktif = ? WHERE id = ?').run(nowIso(), userId);
+  } catch (err) {
+    // Gagal mencatat tidak boleh menggagalkan permintaan orangnya.
+    console.warn('[terakhir aktif]', err?.message || err);
+  }
 }
 
 /** Penanda super-admin, berlaku terpisah dari peran. Dipakai gerbang fitur yang

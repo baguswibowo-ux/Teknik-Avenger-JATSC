@@ -142,3 +142,17 @@ el('tombolKeluar').addEventListener('click', async ()=>{
   if(typeof hpGambar === 'function') hpGambar();   // spanduk HP ikut pergi bersama sesinya
 });
 
+
+/* DENYUT "MASIH DI SINI". Kolom Login di Kelola Akun membaca kapan sesi
+   seseorang terakhir dipakai (E-Logbook, getSessionUser). Halaman yang
+   dibiarkan terbuka tanpa diklik tidak memanggil server sama sekali, jadi
+   orang yang sedang memandangi dashboard akan tampak "tidak aktif". Tiap 2
+   menit, dan begitu tabnya dilihat lagi, satu /api/me kecil — hanya kalau
+   sudah masuk dan tabnya memang tampil, supaya tab latar tidak ikut dihitung
+   online. */
+function denyutSesi(){
+  if(!akun || document.hidden) return;
+  fetch('/api/me', { cache:'no-store', credentials:'same-origin' }).catch(()=>{});
+}
+setInterval(denyutSesi, 120000);
+document.addEventListener('visibilitychange', denyutSesi);

@@ -33,6 +33,8 @@ function pindahLayar(nama){
   if(nama === 'akun' && typeof gambarAkun === 'function' && akun){
     if(typeof muatUsersGalat !== 'undefined' && muatUsersGalat) muatUsersGalat = '';
     gambarAkun();
+    // Kolom Login diambil segar tiap layarnya dibuka (14-kelola-akun.js).
+    if(typeof segarkanLogin === 'function') segarkanLogin();
   }
   // Isinya bergantung pada tanggal hari ini. Halaman yang dibiarkan terbuka
   // semalaman akan menampilkan "hari ini" untuk kemarin kalau tidak digambar
