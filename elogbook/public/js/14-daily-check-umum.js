@@ -429,9 +429,11 @@ function dcDetailTable(leftItems, rightItems, state){
     if(!item) return kosong6;
     let h = dcSelNamaItem(item);
     // Riwayat lama belum punya baris CPU A/B Gatevox — tampil "−", bukan ✓ palsu.
-    if(!state[item] && itemCpuGatevox(item)){
-      dcCols.forEach(()=>{ h += `<td><span class="status-btn minus" style="cursor:default;">−</span></td>`; });
-      return h;
+    if(itemCpuGatevox(item)){
+      const stCpu = state[item];
+      return h + dcSelStatusCpu(c => stCpu
+        ? `<span class="status-btn ${cls(stCpu[c]||'ok')}" style="cursor:default;">${sym(stCpu[c]||'ok')}</span>`
+        : `<span class="status-btn minus" style="cursor:default;">−</span>`);
     }
     const st = state[item] || {netA:'ok',netB:'ok',appA:'ok',appB:'ok',eqp:'ok'};
     dcCols.forEach(c=>{ h += `<td><span class="status-btn ${cls(st[c]||'ok')}" style="cursor:default;">${sym(st[c]||'ok')}</span></td>`; });

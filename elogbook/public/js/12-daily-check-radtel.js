@@ -21,6 +21,13 @@ function dcSelNamaItem(item, gaya){
   if(itemCpuGatevox(item)) return `<td class="name" style="padding-left:22px;${gaya||''}">${item.slice(-5)}</td>`;
   return `<td class="name"${gaya ? ` style="${gaya}"` : ''}>${item}</td>`;
 }
+/** CPU Gatevox cuma punya dua status: App (dipantau lewat TMCS, satu saja —
+ *  selnya melebar menutup App A+B) dan Eqp (kondisi fisik). Net A/B kosong.
+ *  `sel(kolom)` mengisi isi selnya; `atr` atribut tambahan tiap <td>. */
+function dcSelStatusCpu(sel, atr){
+  const a = atr ? ' ' + atr : '';
+  return `<td${a}></td><td${a}></td><td colspan="2"${a}>${sel('app')}</td><td${a}>${sel('eqp')}</td>`;
+}
 /** Baris pasangan TMCS 1/2. Selektor Main/standby dipasang di BAWAH tiap TMCS
  *  (satu tombol saja per baris) — begitu satunya jadi Main, satunya lagi
  *  otomatis Standby. Nilai disimpan di dcState['TMCS 1'].mainTmcs = 1 | 2
@@ -30,7 +37,8 @@ function itemPunyaMainTmcs(item){ return item === 'TMCS 1' || item === 'TMCS 2';
 function initDcState(){
   dcState = {};
   [...dcLeftItems, ...dcRightItems].forEach(name=>{
-    dcState[name] = {netA:'ok', netB:'ok', appA:'ok', appB:'ok', eqp:'ok'};
+    dcState[name] = itemCpuGatevox(name) ? {app:'ok', eqp:'ok'}
+                  : {netA:'ok', netB:'ok', appA:'ok', appB:'ok', eqp:'ok'};
     if(itemPunyaMainCpu(name)) dcState[name].mainCpu = 'A';
   });
   if(dcState['TMCS 1']) dcState['TMCS 1'].mainTmcs = 1;
@@ -113,6 +121,10 @@ function renderDcTable(){
 function cellsForItem(item){
   const st = dcState[item];
   let html = dcSelNamaItem(item);
+  if(itemCpuGatevox(item)){
+    return html + dcSelStatusCpu(col=>
+      `<button class="status-btn ${st[col]}" onclick="toggleDcStatus('${item}','${col}')">${statusSymbol(st[col])}</button>`);
+  }
   dcCols.forEach(col=>{
     const s = st[col];
     html += `<td><button class="status-btn ${s}" onclick="toggleDcStatus('${item.replace(/'/g,"\\'")}','${col}')">${statusSymbol(s)}</button></td>`;

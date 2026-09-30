@@ -22,12 +22,12 @@ function dcPrintTable(leftItems, rightItems, state){
     const simbol = st === 'ok' ? '✓' : (st === 'warn' ? '!' : 'X');
     return `<span class="${kelas}">${simbol}</span>`;
   };
-  const cells = item => item
-    ? (itemCpuGatevox(item)
-        ? `<td style="font-size:7.5pt;white-space:nowrap;padding-left:14px;">${item.slice(-5)}</td>`
-        : `<td style="font-size:7.5pt;white-space:nowrap;">${item}</td>`) +
-      dcCols.map(c=>`<td style="text-align:center;font-size:8pt;">${mark(item,c)}</td>`).join('')
-    : '<td></td>'.repeat(6);
+  const cells = item => !item ? '<td></td>'.repeat(6)
+    : itemCpuGatevox(item)
+      ? `<td style="font-size:7.5pt;white-space:nowrap;padding-left:14px;">${item.slice(-5)}</td>` +
+        dcSelStatusCpu(c=>mark(item,c), 'style="text-align:center;font-size:8pt;"')
+      : `<td style="font-size:7.5pt;white-space:nowrap;">${item}</td>` +
+        dcCols.map(c=>`<td style="text-align:center;font-size:8pt;">${mark(item,c)}</td>`).join('');
 
   // Sub-baris tercetak: peran Main/Standby untuk Gatevox (A/B) & pasangan TMCS.
   // Ditulis eksplisit "· Main" / "· Standby" supaya lembar cetakan berdiri
