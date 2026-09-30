@@ -15,13 +15,17 @@ function dcPrintTable(leftItems, rightItems, state){
   // Tanda diberi warna, bukan sekadar huruf: hijau normal, jingga alarm,
   // merah gangguan — supaya sekali lihat langsung ketahuan mana yang bermasalah.
   const mark = (item, col)=>{
+    // Riwayat lama belum punya baris CPU A/B Gatevox — dicetak "−", bukan ✓ palsu.
+    if(!state[item] && itemCpuGatevox(item)) return '−';
     const st = (state[item] || {})[col] || 'ok';
     const kelas = st === 'ok' ? 'p-ok' : (st === 'warn' ? 'p-warn' : 'p-fail');
     const simbol = st === 'ok' ? '✓' : (st === 'warn' ? '!' : 'X');
     return `<span class="${kelas}">${simbol}</span>`;
   };
   const cells = item => item
-    ? `<td style="font-size:7.5pt;white-space:nowrap;">${item}</td>` +
+    ? (itemCpuGatevox(item)
+        ? `<td style="font-size:7.5pt;white-space:nowrap;padding-left:14px;">${item.slice(-5)}</td>`
+        : `<td style="font-size:7.5pt;white-space:nowrap;">${item}</td>`) +
       dcCols.map(c=>`<td style="text-align:center;font-size:8pt;">${mark(item,c)}</td>`).join('')
     : '<td></td>'.repeat(6);
 
