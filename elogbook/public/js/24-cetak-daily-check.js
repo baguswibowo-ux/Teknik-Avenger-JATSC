@@ -3,6 +3,7 @@
 
 /* ---------- CETAK DAILY CHECK ---------- */
 function dcPrintTable(leftItems, rightItems, state){
+  state = dcStateBaca(state);
   const head = `
     <tr class="p-kepala" style="text-align:center;font-weight:bold;font-size:7.5pt;">
       <td rowspan="2">ITEM</td><td colspan="2">NETWORK</td><td colspan="2">APLICATION</td><td rowspan="2">EQUIPMENT</td>
@@ -15,17 +16,17 @@ function dcPrintTable(leftItems, rightItems, state){
   // Tanda diberi warna, bukan sekadar huruf: hijau normal, jingga alarm,
   // merah gangguan — supaya sekali lihat langsung ketahuan mana yang bermasalah.
   const mark = (item, col)=>{
-    // Riwayat lama belum punya baris CPU A/B Gatevox — dicetak "−", bukan ✓ palsu.
-    if(!state[item] && itemCpuGatevox(item)) return '−';
+    // Riwayat lama belum punya baris PSU A/B Gatevox — dicetak "−", bukan ✓ palsu.
+    if(!state[item] && itemPsuGatevox(item)) return '−';
     const st = (state[item] || {})[col] || 'ok';
     const kelas = st === 'ok' ? 'p-ok' : (st === 'warn' ? 'p-warn' : 'p-fail');
     const simbol = st === 'ok' ? '✓' : (st === 'warn' ? '!' : 'X');
     return `<span class="${kelas}">${simbol}</span>`;
   };
   const cells = item => !item ? '<td></td>'.repeat(6)
-    : itemCpuGatevox(item)
+    : itemPsuGatevox(item)
       ? `<td style="font-size:7.5pt;white-space:nowrap;padding-left:14px;">${item.slice(-5)}</td>` +
-        dcSelStatusCpu(c=>mark(item,c), 'style="text-align:center;font-size:8pt;"')
+        dcSelStatusPsu(c=>mark(item,c), 'style="text-align:center;font-size:8pt;"')
       : `<td style="font-size:7.5pt;white-space:nowrap;">${item}</td>` +
         dcCols.map(c=>`<td style="text-align:center;font-size:8pt;">${mark(item,c)}</td>`).join('');
 

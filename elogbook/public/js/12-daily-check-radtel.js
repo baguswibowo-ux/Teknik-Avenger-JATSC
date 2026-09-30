@@ -4,27 +4,40 @@
 /* ============== TAB 2 — DAILY CHECK ============== */
 const dcLeftItems = ["CWP 1 (SPV UNTA)","CWP 2 (SPV UNOSOF)","CWP 3 (SPV USS)","CWP 4 (SPV UNTA 1)","CWP 5 (SPV UKA)","CWP 6 (SPV UJAWA)","CWP 7 (SPV LE-LC)","CWP 8 (SPV LN)","CWP 9 (SPV TW)","CWP 10 (SPV TS-TE)","CWP 11 (SPV ARR)","CWP 12","CWP 13","CWP 14 (SPV MAN OPS 1)","CWP 15","CWP 16 (FIC 1)","CWP 17 (FIC 2)","CWP 18 (GP 129.9)","CWP 19 (TECH 1)","CWP 20 (TECH 2)","CWP 21 (FDO 1)","CWP 22 (FDO 2)","CWP 23 (MILITARY)","SCU 1 E","SCU 1 P","SCU 2 E","SCU 2 P","SCU 3 E","SCU 3 P","SCU 4 E (UIOS)","SCU 4 P (UIOS)","SCU 5 E (UBAC)","SCU 5 P (UBAC)","SCU 6 E (UMDN)","SCU 6 P (UMDN)","SCU 7 E (UPKU)","SCU 7 P (UPKU)","SCU 8 E (UPLB)","SCU 8 P (UPLB)","SCU 9 E (UJKT)","SCU 9 P (UJKT)","SCU 10 E (UPKP)","SCU 10 P (UPKP)","SCU 11 E (UBTE)","SCU 11 P (UBTE)","TMCS 1","TMCS 2","PROXY 1","PROXY 2","CF 1","CF 2","IPRN 1","IPRN 2","IPRN 3","IPRN 4","IPRN 5","IPRN 6","IPRN 7","IPRN 8","SW 1","SW 2","PC STAT","VR 1","VR 2","VR 3","VR 4","NTP 1","NTP 2"];
 const dcRightItems = ["SCU 12 E (UTPG)","SCU 12 P (UTPG)","SCU 13 E (UNTA)","SCU 13 P (UNTA)","SCU 14 E (UPNK)","SCU 14 P (UPNK)","SCU 15 E (UTPN)","SCU 15 P (UTPN)","SCU 16 E (USMG)","SCU 16 P (USMG)","SCU 17 E (UJOG)","SCU 17 P (UJOG)","SCU 18 E (UBND)","SCU 18 P (UBND)","SCU 19 E","SCU 19 P","SCU 20 E (LE)","SCU 20 P (LE)","SCU 21 E","SCU 21 P","SCU 22 E (LC)","SCU 22 P (LC)","SCU 23 E (LN)","SCU 23 P (LN)","SCU 24 E","SCU 24 P","SCU 25 E","SCU 25 P","SCU 26 E","SCU 26 P","SCU 27 E (TW)","SCU 27 P (TW)","SCU 28 E (AN)","SCU 28 P (AN)","SCU 29 E (AE)","SCU 29 P (AE)","SCU 30 E (TE)","SCU 30 P (TE)","SCU 31 E","SCU 31 P","SCU 32 E","SCU 32 P","SCU 33 E (TS)","SCU 33 P (TS)","SW 3","GATEVOX 1","GATEVOX 2","GATEVOX 3","GATEVOX 4","GATEVOX 5","GATEVOX 6","GATEVOX 7","GATEVOX 8","GATEVOX 9"]
-  // CPU A dan CPU B tiap GATEVOX dicek sendiri-sendiri — barisnya menyisip
-  // tepat di bawah GATEVOX-nya (kuncinya "GATEVOX n CPU A" / "GATEVOX n CPU B").
-  .flatMap(it => itemPunyaMainCpu(it) ? [it, `${it} CPU A`, `${it} CPU B`] : [it]);
+  // PSU A dan PSU B tiap GATEVOX dicek sendiri-sendiri — barisnya menyisip
+  // tepat di bawah GATEVOX-nya (kuncinya "GATEVOX n PSU A" / "GATEVOX n PSU B").
+  .flatMap(it => itemPunyaMainCpu(it) ? [it, `${it} PSU A`, `${it} PSU B`] : [it]);
 const dcCols = ['netA','netB','appA','appB','eqp'];
 let dcState = {};
 
 /** Item yang membawa selektor CPU Main/Standby (Gatevox punya dua CPU: A dan B).
  *  Peran (Main atau Standby) disimpan di dcState[item].mainCpu = 'A' | 'B'. */
 function itemPunyaMainCpu(item){ return /^GATEVOX [1-9]$/.test(item); }
-/** Baris status CPU A / CPU B milik satu GATEVOX. Riwayat dari sebelum baris
+/** Baris status PSU A / PSU B milik satu GATEVOX. Riwayat dari sebelum baris
  *  ini ada tidak menyimpan kuncinya — detail & cetak menampilkannya sebagai "−". */
-function itemCpuGatevox(item){ return /^GATEVOX [1-9] CPU [AB]$/.test(item); }
-/** Sel nama item: baris CPU cukup ditulis "CPU A"/"CPU B", menjorok di bawah GATEVOX-nya. */
+function itemPsuGatevox(item){ return /^GATEVOX [1-9] PSU [AB]$/.test(item); }
+/** Baris ini sempat terpasang dengan nama salah "GATEVOX n CPU A/B" (1 Okt 2026).
+ *  Catatan yang tersimpan saat itu dibaca ulang ke kunci PSU-nya. */
+function dcStateBaca(state){
+  const hasil = { ...(state || {}) };
+  Object.keys(hasil).forEach(k=>{
+    const m = /^(GATEVOX [1-9]) CPU ([AB])$/.exec(k);
+    if(!m) return;
+    const baru = `${m[1]} PSU ${m[2]}`;
+    if(!hasil[baru]) hasil[baru] = hasil[k];
+    delete hasil[k];
+  });
+  return hasil;
+}
+/** Sel nama item: baris PSU cukup ditulis "PSU A"/"PSU B", menjorok di bawah GATEVOX-nya. */
 function dcSelNamaItem(item, gaya){
-  if(itemCpuGatevox(item)) return `<td class="name" style="padding-left:22px;${gaya||''}">${item.slice(-5)}</td>`;
+  if(itemPsuGatevox(item)) return `<td class="name" style="padding-left:22px;${gaya||''}">${item.slice(-5)}</td>`;
   return `<td class="name"${gaya ? ` style="${gaya}"` : ''}>${item}</td>`;
 }
-/** CPU Gatevox cuma punya dua status: App (dipantau lewat TMCS, satu saja —
+/** PSU Gatevox cuma punya dua status: App (dipantau lewat TMCS, satu saja —
  *  selnya melebar menutup App A+B) dan Eqp (kondisi fisik). Net A/B kosong.
  *  `sel(kolom)` mengisi isi selnya; `atr` atribut tambahan tiap <td>. */
-function dcSelStatusCpu(sel, atr){
+function dcSelStatusPsu(sel, atr){
   const a = atr ? ' ' + atr : '';
   return `<td${a}></td><td${a}></td><td colspan="2"${a}>${sel('app')}</td><td${a}>${sel('eqp')}</td>`;
 }
@@ -37,7 +50,7 @@ function itemPunyaMainTmcs(item){ return item === 'TMCS 1' || item === 'TMCS 2';
 function initDcState(){
   dcState = {};
   [...dcLeftItems, ...dcRightItems].forEach(name=>{
-    dcState[name] = itemCpuGatevox(name) ? {app:'ok', eqp:'ok'}
+    dcState[name] = itemPsuGatevox(name) ? {app:'ok', eqp:'ok'}
                   : {netA:'ok', netB:'ok', appA:'ok', appB:'ok', eqp:'ok'};
     if(itemPunyaMainCpu(name)) dcState[name].mainCpu = 'A';
   });
@@ -121,8 +134,8 @@ function renderDcTable(){
 function cellsForItem(item){
   const st = dcState[item];
   let html = dcSelNamaItem(item);
-  if(itemCpuGatevox(item)){
-    return html + dcSelStatusCpu(col=>
+  if(itemPsuGatevox(item)){
+    return html + dcSelStatusPsu(col=>
       `<button class="status-btn ${st[col]}" onclick="toggleDcStatus('${item}','${col}')">${statusSymbol(st[col])}</button>`);
   }
   dcCols.forEach(col=>{

@@ -422,17 +422,18 @@ async function deleteDcRecord(id){
 function closeDcDetail(){ document.getElementById('dcDetailBg').classList.remove('show'); if(typeof lepasTitipan === 'function') lepasTitipan(); }
 
 function dcDetailTable(leftItems, rightItems, state){
+  state = dcStateBaca(state);
   const sym = s => s==='ok' ? '✓' : (s==='warn' ? '!' : '✕');
   const cls = s => s==='ok' ? 'ok' : (s==='warn' ? 'warn' : 'fail');
   const kosong6 = '<td class="name"></td>'+'<td></td>'.repeat(5);
   const cells = item => {
     if(!item) return kosong6;
     let h = dcSelNamaItem(item);
-    // Riwayat lama belum punya baris CPU A/B Gatevox — tampil "−", bukan ✓ palsu.
-    if(itemCpuGatevox(item)){
-      const stCpu = state[item];
-      return h + dcSelStatusCpu(c => stCpu
-        ? `<span class="status-btn ${cls(stCpu[c]||'ok')}" style="cursor:default;">${sym(stCpu[c]||'ok')}</span>`
+    // Riwayat lama belum punya baris PSU A/B Gatevox — tampil "−", bukan ✓ palsu.
+    if(itemPsuGatevox(item)){
+      const stPsu = state[item];
+      return h + dcSelStatusPsu(c => stPsu
+        ? `<span class="status-btn ${cls(stPsu[c]||'ok')}" style="cursor:default;">${sym(stPsu[c]||'ok')}</span>`
         : `<span class="status-btn minus" style="cursor:default;">−</span>`);
     }
     const st = state[item] || {netA:'ok',netB:'ok',appA:'ok',appB:'ok',eqp:'ok'};
@@ -720,7 +721,7 @@ async function openDcEditModal(id){
     renderDcJatscTable();
   }else{
     initDcState();
-    Object.entries(state).forEach(([itemName, cols])=>{
+    Object.entries(dcStateBaca(state)).forEach(([itemName, cols])=>{
       if(!itemName || itemName.startsWith('__')) return;
       if(dcState[itemName] && cols && typeof cols === 'object'){
         dcState[itemName] = { ...dcState[itemName], ...cols };
