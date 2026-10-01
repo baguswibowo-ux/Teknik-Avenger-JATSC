@@ -1335,7 +1335,10 @@ function cetakKartuReviewGambar(){
   const statusTeks = p.status === 'disetujui' ? T('Sudah Disetujui','Approved')
                    : p.status === 'ditolak' ? T('Ditolak','Rejected')
                    : menungguDeputy ? T('Menunggu TTD Deputy','Awaiting Deputy Signature')
-                   : T('Menunggu TTD Anda','Awaiting Your Signature');
+                   // Kartu ini juga dibuka pengirim dan PIC unit yang hanya memantau —
+                   // "Anda" hanya benar untuk pejabat yang dituju.
+                   : sayaMT ? T('Menunggu TTD Anda','Awaiting Your Signature')
+                   : T('Menunggu TTD Manager Teknik','Awaiting Technical Manager Signature');
 
   const badan = el('badanKartuCetak');
   const badanHtml = `

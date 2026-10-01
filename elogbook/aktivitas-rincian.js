@@ -24,6 +24,7 @@ export const NAMA_PERAN = {
   adminunit: 'Admin Unit',
   teknisi: 'Teknisi',
   'pic-dinas': 'PIC Jadwal Dinas',
+  'pic-dinas-unit': 'PIC Jadwal Dinas Unit',
   'pic-sparepart': 'PIC Sparepart',
   'pic-isr': 'PIC ISR'
 };

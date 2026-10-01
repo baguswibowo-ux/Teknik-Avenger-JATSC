@@ -250,7 +250,7 @@ const kelolaUnit = (user) => isAdmin(user) || String(user?.role || '').toLowerCa
  * PIC (pic-dinas/pic-sparepart/pic-isr) ikut: di E-Logbook ia teknisi di unit
  * yang dicentang untuknya — tambahan modul semua-unitnya hanya di dashboard.
  */
-const PERAN_TULIS = new Set(['admin', 'adminunit', 'teknisi', 'pic-dinas', 'pic-sparepart', 'pic-isr']);
+const PERAN_TULIS = new Set(['admin', 'adminunit', 'teknisi', 'pic-dinas', 'pic-dinas-unit', 'pic-sparepart', 'pic-isr']);
 const bolehMenulis = (user) => PERAN_TULIS.has(user?.role);
 
 /**

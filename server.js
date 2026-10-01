@@ -857,7 +857,7 @@ const MODUL_HAK = ['dinas', 'dinas-ttd', 'dinas-cetak', 'berkala', 'personel',
                    'dokumen', 'galeri'];
 
 const PERAN_SAH = ['admin', 'pejabat', 'pejabatnonop', 'adminunit', 'teknisi',
-                   'pic-dinas', 'pic-sparepart', 'pic-isr'];
+                   'pic-dinas', 'pic-dinas-unit', 'pic-sparepart', 'pic-isr'];
 
 /* PIC dokumen — penanggung-jawab satu jenis dokumen. Pada dasarnya TEKNISI di
    unit yang dicentang untuknya (E-Logbook mengirim unit itu, jadi
@@ -873,6 +873,14 @@ function modulPicBoleh(peran) {
   if (!m) return null;
   return m === 'dinas' ? new Set(['dinas', 'dinas-cetak']) : new Set([m]);
 }
+
+/* PIC per unit — penanggung-jawab satu jenis dokumen untuk unitnya SENDIRI.
+   Teknisi di unit yang dicentang untuknya, ditambah modul di peta ini yang
+   selalu terbuka baginya DI UNIT ITU saja, tanpa perlu ditunjuk di Hak Akses.
+   Sengaja TIDAK dimasukkan ke PERAN_PIC: peta itu berarti "semua unit" dan
+   diperiksa sebelum pagar unit; yang ini diperiksa sesudahnya (bolehIsi).
+   pic-dinas-unit: menyunting Jadwal Dinas unitnya dan mengirimnya ke pejabat. */
+const PERAN_PIC_UNIT = { 'pic-dinas-unit': new Set(['dinas', 'dinas-cetak']) };
 
 /* Peran yang wilayahnya satu unit saja. Dipakai untuk memutuskan apakah
    penjagaan unit perlu ditegakkan — bukan untuk memutuskan haknya. */
@@ -997,9 +1005,10 @@ async function bacaHak() {
 }
 
 const peranUser = (user) => String((user && user.role) || '').toLowerCase();
-/** Peran yang dicocokkan ke hak.json. PIC dibaca sebagai teknisi — di luar
-    modul PIC-nya ia memang teknisi unitnya sendiri. */
-const hakPeran = (user) => (PERAN_PIC[peranUser(user)] ? 'teknisi' : peranUser(user));
+/** Peran yang dicocokkan ke hak.json. PIC (semua unit maupun per unit) dibaca
+    sebagai teknisi — di luar modul PIC-nya ia memang teknisi unitnya sendiri. */
+const hakPeran = (user) =>
+  ((PERAN_PIC[peranUser(user)] || PERAN_PIC_UNIT[peranUser(user)]) ? 'teknisi' : peranUser(user));
 
 /**
  * Unit yang dipegang sebuah akun, menurut E-Logbook.
@@ -1073,6 +1082,10 @@ async function bolehIsi(user, modul, unit = '') {
   // sudah menahannya di unit lain. Modul TTD tetap urusan pejabat, dan hak
   // yang sifatnya global (Hak Akses, akun) tetap administrator.
   if (MODUL_PER_UNIT.has(modul) && peranUser(user) === 'adminunit') return true;
+  // PIC per unit: modul PIC-nya terbuka di unitnya sendiri — pagar unit di atas
+  // sudah menahannya di unit lain.
+  const picUnit = PERAN_PIC_UNIT[peranUser(user)];
+  if (picUnit && picUnit.has(modul) && MODUL_PER_UNIT.has(modul)) return true;
   const hak = (await bacaHak())[modul];
   if (!hak) return false;
   if (hak.peran.includes(hakPeran(user))) return true;
@@ -4365,8 +4378,27 @@ app.get('/cetak-antrian', async (req, res) => {
   const dariSaya   = daftar.filter((b) => b.pembuatUser === saya);
   const semuanya   = superAtauAdmin ? daftar : [];
 
+  /* Jadwal Dinas SE-UNIT. Siapa pun yang boleh mengirim Jadwal Dinas sebuah
+     unit (PIC Jadwal Dinas Unit, admin unit, atau yang ditunjuk di Hak Akses —
+     gerbang 'dinas-cetak') melihat SELURUH lembar Jadwal Dinas unit itu,
+     siapa pun pengirimnya dan apa pun statusnya — supaya TTD-nya bisa dipantau
+     tanpa menanyai pengirimnya satu per satu. Hanya melihat: tanda tangan
+     tetap milik pejabatnya, penarikan tetap milik pengirimnya.
+     Administrator sudah punya `semua`; PIC semua-unit sengaja tidak ikut —
+     ia menerima hasil akhirnya lewat untukSaya seperti semula. Yang sudah
+     tampil di untukSaya/dariSaya tidak diulang di sini. */
+  let dinasUnit = [];
+  if (!superAtauAdmin && !picJenis) {
+    const unitBolehKirim = new Set();
+    for (const kode of new Set(daftar.filter((b) => b.jenis === 'dinas').map((b) => b.unit))) {
+      if (kode && await bolehIsi(user, 'dinas-cetak', kode)) unitBolehKirim.add(kode);
+    }
+    const sudahTampil = new Set([...untukSaya, ...dariSaya].map((b) => b.id));
+    dinasUnit = daftar.filter((b) => b.jenis === 'dinas' && unitBolehKirim.has(b.unit) && !sudahTampil.has(b.id));
+  }
+
   res.json({
-    untukSaya, dariSaya, semua: semuanya,
+    untukSaya, dariSaya, dinasUnit, semua: semuanya,
     // Ringkasan untuk lencana rel di dashboard. Tambahan PIC (hasil untuk
     // dicetak, status 'disetujui') sengaja tidak terhitung: itu bukan tugas
     // menanti tanda tangan, dan lencana yang tak bisa dikosongkan siapa pun
@@ -4390,6 +4422,8 @@ app.get('/cetak-antrian/:id', async (req, res) => {
   const boleh = saya === b.pejabatUser || saya === b.pembuatUser
              || (b.deputyUser && saya === b.deputyUser)
              || PERAN_PIC[peranUser(user)] === b.jenis   // PIC dokumen jenis ini
+             // Jadwal Dinas se-unit — lihat dinasUnit di GET /cetak-antrian.
+             || (b.jenis === 'dinas' && !!b.unit && await bolehIsi(user, 'dinas-cetak', b.unit))
              || user.role === 'admin' || user.superadmin === true;
   if (!boleh) return res.status(403).json({ error: 'Anda bukan pihak yang berhak melihat permintaan ini.' });
 

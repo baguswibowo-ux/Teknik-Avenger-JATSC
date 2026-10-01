@@ -89,7 +89,10 @@ const kotakUntukSaya = () => kotakButir().filter(b=>b.untukSaya && !b.sudah);
    Sumbernya dashboard server (/cetak-antrian), bukan berkala. Pejabat
    melihat yang tertuju ke dia; pembuat melihat yang dikirimnya sendiri;
    admin/super-admin melihat semuanya. */
-let CETAK_ANTRIAN = { untukSaya:[], dariSaya:[], semua:[], menungguSaya:0 };
+/* dinasUnit: seluruh lembar Jadwal Dinas unit yang boleh dikirim akun ini (PIC
+   Jadwal Dinas Unit, admin unit, atau yang ditunjuk) — kiriman rekan seunitnya,
+   untuk dipantau status TTD-nya. Hanya melihat. */
+let CETAK_ANTRIAN = { untukSaya:[], dariSaya:[], dinasUnit:[], semua:[], menungguSaya:0 };
 
 async function muatAntrianCetak(){
   try{
@@ -99,16 +102,21 @@ async function muatAntrianCetak(){
     CETAK_ANTRIAN = {
       untukSaya:    Array.isArray(j.untukSaya) ? j.untukSaya : [],
       dariSaya:     Array.isArray(j.dariSaya) ? j.dariSaya : [],
+      dinasUnit:    Array.isArray(j.dinasUnit) ? j.dinasUnit : [],
       semua:        Array.isArray(j.semua) ? j.semua : [],
       menungguSaya: Number(j.menungguSaya) || 0
     };
   }catch(e){
     console.warn('[kotak] gagal memuat antrian cetak:', e && e.message || e);
-    CETAK_ANTRIAN = { untukSaya:[], dariSaya:[], semua:[], menungguSaya:0 };
+    CETAK_ANTRIAN = { untukSaya:[], dariSaya:[], dinasUnit:[], semua:[], menungguSaya:0 };
   }
 }
 
-function cetakAntrianKartu(p){
+/* hanyaLihat: kartu untuk orang yang bukan penanda tangan dan bukan pengirim
+   (daftar Jadwal Dinas se-unit) — tombolnya "Lihat", dan Hapus hanya kalau ia
+   memang berhak menghapus lembar itu. */
+function cetakAntrianKartu(p, hanyaLihat){
+  hanyaLihat = hanyaLihat === true;
   const menunggu = p.status === 'menunggu';
   const menungguDeputy = p.status === 'menunggu-deputy';
   const belumFinal = menunggu || menungguDeputy;
@@ -142,10 +150,10 @@ function cetakAntrianKartu(p){
     <div class="kmk-kanan">
       <span class="kmk-tombol">
         <button class="btn kecil" data-cetak-buka="${esc(p.id)}">${
-          belumFinal ? T('Buka & TTD','Open & sign')
+          belumFinal ? (hanyaLihat ? T('Lihat','View') : T('Buka & TTD','Open & sign'))
           : disetujui ? T('Cetak lagi','Reprint')
           : T('Lihat','View')}</button>
-        ${!disetujui || (typeof bolehHapusArsip === 'function' && bolehHapusArsip(p))
+        ${(!disetujui && !hanyaLihat) || (typeof bolehHapusArsip === 'function' && bolehHapusArsip(p))
           ? `<button class="btn garis kecil" data-cetak-hapus="${esc(p.id)}">${
               T('Hapus','Delete')}</button>` : ''}
       </span>
@@ -157,14 +165,15 @@ function gambarSeksiAntrianCetak(kotak){
   const p = CETAK_ANTRIAN;
   const untuk = p.untukSaya || [];
   const dari  = p.dariSaya  || [];
-  if(!untuk.length && !dari.length) return '';
+  const unit  = p.dinasUnit || [];
+  if(!untuk.length && !dari.length && !unit.length) return '';
 
-  const seksi = (judul, daftar, kosongPesan)=>`
+  const seksi = (judul, daftar, kosongPesan, hanyaLihat)=>`
     <div class="panel" style="margin-bottom:14px">
       <div class="kepala"><h3>${esc(judul)}</h3>
         <span class="ket">${daftar.length ? daftar.length + ' ' + T('permintaan','requests') : ''}</span></div>
       <div class="badan" style="display:grid;gap:10px">${daftar.length
-        ? daftar.map(cetakAntrianKartu).join('')
+        ? daftar.map(b=>cetakAntrianKartu(b, hanyaLihat)).join('')
         : `<div style="color:var(--muted);font-size:12.5px">${esc(kosongPesan)}</div>`}</div>
     </div>`;
 
@@ -173,6 +182,9 @@ function gambarSeksiAntrianCetak(kotak){
                         : '')
        + (dari.length ? seksi(T('Permintaan Cetak yang Anda Kirim','Print Requests You Sent'),
                               dari, T('Anda belum mengirim.','You have not sent any.'))
+                       : '')
+       + (unit.length ? seksi(T('Jadwal Dinas Unit Anda — Status TTD','Your Unit Duty Rosters — Signature Status'),
+                              unit, T('Tidak ada.','None.'), true)
                        : '');
 }
 

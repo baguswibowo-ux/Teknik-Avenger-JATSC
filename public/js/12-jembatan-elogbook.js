@@ -56,17 +56,19 @@ const PERAN_SERVER    = { admin:'Administrator', pejabat:'Pejabat / Manager',
                           pejabatnonop:'Pejabat Non-Operasional',
                           adminunit:'Admin Unit', teknisi:'Teknisi',
                           'pic-dinas':'PIC Jadwal Dinas', 'pic-sparepart':'PIC Sparepart',
+                          'pic-dinas-unit':'PIC Jadwal Dinas Unit',
                           'pic-isr':'PIC ISR' };
 const PERAN_SERVER_EN = { admin:'Administrator', pejabat:'Officer / Manager',
                           pejabatnonop:'Non-Operational Officer',
                           adminunit:'Unit Admin', teknisi:'Technician',
                           'pic-dinas':'Duty Roster PIC', 'pic-sparepart':'Spare Parts PIC',
+                          'pic-dinas-unit':'Unit Duty Roster PIC',
                           'pic-isr':'ISR PIC' };
 /** Urutan peran dari yang paling sempit ke yang paling luas. Dipakai untuk
     mengisi pemilih peran, supaya daftarnya tidak perlu ditulis ulang di tiap
     tempat — dan tidak ada peran yang tertinggal di salah satunya. PIC dokumen
     ditaruh setelah teknisi: jangkauannya lintas unit tapi hanya satu modul. */
-const PERAN_URUT = ['teknisi', 'pic-dinas', 'pic-sparepart', 'pic-isr',
+const PERAN_URUT = ['teknisi', 'pic-dinas-unit', 'pic-dinas', 'pic-sparepart', 'pic-isr',
                     'adminunit', 'pejabatnonop', 'pejabat', 'admin'];
 /** Sebutan peran menurut bahasa yang sedang dipilih. */
 const peranTampil = (role) => (BHS === 'en' ? PERAN_SERVER_EN : PERAN_SERVER)[role] || role;

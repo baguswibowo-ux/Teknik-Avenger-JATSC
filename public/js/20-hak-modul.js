@@ -34,6 +34,14 @@ const PERAN_PIC_MODUL = {
   'pic-sparepart': ['sparepart'],
   'pic-isr': ['isr']
 };
+/* PIC per unit: teknisi di unitnya, ditambah modul di peta ini yang selalu
+   terbuka baginya DI UNIT ITU saja — sama persis dengan PERAN_PIC_UNIT di
+   server.js. Sengaja peta terpisah dari PERAN_PIC_MODUL: yang itu berarti
+   "semua unit" dan menyalakan modulPicSemuaUnit, subtabTerbatasDi, dan
+   bolehMasukUnit. */
+const PERAN_PIC_UNIT_MODUL = {
+  'pic-dinas-unit': ['dinas', 'dinas-cetak']
+};
 /** Modul semua-unit milik peran PIC ini ('dinas'|'sparepart'|'isr'), atau null
     kalau bukan PIC. */
 const modulPicAkun = () => (akun && PERAN_PIC_MODUL[akun.role]) ? PERAN_PIC_MODUL[akun.role][0] : null;
@@ -180,7 +188,9 @@ const hakHitung = (modul) => {
   // Admin unit = administrator di unitnya: seluruh modul per-unit terbuka
   // (mirror bolehIsi server). Unitnya dijaga bolehSuntingDb lewat bolehBuka.
   if(akun.role === 'adminunit' && MODUL_PER_UNIT_KLIEN.has(modul)) return true;
-  const peran = PERAN_PIC_MODUL[akun.role] ? 'teknisi' : akun.role;
+  // PIC per unit: modul PIC-nya terbuka; unitnya dijaga bolehSuntingDb juga.
+  if((PERAN_PIC_UNIT_MODUL[akun.role] || []).includes(modul)) return true;
+  const peran = (PERAN_PIC_MODUL[akun.role] || PERAN_PIC_UNIT_MODUL[akun.role]) ? 'teknisi' : akun.role;
   const h = HAK[modul] || { peran:[], petugas:[] };
   return h.peran.includes(peran)
       || h.petugas.includes(String(akun.user || '').toLowerCase());

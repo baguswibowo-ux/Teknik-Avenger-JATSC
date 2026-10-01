@@ -189,7 +189,7 @@ const punyaSemuaUnit = (u) => SEMUA_UNIT_PERAN.includes(u.role);
    supaya siapa PIC Jadwal Dinas, siapa PIC Sparepart, siapa PIC ISR terbaca
    sekilas tanpa menyaring. Peran di luar daftar ini (kalau kelak ada) ditaruh
    paling bawah, tidak dibuang. Urutan di dalam kelompok tetap urutan server. */
-const URUT_KELOMPOK_AKUN = ['pic-dinas', 'pic-sparepart', 'pic-isr',
+const URUT_KELOMPOK_AKUN = ['pic-dinas', 'pic-dinas-unit', 'pic-sparepart', 'pic-isr',
                             'admin', 'pejabat', 'pejabatnonop', 'adminunit', 'teknisi'];
 function kelompokAkun(daftar){
   const peta = new Map();
@@ -816,7 +816,8 @@ function gambarPetugasDinas(){
     // Yang sudah boleh lewat perannya tetap ditampilkan, tapi redup dan
     // mati: mencentangnya tidak menambah apa pun, dan melepasnya tidak
     // mencabut apa pun — dua-duanya hanya menyesatkan.
-    const lewatPeran = HAK[m].peran.includes(u.role);
+    const lewatPeran = HAK[m].peran.includes(u.role)
+      || (typeof PERAN_PIC_UNIT_MODUL === 'object' && (PERAN_PIC_UNIT_MODUL[u.role] || []).includes(m));
     const dicentang = lewatPeran || HAK[m].petugas.includes(nama);
     return `<label${lewatPeran ? ' style="opacity:.55"' : ''}>
       <input type="checkbox" value="${esc(nama)}"${dicentang?' checked':''}${lewatPeran?' disabled':''}>
@@ -901,7 +902,11 @@ function segarkanUnitKartu(){
   // sebagai teknisi di unit ini" pada isian nama teknisi di formulir. Kotak
   // tetap boleh diklik supaya opt-in itu bisa diatur dari sini.
   el('aUnit').classList.toggle('mati', false);
-  el('aUnitKet').textContent = pic
+  const picUnit = typeof PERAN_PIC_UNIT_MODUL === 'object' && !!PERAN_PIC_UNIT_MODUL[el('aRole').value];
+  el('aUnitKet').textContent = picUnit
+    ? T('PIC Jadwal Dinas Unit bekerja seperti teknisi di unit yang dicentang di sini, ditambah boleh menyunting Jadwal Dinas unit itu, mengirimnya ke Manager Teknik untuk ditandatangani, dan memantau status TTD seluruh Jadwal Dinas unit itu di Kotak Masuk. Di unit lain tidak ada tambahan apa pun. Pilih minimal satu unit.',
+        'A Unit Duty Roster PIC works like a technician in the units ticked here, and may also edit that unit\'s Duty Roster, send it to the Technical Manager for signature, and follow the signature status of every Duty Roster of that unit in the Inbox. Nothing extra in other units. Pick at least one unit.')
+    : pic
     ? T('PIC bekerja seperti teknisi di unit yang dicentang di sini: dashboard dan E-Logbook unit itu terbuka penuh. Di unit lain PIC hanya membuka modul PIC-nya (Jadwal Dinas, Sparepart, atau ISR). Pilih minimal satu unit.',
         'A PIC works like a technician in the units ticked here: that unit\'s dashboard and E-Logbook are fully open. In other units the PIC only opens their PIC module (Duty Roster, Spare Parts, or ISR). Pick at least one unit.')
     : semua
@@ -1003,8 +1008,10 @@ function isiKartuAkun(u){
           'Technician — edits their own unit database, cannot delete')}</option>
         <option value="adminunit">${T('Admin Unit — menyunting DAN menghapus, serta membaca log aktivitas, di unitnya saja',
           'Unit Admin — edits AND deletes, and reads the activity log, in their own unit only')}</option>
-        <option value="pic-dinas">${T('PIC Jadwal Dinas — teknisi di unitnya + Jadwal Dinas semua unit; edit & cetak, tidak menghapus',
-          'Duty Roster PIC — technician in own unit + Duty Roster in all units; edit & print, cannot delete')}</option>
+        <option value="pic-dinas">${T('PIC Jadwal Dinas (semua unit) — teknisi di unitnya + Jadwal Dinas semua unit; edit & cetak, tidak menghapus',
+          'Duty Roster PIC (all units) — technician in own unit + Duty Roster in all units; edit & print, cannot delete')}</option>
+        <option value="pic-dinas-unit">${T('PIC Jadwal Dinas Unit — teknisi di unitnya + Jadwal Dinas unitnya saja; edit, kirim TTD & pantau status, tidak menghapus',
+          'Unit Duty Roster PIC — technician in own unit + Duty Roster of own unit only; edit, send for signature & track status, cannot delete')}</option>
         <option value="pic-sparepart">${T('PIC Sparepart — teknisi di unitnya + Sparepart semua unit; edit & cetak, tidak menghapus',
           'Spare Parts PIC — technician in own unit + Spare Parts in all units; edit & print, cannot delete')}</option>
         <option value="pic-isr">${T('PIC ISR — teknisi di unitnya + ISR semua unit; edit, tidak menghapus',
