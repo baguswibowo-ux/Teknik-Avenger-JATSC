@@ -72,7 +72,7 @@ const {
   listLtk, insertLtk, removeLtk,
   listBapb, insertBapb, updateBapb, removeBapb, suntingLampiranBapb,
   getUserByUsername, verifyPassword, createUser, countUsers, hapusUser,
-  jenisTtdSah, unitCatatan, unitHapus, pemilikLembarForm, tandaTanganiCatatan, listPejabatAktif, listPejabatUnit, listTeknisiUnit, listAkunAktif, getInboxTtd,
+  jenisTtdSah, unitCatatan, unitHapus, pemilikLembarForm, tandaTanganiCatatan, batalkanTtdCatatan, listPejabatAktif, listPejabatUnit, listTeknisiUnit, listAkunAktif, getInboxTtd,
   getTtdTersimpan, simpanTtdTersimpan, hapusTtdTersimpan, pilihTtdTersimpanAktif, rekapMentah,
   listUsers, setPassword, setAktif, setRole, setNama, setUsername, ROLE_VALID, SEMUA_UNIT, jumlahAdminAktif,
   UNIT, KODE_UNIT, unitSah, unitUntukUser, setUnitUser,
@@ -1840,6 +1840,22 @@ async function pastikanAdminUnitBolehKelola(target, user) {
  * tidak menghalangi siapa pun memanggil API-nya langsung.
  */
 const API_ADMIN = {
+  /* Minta TTD ulang: batalkan tanda tangan pejabat yang terlanjur dibubuhkan
+     dengan gambar keliru (mis. TTD tersimpannya waktu itu masih goresan PH),
+     dan kirim lembarnya kembali ke Kotak Masuk TTD pejabat itu. Administrator
+     tidak memasang tanda tangan siapa pun — pejabatnya sendiri yang
+     menandatangani ulang (lihat batalkanTtdCatatan di db.js).
+     Tercatat di log aktivitas (aksi 'ttd-ulang'), dan akun yang dituju
+     dikabari "perlu tanda tangan" seperti lembar baru. */
+  mintaTtdUlang: async (jenis, id, user) => {
+    const j = String(jenis || '');
+    if (!jenisTtdSah(j)) throw new Error('Jenis catatan tidak dikenal: ' + j);
+    const hasil = await batalkanTtdCatatan(j, String(id));
+    notifPerluTtd(j, hasil.ttdUntuk, { unit: hasil.unit, tanggal: hasil.tanggal },
+      `${user.nama || user.username} (administrator) — minta tanda tangan ulang`, hasil.id);
+    return { jenis: hasil.jenis, id: hasil.id, nama: hasil.nama, ttdUntuk: hasil.ttdUntuk, penandaLama: hasil.penandaLama };
+  },
+
   deleteEntry: (id) => removeEntry(String(id)),
   deleteDcRecord: (id) => removeDailyCheck(String(id)),
 
@@ -2156,7 +2172,8 @@ const API_ADMIN_UNTUK_ADMINUNIT = new Set([
  *
  * TTD, PH, dan langganan notifikasi HP sengaja tidak dicatat di sini; begitu juga
  * masuk/keluar akun. Satu pengecualian: administrator yang mengganti TTD
- * tersimpan milik pejabat (simpanTtdMilik) — itu tanda tangan orang lain.
+ * tersimpan milik pejabat (simpanTtdMilik), atau membatalkan tanda tangan
+ * yang sudah dibubuhkan supaya diteken ulang (mintaTtdUlang).
  *
  * Pencatatan tidak pernah menggagalkan pekerjaan yang dicatat: kalau penulisan
  * log-nya gagal, yang gagal cuma log-nya.
@@ -2267,9 +2284,30 @@ function pencatatAkun(aksi, { lamaDari = (a) => a[0], baruDari = (a) => a[0], ad
   };
 }
 
+/** Minta TTD ulang: jenisnya datang dari argumen, seperti rute TTD. Penanda
+    lamanya ikut di jawaban handler — sesudah dibatalkan sudah tidak tercatat. */
+const pencatatTtdUlang = {
+  sebelum: null,
+  tulis: async ([jenis, id], hasil, sebelum, user) => {
+    const j = String(jenis || '');
+    if (!Object.prototype.hasOwnProperty.call(MODUL_DOKUMEN, j)) return null;
+    const info = await infoCatatan(j, String(id ?? ''));
+    const tambahan = [
+      hasil?.penandaLama ? `TTD ${hasil.penandaLama} dibatalkan` : 'TTD dibatalkan',
+      hasil?.ttdUntuk ? `dikirim ulang ke akun ${hasil.ttdUntuk}` : 'belum ada akun tujuan'
+    ].join(', ');
+    return {
+      modul: MODUL_DOKUMEN[j], aksi: 'ttd-ulang',
+      unit: unitCsv(info?.unit),
+      rincian: rincianDokumen(j, info, { pelaku: user?.username, tambahan })
+    };
+  }
+};
+
 const PENCATAT_AKTIVITAS = {
   ...Object.fromEntries(Object.entries(DOKUMEN_FN).map(([fn, d]) => [fn, pencatatDokumen(d)])),
   updateTtdRouting: pencatatRuteTtd,
+  mintaTtdUlang:   pencatatTtdUlang,
   addUser:         pencatatAkun('tambah', { adaSebelum: false, baruDari: (a) => String(a[0]?.username || '').trim().toLowerCase() }),
   setUserRole:     pencatatAkun('peran'),
   setUserUnit:     pencatatAkun('unit'),

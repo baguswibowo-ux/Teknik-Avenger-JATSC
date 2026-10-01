@@ -12,7 +12,9 @@
    membubuhkan hanya tercatat sebagai keterangan status di layar detail.
 
    Yang menahan sebenarnya tetap server: ia menolak permintaan dari peran lain,
-   dan menolak menimpa petak yang sudah terisi.
+   dan menolak menimpa petak yang sudah terisi. Tanda tangan yang terlanjur
+   keliru tidak ditimpa siapa pun: administrator membatalkannya dan lembarnya
+   kembali ke pejabatnya — lihat "Minta TTD ulang" di bawah.
 
    Kalau catatan menunjuk akun tertentu (ttdUntuk — lihat ttdUntukDariNama),
    tombolnya hanya muncul untuk akun itu sendiri atau admin. Nama pada
@@ -99,9 +101,51 @@ function statusTtdHtml(rec){
  * Masih kosong   → tombol, kalau yang membuka memang berhak.
  */
 function sigPejabatHtml(jenis, id, ttdUrl, rec){
-  if(ttdUrl) return sigThumbHtml(ttdUrl) + statusTtdHtml(rec);
+  if(ttdUrl) return sigThumbHtml(ttdUrl) + statusTtdHtml(rec) + tombolTtdUlangHtml(jenis, id, rec);
   if(!bolehTtdSusulan(rec?.ttdUntuk)) return sigThumbHtml('');
   return `<button class="btn btn-ttd" onclick="openTtdModal('${jenis}','${id}')">${T('bubuhkanTtd')}</button>`;
+}
+
+/* ---------- Minta TTD ulang (administrator) ----------
+   Pejabatnya sudah menyetujui, tetapi gambar yang terbubuh keliru — mis. TTD
+   tersimpan di akunnya waktu itu masih goresan PH-nya. Administrator tidak
+   memasang tanda tangan pengganti: ia membatalkan yang keliru, dan lembarnya
+   kembali ke Kotak Masuk TTD pejabat itu untuk ditandatangani ulang olehnya
+   sendiri (mintaTtdUlang di server.js, batalkanTtdCatatan di db.js). */
+
+/** Catatan di memori untuk satu jenis — daftar yang sama dengan titipan PH. */
+function catatanTtd(jenis, id){
+  const cfg = TITIPAN_DAFTAR[jenis];
+  return cfg ? cfg.daftar().find(x => x.id === id) : null;
+}
+
+function tombolTtdUlangHtml(jenis, id, rec){
+  if(!adminAktif() || (rec && rec.__titipan)) return '';
+  return `<button class="btn ghost" style="display:block;margin-top:5px;padding:2px 8px;font-size:11px;"
+    title="Batalkan tanda tangan yang keliru dan kirim lagi dokumen ini ke pejabatnya untuk ditandatangani ulang"
+    onclick="mintaTtdUlang('${jenis}','${id}')">minta TTD ulang</button>`;
+}
+
+async function mintaTtdUlang(jenis, id){
+  const rec = catatanTtd(jenis, id);
+  const penanda = (rec && rec.ttdOleh) || '';
+  if(!confirm('Batalkan tanda tangan ' + (penanda || 'pejabat') + ' pada dokumen ini dan minta ditandatangani ulang?\n\n'
+    + 'Tanda tangan yang sekarang dihapus dan tidak bisa dikembalikan. Dokumennya masuk lagi ke Kotak Masuk TTD pejabatnya, '
+    + 'dan sampai ditandatangani ulang dokumen ini berstatus belum TTD.')) return;
+  try{
+    const hasil = await gsRun('mintaTtdUlang', jenis, id);
+    if(hasil && TTD_TERAP[jenis]){
+      if(rec) rec.ttdUntuk = hasil.ttdUntuk || '';
+      TTD_TERAP[jenis]({ id, nama: hasil.nama, ttd: '', ttdOleh: '', ttdPada: '' });
+    }
+    tutupSemuaDetail();
+    toast(hasil && hasil.ttdUntuk
+      ? 'TTD dibatalkan — dokumen dikirim lagi ke Kotak Masuk TTD pejabatnya.'
+      : 'TTD dibatalkan. Dokumen ini belum punya akun tujuan — pilih lewat tombol ubah di samping nama pejabat.');
+    if(TTD_BUKA_ULANG[jenis]) TTD_BUKA_ULANG[jenis](id);
+  }catch(e){
+    toast(e.message || 'Gagal membatalkan tanda tangan.');
+  }
 }
 
 /* ---------- Ubah nama pihak-kedua dan akun tujuan TTD ----------

@@ -2878,6 +2878,66 @@ export function tandaTanganiCatatan(jenis, id, { nama, username, role, ttd, waki
   };
 }
 
+/**
+ * Batalkan tanda tangan pihak kedua yang SUDAH dibubuhkan, supaya pejabatnya
+ * menandatangani ulang.
+ *
+ * Untuk satu keadaan: pejabatnya sudah menyetujui, tetapi gambar yang terbubuh
+ * keliru — mis. TTD tersimpan di akunnya waktu itu masih goresan PH-nya, bukan
+ * miliknya sendiri. Administrator TIDAK memasang tanda tangan pengganti;
+ * ia hanya mengosongkan petaknya, dan lembarnya kembali ke Kotak Masuk TTD
+ * pejabat itu (getInboxTtd membaca ttd_untuk + petak kosong). Tanda tangan
+ * yang baru tetap dibubuhkan pemiliknya sendiri, lewat tandaTanganiCatatan
+ * dengan seluruh aturan haknya.
+ *
+ * Ke siapa lembarnya kembali:
+ *   - ttd_untuk yang sudah ada dipertahankan (lembar yang diteken PH kembali
+ *     ke pejabat yang dituju, bukan ke PH-nya);
+ *   - kalau kosong, akun yang dulu membubuhkan (ttd_oleh) dijadikan tujuan;
+ *   - kalau itu pun kosong — TTD digambar langsung di formulir — tujuan tetap
+ *     kosong dan administrator memilihnya lewat "ubah rute TTD".
+ *
+ * Nama di lembar: lewat PH, tandaTanganiCatatan menulis "Nama PH (PH Manager
+ * Teknik Nama Pejabat)". Nama itu ikut dibatalkan dan dikembalikan ke nama
+ * akun yang dituju — kalau tidak, pejabatnya menandatangani ulang di atas
+ * nama PH. Selain itu nama dibiarkan apa adanya.
+ *
+ * pengingat_ttd_pada diisi waktu sekarang: pengingat "belum ditandatangani"
+ * menagih teknisi pembuatnya, dan penundaan kali ini bukan urusan mereka —
+ * pejabatnya sudah dikabari langsung. Siapa yang boleh memanggil dijaga
+ * server.js (API_ADMIN).
+ */
+export function batalkanTtdCatatan(jenis, id) {
+  if (!jenisTtdSah(jenis)) throw new Error('Jenis catatan tidak dikenal: ' + jenis);
+  const t = JENIS_TTD[jenis];
+  const row = db.prepare(`SELECT ${t.nama} AS nama, ${t.ttd} AS ttd, ttd_untuk, ttd_oleh, unit,
+                                 ${t.tglKolom} AS tanggal
+                            FROM ${t.tabel} WHERE id = ?`).get(String(id));
+  if (!row) throw new Error('Catatan tidak ditemukan — mungkin sudah dihapus.');
+  if (!row.ttd) throw new Error('Catatan ini belum ditandatangani — tidak ada tanda tangan yang bisa dibatalkan.');
+
+  const penanda = String(row.ttd_oleh || '');
+  const tujuan = String(row.ttd_untuk || '') || penanda;
+  const lewatPh = !!row.ttd_untuk && !!penanda
+    && String(row.ttd_untuk).toLowerCase() !== penanda.toLowerCase();
+  let nama = String(row.nama || '');
+  if (lewatPh && /\(PH\b[^)]*\)\s*$/.test(nama)) {
+    const dituju = getUserByUsername(row.ttd_untuk);
+    nama = (dituju && String(dituju.nama || '').trim()) || String(row.ttd_untuk);
+  }
+
+  db.prepare(`UPDATE ${t.tabel}
+                 SET ${t.nama} = ?, ${t.ttd} = '', ttd_oleh = '', ttd_pada = '',
+                     ttd_untuk = ?, pengingat_ttd_pada = ?
+               WHERE id = ?`).run(nama, tujuan, nowIso(), String(id));
+  // Berkasnya dibuang setelah barisnya tercatat kosong, bukan sebelumnya.
+  removeSignatureFile(row.ttd);
+  return {
+    jenis, id: String(id), nama, ttdUntuk: tujuan, penandaLama: penanda,
+    unit: String(row.unit || ''), tanggal: String(row.tanggal || '')
+  };
+}
+
 /* ============== REKAP ==============
  * Baris seperlunya untuk satu rentang tanggal — tanpa batas 200 baris yang
  * berlaku di layar, karena rekap sebulan penuh justru butuh semuanya.

@@ -93,6 +93,7 @@ const AKT_AKSI_NAMA = {
   // E-Logbook
   tutup:             ['ditutup','closed'],
   'rute-ttd':        ['tujuan TTD-nya diubah','signing route changed'],
+  'ttd-ulang':       ['TTD-nya dibatalkan, diminta ulang','signature voided, re-sign requested'],
   'lampiran-tambah': ['lampiran ditambahkan','attachment added'],
   'lampiran-hapus':  ['lampiran dihapus','attachment removed'],
   'lampiran-ubah':   ['lampirannya diubah','attachments changed'],
