@@ -107,6 +107,8 @@ export function rincianAkun(aksi, lama, baru, namaUnit = (k) => k) {
       return `${akun?.nama || '—'}: username ${lama?.username || '—'} → ${baru?.username || '—'}`;
     case 'sandi':
       return `${siapa}: kata sandi diganti`;
+    case 'ttd':
+      return `${siapa}: TTD tersimpan diganti administrator`;
     case 'aktifkan':
     case 'nonaktifkan':
       return `${siapa} · ${namaPeran(akun?.role)}`;

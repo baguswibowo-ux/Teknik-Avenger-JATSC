@@ -101,6 +101,7 @@ const AKT_AKSI_NAMA = {
   nama:              ['namanya diubah','renamed'],
   username:          ['username-nya diubah','username changed'],
   sandi:             ['kata sandinya diganti','password reset'],
+  ttd:               ['TTD tersimpannya diganti','saved signature replaced'],
   aktifkan:          ['diaktifkan','activated'],
   nonaktifkan:       ['dinonaktifkan','deactivated']
 };

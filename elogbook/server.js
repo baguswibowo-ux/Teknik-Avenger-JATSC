@@ -44,7 +44,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { pesanPerluTtd, pesanSudahTtd, pesanBelumTtd } from '../pesan-notif.js';
+import { pesanPerluTtd, pesanSudahTtd, pesanBelumTtd, pesanTtdDiganti } from '../pesan-notif.js';
 import {
   buatKunciVapid, kunciVapidSah, kirimPush, endpointSah, kunciLanggananSah, pesanUntukPush
 } from '../webpush.js';
@@ -1689,13 +1689,23 @@ const API = {
     };
   },
 
-  /* Bubuhkan TTD atas nama pejabat lain — untuk kartu cetak dashboard.
+  /* Bubuhkan atau GANTI TTD atas nama pejabat lain — dari dashboard: kartu
+     cetak, dan Kelola Akun → kartu akun pejabat ("Tanda tangan tersimpan").
      Hanya admin dan super-admin, dan targetnya harus berperan pejabat.
      Batasan target = pejabat sengaja: fitur ini bukan pintu untuk mengganti
      TTD siapa pun (mis. teknisi punya TTD sendiri; admin lain punya slot
-     multi-nya sendiri). Ia hanya menutup lubang praktis: pejabat yang belum
+     multi-nya sendiri). Ia menutup dua lubang praktis: pejabat yang belum
      sempat menggambar TTD-nya di E-Logbook tapi namanya sudah harus tercetak
-     di lembar sparepart atau daftar dinas malam ini. */
+     di lembar sparepart atau daftar dinas malam ini, dan pejabat yang TTD
+     tersimpannya salah masuk lalu minta administrator membetulkannya.
+
+     Yang ditimpa slot yang sedang AKTIF — itulah yang tercetak — supaya TTD
+     yang salah benar-benar terbuang, bukan sekadar tergeser ke slot lain dan
+     bisa terpilih lagi. Slot cadangan pejabatnya tidak disentuh.
+
+     Karena ini memasang tanda tangan atas nama orang lain, jejaknya dua:
+     tercatat di log aktivitas (PENCATAT_AKTIVITAS, aksi 'ttd') dan pemiliknya
+     dikabari lewat notifikasi HP. */
   simpanTtdMilik: async (payload, user) => {
     const p = (payload && typeof payload === 'object') ? payload : {};
     const target = String(p.username || '').trim();
@@ -1710,10 +1720,15 @@ const API = {
     if (t.role !== 'pejabat' && t.role !== 'pejabatnonop') {
       throw new Error('TTD atas nama akun lain hanya boleh dibubuhkan pada akun berperan pejabat.');
     }
-    // Slot 0 dan set aktif — pejabat masih punya 4 slot cadangan lain untuk
-    // memisahkan TTD alternatif miliknya sendiri kalau kelak mau.
-    await simpanTtdTersimpan(t.username, d, 0);
-    await pilihTtdTersimpanAktif(t.username, 0);
+    pastikanBolehUbahTarget(t, user);
+    const { aktif } = await getTtdTersimpan(t.username);
+    await simpanTtdTersimpan(t.username, d, aktif);
+    await pilihTtdTersimpanAktif(t.username, aktif);
+    if (pushAktif()) {
+      kirimPushKeAkun(t.username, pesanUntukPush(
+        pesanTtdDiganti({ oleh: user.nama || user.username }),
+        { url: '/logbook/', tag: `ttd-diganti-${t.username}` }));
+    }
     return { ok: true };
   },
 
@@ -2140,7 +2155,8 @@ const API_ADMIN_UNTUK_ADMINUNIT = new Set([
  * lihat getAktivitas.
  *
  * TTD, PH, dan langganan notifikasi HP sengaja tidak dicatat di sini; begitu juga
- * masuk/keluar akun.
+ * masuk/keluar akun. Satu pengecualian: administrator yang mengganti TTD
+ * tersimpan milik pejabat (simpanTtdMilik) — itu tanda tangan orang lain.
  *
  * Pencatatan tidak pernah menggagalkan pekerjaan yang dicatat: kalau penulisan
  * log-nya gagal, yang gagal cuma log-nya.
@@ -2260,7 +2276,8 @@ const PENCATAT_AKTIVITAS = {
   setUserNama:     pencatatAkun('nama'),
   setUserUsername: pencatatAkun('username', { baruDari: (a) => String(a[1] || '').trim().toLowerCase() }),
   setUserPassword: pencatatAkun('sandi', { adaSebelum: false }),
-  setUserAktif:    pencatatAkun((a) => (a[1] ? 'aktifkan' : 'nonaktifkan'), { adaSebelum: false }),
+  simpanTtdMilik:  pencatatAkun('ttd', { adaSebelum: false, baruDari: (a) => String(a[0]?.username || '').trim().toLowerCase() }),
+  setUserAktif:   pencatatAkun((a) => (a[1] ? 'aktifkan' : 'nonaktifkan'), { adaSebelum: false }),
   deleteUser:      pencatatAkun('hapus', { adaSesudah: false })
 };
 

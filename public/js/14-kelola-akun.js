@@ -1019,7 +1019,10 @@ function isiKartuAkun(u){
           + 'only its hash.')}</div></div>
 
     ${kotakLanjut(baru, u)}
+    ${kotakTtdAkun(baru, u, kunciSuperadmin)}
     ${kotakHapus}`;
+
+  if(el('aTtdIsi')) muatTtdAkun(u.username);
 
   el('aRole').value = role;
   if(!baru) el('aAktif').value = u.aktif ? '1' : '0';
@@ -1080,6 +1083,160 @@ function kotakLanjut(baru, u){
     </div>`;
 }
 
+/* ---------- TTD tersimpan milik pejabat — dibetulkan administrator ----------
+   Pejabat yang TTD tersimpannya salah masuk (salah gores, salah orang, gambar
+   percobaan) tidak selalu bisa membetulkannya sendiri saat itu juga, padahal
+   TTD itulah yang tercetak di lembar Sparepart, Jadwal Dinas, dan Sejarah
+   Peralatan. Di sini administrator menggambar penggantinya.
+
+   Penulisannya tetap lewat simpanTtdMilik di E-Logbook, yang menjaga sendiri:
+   hanya admin/super-admin, dan hanya untuk akun berperan pejabat. Yang ditimpa
+   slot AKTIF pejabat itu; kejadiannya masuk log aktivitas dan pejabatnya
+   dikabari lewat notifikasi HP.
+
+   Lembar dashboard merujuk TTD lewat /ttd-akun/<user>/gambar, bukan menyimpan
+   gambarnya — jadi lembar yang sudah disetujui pun ikut memakai TTD baru.
+   Catatan E-Logbook memegang salinannya sendiri dan tidak berubah.
+
+   Papannya meniru papan E-Logbook (08-tanda-tangan.js): goresan putih di atas
+   kanvas tembus pandang, supaya hasilnya sebentuk dengan TTD yang digambar
+   pejabat sendiri lewat TTD Saya dan ikut dihitamkan saat dicetak. */
+const PERAN_TTD_DIGANTI_ADMIN = ['pejabat', 'pejabatnonop'];
+let papanTtdAkun = null;   // { kanvas, ada } — papan yang sedang terbuka di kartu
+
+function kotakTtdAkun(baru, u, terkunci){
+  if(baru || terkunci || !PERAN_TTD_DIGANTI_ADMIN.includes(u.role)) return '';
+  return `
+    <div class="isian" style="padding-top:10px;border-top:1px dashed var(--line)">
+      <label>${T('Tanda tangan tersimpan','Saved signature')}</label>
+      <div id="aTtdIsi"><div class="bantu">${T('Memuat TTD…','Loading signature…')}</div></div>
+      <div class="bantu">${T(
+        'Untuk membetulkan TTD pejabat yang salah masuk. Yang diganti TTD yang sedang dipakainya; pejabatnya tetap bisa menggantinya sendiri lewat E-Logbook → TTD Saya. Penggantian dari sini tercatat di Log Aktivitas dan pejabatnya dikabari lewat notifikasi HP.',
+        'For correcting an officer signature that was saved wrongly. The signature currently in use is the one replaced; the officer may still change it via E-Logbook → My Signature. A replacement made here is written to the Activity Log and the officer is notified on their phone.')}</div>
+    </div>`;
+}
+
+/** Selagi menunggu jawaban, kartunya bisa sudah ditutup atau berpindah akun —
+    jawaban yang terlambat tidak boleh menggambar di kartu orang lain. */
+const kartuTtdMasih = (username, wadah) =>
+  !!akunDibuka && akunDibuka.username === username && el('aTtdIsi') === wadah;
+
+async function muatTtdAkun(username){
+  const wadah = el('aTtdIsi');
+  if(!wadah) return;
+  // Dipaksa menembus singgahan 5 menit: yang mau diganti harus yang sekarang.
+  const ttd = await ttdAkunAmbil(username, { paksa:true }).catch(()=>null);
+  if(kartuTtdMasih(username, wadah)) gambarTtdAkun(username, ttd);
+}
+
+function gambarTtdAkun(username, ttd){
+  const wadah = el('aTtdIsi');
+  if(!wadah) return;
+  papanTtdAkun = null;
+  const ada = !!(ttd && ttd.ada && ttd.url);
+  const waktu = ada && ttd.dibuatPada ? cetakWaktuRingkas(ttd.dibuatPada) : '';
+  wadah.innerHTML = (ada ? `
+      <div class="cetak-ttd-bing"><img class="cetak-ttd-pratinjau" src="${esc(ttd.url)}" alt=""></div>
+      <div class="cetak-ttd-meta">${T('TTD yang sedang dipakai','Signature currently in use')}${
+        waktu ? ` · ${T('disimpan','saved')} ${esc(waktu)}` : ''}</div>`
+    : `<div class="cetak-ttd-meta">${T('Akun ini belum punya TTD tersimpan.',
+        'This account has no saved signature yet.')}</div>`) + `
+      <button type="button" class="btn garis kecil" id="btnGantiTtdAkun">${
+        ada ? T('Ganti TTD','Replace signature') : T('Buatkan TTD','Add signature')}</button>`;
+  el('btnGantiTtdAkun').addEventListener('click', ()=>bukaPapanTtdAkun(username, ttd));
+}
+
+function bukaPapanTtdAkun(username, ttd){
+  const wadah = el('aTtdIsi');
+  if(!wadah) return;
+  wadah.innerHTML = `
+    <canvas class="akun-ttd-papan" id="aTtdPapan"></canvas>
+    <div class="cetak-ttd-alat">
+      <button type="button" class="btn garis kecil" id="btnBersihTtdAkun">${T('Bersihkan','Clear')}</button>
+      <button type="button" class="btn garis kecil" id="btnBatalTtdAkun">${T('Batal','Cancel')}</button>
+      <button type="button" class="btn kecil" id="btnSimpanTtdAkun">${T('Simpan TTD baru','Save new signature')}</button>
+    </div>`;
+  papanTtdAkun = pasangPapanTtdAkun(el('aTtdPapan'));
+  el('btnBersihTtdAkun').addEventListener('click', ()=>{
+    const p = papanTtdAkun;
+    if(!p) return;
+    const c = p.kanvas.getContext('2d');
+    c.save(); c.setTransform(1, 0, 0, 1, 0, 0);
+    c.clearRect(0, 0, p.kanvas.width, p.kanvas.height);
+    c.restore();
+    p.ada = false;
+  });
+  el('btnBatalTtdAkun').addEventListener('click', ()=>gambarTtdAkun(username, ttd));
+  el('btnSimpanTtdAkun').addEventListener('click', ()=>simpanTtdAkun(username, !!(ttd && ttd.ada)));
+}
+
+/** Papan gores: mouse, jari, dan pena lewat pointer event. Ukuran piksel
+    kanvas diset dari lebar tampilnya saat itu — kanvas baru punya lebar
+    setelah ada di kartu yang terbuka. */
+function pasangPapanTtdAkun(kanvas){
+  const kotak = kanvas.getBoundingClientRect();
+  const rasio = window.devicePixelRatio || 1;
+  kanvas.width  = Math.round(kotak.width * rasio);
+  kanvas.height = Math.round(kotak.height * rasio);
+  const ctx = kanvas.getContext('2d');
+  ctx.setTransform(rasio, 0, 0, rasio, 0, 0);
+  ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#ffffff';
+
+  const papan = { kanvas, ada:false };
+  let menggambar = false;
+  const posisi = (ev)=>{
+    const r = kanvas.getBoundingClientRect();
+    return { x: ev.clientX - r.left, y: ev.clientY - r.top };
+  };
+  kanvas.addEventListener('pointerdown', ev=>{
+    ev.preventDefault();
+    kanvas.setPointerCapture(ev.pointerId);
+    menggambar = true;
+    const p = posisi(ev);
+    ctx.beginPath(); ctx.moveTo(p.x, p.y);
+    ctx.lineTo(p.x + 0.1, p.y + 0.1); ctx.stroke();   // titik, agar ketukan tunggal terlihat
+    papan.ada = true;
+  });
+  kanvas.addEventListener('pointermove', ev=>{
+    if(!menggambar) return;
+    ev.preventDefault();
+    const p = posisi(ev);
+    ctx.lineTo(p.x, p.y); ctx.stroke();
+  });
+  const selesai = ()=>{ menggambar = false; };
+  kanvas.addEventListener('pointerup', selesai);
+  kanvas.addEventListener('pointercancel', selesai);
+  return papan;
+}
+
+async function simpanTtdAkun(username, sudahAda){
+  const papan = papanTtdAkun;
+  if(!papan || !papan.ada){
+    pesan(T('Gambar dulu tanda tangannya.','Draw the signature first.'));
+    return;
+  }
+  const u = USERS.find(x=>x.username === username);
+  const sebut = (u && u.nama) || username;
+  if(sudahAda && !confirm(T(
+    'Ganti TTD tersimpan milik ' + sebut + '?\n\nTTD lamanya dibuang. Lembar dashboard (Sparepart, Jadwal Dinas, Sejarah Peralatan) — termasuk yang sudah disetujui — ikut memakai TTD baru. Catatan E-Logbook yang sudah ditandatangani tidak berubah.',
+    'Replace the saved signature of ' + sebut + '?\n\nThe old one is discarded. Dashboard sheets (Spare Parts, Duty Roster, Equipment History) — approved ones included — will use the new signature. E-Logbook entries already signed are not changed.'))) return;
+
+  const wadah = el('aTtdIsi');
+  const btn = el('btnSimpanTtdAkun');
+  btn.disabled = true;
+  try{
+    await adminApi('simpanTtdMilik', { username, dataUrl: papan.kanvas.toDataURL('image/png') });
+    // Buang salinan lama di server dashboard; muatTtdAkun di bawah menyalin ulang.
+    await ttdAkunInvalidate(username);
+    pesan(T('TTD tersimpan ' + sebut + ' diganti.', 'Saved signature of ' + sebut + ' replaced.'));
+    if(kartuTtdMasih(username, wadah)) await muatTtdAkun(username);
+  }catch(e){
+    console.error('Gagal mengganti TTD akun:', e);
+    pesan(T('Gagal menyimpan TTD: ','Could not save the signature: ') + (e && e.message || e));
+    btn.disabled = false;
+  }
+}
+
 function bukaKartuAkun(u){
   isiKartuAkun(u);
   el('lapisAkun').classList.add('buka');
@@ -1089,6 +1246,7 @@ function bukaKartuAkun(u){
 function tutupKartuAkun(){
   el('lapisAkun').classList.remove('buka');
   akunDibuka = null;
+  papanTtdAkun = null;
 }
 
 async function buatAkunBaru(){

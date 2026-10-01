@@ -364,6 +364,11 @@ tr.kelompok-akun .jumlah{color:var(--muted);margin-left:8px;letter-spacing:.04em
 .kotak-unit label{display:flex;align-items:center;gap:7px;font-size:12px;cursor:pointer;}
 .kotak-unit input{width:auto;accent-color:var(--accent);}
 
+/* Papan TTD di kartu akun pejabat (Kelola Akun). Latar gelap tetap, senada
+   .cetak-ttd-bing: goresannya putih di atas kanvas tembus pandang. */
+.akun-ttd-papan{display:block;width:100%;max-width:460px;height:130px;border:1px dashed var(--line);
+  border-radius:6px;background:#0d1319;touch-action:none;cursor:crosshair;}
+
 /* Wilayah hapus sengaja dipisah dan diberi garis merah: satu-satunya tombol di
    seluruh aplikasi ini yang membuang sesuatu di E-Logbook untuk selamanya. */
 .bahaya{border:1px solid rgba(229,72,77,.4);border-radius:10px;padding:11px 13px;margin-top:4px;

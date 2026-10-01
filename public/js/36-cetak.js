@@ -16,10 +16,11 @@
 
    Kalau pejabatnya BELUM PERNAH menyimpan TTD di E-Logbook, akun
    admin atau super-admin boleh membubuhkannya dari sini. Endpoint
-   simpanTtdMilik di E-Logbook menaruhnya di slot 0 pejabat itu,
+   simpanTtdMilik di E-Logbook menaruhnya di slot aktif pejabat itu,
    pejabatnya sendiri tetap bisa mengubahnya nanti — jalur ini bukan
    pintu penulisan tetap, cuma penambal supaya lembar hari ini bisa
-   keluar dengan tanda tangannya.
+   keluar dengan tanda tangannya. TTD yang sudah ada tapi salah
+   dibetulkan dari Kelola Akun (14-kelola-akun.js), bukan dari sini.
 
    Mengapa pejabat, dan bukan sembarang orang
    ------------------------------------------
@@ -315,8 +316,8 @@ function blokTtdOrang(ttd, opts){
     <div class="cetak-ket">${opts.untukDiri
       ? T('Anda belum punya TTD tersimpan. Gambar sekali di kotak di bawah — Cetak akan menyimpannya ke E-Logbook (TTD Saya) sekaligus mencetak.',
           'You have no saved signature yet. Draw once in the box below — Print will save it to E-Logbook (My Signature) and print in one go.')
-      : T('Cadangan: gambar TTD atas nama pejabat di sini. Cetak akan menyimpannya ke E-Logbook (slot 0 pejabat) sekaligus mencetak; pejabatnya sendiri tetap bisa menggantinya kapan saja lewat TTD Saya.',
-          'Fallback: draw the officer signature here. Print will save it to E-Logbook (officer slot 0) and print in one go; the officer may still replace it any time via My Signature.')}</div>
+      : T('Cadangan: gambar TTD atas nama pejabat di sini. Cetak akan menyimpannya ke E-Logbook (slot aktif pejabat) sekaligus mencetak; pejabatnya sendiri tetap bisa menggantinya kapan saja lewat TTD Saya.',
+          'Fallback: draw the officer signature here. Print will save it to E-Logbook (officer active slot) and print in one go; the officer may still replace it any time via My Signature.')}</div>
     <canvas class="cetak-ttd-kanvas" id="${esc(opts.idKanvas)}"></canvas>
     <div class="cetak-ttd-alat">
       <button class="btn garis kecil" data-cetak-bersih="${esc(opts.idKanvas)}" type="button">${

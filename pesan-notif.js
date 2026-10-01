@@ -35,6 +35,16 @@ export function pesanSudahTtd({ dokumen, unit, tanggal, penanda, cuplikan }) {
   return baris.join('\n');
 }
 
+/** Kabar ke pejabat: TTD tersimpannya diganti administrator lewat Kelola Akun.
+    Dikirim supaya tanda tangan seseorang tidak pernah berganti tanpa ia tahu. */
+export function pesanTtdDiganti({ oleh }) {
+  const baris = ['✍️ <b>TTD tersimpan Anda diganti</b>', ''];
+  if (oleh) baris.push(`Diganti oleh: <b>${esc(oleh)}</b> (administrator)`);
+  baris.push('', 'TTD inilah yang dipakai saat Anda menyetujui dokumen. Kalau bukan atas permintaan Anda, '
+    + 'ganti lewat E-Logbook → <b>TTD Saya</b> dan kabari administrator.');
+  return baris.join('\n');
+}
+
 /** Pengingat ke pembuat logbook: dinasnya sudah lewat, tanda tangan belum ada. */
 export function pesanBelumTtd({ dokumen, unit, tanggal, dinas, menunggu, menit, cuplikan }) {
   const baris = ['⏰ <b>Dokumen Anda belum ditandatangani</b>', '', `Dokumen: <b>${esc(dokumen)}</b>`];
