@@ -342,7 +342,8 @@ const mapEntry = e => ({ id:e.ID, tanggal:e.Tanggal, jam:e.Jam, dinas:e.Dinas||'
                          tautan:e.Tautan||[] });
 const mapDc = r => ({ id:r.ID, tanggal:r.Tanggal, tanggalIso:r.TanggalIso||'', dinas:r.Dinas, suhu:r.Suhu, remark:r.Remark, teknisiNama:r.TeknisiNama, teknisiTtd:r.TeknisiTTD, managerNama:r.ManagerNama, managerTtd:r.ManagerTTD, fails:r.FailsJSON||[], warns:r.WarnsJSON||[], teknisiNamaList:r.TeknisiNamaListJSON||[],
                      diinputOleh:r.DiinputOleh||'', dibuatPada:r.DibuatPada||'', dibuatOlehUsername:r.DibuatOlehUsername||'',
-                     ttdOleh:r.TtdOleh||'', ttdPada:r.TtdPada||'', ttdUntuk:r.TtdUntuk||'' });
+                     ttdOleh:r.TtdOleh||'', ttdPada:r.TtdPada||'', ttdUntuk:r.TtdUntuk||'',
+                     lokasi:r.Lokasi||'' });
 const mapIssue = i => ({ id:i.ID, jenis:i.Jenis, keterangan:i.Keterangan, lokasi:i.Lokasi, status:i.Status,
                          tglReport:i.TanggalReport||'', tglClosed:i.TanggalClosed||'',
                          dilaporkanOleh:i.DilaporkanOleh||'', diinputOleh:i.DiinputOleh||'',

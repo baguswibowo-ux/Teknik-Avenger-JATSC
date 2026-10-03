@@ -276,6 +276,13 @@
         <span id="dcEditingTeks">Menyunting daily check</span>
         <button class="btn ghost" style="margin-left:8px;padding:5px 10px;" onclick="batalEditDc()">Batal Edit</button>
       </div>
+      <!-- Form baru Radtel mewarisi status daily check terakhir di lokasi yang
+           sama (dcWarisiTerakhir di 14-daily-check-umum.js). Spanduk ini menyebut
+           catatan asalnya dan memberi jalan kembali ke semua normal. -->
+      <div id="dcWarisanBanner" style="display:none;margin-top:8px;font-size:12.5px;padding:8px 10px;border:1px solid var(--accent);border-radius:6px;background:var(--panel-2);">
+        <span id="dcWarisanTeks"></span>
+        <button class="btn ghost" style="margin-left:8px;padding:5px 10px;" onclick="dcBuangWarisan()">Mulai dari semua normal</button>
+      </div>
       <div class="legend" id="dcLegendGarex">
         <span><i class="dot" style="background:var(--ok)"></i> <span data-t="lgNormal">Normal</span></span>
         <span><i class="dot" style="background:var(--warn)"></i> <span data-t="lgAlarm">Alarm / Perlu Pantau</span></span>
@@ -2553,7 +2560,7 @@
 <script src="js/04-toast-tab.js"></script>
 <script src="js/05-jembatan-server.js"></script>
 <script src="js/06-keadaan.js?v=20260916tautan"></script>
-<script src="js/07-unit.js?v=20260916tautan"></script>
+<script src="js/07-unit.js?v=dc-warisi"></script>
 <script src="js/08-tanda-tangan.js"></script>
 <script src="js/09-peran.js?v=20260916adminunit"></script>
 <script src="js/10-lampiran.js"></script>
@@ -2568,7 +2575,7 @@
 <script src="js/12g-daily-check-listrik.js"></script>
 <script src="js/12h-daily-check-rdps.js"></script>
 <script src="js/13-daily-check-radkom.js"></script>
-<script src="js/14-daily-check-umum.js?v=gatevox-psu"></script>
+<script src="js/14-daily-check-umum.js?v=dc-warisi"></script>
 <script src="js/15-isu.js?v=20260916adminunit"></script>
 <script src="js/16-monitoring.js"></script>
 <script src="js/17-ds-test.js?v=20260916sunting"></script>

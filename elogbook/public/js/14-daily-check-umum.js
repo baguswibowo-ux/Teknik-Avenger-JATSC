@@ -60,6 +60,103 @@ function resetDcForm(){
   ['sigDcTeknisi'].forEach(id=>{ if(sigPads[id]) clearSig(id); });
   teknisiRows = []; teknisiSeq = 0;
   addTeknisi();  // mulai dengan 1 baris nama
+  // Reset berarti semua normal — warisan dari catatan terakhir tidak diambil
+  // lagi sampai "+ Form Baru" berikutnya (openDcFormModal yang membukanya).
+  dcLupakanWarisan(true);
+}
+
+/* ---------- Form baru Radtel mewarisi daily check terakhir ----------
+   Alarm dan gangguan di Radtel jarang selesai dalam satu dinas, jadi form yang
+   selalu mulai dari semua ✓ memaksa teknisi mengeklik ulang temuan yang sama
+   tiap dinas — dan yang terlewat tersimpan sebagai "normal". "+ Form Baru"
+   sekarang mulai dari status daily check TERAKHIR di lokasi yang sama (Garex
+   dan Frequentis punya catatan terakhirnya sendiri-sendiri); teknisi tinggal
+   mengubah yang berubah.
+
+   Yang ikut hanya isi checklist (status tiap sel, CPU Main Gatevox, Main TMCS).
+   Suhu, remark, nama teknisi, dan TTD tetap kosong — itu milik dinas yang
+   mengisi. Sunting catatan lama tidak tersentuh.
+
+   dcWarisan[lokasi]: tidak ada kuncinya = belum dicoba pada pembukaan form
+   ini; null = sudah dicoba/dibuang, jangan ambil lagi; objek = catatan asal. */
+let dcWarisan = {};
+let dcWarisanSesi = 0;
+
+const dcLokasiCatatan = r => (r.lokasi === 'jatsc' ? 'jatsc' : 'new-jatsc');
+const dcLokasiForm = () => (dcRadtelJatscAktif() ? 'jatsc' : 'new-jatsc');
+
+function dcLupakanWarisan(janganAmbilLagi){
+  dcWarisan = janganAmbilLagi ? { 'new-jatsc': null, 'jatsc': null } : {};
+  dcWarisanSesi++;
+  dcTampilWarisan();
+}
+
+function dcTampilWarisan(){
+  const banner = document.getElementById('dcWarisanBanner');
+  if(!banner) return;
+  const asal = (unitAktif === 'radtel' && !dcEditingId) ? dcWarisan[dcLokasiForm()] : null;
+  banner.style.display = asal ? '' : 'none';
+  if(!asal) return;
+  const temuan = [asal.fails.length ? asal.fails.length + ' gangguan' : '', asal.warns.length ? asal.warns.length + ' alarm' : '']
+    .filter(Boolean).join(', ') || 'semua normal';
+  document.getElementById('dcWarisanTeks').textContent =
+    `Status disalin dari daily check terakhir: ${asal.tanggal} · Dinas ${asal.dinas || '-'} (${temuan}). Ubah yang berubah saja.`;
+}
+
+/** Salin state catatan tersimpan ke form Garex / Frequentis. Dipakai sunting
+    maupun warisan form baru. */
+function dcIsiStateGarex(state){
+  initDcState();
+  Object.entries(dcStateBaca(state)).forEach(([itemName, cols])=>{
+    if(!itemName || itemName.startsWith('__')) return;
+    if(dcState[itemName] && cols && typeof cols === 'object'){
+      dcState[itemName] = { ...dcState[itemName], ...cols };
+    }
+  });
+  renderDcTable();
+}
+function dcIsiStateJatsc(state){
+  initDcJState();
+  // Catatan lama dipetakan dulu ke posisi yang berlaku sekarang.
+  Object.entries(jatscStateBaca(state)).forEach(([k, v])=>{
+    if(k.startsWith('__')) return;
+    dcJState[k] = v;
+  });
+  renderDcJatscTable();
+}
+
+async function dcWarisiTerakhir(){
+  if(unitAktif !== 'radtel' || dcEditingId) return;
+  const bg = document.getElementById('dcFormModalBg');
+  if(!bg || !bg.classList.contains('show')) return;
+  const lokasi = dcLokasiForm();
+  if(lokasi in dcWarisan){ dcTampilWarisan(); return; }
+  dcWarisan[lokasi] = null;
+  dcTampilWarisan();
+  // "Terakhir" menurut tanggal dinasnya, bukan kapan diketik — catatan susulan
+  // untuk hari yang sudah lewat tidak boleh jadi sumber.
+  const asal = dcHistory.filter(r=>dcLokasiCatatan(r) === lokasi)
+    .sort((a, b)=>(b.tanggalIso + '|' + b.dibuatPada).localeCompare(a.tanggalIso + '|' + a.dibuatPada))[0];
+  if(!asal) return;
+  const sesi = dcWarisanSesi;
+  let detail;
+  try{ detail = await gsRun('getDailyCheckDetail', asal.id); }
+  catch(e){ return; }   // gagal ambil: form tetap mulai dari semua normal
+  // Form sudah ditutup/dibuka ulang, di-reset, atau beralih ke sunting selagi menunggu.
+  if(sesi !== dcWarisanSesi || dcEditingId) return;
+  const state = (detail && detail.state) || {};
+  if(lokasi === 'jatsc') dcIsiStateJatsc(state); else dcIsiStateGarex(state);
+  dcWarisan[lokasi] = asal;
+  dcTampilWarisan();
+}
+
+/** Tombol "Mulai dari semua normal" di spanduk — hanya lokasi yang sedang tampil. */
+function dcBuangWarisan(){
+  const lokasi = dcLokasiForm();
+  if(lokasi === 'jatsc'){ initDcJState(); renderDcJatscTable(); }
+  else{ initDcState(); renderDcTable(); }
+  dcWarisan[lokasi] = null;
+  dcTampilWarisan();
 }
 
 /* ---------- Modal form daily check ----------
@@ -79,6 +176,8 @@ function openDcFormModal(){
   setDcTanggal();
   const bg = document.getElementById('dcFormModalBg');
   if(bg) bg.classList.add('show');
+  dcLupakanWarisan(false);
+  dcWarisiTerakhir();
   // Kanvas TTD berlebar 0 selama modal tersembunyi — ukur ulang setelah tampil.
   setTimeout(()=>{ if(typeof resizeAllVisibleSigPads === 'function') resizeAllVisibleSigPads(); }, 60);
 }
@@ -131,6 +230,8 @@ function perbaruiLokasiDc(){
     if(jatsc && Object.keys(dcJState || {}).length === 0){ initDcJState(); renderDcJatscTable(); }
   }
   sinkronSubtabDc();
+  // Pindah sub-tab di form baru: lokasi itu mewarisi catatan terakhirnya sendiri.
+  dcWarisiTerakhir();
 }
 
 /** Sub-tab lokasi (di index.html #dcSubtabs) menggantikan dropdown Nama
@@ -712,22 +813,9 @@ async function openDcEditModal(id){
     });
     renderDcNavTable();
   }else if(isJatsc){
-    initDcJState();
-    // Catatan lama dipetakan dulu ke posisi yang berlaku sekarang.
-    Object.entries(jatscStateBaca(state)).forEach(([k, v])=>{
-      if(k.startsWith('__')) return;
-      dcJState[k] = v;
-    });
-    renderDcJatscTable();
+    dcIsiStateJatsc(state);
   }else{
-    initDcState();
-    Object.entries(dcStateBaca(state)).forEach(([itemName, cols])=>{
-      if(!itemName || itemName.startsWith('__')) return;
-      if(dcState[itemName] && cols && typeof cols === 'object'){
-        dcState[itemName] = { ...dcState[itemName], ...cols };
-      }
-    });
-    renderDcTable();
+    dcIsiStateGarex(state);
   }
 
   // Field-field header form
@@ -758,6 +846,7 @@ async function openDcEditModal(id){
 
   // Ganti tombol simpan, tampilkan spanduk, gulir ke atas.
   dcEditingId = id;
+  dcLupakanWarisan(true);
   const btn = document.getElementById('dcSaveBtn');
   btn.textContent = T('simpanPerubahan');
   const banner = document.getElementById('dcEditingBanner');
