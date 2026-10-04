@@ -637,13 +637,36 @@ function jdwAturLengket(){
   const rel = document.querySelector('nav.rel');
   alat.style.setProperty('--jdw-atas', (rel ? Math.round(rel.getBoundingClientRect().height) : 0) + 'px');
 }
-window.addEventListener('resize', jdwAturLengket);
+
+/** Baris tanggal tabel jadwal ikut turun selama halaman digulir — berhenti
+    tepat di bawah tombol kode (mode sunting) atau rel navigasi (mode lihat),
+    dan tidak pernah keluar dari tabelnya sendiri. */
+function jdwLengketKepala(){
+  const gulir = document.querySelector('#s-dinas .jdw-gulir');
+  const tabel = gulir && gulir.querySelector('table.jdw');
+  if(!tabel || !tabel.tHead || !gulir.offsetParent) return;
+  const penahan = document.querySelector('#s-dinas .jdw-alat') || document.querySelector('nav.rel');
+  const batas = penahan ? penahan.getBoundingClientRect().bottom : 0;
+  const kotak = gulir.getBoundingClientRect();
+  // Sisakan dua tinggi kepala di dasar: baris terakhir tidak boleh tertutup.
+  const maks = Math.max(0, kotak.height - tabel.tHead.offsetHeight * 2);
+  // Garis tepi kotak ikut dihitung, dan kepala diselipkan 1px ke balik
+  // penahannya — tanpa itu ada celah tipis yang memperlihatkan baris di belakang.
+  const geser = Math.min(maks, Math.max(0, Math.floor(batas - kotak.top - gulir.clientTop) - 1));
+  tabel.style.setProperty('--jdw-kepala', geser + 'px');
+}
+// Dihitung langsung di tiap gulir, tanpa requestAnimationFrame: tiga ukuran dan
+// satu tulisan gaya itu murah, dan rAF yang tertunda meninggalkan kepala di
+// posisi basi.
+window.addEventListener('scroll', jdwLengketKepala, { passive:true });
+window.addEventListener('resize', ()=>{ jdwAturLengket(); jdwLengketKepala(); });
 
 /** Pasang pendengar untuk isi yang barusan digambar. */
 function jdwPasang(unit){
   const kotak = el('s-dinas');
   if(!kotak) return;
   jdwAturLengket();
+  jdwLengketKepala();
 
   const bulanEl = kotak.querySelector('#jdwBulan');
   if(bulanEl) bulanEl.addEventListener('change', async ()=>{
