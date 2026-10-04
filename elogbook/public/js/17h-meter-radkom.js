@@ -519,11 +519,44 @@ function hapusRkTeknisi(key){ rkTeknisiRows = rkTeknisiRows.filter(x=>x.key !== 
 
 let rkEditingId = null;
 
+/* Lembar baru mewarisi isi lembar TERAKHIR yang sejenis — pola yang sama
+   dengan daily check Radtel (dcWarisiTerakhir di 14-daily-check-umum.js).
+   Yang ikut hanya isi tabel; lokasi/suhu di kepala, tanggal, nama teknisi,
+   dan TTD tetap kosong. rkWarisan = catatan asalnya, null kalau tidak ada. */
+let rkWarisan = null;
+
+function rkWarisiTerakhir(form){
+  // "Terakhir" menurut tanggal lembarnya, bukan kapan diketik.
+  const asal = (typeof dsList !== 'undefined' ? dsList : []).filter(d=>rkAdalah(d, form))
+    .sort((a, b)=>(String(b.tanggal) + '|' + b.dibuatPada).localeCompare(String(a.tanggal) + '|' + a.dibuatPada))[0];
+  rkWarisan = asal || null;
+  if(!asal) return;
+  // Hanya sel yang memang ada di lembar sekarang — kunci lama yang sudah
+  // dibuang dari sheet tidak ikut tersimpan lagi.
+  const lama = asal.state.data || {};
+  Object.keys(rkData).forEach(k=>{ if(lama[k] !== undefined) rkData[k] = String(lama[k]); });
+}
+
+/** Tombol "Mulai dari kosong" di spanduk. Isian kepala yang sudah diketik tetap. */
+function rkBuangWarisan(){
+  const meta = rkMeta;
+  rkInit(rkForm);
+  rkMeta = meta;
+  rkWarisan = null;
+  renderRkTable();
+  rkTerapkanModeSunting();
+}
+
 function rkTerapkanModeSunting(){
   const btn = document.getElementById('rkSaveBtn');
   if(btn) btn.textContent = rkEditingId ? T('simpanPerubahan') : T('simpanRk');
   const bar = document.getElementById('rkEditingBanner');
   if(bar) bar.style.display = rkEditingId ? '' : 'none';
+  const asal = rkEditingId ? null : rkWarisan;
+  const warisan = document.getElementById('rkWarisanBanner');
+  if(warisan) warisan.style.display = asal ? '' : 'none';
+  if(asal) document.getElementById('rkWarisanTeks').textContent =
+    `Isi disalin dari lembar terakhir: ${String(asal.tanggal || '').slice(0, 10)}. Ubah yang berubah saja.`;
 }
 
 function rkJudulModal(form){
@@ -537,6 +570,7 @@ function openRkModal(form){
   rkEditingId = null;
   rkForm = form;
   rkInit(form);
+  rkWarisiTerakhir(form);
   rkJudulModal(form);
   document.getElementById('rkTanggal').value = tanggalHariIni();
   document.getElementById('rkManagerNama').value = '';
@@ -562,6 +596,7 @@ function openRkEdit(id){
   rkForm = form;
   rkInit(form);
   rkEditingId = id;
+  rkWarisan = null;
   rkMeta = Object.assign({}, rkMeta, d.state.meta || {});
   rkData = Object.assign({}, rkData, d.state.data || {});
 

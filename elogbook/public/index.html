@@ -1954,6 +1954,12 @@
       <span data-t="rkSunting">Sunting lembar ini</span>
       <button class="btn ghost" style="margin-left:8px;padding:5px 10px;" onclick="batalEditRk()" data-t="batalEdit">Batal Edit</button>
     </div>
+    <!-- Lembar baru mewarisi isi lembar terakhir yang sejenis (rkWarisiTerakhir
+         di 17h-meter-radkom.js) — kembar dengan spanduk daily check Radtel. -->
+    <div id="rkWarisanBanner" style="display:none;margin-top:8px;font-size:12.5px;padding:8px 10px;border:1px solid var(--accent);border-radius:6px;background:var(--panel-2);">
+      <span id="rkWarisanTeks"></span>
+      <button class="btn ghost" style="margin-left:8px;padding:5px 10px;" onclick="rkBuangWarisan()">Mulai dari kosong</button>
+    </div>
     <div id="rkWrap" style="margin-top:8px;"></div>
     <div class="grid2" style="margin-top:14px;">
       <div>
@@ -2584,7 +2590,7 @@
 <script src="js/17e-llz-navigasi.js?v=20260916sunting"></script>
 <script src="js/17f-meter-reading.js?v=20260916sunting"></script>
 <script src="js/17g-maint-listrik.js"></script>
-<script src="js/17h-meter-radkom.js"></script>
+<script src="js/17h-meter-radkom.js?v=dc-warisi"></script>
 <script src="js/18-ltk.js?v=20260916tautan"></script>
 <script src="js/18b-bapb.js?v=20260916tautan"></script>
 <script src="js/19-berkala.js?v=20260916sunting"></script>
