@@ -114,7 +114,12 @@ table.jdw.sunting td.jdw-sel.jdw-pratinjau{outline:1px dashed var(--accent);outl
 .jdw-pegangan::after{content:'';position:absolute;inset:-10px;}
 .jdw-gulir:focus{outline:none;}
 .jdw-gulir:focus-visible{box-shadow:0 0 0 2px var(--accent);}
-.jdw-alat{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin:0 0 8px;}
+/* Tombol kode menempel di bawah rel navigasi selama tabel digulir — jadwal
+   belasan orang lebih tinggi dari layar, dan tanpa ini tiap mau ganti kode
+   harus menggulir balik ke atas. --jdw-atas = tinggi nav.rel (jdwPasang). */
+.jdw-alat{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin:0 0 8px;
+  position:sticky;top:var(--jdw-atas,0px);z-index:20;padding:7px 9px;
+  background:var(--panel);border:1px solid var(--line);border-radius:11px;box-shadow:var(--bayang);}
 .jdw-alat .ket{font-size:11.5px;color:var(--muted);margin-right:4px;}
 .jdw-alat .btn.kecil{font-family:var(--font-mono);min-width:38px;}
 #jdwKetik{font-family:var(--font-mono);color:var(--accent);}

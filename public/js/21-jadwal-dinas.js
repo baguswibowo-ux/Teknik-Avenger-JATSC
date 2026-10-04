@@ -629,10 +629,21 @@ async function jdwPolaIsi(unit, tombol){
   }
 }
 
+/** Tombol kode (.jdw-alat) menempel tepat di bawah rel navigasi. Tinggi rel
+    berubah-ubah (tombolnya melipat di layar sempit), jadi diukur, bukan dipatok. */
+function jdwAturLengket(){
+  const alat = document.querySelector('#s-dinas .jdw-alat');
+  if(!alat) return;
+  const rel = document.querySelector('nav.rel');
+  alat.style.setProperty('--jdw-atas', (rel ? Math.round(rel.getBoundingClientRect().height) : 0) + 'px');
+}
+window.addEventListener('resize', jdwAturLengket);
+
 /** Pasang pendengar untuk isi yang barusan digambar. */
 function jdwPasang(unit){
   const kotak = el('s-dinas');
   if(!kotak) return;
+  jdwAturLengket();
 
   const bulanEl = kotak.querySelector('#jdwBulan');
   if(bulanEl) bulanEl.addEventListener('change', async ()=>{
