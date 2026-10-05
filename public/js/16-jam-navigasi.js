@@ -44,8 +44,9 @@ function pindahLayar(nama){
     // bisa berubah karena pejabat baru saja menyetujui, atau pembuat
     // baru saja mengirim. Menekan tab yang sama dua kali cukup untuk
     // menyegarkan tanpa memuat ulang halaman.
+    // Kotak masuk TTD E-Logbook ikut disegarkan dengan alasan yang sama.
     if(typeof muatAntrianCetak === 'function'){
-      muatAntrianCetak().then(gambarKotakMasuk);
+      Promise.all([muatAntrianCetak(), muatTtdMasuk()]).then(gambarKotakMasuk);
     }else{
       gambarKotakMasuk();
     }

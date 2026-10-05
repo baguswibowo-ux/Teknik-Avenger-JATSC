@@ -211,6 +211,51 @@ function pasangAksiAntrianCetak(){
   });
 }
 
+/* ---------- Kotak Masuk TTD E-Logbook: dokumen menunggu tanda tangan saya ----------
+   Daftar yang sama dengan lonceng TTD di kepala E-Logbook, supaya pejabat yang
+   sedang di dashboard tidak perlu menyeberang hanya untuk tahu ada yang
+   menunggu. Tanda tangannya tetap dibubuhkan di E-Logbook: tombolnya membawa
+   #kotak-ttd:::<jenis>-<id>, tautan yang sama dengan notifikasi HP, dan di sana
+   dokumennya langsung terbuka (bukaKotakTtdDariTautan, E-Logbook js/26-init.js). */
+async function muatTtdMasuk(){
+  try{
+    const d = await srvApi('kotakTtdSaya');
+    if(Array.isArray(d)) TTD_MASUK = d;
+  }catch(e){
+    // Yang dibawa getAllData saat halaman dimuat tetap dipakai.
+    console.warn('[kotak] gagal menyegarkan kotak masuk TTD:', e && e.message || e);
+  }
+}
+
+function ttdMasukKartu(it){
+  const tautan = TAUTAN_ELOGBOOK ? `${TAUTAN_ELOGBOOK}#kotak-ttd:::${it.jenis}-${it.id}` : '';
+  return `<article class="kmk saya">
+    <div class="kmk-kiri">
+      <div class="kmk-jd">
+        <span class="cip awas">${esc(T('Menunggu TTD','Awaiting signature').toUpperCase())}</span>
+        <span class="cip">${esc(String(it.unitNama || it.unit || '-').toUpperCase())}</span>
+        ${it.atasNama ? `<span class="cip">PH · ${esc(it.atasNama)}</span>` : ''}
+        <b>${esc(it.judul || it.label || '')}${it.tanggal ? ' · ' + esc(it.tanggal) : ''}</b>
+      </div>
+      <div class="kmk-rn">${esc(it.label || '')}: <b>${esc(it.nama || '-')}</b></div>
+      ${it.cuplikan ? `<div class="kmk-rn" style="font-style:italic">${esc(it.cuplikan)}</div>` : ''}
+    </div>
+    <div class="kmk-kanan">
+      <span class="kmk-tombol">${tautan
+        ? `<a class="btn kecil" href="${esc(tautan)}">${T('Buka & TTD','Open & sign')}</a>` : ''}</span>
+    </div>
+  </article>`;
+}
+
+function gambarSeksiTtdMasuk(){
+  if(!TTD_MASUK.length) return '';
+  return `<div class="panel" style="margin-bottom:14px">
+    <div class="kepala"><h3>${T('Menunggu Tanda Tangan Anda — E-Logbook','Awaiting Your Signature — E-Logbook')}</h3>
+      <span class="ket">${TTD_MASUK.length} ${T('dokumen','documents')}</span></div>
+    <div class="badan" style="display:grid;gap:10px">${TTD_MASUK.map(ttdMasukKartu).join('')}</div>
+  </div>`;
+}
+
 let KOTAK_SARING = 'saya';    // 'saya' | 'semua'
 
 function gambarKotakMasuk(){
@@ -220,7 +265,7 @@ function gambarKotakMasuk(){
   const tampil = KOTAK_SARING === 'saya' ? milikSaya : semua;
 
   const lencana = el('lencanaKotak');
-  const n = kotakUntukSaya().length + (CETAK_ANTRIAN.menungguSaya || 0);
+  const n = kotakUntukSaya().length + (CETAK_ANTRIAN.menungguSaya || 0) + TTD_MASUK.length;
   if(lencana){ lencana.textContent = n; lencana.hidden = !n; }
 
   el('ketKotak').textContent =
@@ -233,7 +278,7 @@ function gambarKotakMasuk(){
   ].map(([nilai, teks])=>`<button class="btn ${KOTAK_SARING === nilai ? '' : 'garis '}kecil"
       data-saring-kotak="${nilai}">${esc(teks)}</button>`).join('');
 
-  const seksiCetak = gambarSeksiAntrianCetak(kotak);
+  const seksiCetak = gambarSeksiTtdMasuk() + gambarSeksiAntrianCetak(kotak);
 
   if(!tampil.length){
     kotak.innerHTML = seksiCetak + `<div class="panel"><div class="badan" style="color:var(--muted);font-size:12.5px;line-height:1.7">${

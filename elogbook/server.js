@@ -1157,6 +1157,11 @@ const API = {
     return { ...hasil, unit, dari, sampai };
   },
 
+  /** Kotak masuk TTD akun ini saja — milik sendiri ditambah titipan PH, sama
+      persis dengan `inboxTtd` di getAllData. Dipakai Kotak Masuk dashboard
+      untuk menyegarkan daftarnya tanpa menarik ulang data satu unit penuh. */
+  kotakTtdSaya: async (user) => inboxTtdDenganPh(user),
+
   getAllData: async (unit, user) => {
     // Pemanggil boleh tidak menyertakan unit sama sekali. Argumen terakhir
     // selalu identitas pemanggil, jadi kalau yang masuk ke posisi unit ternyata

@@ -419,8 +419,14 @@ async function srvMuat(opsi = {}){
   }
 }
 
+/* Kotak masuk TTD E-Logbook milik akun ini (dan titipan PH-nya) — lintas unit,
+   ikut di jawaban getAllData pertama. Digambar di Kotak Masuk; lihat
+   27-kotak-masuk.js. */
+let TTD_MASUK = [];
+
 async function srvMuatInti(){
   const awal = await srvApi('getAllData', '');
+  TTD_MASUK = Array.isArray(awal.inboxTtd) ? awal.inboxTtd : [];
   // Daftar akun ikut di jawaban pertama, tapi hanya untuk administrator —
   // server yang memutuskan itu, bukan halaman ini. Untuk peran lain isinya
   // memang kosong, dan layar Kelola Akun pun tidak muncul.
