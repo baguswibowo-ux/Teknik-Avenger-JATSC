@@ -3315,7 +3315,35 @@ app.delete('/logo/:unit', galeriHidup, async (req, res) => {
    Radtel dan sepadannya di unit lain. Kalau kosong, sebutan dari E-Logbook
    tetap berlaku. Berdampingan dengan logo: hanya administrator yang boleh
    menggantinya, karena satu suntingan mengubah layar semua orang.
+
+   E-Logbook ikut memakai penimpanya — "Nama Peralatan" di kepala halaman dan
+   di kepala cetakannya — supaya satu unit tidak punya dua sebutan. Seluruh
+   daftarnya dititipkan lewat pintu internal /internal/nama-alat tiap kali
+   berubah dan sekali saat server ini menyala; E-Logbook menyimpan salinannya
+   sendiri, jadi ia tetap benar walau menyala lebih dulu dari dashboard.
    ===================================================================== */
+
+async function titipNamaAlat() {
+  if (!TERUS) return;
+  const jawab = await fetch(ASAL + '/internal/nama-alat', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(await bacaJson(NAMA_ALAT_JSON, {})),
+    signal: AbortSignal.timeout(8000)
+  });
+  if (!jawab.ok) throw new Error(`E-Logbook menjawab ${jawab.status} untuk /internal/nama-alat`);
+}
+
+/** Titipan saat menyala. E-Logbook di sebelah butuh beberapa detik untuk siap,
+    jadi yang gagal dicoba lagi — sepuluh kali, lalu menyerah sampai ada yang
+    menyunting baris peralatan lagi. */
+async function titipNamaAlatSaatNyala(sisa = 10) {
+  try { await titipNamaAlat(); }
+  catch (e) {
+    if (sisa > 1) setTimeout(titipNamaAlatSaatNyala, 15 * 1000, sisa - 1).unref();
+    else console.warn('[nama-alat] tidak tertitip ke E-Logbook:', e?.message || e);
+  }
+}
 
 app.put('/nama-alat/:unit', badanDinas, async (req, res) => {
   const unit = String(req.params.unit || '').toLowerCase();
@@ -3339,6 +3367,8 @@ app.put('/nama-alat/:unit', badanDinas, async (req, res) => {
     if (alat) semua[unit] = alat; else delete semua[unit];
     await tulisJson(NAMA_ALAT_JSON, semua);
     await catat(user, { modul: 'logo', aksi: alat ? 'baris' : 'baris-kosong', unit, rincian: alat });
+    // Simpanannya sudah berhasil; E-Logbook yang sedang diam tidak membatalkannya.
+    titipNamaAlat().catch((e) => console.warn('[nama-alat] tidak tertitip ke E-Logbook:', e?.message || e));
     res.json({ ok: true, alat });
   } catch (e) {
     console.error('[nama-alat] gagal menyimpan:', e);
@@ -5093,6 +5123,7 @@ if (dijalankanLangsung) {
      restart di dalam jendela tidak boleh menunda pesannya), sesudahnya tiap 5
      menit: pesan sampai 55–60 menit sebelum dinas. */
   if (TERUS) {
+    setTimeout(titipNamaAlatSaatNyala, 5 * 1000).unref();
     setTimeout(periksaPengingatDinas, 30 * 1000).unref();
     setInterval(periksaPengingatDinas, 5 * 60 * 1000).unref();
     setTimeout(periksaPengingatBerkala, 45 * 1000).unref();

@@ -1202,8 +1202,8 @@ const API = {
     ]);
 
     return {
-      unit: u,
-      unitSaya: UNIT.filter((x) => bolehUnit.includes(x.kode)),
+      unit: denganNamaAlat(u),
+      unitSaya: UNIT.filter((x) => bolehUnit.includes(x.kode)).map(denganNamaAlat),
       /**
        * Seluruh unit yang dikenal, bukan cuma yang dipegang akun ini.
        *
@@ -1225,6 +1225,10 @@ const API = {
        * Dinas memakai kode bergedung PSJ/PSN/MJ/MN. Dua daftar bernama sama
        * dengan arti berbeda pernah tertukar sekali; mengirimnya lagi berarti
        * menyediakan bahannya untuk tertukar lagi.
+       *
+       * `peralatan` di sini sengaja tetap bawaan db.js, tanpa penimpa dari
+       * dashboard: dashboard memakainya sebagai sebutan asal — yang tampil
+       * kalau penimpanya dikosongkan.
        */
       unitSemua: UNIT.map((x) => ({ kode: x.kode, nama: x.nama, peralatan: x.peralatan })),
       entries: jejak(entries),
@@ -2350,6 +2354,48 @@ function hanyaInternal(req, res, next) {
   if (!loopback || req.get('x-diteruskan-avenger')) return res.sendStatus(404);
   next();
 }
+
+/* Baris peralatan pengganti per unit, disunting administrator di dashboard
+   (Database Unit). Dashboard menitipkan SELURUH daftarnya tiap kali berubah dan
+   saat ia menyala; salinannya disimpan di data/nama-alat.json supaya E-Logbook
+   yang menyala sendirian tidak kembali ke sebutan bawaan. Unit yang tidak ada
+   di daftar memakai UNIT[].peralatan dari db.js. */
+const BERKAS_NAMA_ALAT = path.join(DIR_DATA, 'nama-alat.json');
+let namaAlat = null;   // null = belum dibaca
+
+function rapikanNamaAlat(x) {
+  const hasil = {};
+  for (const u of UNIT) {
+    const teks = String(x?.[u.kode] || '').trim().slice(0, 200);
+    if (teks) hasil[u.kode] = teks;
+  }
+  return hasil;
+}
+
+function bacaNamaAlat() {
+  if (namaAlat) return namaAlat;
+  try { namaAlat = rapikanNamaAlat(JSON.parse(fs.readFileSync(BERKAS_NAMA_ALAT, 'utf8'))); }
+  catch { namaAlat = {}; }   // belum pernah dititipi: semua unit pakai bawaan
+  return namaAlat;
+}
+
+/** Unit dengan baris peralatan yang berlaku — penimpa dashboard kalau ada. */
+function denganNamaAlat(u) {
+  const teks = u && bacaNamaAlat()[u.kode];
+  return teks ? { ...u, peralatan: teks } : u;
+}
+
+app.put('/internal/nama-alat', hanyaInternal, (req, res) => {
+  namaAlat = rapikanNamaAlat(req.body);
+  try {
+    fs.mkdirSync(DIR_DATA, { recursive: true });
+    fs.writeFileSync(BERKAS_NAMA_ALAT, JSON.stringify(namaAlat, null, 2));
+  } catch (err) {
+    // Tetap berlaku selama proses ini hidup; dashboard menitipkannya lagi saat menyala.
+    console.warn('[nama-alat] salinan tidak tersimpan:', err?.message || err);
+  }
+  res.json({ ok: true });
+});
 
 /** Akun aktif [{username, nama}] untuk mencocokkan nama/NIK di jadwal, dan
     daftar unit [{kode, nama}] untuk menulis nama unit di pesan. */
