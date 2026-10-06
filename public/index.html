@@ -535,6 +535,7 @@
       <div class="kepala"><h3 data-en="Activate Unit Accounts">Aktivasi Akun Unit</h3>
         <span style="display:flex;gap:8px;align-items:center">
           <span class="ket" id="ketAktivasiUnit"></span>
+          <button class="btn garis kecil" id="btnSandiSaya" data-en="Change my password">Ganti password saya</button>
           <button class="btn garis kecil" id="btnSegarAktivasiUnit" data-en="Reload">Muat ulang</button>
         </span>
       </div>
@@ -675,10 +676,14 @@
       <button type="button" class="tutup-x" data-tutup="btnBatalUnitAkun" title="Tutup" data-en-judul="Close" aria-label="Tutup">&#10005;</button>
     </div>
     <div class="badan">
-      <div class="isian"><label for="uaUser" data-en="Username">Username</label>
+      <!-- Hanya tampil saat admin unit mengganti sandinya sendiri: username dan
+           nama disembunyikan (itu tetap urusan admin utama), sandi lama wajib. -->
+      <div class="isian" id="isianUaLama" style="display:none"><label for="uaPassLama" data-en="Current password">Password lama</label>
+        <input type="password" id="uaPassLama" autocomplete="current-password"></div>
+      <div class="isian" id="isianUaUser"><label for="uaUser" data-en="Username">Username</label>
         <input id="uaUser" autocomplete="off" spellcheck="false" placeholder="mis. budi.santoso">
         <div class="bantu" data-en="3–32 characters: lowercase letters, digits, dots, underscores, or hyphens.">3–32 karakter: huruf kecil, angka, titik, garis bawah, atau strip.</div></div>
-      <div class="isian"><label for="uaNama" data-en="Display name">Nama tampilan</label>
+      <div class="isian" id="isianUaNama"><label for="uaNama" data-en="Display name">Nama tampilan</label>
         <input id="uaNama" autocomplete="off" placeholder="nama yang muncul di logbook"></div>
       <div class="isian"><label for="uaPass" data-en="Change password">Ganti password</label>
         <input type="password" id="uaPass" autocomplete="new-password" placeholder="kosongkan bila tidak diganti">

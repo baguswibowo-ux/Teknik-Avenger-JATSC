@@ -1954,13 +1954,30 @@ const API_ADMIN = {
     return listUsers();
   },
 
-  setUserPassword: async (username, password, user) => {
+  /**
+   * Admin unit juga boleh mengganti sandinya SENDIRI — janggal kalau ia bisa
+   * mengganti sandi teknisinya tetapi untuk miliknya sendiri harus menunggu
+   * admin utama. Pagar unit tidak berlaku di sana (akunnya bukan teknisi),
+   * jadi gantinya: sandi lama wajib cocok. Tanpa itu, siapa pun yang sempat
+   * memegang sesinya yang masih terbuka bisa mengunci pemiliknya di luar.
+   *
+   * Pemanggil lama mengirim dua argumen; sandi lama menyusul sebagai argumen
+   * ketiga, dan identitas tetap argumen terakhir.
+   */
+  setUserPassword: async (username, password, ...sisa) => {
+    const user = sisa[sisa.length - 1];
+    const lama = sisa.length > 1 ? String(sisa[0] || '') : '';
     const u = String(username || '').trim();
     if (String(password || '').length < 6) throw new Error('Password minimal 6 karakter.');
     const target = await getUserByUsername(u);
     if (!target) throw new Error(`Pengguna "${u}" tidak ditemukan.`);
     pastikanBolehUbahTarget(target, user);
-    await pastikanAdminUnitBolehKelola(target, user);
+    if (!isAdmin(user) && sameUser(target.username, user.username)) {
+      if (!lama) throw new Error('Isi password lama Anda dulu.');
+      if (!verifyPassword(lama, target.pass_hash, target.pass_salt)) throw new Error('Password lama tidak cocok.');
+    } else {
+      await pastikanAdminUnitBolehKelola(target, user);
+    }
     await setPassword(u, String(password));
     return true;
   },

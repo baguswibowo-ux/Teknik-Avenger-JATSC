@@ -511,13 +511,43 @@ let unitAkunDibuka = null;
 function bukaUnitAkun(u){
   if(!u) return;
   unitAkunDibuka = { ...u };
-  el('judulUnitAkun').textContent = T('Ubah teknisi unit','Edit unit technician');
+  // Kartu yang sama dipakai admin unit untuk sandinya sendiri (u.sendiri):
+  // tinggal sandi lama dan sandi baru; username dan nama bukan wewenangnya.
+  const sendiri = !!u.sendiri;
+  el('judulUnitAkun').textContent = sendiri
+    ? T('Ganti password saya','Change my password')
+    : T('Ubah teknisi unit','Edit unit technician');
   el('ketUnitAkun').textContent = u.username;
+  el('isianUaLama').style.display = sendiri ? '' : 'none';
+  el('isianUaUser').style.display = sendiri ? 'none' : '';
+  el('isianUaNama').style.display = sendiri ? 'none' : '';
   el('uaUser').value = u.username;
   el('uaNama').value = u.nama || '';
   el('uaPass').value = '';
+  el('uaPassLama').value = '';
   el('lapisUnitAkun').classList.add('buka');
-  el('uaNama').focus();
+  el(sendiri ? 'uaPassLama' : 'uaNama').focus();
+}
+
+/* Sandi sendiri: server meminta sandi lama sebagai argumen ketiga. */
+async function simpanSandiSaya(asal){
+  const lama = el('uaPassLama').value;
+  const pass = el('uaPass').value;
+  try{
+    if(!lama) throw new Error(T('Isi password lama Anda dulu.','Enter your current password first.'));
+    if(pass.length < 6) throw new Error(T('Password baru minimal 6 karakter.','The new password must be at least 6 characters.'));
+    const b = el('btnSimpanUnitAkun');
+    b.disabled = true;
+    try{
+      await adminApi('setUserPassword', asal.username, pass, lama);
+      pesan(T('Password Anda sudah diganti.','Your password has been changed.'));
+      tutupUnitAkun();
+    }finally{
+      b.disabled = false;
+    }
+  }catch(e){
+    pesan(T('Gagal mengganti password: ','Could not change the password: ') + (e && e.message || e));
+  }
 }
 
 function tutupUnitAkun(){
@@ -533,6 +563,7 @@ function tutupUnitAkun(){
 async function simpanUnitAkun(){
   const asal = unitAkunDibuka;
   if(!asal) return;
+  if(asal.sendiri) return simpanSandiSaya(asal);
   const usernameBaru = el('uaUser').value.trim().toLowerCase();
   const nama = el('uaNama').value.trim();
   const pass = el('uaPass').value;
@@ -1481,6 +1512,9 @@ el('tblAktivasiUnit').addEventListener('click', e=>{
   }
   const b = e.target.closest('button[data-aktif-toggle]'); if(!b) return;
   ubahAktifUnit(b.dataset.aktifToggle, b.dataset.aktifKe === '1', b);
+});
+el('btnSandiSaya').addEventListener('click', ()=>{
+  if(akun) bukaUnitAkun({ username: akun.user, nama: akun.nama, sendiri: true });
 });
 el('btnBatalUnitAkun').addEventListener('click', tutupUnitAkun);
 el('btnSimpanUnitAkun').addEventListener('click', simpanUnitAkun);
