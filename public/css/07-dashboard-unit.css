@@ -3,9 +3,11 @@
    ===================================================================== */
 /* Label pemisah di pemilih unit: sesudahnya unit lain, jadwal dinasnya saja. */
 .pilih-unit-lain{align-self:center;color:var(--muted);font-size:12px;margin-left:8px;}
-/* Tombol unit yang tidak sedang dibuka diberi latar padat: pemilih ini duduk
-   di atas gambar latar, dan tombol tembus pandang tenggelam di sana. */
-#pilihUnit .btn.garis{background:var(--panel-2);}
+/* Tombol unit yang tidak sedang dibuka diberi latar padat, sama dengan
+   .subtab di bawahnya: pemilih ini duduk di atas gambar latar, dan tombol
+   tembus pandang tenggelam di sana. */
+#pilihUnit .btn.garis{background:var(--panel);border-color:var(--line);color:var(--muted);}
+#pilihUnit .btn.garis:hover{color:var(--text);border-color:var(--muted);}
 .kepala-unit{display:flex;gap:16px;align-items:center;flex-wrap:wrap;border:1px solid var(--line);
   border-radius:14px;padding:14px 16px;background:linear-gradient(145deg,var(--panel-2),var(--panel));
   box-shadow:var(--bayang);}
