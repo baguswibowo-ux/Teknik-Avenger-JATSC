@@ -162,6 +162,14 @@ const hakHapusHitung = (modul) =>
 const bolehSuntingDb = (modul) => !!BOLEH[modul]
   && (bolehBuka(unitDibuka) || modulPicSemuaUnit(modul));
 
+/** Tab Sparepart unit yang sedang dibuka boleh dilihat akun ini? Hanya yang
+    boleh mengisinya di unit itu, ditambah administrator dan pejabat — sama
+    dengan bolehLihatSparepart di server.js, yang juga menahan datanya. */
+const bolehLihatSparepart = () => !!akun && (
+  akun.role === 'admin' || akun.superadmin === true
+  || akun.role === 'pejabat' || akun.role === 'pejabatnonop'
+  || bolehSuntingDb('sparepart'));
+
 function hakRapi(mentah){
   const bawaan = hakBawaan();
   const hasil = {};

@@ -2754,11 +2754,38 @@ const UNITDB_BATAS = { 'sparepart-riwayat': 5000 };
 
 /** Seluruh database unit. Terbuka seperti kegiatan berkala — yang berdinas
     perlu melihat daftar peralatan unitnya tanpa harus masuk dulu. */
-app.get('/unitdb', async (_req, res) => {
+/**
+ * Boleh MELIHAT sparepart unit ini?
+ *
+ * Sparepart bukan untuk semua teknisi: yang melihat hanya yang memang boleh
+ * mengisinya di unit itu (admin unit, PIC Sparepart, PIC Sparepart Unit, atau
+ * peran/orang yang dicentang di Hak Akses), ditambah administrator dan
+ * pejabat (yang menandatangani lembarnya). Jadi mencabut centang Teknisi pada
+ * Sparepart di Hak Akses menutup tab itu sekaligus datanya.
+ * Sepadan dengan bolehLihatSparepart di public/js/20-hak-modul.js.
+ */
+async function bolehLihatSparepart(user, unit) {
+  if (!user) return false;
+  const peran = peranUser(user);
+  if (peran === 'admin' || user.superadmin === true || PERAN_HANYA_LIHAT.has(peran)) return true;
+  return bolehIsi(user, 'sparepart', unit);
+}
+
+/** Buang unit yang sparepartnya tidak boleh dilihat akun ini. */
+async function saringSparepart(user, perUnit) {
+  const hasil = {};
+  for (const [unit, isi] of Object.entries(perUnit || {})) {
+    if (await bolehLihatSparepart(user, unit)) hasil[unit] = isi;
+  }
+  return hasil;
+}
+
+app.get('/unitdb', async (req, res) => {
+  const user = await siapa(req);
   res.json({
     peralatan: await bacaJson(UNITDB_JSON.peralatan, {}),
-    sparepart: await bacaJson(UNITDB_JSON.sparepart, {}),
-    'sparepart-riwayat': await bacaJson(UNITDB_JSON['sparepart-riwayat'], {}),
+    sparepart: await saringSparepart(user, await bacaJson(UNITDB_JSON.sparepart, {})),
+    'sparepart-riwayat': await saringSparepart(user, await bacaJson(UNITDB_JSON['sparepart-riwayat'], {})),
     isr:       await bacaJson(UNITDB_JSON.isr, {}),
     notam:     await bacaJson(UNITDB_JSON.notam, {}),
     logo:      await bacaLogo(),

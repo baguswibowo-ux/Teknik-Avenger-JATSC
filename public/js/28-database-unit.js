@@ -237,6 +237,10 @@ function gambarUnit(){
   // yang menyetel subtabAktif ke modul lain tidak sempat menampilkan panelnya.
   const batas = subtabTerbatasDi(unitDibuka);
   if(batas && !batas.includes(subtabAktif)) subtabAktif = batas[0];
+  // Sparepart hanya untuk yang berhak (bolehLihatSparepart); yang lain tidak
+  // mendapat tabnya, dan server memang tidak mengirim datanya.
+  const lihatSpr = bolehLihatSparepart();
+  if(subtabAktif === 'sparepart' && !lihatSpr) subtabAktif = batas ? batas[0] : 'peralatan';
 
   // Subtab di luar batas tidak digambar; sisanya '' (hilang).
   const tab = (id,teks,lencana)=> (batas && !batas.includes(id)) ? '' :
@@ -270,7 +274,7 @@ function gambarUnit(){
     <div class="subtab" id="subtab">
       ${tab('peralatan',T('Peralatan','Equipment'),alat.length)}
       ${tab('trouble','Trouble',trouble.length)}
-      ${tab('sparepart',T('Sparepart','Spare Parts'),part.length)}
+      ${lihatSpr ? tab('sparepart',T('Sparepart','Spare Parts'),part.length) : ''}
       ${tab('isr','ISR', isrAwasUnit(unitDibuka) || (ISR[unitDibuka] || []).length || '')}
       ${typeof panelNotamHtml === 'function' ? tab('notam','NOTAM', notamAktifUnit(unitDibuka) || '') : ''}
       ${tab('dinas',T('Jadwal Dinas','Duty Roster'))}
