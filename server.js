@@ -3163,6 +3163,7 @@ function halamanPindai({ judul, isi }) {
   h1{font-size:17px;text-align:center;margin:0 0 2px;text-transform:uppercase;letter-spacing:.03em}
   h2{font-size:14px;text-align:center;margin:0 0 14px;font-weight:normal;color:#444}
   h3{font-size:14px;margin:16px 0 6px}
+  h3.sub-judul{margin-top:26px;padding-top:12px;border-top:2px solid #111;font-size:15px}
   table{border-collapse:collapse;width:100%}
   .spek td{padding:2px 4px;vertical-align:top}.spek td:first-child{width:42%;color:#333}
   .data th,.data td{border:1px solid #444;padding:4px 5px;vertical-align:top;font-size:12.5px}
@@ -3231,33 +3232,42 @@ async function halamanQr(req, res) {
   const { lembar, alat: a, induk } = ketemu;
   const nama = induk ? `${induk.nama || ''} — ${a.nama || ''}` : (a.nama || alatNama || alat);
   const bersih = (v) => (v && v !== '—' ? v : '');
-  const spek = [
-    ['Penyelenggara Pelayanan', 'Perum LPPNPI'],
-    ['Kelompok Fasilitas', kelompok],
-    ['Nama Peralatan', nama],
-    ['Merek dan Tipe Peralatan', [a.merk, a.tipe].map(bersih).filter(Boolean).join(' — ')],
-    ['Nomor Seri Peralatan', bersih(a.sn)],
-    ['Part Number (P/N)', bersih(a.pn)],
-    ['Tahun Pembuatan', bersih(a.tahun)],
-    ['Lokasi', bersih(a.lokasi)],
-    ['Status', bersih(a.status)]
-  ].filter(([k, v], i) => i < 5 || v);
-  const sejarah = Array.isArray(a.sejarah) ? a.sejarah : [];
-  const baris = sejarah.length
-    ? sejarah.map((k, i) => `<tr><td class="tengah">${i + 1}</td><td class="tengah">${escHtml(k.tgl ? tglId(k.tgl) : '—')}</td>
-        <td><b>${escHtml(k.judul || '')}</b>${k.rinci ? '<br>' + escHtml(k.rinci) : ''}</td>
-        <td>${escHtml(TINGKAT_SJR[k.warna || ''] || '—')}</td><td>${escHtml(k.olehNama || '—')}</td></tr>`).join('')
-    : '<tr><td colspan="5" class="tengah"><i>Belum ada kegiatan tercatat pada lembar ini.</i></td></tr>';
-  const ttd = await ttdSebagaiDataUrl(lembar.ttdPejabatUrl);
-
-  res.type('html').send(halamanPindai({
-    judul: `Sejarah ${nama}`,
-    isi: kepala + `
+  /* Satu bagian = identitas + riwayat satu alat. Dipakai untuk alat yang
+     dipindai, dan — kalau yang dipindai itu INDUK — diulang untuk tiap
+     sub-unitnya, supaya satu stiker di induk sudah membawa semuanya. */
+  const bagian = (x, namaX, lengkap) => {
+    const spek = [
+      ['Penyelenggara Pelayanan', 'Perum LPPNPI'],
+      ['Kelompok Fasilitas', kelompok],
+      ['Nama Peralatan', namaX],
+      ['Merek dan Tipe Peralatan', [x.merk, x.tipe].map(bersih).filter(Boolean).join(' — ')],
+      ['Nomor Seri Peralatan', bersih(x.sn)],
+      ['Part Number (P/N)', bersih(x.pn)],
+      ['Tahun Pembuatan', bersih(x.tahun)],
+      ['Lokasi', bersih(x.lokasi)],
+      ['Status', bersih(x.status)]
+    ].filter(([k, v], i) => (lengkap ? i < 5 : (i >= 2 && i < 5)) || (i >= 5 && v));
+    const sejarah = Array.isArray(x.sejarah) ? x.sejarah : [];
+    const baris = sejarah.length
+      ? sejarah.map((k, i) => `<tr><td class="tengah">${i + 1}</td><td class="tengah">${escHtml(k.tgl ? tglId(k.tgl) : '—')}</td>
+          <td><b>${escHtml(k.judul || '')}</b>${k.rinci ? '<br>' + escHtml(k.rinci) : ''}</td>
+          <td>${escHtml(TINGKAT_SJR[k.warna || ''] || '—')}</td><td>${escHtml(k.olehNama || '—')}</td></tr>`).join('')
+      : '<tr><td colspan="5" class="tengah"><i>Belum ada kegiatan tercatat pada lembar ini.</i></td></tr>';
+    return `
       <table class="spek">${spek.map(([k, v]) => `<tr><td>${escHtml(k)}</td><td>: ${escHtml(v || '—')}</td></tr>`).join('')}</table>
       <h3>Riwayat Kegiatan</h3>
       <div class="gulir"><table class="data"><thead><tr><th style="width:28px">No</th><th style="width:88px">Tanggal</th>
         <th>Uraian</th><th style="width:22%">Keterangan</th><th style="width:110px">Paraf</th></tr></thead>
-        <tbody>${baris}</tbody></table></div>
+        <tbody>${baris}</tbody></table></div>`;
+  };
+  const subs = induk ? [] : (Array.isArray(a.sub) ? a.sub : []).filter((s) => s && s.nama);
+  const bagianSub = subs.map((s) => `
+      <h3 class="sub-judul">Sub-unit: ${escHtml(s.nama)}</h3>${bagian(s, `${nama} — ${s.nama}`, false)}`).join('');
+  const ttd = await ttdSebagaiDataUrl(lembar.ttdPejabatUrl);
+
+  res.type('html').send(halamanPindai({
+    judul: `Sejarah ${nama}`,
+    isi: kepala + bagian(a, nama, true) + bagianSub + `
       <div class="ttd">Mengetahui,<br>Manager Teknik
         <div class="kotak">${ttd ? `<img src="${ttd}" data-perlu-hitam alt="TTD">` : ''}</div>
         <div class="nama">${escHtml(lembar.ttdPejabatNama || lembar.pejabatNama || '')}</div></div>

@@ -224,17 +224,13 @@ async function sjrSimpan(unit, alat){
    (/q/<token>/qr.svg), jadi halaman ini tidak butuh pustaka apa pun.
    ======================================================================= */
 
-/** Alat (induk + sub-unitnya) yang dicetak stikernya, dengan nama lengkap. */
+/** Alat yang dicetak stikernya lewat "QR semua alat": INDUKNYA saja. Halaman
+    pindai induk sudah membawa seluruh sub-unitnya, jadi satu stiker per alat
+    cukup. Stiker khusus satu sub-unit masih bisa dicetak dari tombol QR saat
+    sub-unit itu sedang dibuka, dan stiker sub yang sudah tertempel tetap hidup. */
 function qrDaftarAlat(daftar){
-  const hasil = [];
-  (daftar || []).forEach(a=>{
-    if(!a || !a.id) return;
-    hasil.push({ id:a.id, nama:a.nama || '', sn:a.sn || '' });
-    (Array.isArray(a.sub) ? a.sub : []).forEach(s=>{
-      if(s && s.id && s.nama) hasil.push({ id:s.id, nama:`${a.nama || ''} — ${s.nama}`, sn:s.sn || '' });
-    });
-  });
-  return hasil;
+  return (daftar || []).filter(a=>a && a.id)
+    .map(a=>({ id:a.id, nama:a.nama || '', sn:a.sn || '' }));
 }
 
 /**
