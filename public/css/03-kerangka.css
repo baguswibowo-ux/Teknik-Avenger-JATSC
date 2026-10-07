@@ -22,6 +22,10 @@ header.konsol::after{content:"";position:absolute;inset:0;pointer-events:none;
 .brand{flex:1;min-width:190px;}
 .brand .eyebrow{font-family:var(--font-mono);font-size:10px;letter-spacing:.16em;color:var(--muted);text-transform:uppercase;}
 .brand h1{font-size:19px;margin-top:2px;}
+.eyebrow-baris{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;}
+.versi-app{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.05em;color:var(--accent);
+  border:1px solid var(--line);border-radius:6px;padding:0 5px;line-height:1.5;}
+.versi-app:empty{display:none;}
 /* Boleh melipat. Tanpa ini, deretan jam + kartu akun + lima tombol ikon
    menyusut sampai di bawah lebarnya sendiri di layar HP, dan tombol paling
    kanan — Keluar — terpotong keluar layar tanpa bisa dicapai sama sekali. */

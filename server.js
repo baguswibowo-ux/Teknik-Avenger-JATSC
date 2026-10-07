@@ -4666,10 +4666,18 @@ app.delete('/cetak-antrian/:id', async (req, res) => {
    HALAMAN
    ===================================================================== */
 
+/* Versi aplikasi = "version" di package.json. Dibaca dari cakram tiap kali
+   diminta, bukan sekali saat menyala: rilis yang hanya menyentuh js/css
+   dipasang tanpa restart, dan nomornya harus tetap ikut berganti. */
+function versiApp() {
+  try { return String(JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version || ''); }
+  catch { return ''; }
+}
+
 app.get('/_info', (_req, res) => {
   res.json({
     aplikasi: 'Dashboard Fasilitas Teknik JATSC (Avenger)',
-    versi: process.env.npm_package_version || '0.1.0',
+    versi: versiApp(),
     port: PORT,
     elogbook: TERUS ? ASAL : null,
     /* Alamat E-Logbook untuk DIBUKA DI PERAMBAN, berbeda dari ASAL yang dipakai
@@ -4855,6 +4863,10 @@ function kirimIndex(req, res, next) {
   } catch (e) {
     console.error('[gabung] sidik index.html gagal, alamat polos dipakai:', e.message);
   }
+  // Nomor versi di kepala halaman. Tanpa versi yang terbaca, penandanya
+  // dikosongkan dan labelnya tersembunyi sendiri (.versi-app:empty).
+  const versi = versiApp();
+  html = html.replace('<!--VERSI-->', versi ? 'v' + versi.replace(/[^0-9A-Za-z.+-]/g, '') : '');
   res.type('html');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('ETag', `"${crypto.createHash('sha1').update(html).digest('hex').slice(0, 16)}"`);
