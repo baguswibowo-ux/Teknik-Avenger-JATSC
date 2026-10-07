@@ -425,6 +425,10 @@ function gambarAkun(){
    status aktif akun teknisi yang jatuh di unitnya sendiri — pintu masuk untuk
    meloloskan pendaftar baru tanpa menunggu admin utama. Servernya memagari
    ulang lewat pastikanAdminUnitBolehAktif, jadi ini penjagaan tampilan saja. */
+/* Peran yang dikelola dan boleh diberikan admin unit — sama dengan
+   PERAN_KELOLA_ADMINUNIT di elogbook/server.js. */
+const PERAN_UNIT_KELOLA = ['teknisi', 'pic-dinas-unit', 'pic-sparepart-unit', 'pic-isr-unit'];
+
 function admUnitBolehAktivasi(){
   return !!akun && akun.role === 'adminunit' && !akun.superadmin;
 }
@@ -441,16 +445,18 @@ function gambarAktivasiUnit(){
     ? T('diambil pukul ','fetched at ') + USERS_JAM.toLocaleTimeString(LOKAL(),{hour:'2-digit',minute:'2-digit'}) : '';
   el('catatanAktivasiUnit').innerHTML = T(
     '<b>Meloloskan pendaftar baru.</b> Akun teknisi yang dibuat lewat pendaftaran lahir nonaktif — '
-      + 'aktifkan di sini kalau memang orang unit Anda. Yang tampil hanya akun teknisi di unit yang '
-      + 'Anda pegang; peran, unit, dan penghapusan tetap urusan administrator utama.',
+      + 'aktifkan di sini kalau memang orang unit Anda. Yang tampil hanya akun teknisi dan PIC unit di unit yang '
+      + 'Anda pegang. Lewat <b>Ubah</b> Anda bisa menunjuk PIC Jadwal Dinas, PIC Sparepart, atau PIC ISR '
+      + 'untuk unit Anda; peran lain, unit, dan penghapusan tetap urusan administrator utama.',
     '<b>Letting new sign-ups through.</b> Technician accounts created via self-registration start '
-      + 'deactivated — activate one here if the person is really from your unit. Only technician '
-      + 'accounts in the units you hold appear; roles, units, and deletion remain the main '
+      + 'deactivated — activate one here if the person is really from your unit. Only technician and '
+      + 'unit PIC accounts in the units you hold appear. Use <b>Edit</b> to appoint a Duty Roster, '
+      + 'Spare Parts, or ISR PIC for your unit; other roles, units, and deletion remain the main '
       + 'administrator’s job.');
 
   // Teknisi yang SELURUH unitnya jatuh di dalam unit saya. Akun lintas-unit yang
   // bocor keluar cakupan tidak muncul — server pun menolaknya.
-  const dalam = (u) => u.role === 'teknisi'
+  const dalam = (u) => PERAN_UNIT_KELOLA.includes(u.role)
     && (u.unit || []).length > 0
     && (u.unit || []).every(k => scope.includes(k));
   // Nonaktif di atas: yang menunggu diaktifkan adalah alasan panel ini ada.
@@ -461,8 +467,9 @@ function gambarAktivasiUnit(){
 
   tbl.innerHTML =
     `<thead><tr><th>Username</th><th>${T('Nama','Name')}</th>
+      <th>${T('Peran','Role')}</th>
       <th>${T('Unit logbook','Logbook units')}</th><th>Status</th><th>Login</th><th></th></tr></thead><tbody>` +
-    (baris.length ? '' : `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:22px">${
+    (baris.length ? '' : `<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:22px">${
       USERS.length
         ? T('Belum ada akun teknisi di unit Anda.','No technician accounts in your unit yet.')
         : (muatUsersGalat
@@ -476,6 +483,7 @@ function gambarAktivasiUnit(){
       return `<tr class="${u.aktif ? '' : 'akun-mati'}">
         <td class="mono">${esc(u.username)}</td>
         <td>${esc(u.nama || '—')}</td>
+        <td>${esc(peranTampil(u.role))}</td>
         <td><div class="unit-pil">${unit}</div></td>
         <td><span class="pil ${u.aktif ? 'aktif-ya' : 'aktif-tidak'}">${
           u.aktif ? T('Aktif','Active') : T('Nonaktif','Deactivated')}</span></td>
@@ -522,6 +530,9 @@ function bukaUnitAkun(u){
   el('isianUaLama').style.display = sendiri ? '' : 'none';
   el('isianUaUser').style.display = sendiri ? 'none' : '';
   el('isianUaNama').style.display = sendiri ? 'none' : '';
+  el('isianUaPeran').style.display = sendiri ? 'none' : '';
+  el('uaPeran').innerHTML = PERAN_UNIT_KELOLA.map(p=>
+    `<option value="${p}"${p === u.role ? ' selected' : ''}>${esc(peranTampil(p))}</option>`).join('');
   el('uaUser').value = u.username;
   el('uaNama').value = u.nama || '';
   el('uaPass').value = '';
@@ -583,6 +594,8 @@ async function simpanUnitAkun(){
     const kunci = ganti ? usernameBaru : asal.username;
     if(nama !== (asal.nama || ''))     kerja.push(['setUserNama', [kunci, nama]]);
     if(pass)                           kerja.push(['setUserPassword', [kunci, pass]]);
+    const peran = el('uaPeran').value;
+    if(peran && peran !== asal.role)   kerja.push(['setUserRole', [kunci, peran]]);
 
     if(!kerja.length){ pesan(T('Tidak ada yang diubah.','Nothing was changed.')); return; }
 

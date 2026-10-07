@@ -685,6 +685,11 @@
         <div class="bantu" data-en="3–32 characters: lowercase letters, digits, dots, underscores, or hyphens.">3–32 karakter: huruf kecil, angka, titik, garis bawah, atau strip.</div></div>
       <div class="isian" id="isianUaNama"><label for="uaNama" data-en="Display name">Nama tampilan</label>
         <input id="uaNama" autocomplete="off" placeholder="nama yang muncul di logbook"></div>
+      <!-- Admin unit menunjuk PIC unitnya sendiri. Pilihannya diisi 14-kelola-akun.js;
+           server memagarinya lewat PERAN_KELOLA_ADMINUNIT. -->
+      <div class="isian" id="isianUaPeran"><label for="uaPeran" data-en="Role">Peran</label>
+        <select id="uaPeran"></select>
+        <div class="bantu" data-en="A unit PIC stays a technician of this unit, with one extra module in this unit only. One role per account.">PIC unit tetap teknisi unit ini, ditambah satu modul di unit ini saja. Satu akun satu peran.</div></div>
       <div class="isian"><label for="uaPass" data-en="Change password">Ganti password</label>
         <input type="password" id="uaPass" autocomplete="new-password" placeholder="kosongkan bila tidak diganti">
         <div class="bantu" data-en="Leave empty to keep it. At least 6 characters. The old password cannot be read from anywhere.">Kosongkan kalau tidak ingin mengganti. Minimal 6 karakter. Password lama tidak bisa dibaca dari mana pun.</div></div>

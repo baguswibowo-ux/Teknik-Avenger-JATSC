@@ -1828,10 +1828,16 @@ const pastikanBolehUbahTarget = (target, user) => {
  *     Pendaftar baru selalu satu unit, jadi ini berarti "unit yang dia pilih
  *     memang unit saya"; akun lintas-unit yang bocor keluar cakupan ditolak.
  */
+/* Peran yang boleh dikelola — dan DIBERIKAN — admin unit: teknisi dan ketiga
+   PIC per unit. PIC per unit tetap teknisi unit itu dengan satu modul
+   tambahan di unit yang sama, jadi menunjuknya tidak melebarkan wilayah siapa
+   pun. PIC semua-unit, admin unit, pejabat, dan admin tetap milik admin utama. */
+const PERAN_KELOLA_ADMINUNIT = new Set(['teknisi', 'pic-dinas-unit', 'pic-sparepart-unit', 'pic-isr-unit']);
+
 async function pastikanAdminUnitBolehKelola(target, user) {
   if (isAdmin(user)) return;
-  if (target.role !== 'teknisi') {
-    throw new Error('Admin unit hanya boleh mengelola akun teknisi, bukan peran lain.');
+  if (!PERAN_KELOLA_ADMINUNIT.has(target.role)) {
+    throw new Error('Admin unit hanya boleh mengelola akun teknisi dan PIC unit, bukan peran lain.');
   }
   const unitSaya = await unitUntukUser(user);
   if (unitSaya.length === 0) {
@@ -2026,12 +2032,23 @@ const API_ADMIN = {
     return listUsers();
   },
 
-  setUserRole: async (username, role, user) => {
+  /* Admin unit ikut lewat sini (API_ADMIN_UNTUK_ADMINUNIT), sebatas menukar
+     orang unitnya di antara teknisi dan PIC per unit — lihat
+     PERAN_KELOLA_ADMINUNIT. Identitas diambil dari argumen TERAKHIR, bukan
+     posisi ketiga, supaya argumen lebih dari klien tidak bisa mengisinya. */
+  setUserRole: async (username, role, ...sisa) => {
+    const user = sisa[sisa.length - 1];
     const u = String(username || '').trim();
     if (!ROLE_VALID.includes(role)) throw new Error('Role tidak dikenal.');
     const target = await getUserByUsername(u);
     if (!target) throw new Error(`Pengguna "${u}" tidak ditemukan.`);
     pastikanBolehUbahTarget(target, user);
+    if (!isAdmin(user)) {
+      if (!PERAN_KELOLA_ADMINUNIT.has(role)) {
+        throw new Error('Admin unit hanya boleh memberi peran teknisi atau PIC unit.');
+      }
+      await pastikanAdminUnitBolehKelola(target, user);
+    }
     // Super-admin boleh menurunkan administrator terakhir — pagarnya justru
     // dijaga oleh super-admin itu sendiri (yang tetap boleh mengelola akun
     // tanpa peran admin).
@@ -2172,7 +2189,7 @@ const UBAH_ADMINUNIT = {
 
 const API_ADMIN_UNTUK_ADMINUNIT = new Set([
   'listUsers', 'setUserAktif', 'setUserPassword', 'setUserNama', 'setUserUsername',
-  'getAktivitas'
+  'setUserRole', 'getAktivitas'
 ]);
 
 /* ============== LOG AKTIVITAS ==============
