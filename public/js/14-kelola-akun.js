@@ -475,7 +475,12 @@ function gambarAktivasiUnit(){
         : (muatUsersGalat
             ? T('Tidak bisa memuat daftar akun: ','Could not load accounts: ') + esc(muatUsersGalat)
             : T('Memuat daftar akun…','Loading accounts…'))}</td></tr>`) +
-    baris.map(u=>{
+    // Dikelompokkan per peran seperti Daftar Akun, supaya siapa PIC unit
+    // terbaca sekilas. Urutan di dalam kelompok tetap: nonaktif di atas.
+    kelompokAkun(baris).map(([role, anggota])=>
+      `<tr class="kelompok-akun"><td colspan="7">${esc(peranTampil(role))}
+        <span class="jumlah">${anggota.length} ${T('akun','accounts')}</span></td></tr>` +
+    anggota.map(u=>{
       const unit = (u.unit || []).map(k=>`<span class="pil">${esc(namaUnit(k))}</span>`).join('');
       const ke = u.aktif ? 0 : 1;
       const label = u.aktif ? T('Nonaktifkan','Deactivate') : T('Aktifkan','Activate');
@@ -483,7 +488,7 @@ function gambarAktivasiUnit(){
       return `<tr class="${u.aktif ? '' : 'akun-mati'}">
         <td class="mono">${esc(u.username)}</td>
         <td>${esc(u.nama || '—')}</td>
-        <td>${esc(peranTampil(u.role))}</td>
+        <td><span class="pil ${esc(u.role)}">${esc(peranTampil(u.role))}</span></td>
         <td><div class="unit-pil">${unit}</div></td>
         <td><span class="pil ${u.aktif ? 'aktif-ya' : 'aktif-tidak'}">${
           u.aktif ? T('Aktif','Active') : T('Nonaktif','Deactivated')}</span></td>
@@ -493,7 +498,7 @@ function gambarAktivasiUnit(){
           <button class="${kelas}" data-aktif-toggle="${esc(u.username)}"
           data-aktif-ke="${ke}">${label}</button></td>
       </tr>`;
-    }).join('') + '</tbody>';
+    }).join('')).join('') + '</tbody>';
 }
 
 async function ubahAktifUnit(username, aktif, btn){
@@ -520,16 +525,14 @@ let unitAkunDibuka = null;
 function bukaUnitAkun(u){
   if(!u) return;
   unitAkunDibuka = { ...u };
-  // Kartu yang sama dipakai admin unit untuk sandinya sendiri (u.sendiri):
-  // tinggal sandi lama dan sandi baru; username dan nama bukan wewenangnya.
+  // Kartu yang sama dipakai admin unit untuk akunnya sendiri (u.sendiri):
+  // nama, username (NIK), dan sandi — dengan sandi lama; perannya tidak.
   const sendiri = !!u.sendiri;
   el('judulUnitAkun').textContent = sendiri
-    ? T('Ganti password saya','Change my password')
+    ? T('Ubah akun saya','Edit my account')
     : T('Ubah teknisi unit','Edit unit technician');
   el('ketUnitAkun').textContent = u.username;
   el('isianUaLama').style.display = sendiri ? '' : 'none';
-  el('isianUaUser').style.display = sendiri ? 'none' : '';
-  el('isianUaNama').style.display = sendiri ? 'none' : '';
   el('isianUaPeran').style.display = sendiri ? 'none' : '';
   el('uaPeran').innerHTML = PERAN_UNIT_KELOLA.map(p=>
     `<option value="${p}"${p === u.role ? ' selected' : ''}>${esc(peranTampil(p))}</option>`).join('');
@@ -541,24 +544,44 @@ function bukaUnitAkun(u){
   el(sendiri ? 'uaPassLama' : 'uaNama').focus();
 }
 
-/* Sandi sendiri: server meminta sandi lama sebagai argumen ketiga. */
-async function simpanSandiSaya(asal){
+/* Akun sendiri: server meminta sandi lama sebagai argumen ketiga di tiap
+   panggilan. Urutannya sama dengan simpanUnitAkun (rename dulu), dan sandi
+   PALING AKHIR — sesudah itu sandi lama yang dikirim sudah tidak cocok lagi.
+   Nama/username yang berubah masih tersimpan di banyak tempat pada halaman
+   yang sedang terbuka, jadi halamannya dimuat ulang. */
+async function simpanAkunSaya(asal){
   const lama = el('uaPassLama').value;
+  const usernameBaru = el('uaUser').value.trim().toLowerCase();
+  const nama = el('uaNama').value.trim();
   const pass = el('uaPass').value;
   try{
+    if(!nama) throw new Error(T('Nama tampilan tidak boleh kosong.','Display name cannot be empty.'));
+    if(pass && pass.length < 6) throw new Error(T('Password baru minimal 6 karakter.','The new password must be at least 6 characters.'));
+    const ganti = usernameBaru && usernameBaru !== String(asal.username).toLowerCase();
+    if(ganti && !/^[a-z0-9._-]{3,32}$/.test(usernameBaru)){
+      throw new Error(T('Username 3–32 karakter: huruf kecil, angka, titik, garis bawah, atau strip.',
+                        'Username 3–32 characters: lowercase letters, digits, dots, underscores, or hyphens.'));
+    }
+    const kerja = [];
+    if(ganti)                      kerja.push(['setUserUsername', [asal.username, usernameBaru, lama]]);
+    const kunci = ganti ? usernameBaru : asal.username;
+    if(nama !== (asal.nama || '')) kerja.push(['setUserNama', [kunci, nama, lama]]);
+    if(pass)                       kerja.push(['setUserPassword', [kunci, pass, lama]]);
+    if(!kerja.length){ pesan(T('Tidak ada yang diubah.','Nothing was changed.')); return; }
     if(!lama) throw new Error(T('Isi password lama Anda dulu.','Enter your current password first.'));
-    if(pass.length < 6) throw new Error(T('Password baru minimal 6 karakter.','The new password must be at least 6 characters.'));
+
     const b = el('btnSimpanUnitAkun');
     b.disabled = true;
     try{
-      await adminApi('setUserPassword', asal.username, pass, lama);
-      pesan(T('Password Anda sudah diganti.','Your password has been changed.'));
+      for(const [fn, args] of kerja) await adminApi(fn, ...args);
+      pesan(T('Akun Anda sudah diperbarui.','Your account has been updated.'));
       tutupUnitAkun();
+      if(ganti || nama !== (asal.nama || '')) setTimeout(()=>location.reload(), 900);
     }finally{
       b.disabled = false;
     }
   }catch(e){
-    pesan(T('Gagal mengganti password: ','Could not change the password: ') + (e && e.message || e));
+    pesan(T('Gagal menyimpan: ','Could not save: ') + (e && e.message || e));
   }
 }
 
@@ -575,7 +598,7 @@ function tutupUnitAkun(){
 async function simpanUnitAkun(){
   const asal = unitAkunDibuka;
   if(!asal) return;
-  if(asal.sendiri) return simpanSandiSaya(asal);
+  if(asal.sendiri) return simpanAkunSaya(asal);
   const usernameBaru = el('uaUser').value.trim().toLowerCase();
   const nama = el('uaNama').value.trim();
   const pass = el('uaPass').value;

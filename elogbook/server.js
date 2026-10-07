@@ -1850,6 +1850,21 @@ async function pastikanAdminUnitBolehKelola(target, user) {
 }
 
 /**
+ * Admin unit mengubah akunnya SENDIRI (nama, username/NIK, sandi). Pagar unit
+ * tidak berlaku di sana — akunnya bukan teknisi — jadi gantinya sandi lama
+ * wajib cocok: tanpa itu, siapa pun yang sempat memegang sesinya yang masih
+ * terbuka bisa mengganti identitas atau mengunci pemiliknya di luar.
+ * Membalas true kalau ini memang akun sendiri dan sandinya cocok; false kalau
+ * bukan akun sendiri (pemanggil lanjut ke pagar unit seperti biasa).
+ */
+function adminUnitUbahSendiri(target, user, lama) {
+  if (isAdmin(user) || !sameUser(target.username, user.username)) return false;
+  if (!lama) throw new Error('Isi password lama Anda dulu.');
+  if (!verifyPassword(String(lama), target.pass_hash, target.pass_salt)) throw new Error('Password lama tidak cocok.');
+  return true;
+}
+
+/**
  * Fungsi khusus administrator: seluruh perubahan, penghapusan, dan pengelolaan
  * akun. Penjagaannya di sini, bukan di tombol — menyembunyikan tombol saja
  * tidak menghalangi siapa pun memanggil API-nya langsung.
@@ -1978,12 +1993,7 @@ const API_ADMIN = {
     const target = await getUserByUsername(u);
     if (!target) throw new Error(`Pengguna "${u}" tidak ditemukan.`);
     pastikanBolehUbahTarget(target, user);
-    if (!isAdmin(user) && sameUser(target.username, user.username)) {
-      if (!lama) throw new Error('Isi password lama Anda dulu.');
-      if (!verifyPassword(lama, target.pass_hash, target.pass_salt)) throw new Error('Password lama tidak cocok.');
-    } else {
-      await pastikanAdminUnitBolehKelola(target, user);
-    }
+    if (!adminUnitUbahSendiri(target, user, lama)) await pastikanAdminUnitBolehKelola(target, user);
     await setPassword(u, String(password));
     return true;
   },
@@ -1995,14 +2005,16 @@ const API_ADMIN = {
    * (mis. "PH Budi" saat penggantian sementara) cukup dengan mengubah nama
    * di sini, tanpa membuat akun baru.
    */
-  setUserNama: async (username, nama, user) => {
+  setUserNama: async (username, nama, ...sisa) => {
+    const user = sisa[sisa.length - 1];
+    const lama = sisa.length > 1 ? String(sisa[0] || '') : '';
     const u = String(username || '').trim();
     const n = String(nama || '').trim();
     if (!n) throw new Error('Nama tidak boleh kosong.');
     const target = await getUserByUsername(u);
     if (!target) throw new Error(`Pengguna "${u}" tidak ditemukan.`);
     pastikanBolehUbahTarget(target, user);
-    await pastikanAdminUnitBolehKelola(target, user);
+    if (!adminUnitUbahSendiri(target, user, lama)) await pastikanAdminUnitBolehKelola(target, user);
     await setNama(u, n);
     return listUsers();
   },
@@ -2018,15 +2030,23 @@ const API_ADMIN = {
    * mengubahnya di tengah-tengah pemakaian akan meninggalkan jejak setengah
    * pada catatan yang lahir tepat setelah rename dan sebelum admin masuk lagi.
    */
-  setUserUsername: async (username, baru, user) => {
+  /* Pengecualian: admin unit boleh mengganti username (NIK)-nya sendiri dengan
+     sandi lama — ia tidak punya "admin lain" di unitnya untuk dimintai. Server
+     membaca identitas dari sesi (user_id) di tiap permintaan, jadi yang basi
+     hanya halaman yang sedang terbuka; kliennya memuat ulang begitu tersimpan. */
+  setUserUsername: async (username, baru, ...sisa) => {
+    const user = sisa[sisa.length - 1];
+    const lama = sisa.length > 1 ? String(sisa[0] || '') : '';
     const u = String(username || '').trim();
     const b = String(baru || '').trim().toLowerCase();
     const target = await getUserByUsername(u);
     if (!target) throw new Error(`Pengguna "${u}" tidak ditemukan.`);
     pastikanBolehUbahTarget(target, user);
-    await pastikanAdminUnitBolehKelola(target, user);
-    if (sameUser(target.username, user.username)) {
-      throw new Error('Anda tidak bisa mengubah username akun Anda sendiri. Minta admin lain.');
+    if (!adminUnitUbahSendiri(target, user, lama)) {
+      await pastikanAdminUnitBolehKelola(target, user);
+      if (sameUser(target.username, user.username)) {
+        throw new Error('Anda tidak bisa mengubah username akun Anda sendiri. Minta admin lain.');
+      }
     }
     await setUsername(u, b);
     return listUsers();
