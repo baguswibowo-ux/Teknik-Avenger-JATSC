@@ -26,7 +26,9 @@ export const NAMA_PERAN = {
   'pic-dinas': 'PIC Jadwal Dinas',
   'pic-dinas-unit': 'PIC Jadwal Dinas Unit',
   'pic-sparepart': 'PIC Sparepart',
-  'pic-isr': 'PIC ISR'
+  'pic-sparepart-unit': 'PIC Sparepart Unit',
+  'pic-isr': 'PIC ISR',
+  'pic-isr-unit': 'PIC ISR Unit'
 };
 export const namaPeran = (r) => NAMA_PERAN[r] || r || '—';
 

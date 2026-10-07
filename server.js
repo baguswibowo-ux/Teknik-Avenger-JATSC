@@ -857,7 +857,8 @@ const MODUL_HAK = ['dinas', 'dinas-ttd', 'dinas-cetak', 'berkala', 'personel',
                    'dokumen', 'galeri'];
 
 const PERAN_SAH = ['admin', 'pejabat', 'pejabatnonop', 'adminunit', 'teknisi',
-                   'pic-dinas', 'pic-dinas-unit', 'pic-sparepart', 'pic-isr'];
+                   'pic-dinas', 'pic-dinas-unit', 'pic-sparepart', 'pic-sparepart-unit',
+                   'pic-isr', 'pic-isr-unit'];
 
 /* PIC dokumen — penanggung-jawab satu jenis dokumen. Pada dasarnya TEKNISI di
    unit yang dicentang untuknya (E-Logbook mengirim unit itu, jadi
@@ -879,8 +880,14 @@ function modulPicBoleh(peran) {
    selalu terbuka baginya DI UNIT ITU saja, tanpa perlu ditunjuk di Hak Akses.
    Sengaja TIDAK dimasukkan ke PERAN_PIC: peta itu berarti "semua unit" dan
    diperiksa sebelum pagar unit; yang ini diperiksa sesudahnya (bolehIsi).
-   pic-dinas-unit: menyunting Jadwal Dinas unitnya dan mengirimnya ke pejabat. */
-const PERAN_PIC_UNIT = { 'pic-dinas-unit': new Set(['dinas', 'dinas-cetak']) };
+   pic-dinas-unit: menyunting Jadwal Dinas unitnya dan mengirimnya ke pejabat.
+   pic-sparepart-unit / pic-isr-unit: mengisi Sparepart / ISR unitnya. Rekap
+   sparepart semua unit tetap milik pic-sparepart (PERAN_PIC). */
+const PERAN_PIC_UNIT = {
+  'pic-dinas-unit': new Set(['dinas', 'dinas-cetak']),
+  'pic-sparepart-unit': new Set(['sparepart']),
+  'pic-isr-unit': new Set(['isr'])
+};
 
 /* Peran yang wilayahnya satu unit saja. Dipakai untuk memutuskan apakah
    penjagaan unit perlu ditegakkan — bukan untuk memutuskan haknya. */

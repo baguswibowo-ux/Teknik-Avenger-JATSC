@@ -12,7 +12,7 @@ function pejabatAktif(){ return userSaatIni?.role === 'pejabat'; }
 function pejabatNonOpAktif(){ return userSaatIni?.role === 'pejabatnonop'; }
 /* Sepadan dengan PERAN_TULIS di server.js — kalau keduanya berselisih, yang
    kalah adalah layar: tombolnya tampil lalu permintaannya ditolak 403. */
-const PERAN_TULIS = new Set(['admin', 'adminunit', 'teknisi', 'pic-dinas', 'pic-dinas-unit', 'pic-sparepart', 'pic-isr']);
+const PERAN_TULIS = new Set(['admin', 'adminunit', 'teknisi', 'pic-dinas', 'pic-dinas-unit', 'pic-sparepart', 'pic-sparepart-unit', 'pic-isr', 'pic-isr-unit']);
 function bolehMenulis(){ return PERAN_TULIS.has(userSaatIni?.role); }
 /** Boleh menghapus catatan: administrator, atau admin unit. Admin unit hanya
     membuka unit yang dipegangnya, jadi semua yang tampil memang unitnya —

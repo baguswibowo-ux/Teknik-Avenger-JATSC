@@ -40,7 +40,9 @@ const PERAN_PIC_MODUL = {
    "semua unit" dan menyalakan modulPicSemuaUnit, subtabTerbatasDi, dan
    bolehMasukUnit. */
 const PERAN_PIC_UNIT_MODUL = {
-  'pic-dinas-unit': ['dinas', 'dinas-cetak']
+  'pic-dinas-unit': ['dinas', 'dinas-cetak'],
+  'pic-sparepart-unit': ['sparepart'],
+  'pic-isr-unit': ['isr']
 };
 /** Modul semua-unit milik peran PIC ini ('dinas'|'sparepart'|'isr'), atau null
     kalau bukan PIC. */

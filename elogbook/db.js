@@ -806,10 +806,10 @@ export function setUnitUser(userId, daftar) {
 // sparepart, atau ISR). Di E-Logbook ia teknisi unit yang dicentang untuknya;
 // modul semua-unitnya hanya di dashboard. Didefinisikan di sini, di atas
 // pemakaian pertamanya (loop bootstrap unit di bawah) dan dipakai di ROLE_VALID.
-// 'pic-dinas-unit' — PIC Jadwal Dinas untuk unitnya SENDIRI saja. Di sini sama
+// 'pic-dinas-unit' / 'pic-sparepart-unit' / 'pic-isr-unit' — PIC untuk unitnya SENDIRI saja. Di sini sama
 // dengan PIC lain (teknisi unitnya); bedanya hanya di dashboard: tidak ada
 // modul yang terbuka di unit lain.
-export const PIC_ROLE = ['pic-dinas', 'pic-dinas-unit', 'pic-sparepart', 'pic-isr'];
+export const PIC_ROLE = ['pic-dinas', 'pic-dinas-unit', 'pic-sparepart', 'pic-sparepart-unit', 'pic-isr', 'pic-isr-unit'];
 
 // Akun yang sudah ada dibuat sebelum unit dikenal — beri akses Radtel supaya
 // tidak ada yang mendadak kehilangan logbook yang selama ini dipakainya.
