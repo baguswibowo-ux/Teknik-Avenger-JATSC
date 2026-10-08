@@ -335,6 +335,12 @@ function amhsBlokTtd(sys){
           <select id="dcAmhsAkun_${k}"><option value="">Otomatis (dari nama di atas)</option></select></div>
       </div>
     </div>
+    <div class="field" style="margin-top:10px;">
+      <label>${T('labelLampiranLtk')}</label>
+      <input type="file" id="lfAmhs_${k}" multiple accept="image/jpeg,image/png,image/webp,application/pdf" onchange="pilihLampiran(this, 'lfAmhs_${k}')">
+      <div class="lampiran-hint" id="lfAmhs_${k}Hint">${PESAN_LAMPIRAN}</div>
+      <div id="lfAmhs_${k}List"></div>
+    </div>
     <div class="modal-footer" style="margin-top:12px;">
       <button class="btn ghost" id="dcAmhsBatal_${k}" style="display:none;" onclick="batalEditDcAmhs('${sys}')">✕ Batal Edit</button>
       <button class="btn ghost" onclick="resetDcAmhsSistem('${sys}')">Reset ${escapeHtml(sys)}</button>
@@ -578,12 +584,14 @@ async function saveDcAmhsSistem(sys){
     };
     if(editId){
       const saved = await gsRun('updateDailyCheck', editId, payload);
+      await unggahLampiranForm('lfAmhs_' + k, 'dailycheck', saved);
       const i = dcHistory.findIndex(x=>x.id===editId); if(i!==-1) dcHistory[i] = mapDc(saved);
       renderDcHistory();
       toast(`Perubahan ${sys} tersimpan.`);
       batalEditDcAmhs(sys);
     }else{
       const saved = await gsRun('addDailyCheck', payload);
+      await unggahLampiranForm('lfAmhs_' + k, 'dailycheck', saved);
       dcHistory.unshift(mapDc(saved));
       renderDcHistory();
       toast(`Daily check ${sys} tersimpan. Dinas berikutnya lanjut lewat Riwayat → Edit.`);

@@ -246,8 +246,8 @@ CREATE TABLE IF NOT EXISTS lampiran_bapb (
 CREATE INDEX IF NOT EXISTS idx_lampiran_bapb ON lampiran_bapb(bapb_id);
 
 -- Lampiran lembar Daily Check dan Preventive Maintenance (DS Test dan seluruh
--- lembar berkala). Satu tabel untuk ketiganya: jenis = 'dailycheck' | 'dstest'
--- | 'berkala', catatan_id = id lembarnya. Tanpa REFERENCES karena induknya
+-- lembar berkala) serta Monitoring. Satu tabel untuk semuanya: jenis =
+-- 'dailycheck' | 'dstest' | 'berkala' | 'monitoring', catatan_id = id lembarnya. Tanpa REFERENCES karena induknya
 -- tiga tabel berbeda — barisnya dibuang hapusLampiranCatatanSemua() saat
 -- lembarnya dihapus. dibuat_oleh = username pengunggah (yang boleh membuangnya).
 CREATE TABLE IF NOT EXISTS lampiran_catatan (
@@ -1561,8 +1561,8 @@ export function suntingLampiranBapb(bapbId, tambah, buang, { username = '', admi
  * Lampiran bukan isi lembar yang disahkan, jadi boleh ditambah juga sesudah
  * Manager Teknik menandatangani — sama dengan lampiran BAPB dan LTK.
  */
-export const JENIS_LAMPIRAN_CATATAN = ['dailycheck', 'dstest', 'berkala'];
-const TABEL_LAMPIRAN_CATATAN = { dailycheck: 'dailychecks', dstest: 'dstest', berkala: 'berkala' };
+export const JENIS_LAMPIRAN_CATATAN = ['dailycheck', 'dstest', 'berkala', 'monitoring'];
+const TABEL_LAMPIRAN_CATATAN = { dailycheck: 'dailychecks', dstest: 'dstest', berkala: 'berkala', monitoring: 'monitoring' };
 
 export function listLampiranCatatan(jenis, catatanId) {
   if (!JENIS_LAMPIRAN_CATATAN.includes(jenis)) return [];
@@ -2335,6 +2335,7 @@ export function insertMonitoring(rec = {}, olehUsername = '', olehNama = '') {
 export function removeMonitoring(id) {
   const r = db.prepare('SELECT teknisi_ttd, personil_ops_ttd FROM monitoring WHERE id = ?').get(id);
   db.prepare('DELETE FROM monitoring WHERE id = ?').run(id);
+  hapusLampiranCatatanSemua('monitoring', id);
   if (r) { removeSignatureFile(r.teknisi_ttd); removeSignatureFile(r.personil_ops_ttd); }
   return true;
 }

@@ -88,6 +88,7 @@ async function saveMon(){
       teknisiTtd: getSigDataUrl('sigMon'),
       baris
     });
+    await unggahLampiranForm('lfMon', 'monitoring', saved);   // berkas yang dipilih di form (10-lampiran.js)
     monitoring.unshift(mapMon(saved));
     renderMonList();
     closeMonModal();
@@ -157,6 +158,7 @@ function openMonDetail(id){
       <div class="sig-block"><b>${T('personilOps')}</b>${escapeHtml(m.personilOps)||'-'}${sigPejabatHtml('monitoring', m.id, m.personilOpsTtd, m)}</div>
       <div class="sig-block"><b>${T('personilTeknik')}</b>${escapeHtml(m.personilTeknik)||'-'}${sigThumbHtml(m.teknisiTtd)}</div>
     </div>
+    ${lampiranCatatanHtml('monitoring', m.id)}
     <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line);">${diinputOlehHtml(m.diinputOleh, m.dibuatPada, String(m.tanggal||'').slice(0,10))}</div>`;
   document.getElementById('formDetailPrintBtn').onclick = ()=>{ closeFormDetail(); printMon(id); };
   document.getElementById('formDetailBg').classList.add('show');

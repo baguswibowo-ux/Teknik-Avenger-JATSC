@@ -139,7 +139,8 @@ function escapeHtml(s){ if(!s) return ''; return String(s).replace(/[&<>"']/g, c
    Dokumen pendukung yang ditempel ke lembar yang sudah tersimpan — dari jendela
    detailnya. Tiap jendela detail menyisipkan lampiranCatatanHtml(jenis, id);
    isinya diambil belakangan (getLampiranCatatan) supaya daftar lembar tidak
-   perlu membawa lampirannya. jenis = 'dailycheck' | 'dstest' | 'berkala'.
+   perlu membawa lampirannya. jenis = 'dailycheck' | 'dstest' | 'berkala' |
+   'monitoring'.
    Menambah: siapa saja yang boleh menulis di unit itu. Membuang: pengunggahnya
    sendiri atau admin/admin unit. Server menjaga keduanya (suntingLampiranCatatan). */
 const LC = { cache: {}, jenis: '', id: '', buang: [] };
@@ -244,11 +245,13 @@ async function simpanLampiranCatatan(){
    Kolomnya disisipkan dari sini, di atas baris tombol Simpan tiap form, supaya
    bentuknya satu dan tidak perlu disalin ke sembilan tempat di index.html.
    [id tombol simpan, kotak lampiran, jenis lembar]. Form Daily Check AMHS
-   (simpan per sub-sistem) belum ikut — lampirannya lewat jendela detail. */
+   digambar JS per sub-sistem, jadi kolomnya ditulis di cetakannya sendiri
+   (12d-daily-check-amhs.js, kotak lfAmhs_<sub-sistem>). */
 const LAMPIRAN_FORM = [
   ['dcSaveBtn', 'lfDc', 'dailycheck'], ['dsSaveBtn', 'lfDs', 'dstest'], ['radioSaveBtn', 'lfRadio', 'dstest'],
   ['wkSaveBtn', 'lfWk', 'dstest'], ['llzSaveBtn', 'lfLlz', 'dstest'], ['mrSaveBtn', 'lfMr', 'dstest'],
-  ['mlSaveBtn', 'lfMl', 'dstest'], ['rkSaveBtn', 'lfRk', 'dstest'], ['bkSaveBtn', 'lfBk', 'berkala']
+  ['mlSaveBtn', 'lfMl', 'dstest'], ['rkSaveBtn', 'lfRk', 'dstest'], ['bkSaveBtn', 'lfBk', 'berkala'],
+  ['monSaveBtn', 'lfMon', 'monitoring']
 ];
 
 function pasangLampiranForm(){
