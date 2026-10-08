@@ -94,6 +94,34 @@ const sjrBarisSunting = (k, i) => `
  * selalu sedang melihat riwayat yang sudah ada — dan kartu yang menutupinya
  * memaksa orang mengingat apa yang barusan dibacanya.
  */
+/* TTD pencatat di lembar Sejarah Peralatan diambil dari TTD tersimpan akunnya
+   (kolom Teknisi Pelaksana, sjrTabelCetakHtml di 36-cetak.js). Yang belum
+   punya ditawari menggambarnya di sini, sekali, saat menulis riwayat — tidak
+   wajib: tanpa itu kotak TTD-nya dicetak kosong untuk ditandatangani tangan.
+   Kanvasnya kanvas kartu cetak (cetakPasangKanvas), dilaporkan ke
+   CETAK.kanvasSjr. */
+function sjrBelumPunyaTtd(){
+  if(!akun || typeof TTD_AKUN === 'undefined') return false;
+  const t = TTD_AKUN.get(String(akun.user || ''));
+  return !!t && !t.ada;          // belum diketahui = jangan menawarkan apa-apa
+}
+/** Goresan yang sedang digambar disimpan dulu sebelum panelnya digambar ulang
+    (Tambah kejadian / buang baris), lalu ditaruh kembali oleh sjrPasang. */
+function sjrSimpanGoresan(){
+  const k = (typeof CETAK !== 'undefined') && CETAK.kanvasSjr;
+  if(k && k.ada && k.el && document.body.contains(k.el)) SJR.ttdGores = k.el.toDataURL('image/png');
+}
+function sjrBlokTtdHtml(){
+  if(!sjrBelumPunyaTtd()) return '';
+  return `<div class="catatan" style="margin-top:14px">
+      <b>${T('Anda belum punya TTD tersimpan.','You have no saved signature yet.')}</b>
+      ${T('Gambar sekali di kotak ini — ikut tersimpan saat Simpan, lalu dipakai otomatis di kolom Teknisi Pelaksana pada lembar Sejarah Peralatan. Boleh dilewati: kotak TTD-nya akan dicetak kosong untuk ditandatangani tangan.',
+          'Draw it once in this box — it is saved together with Save and then used automatically in the Technician column of the Equipment History sheet. You may skip it: the signature box will print empty for signing by hand.')}
+      <canvas id="sjrTtdKanvas" style="display:block;width:100%;max-width:420px;height:130px;margin-top:8px;background:#fff;border-radius:8px;touch-action:none"></canvas>
+      <div style="margin-top:6px"><button class="btn garis kecil" type="button" id="sjrTtdBersih">${T('Bersihkan','Clear')}</button></div>
+    </div>`;
+}
+
 function sjrPanel(unit, alat){
   const boleh = sjrBolehTulis();
   const sunting = SJR.sunting && SJR.sunting.unit === unit && SJR.sunting.alat === alat.id;
@@ -109,6 +137,7 @@ function sjrPanel(unit, alat){
     </span></div>`;
 
   if(sunting){
+    sjrSimpanGoresan();
     /* Melebar ke dua kolom selama disunting: enam kotak isian di dalam kolom
        1.55fr milik .grid2 membuat tiap baris terlipat jadi tiga tingkat, dan
        yang sedang menulis riwayat perlu melihat tanggal, judul, dan rinciannya
@@ -124,6 +153,7 @@ function sjrPanel(unit, alat){
       ${daftar.length ? daftar.map(sjrBarisSunting).join('')
         : `<div style="color:var(--muted);font-size:12.5px;padding:6px 0">${
             T('Belum ada. Tekan Tambah kejadian.','None yet. Press Add an event.')}</div>`}
+      ${sjrBlokTtdHtml()}
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
         <button class="btn garis kecil" id="sjrBatal">${T('Batal','Cancel')}</button>
         <button class="btn kecil" id="sjrSimpan">${T('Simpan','Save')}</button>
@@ -155,7 +185,20 @@ function sjrPasang(unit, alat){
   });
 
   const batal = el('sjrBatal');
-  if(batal) batal.addEventListener('click', ()=>{ SJR.sunting = null; gambarRinciAlat(); });
+  if(batal) batal.addEventListener('click', ()=>{ SJR.sunting = null; SJR.ttdGores = ''; gambarRinciAlat(); });
+
+  // Kanvas TTD untuk yang belum punya TTD tersimpan (sjrBlokTtdHtml).
+  const kanvasTtd = el('sjrTtdKanvas');
+  if(kanvasTtd && typeof cetakPasangKanvas === 'function'){
+    cetakPasangKanvas(kanvasTtd, 'kanvasSjr');
+    if(SJR.ttdGores){
+      const gbr = new Image();
+      gbr.onload = ()=>{ CETAK.kanvasSjr.ctx.drawImage(gbr, 0, 0, kanvasTtd.width, kanvasTtd.height); CETAK.kanvasSjr.ada = true; };
+      gbr.src = SJR.ttdGores;
+    }
+    const bersih = el('sjrTtdBersih');
+    if(bersih) bersih.addEventListener('click', ()=>{ SJR.ttdGores = ''; cetakPasangKanvas(kanvasTtd, 'kanvasSjr'); });
+  }
 
   const tambah = el('sjrTambahBaris');
   if(tambah) tambah.addEventListener('click', ()=>{
@@ -197,6 +240,19 @@ async function sjrSimpan(unit, alat){
     }, 15000);
     const j = await r.json().catch(()=>null);
     if(!r.ok) throw new Error((j && j.error) || ('server menjawab ' + r.status));
+    /* TTD yang baru digambar disimpan sebagai TTD tersimpan akun ini. Gagal di
+       sini tidak membatalkan riwayat yang sudah tersimpan — cukup dikabarkan. */
+    const kanvasTtd = (typeof CETAK !== 'undefined') && CETAK.kanvasSjr;
+    if(kanvasTtd && kanvasTtd.ada && kanvasTtd.el && document.body.contains(kanvasTtd.el)){
+      try{
+        await srvApi('simpanTtdSaya', { dataUrl: kanvasTtd.el.toDataURL('image/png'), slotIdx: 0 });
+        await ttdAkunInvalidate(akun.user);
+        await ttdAkunAmbil(akun.user, { paksa:true });
+      }catch(e){
+        pesan(T('Riwayat tersimpan, tetapi TTD gagal disimpan: ','History saved, but the signature could not be saved: ') + (e && e.message || e));
+      }
+    }
+    SJR.ttdGores = '';
     // Yang dipakai jawaban server, bukan kiriman: id baris baru lahir di sana,
     // dan urutannya juga ditentukan di sana.
     if(!SJR.isi[unit]) SJR.isi[unit] = {};
