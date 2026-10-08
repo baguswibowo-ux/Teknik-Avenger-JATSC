@@ -623,6 +623,17 @@ async function cetakLakukan(){
   }
   if(tombolCetak) tombolCetak.disabled = false;
 
+  /* "Lembar siap" (Cetak / Kirim PDF) hanya untuk lembar yang SUDAH
+     ditandatangani. Jalur ini dilewati pengesah yang mencetak langsung; kalau
+     TTD penanda tangannya belum ada - belum tersimpan dan tidak digambar di
+     kartu ini - lembarnya belum boleh keluar. Jadwal Dinas dikecualikan:
+     footernya dua penanda tangan dan punya alurnya sendiri. */
+  if(CETAK.mode !== 'dinas' && !(CETAK.ttdPejabat && CETAK.ttdPejabat.ada)){
+    pesan(T('Lembar belum bisa dicetak: tanda tangannya belum ada. Gambar TTD di kartu ini dulu, atau minta penanda tangannya menyimpan TTD-nya.',
+            'The sheet cannot be printed yet: it has no signature. Draw the signature on this card first, or ask the signer to save theirs.'));
+    return;
+  }
+
   const html = await cetakLembarHtml();
   const area = el('printArea');
   area.innerHTML = html;
@@ -1100,8 +1111,7 @@ function htmlPeralatan(){
   };
 
   /* Tabel sejarah — bentuknya di sjrTabelCetakHtml (dipakai juga oleh lembar
-     dari snapshot). Cetak langsung belum melewati persetujuan, jadi kolom
-     Manager Teknik per barisnya dibiarkan kosong. */
+     dari snapshot). */
   const sejarah = (a)=>{
     const daftar = (typeof sjrUntuk === 'function')
       ? sjrUntuk(CETAK.unit, a.id) : [];
@@ -1111,7 +1121,11 @@ function htmlPeralatan(){
       const n = p ? p[1] : ['','—'];
       return T(n[0], n[1]);
     };
-    return sjrTabelCetakHtml(daftar, labelTingkat, null);
+    /* Cetak langsung oleh pengesah: dialah penanggung jawab lembar ini, jadi
+       nama dan TTD-nya mengisi kolom tiap baris, sama dengan blok Mengetahui. */
+    const pj = (CETAK.ttdPejabat && CETAK.ttdPejabat.ada)
+      ? { nama: CETAK.ttdPejabat.nama || CETAK.pejabatDipilih || '', url: CETAK.ttdPejabat.url } : null;
+    return sjrTabelCetakHtml(daftar, labelTingkat, pj);
   };
 
   /* Satu section per identitas: parent dulu, lalu tiap sub-unitnya
