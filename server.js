@@ -2914,9 +2914,29 @@ function rapikanKejadian(k, id) {
        bentuk barisnya lengkap walau pemanggil lain suatu saat lupa. */
     oleh: String(k?.oleh || '').trim().slice(0, 32),
     olehNama: String(k?.olehNama || '').trim().slice(0, 80),
-    dicatat: tglJamSah(k?.dicatat)
+    dicatat: tglJamSah(k?.dicatat),
+    /* Penanggung jawab kejadian ini dan status tanda tangannya. pjUser dipilih
+       pencatat; pjStatus/pjPada ditetapkan rute — lihat PUT /sejarah dan
+       POST /sejarah-ttd/setujui. Kosong = baris lama, sebelum TTD per kejadian. */
+    pjUser: usernameSah(k?.pjUser) ? String(k.pjUser).trim().toLowerCase() : '',
+    pjNama: String(k?.pjNama || '').trim().slice(0, 80),
+    pjStatus: (k?.pjStatus === 'menunggu' || k?.pjStatus === 'disetujui') ? k.pjStatus : '',
+    pjPada: tglJamSah(k?.pjPada)
   };
 }
+
+/** Alat (induk atau sub-unit) menurut id-nya di daftar peralatan unit. */
+async function cariAlat(unit, id) {
+  const semua = await bacaJson(UNITDB_JSON.peralatan, {});
+  for (const r of (Array.isArray(semua?.[unit]) ? semua[unit] : [])) {
+    if (r?.id === id) return { alat: r, induk: null };
+    const sub = (Array.isArray(r?.sub) ? r.sub : []).find((x) => x?.id === id);
+    if (sub) return { alat: sub, induk: r };
+  }
+  return null;
+}
+const namaAlatLengkap = (ketemu, cadangan = '') => (!ketemu ? cadangan
+  : ketemu.induk ? `${ketemu.induk.nama || ''} — ${ketemu.alat.nama || ''}` : (ketemu.alat.nama || cadangan));
 
 /** Seluruh sejarah, semua unit. Terbuka seperti daftar peralatannya sendiri —
     yang berdinas perlu tahu apa yang pernah terjadi pada alat di depannya. */
@@ -3002,6 +3022,51 @@ app.put('/sejarah/:unit/:alat', badanDinas, async (req, res) => {
       k.dicatat  = lama ? lama.dicatat  : sekarang;
     }
 
+    /* TANDA TANGAN PENANGGUNG JAWAB PER KEJADIAN (permintaan Bagus, 8 Okt 2026).
+       Tiap kejadian disetujui sendiri-sendiri oleh penanggung jawab yang
+       dipilih pencatatnya — bukan lagi satu TTD untuk selembar penuh.
+         - baris baru / penanggung jawabnya diganti  -> 'menunggu', orangnya dikabari
+         - baris yang sudah disetujui dan ISINYA tidak berubah -> tetap disetujui
+         - isi baris yang sudah disetujui diubah -> kembali 'menunggu': tanda
+           tangan tidak boleh menempel pada tulisan yang tidak pernah dibacanya
+       Status dan waktunya tidak pernah diterima dari layar. */
+    let namaAkun = null;
+    const kenalAkun = async () => {
+      if (namaAkun === null) {
+        try {
+          namaAkun = new Map((await daftarELogbook()).akun
+            .map((a) => [String(a.username || '').toLowerCase(), a.nama || a.username]));
+        } catch { namaAkun = new Map(); }
+      }
+      return namaAkun;
+    };
+    const perluKabar = [];
+    for (const k of daftar) {
+      const lama = sebelum.get(k.id);
+      const isiSama = !!lama && lama.tgl === k.tgl && lama.judul === k.judul
+        && lama.rinci === k.rinci && (lama.warna || '') === (k.warna || '');
+      const pjDiminta = k.pjUser || (lama && lama.pjUser) || '';
+      if (!pjDiminta) {
+        Object.assign(k, { pjUser: '', pjNama: '', pjStatus: '', pjPada: '' });
+        continue;
+      }
+      if (lama && lama.pjStatus === 'disetujui' && isiSama && pjDiminta === lama.pjUser) {
+        Object.assign(k, { pjUser: lama.pjUser, pjNama: lama.pjNama, pjStatus: 'disetujui', pjPada: lama.pjPada });
+        continue;
+      }
+      const akunPj = await kenalAkun();
+      if (akunPj.size && !akunPj.has(pjDiminta)) {
+        return res.status(400).json({ error: `Penanggung jawab "${pjDiminta}" bukan akun aktif.` });
+      }
+      const sudahMenunggu = !!lama && lama.pjStatus === 'menunggu' && lama.pjUser === pjDiminta;
+      Object.assign(k, {
+        pjUser: pjDiminta,
+        pjNama: akunPj.get(pjDiminta) || k.pjNama || (lama && lama.pjNama) || pjDiminta,
+        pjStatus: 'menunggu', pjPada: ''
+      });
+      if (!sudahMenunggu) perluKabar.push(k);
+    }
+
     const lamaId = new Set(sebelum.keys());
     for (const k of daftar) lamaId.delete(k.id);
     if (lamaId.size && !(await bolehHapus(user, 'sejarah', unit))) {
@@ -3018,9 +3083,83 @@ app.put('/sejarah/:unit/:alat', badanDinas, async (req, res) => {
       modul: 'sejarah', aksi: 'tulis', unit, rincian: `${alat} · ${daftar.length} kejadian`
     });
     res.json({ ok: true, jumlah: daftar.length, sejarah: daftar });
+
+    // Kabari penanggung jawabnya — sesudah jawaban terkirim, dan gagal di sini
+    // tidak membatalkan apa pun: kejadiannya tetap menunggu di Kotak Masuknya.
+    if (perluKabar.length && TERUS) {
+      const namaAlat = namaAlatLengkap(await cariAlat(unit, alat).catch(() => null), alat);
+      for (const k of perluKabar) {
+        kirimNotifKeAkun(k.pjUser,
+          `Riwayat peralatan menunggu tanda tangan Anda\n${namaAlat}\n${k.judul}\nDicatat: ${k.olehNama || k.oleh}`)
+          .catch((e) => console.warn('[sejarah] notif penanggung jawab gagal:', e?.message || e));
+      }
+    }
   } catch (e) {
     console.error('[sejarah] gagal menyimpan:', e);
     res.status(500).json({ error: 'Gagal menyimpan sejarah: ' + (e?.message || e) });
+  }
+});
+
+/** Kejadian yang menunggu tanda tangan SAYA sebagai penanggung jawab. */
+app.get('/sejarah-ttd', async (req, res) => {
+  const user = await siapa(req);
+  if (!user) return res.status(401).json({ error: 'Masuk dengan akun E-Logbook Anda dulu.' });
+  const saya = String(user.username || '').toLowerCase();
+  const semua = await bacaJson(SEJARAH_JSON, {});
+  const alatSemua = await bacaJson(UNITDB_JSON.peralatan, {});
+  const namaAlat = (unit, id) => {
+    for (const r of (Array.isArray(alatSemua?.[unit]) ? alatSemua[unit] : [])) {
+      if (r?.id === id) return r.nama || id;
+      const sub = (Array.isArray(r?.sub) ? r.sub : []).find((x) => x?.id === id);
+      if (sub) return `${r.nama || ''} — ${sub.nama || ''}`;
+    }
+    return id;
+  };
+  const daftar = [];
+  for (const [unit, perAlat] of Object.entries(semua || {})) {
+    for (const [alat, kejadian] of Object.entries(perAlat || {})) {
+      for (const k of (Array.isArray(kejadian) ? kejadian : [])) {
+        if (k?.pjStatus === 'menunggu' && k.pjUser === saya) {
+          daftar.push({ unit, alat, alatNama: namaAlat(unit, alat), id: k.id, tgl: k.tgl, warna: k.warna || '',
+            judul: k.judul, rinci: k.rinci || '', olehNama: k.olehNama || k.oleh || '', dicatat: k.dicatat || '' });
+        }
+      }
+    }
+  }
+  daftar.sort((a, b) => String(a.dicatat).localeCompare(String(b.dicatat)));
+  res.json({ daftar });
+});
+
+/** Penanggung jawab menyetujui satu atau beberapa kejadian — hanya miliknya.
+    Badan: { butir: [{ unit, alat, id }] } */
+app.post('/sejarah-ttd/setujui', badanDinas, async (req, res) => {
+  const user = await siapa(req);
+  if (!user) return res.status(401).json({ error: 'Masuk dengan akun E-Logbook Anda dulu.' });
+  if (!DINAS_TULIS) return res.status(503).json({ error: 'Penyimpanan di lingkungan ini tidak permanen.' });
+  const saya = String(user.username || '').toLowerCase();
+  const butir = (Array.isArray(req.body?.butir) ? req.body.butir : []).slice(0, 500);
+  if (!butir.length) return res.status(400).json({ error: 'Tidak ada kejadian yang dikirim.' });
+  try {
+    const semua = await bacaJson(SEJARAH_JSON, {});
+    const sekarang = new Date().toISOString();
+    let jumlah = 0;
+    for (const b of butir) {
+      const unit = String(b?.unit || '').toLowerCase();
+      const k = (semua?.[unit]?.[String(b?.alat || '')] || []).find((x) => x?.id === String(b?.id || ''));
+      // Bukan miliknya, atau sudah tidak menunggu: dilewati diam-diam.
+      if (!k || k.pjStatus !== 'menunggu' || k.pjUser !== saya) continue;
+      k.pjStatus = 'disetujui';
+      k.pjPada = sekarang;
+      k.pjNama = user.nama || k.pjNama || saya;
+      jumlah++;
+    }
+    if (!jumlah) return res.status(409).json({ error: 'Tidak ada kejadian yang menunggu tanda tangan Anda — mungkin sudah disetujui atau diubah.' });
+    await tulisJson(SEJARAH_JSON, semua);
+    await catat(user, { modul: 'sejarah', aksi: 'ttd', unit: '', rincian: `${jumlah} kejadian disetujui penanggung jawab` });
+    res.json({ ok: true, jumlah });
+  } catch (e) {
+    console.error('[sejarah-ttd] gagal menyetujui:', e);
+    res.status(500).json({ error: 'Gagal menyimpan persetujuan: ' + (e?.message || e) });
   }
 });
 
@@ -3220,38 +3359,43 @@ async function halamanQr(req, res) {
   }
   const { unit, alat, alatNama, unitNama, kelompok } = catatanQr;
   const kepala = `<h1>Sejarah Peralatan</h1><h2>${escHtml(unitNama || unit)}</h2>`;
-  const ketemu = lembarResmiAlat(await bacaAntrianCetak(), unit, alat);
+
+  /* Sejak TTD per kejadian, tidak ada lagi "lembar yang disetujui": halaman
+     ini membaca data yang berlaku sekarang, dan — karena terbuka tanpa login —
+     hanya menampilkan kejadian yang SUDAH ditandatangani penanggung jawabnya. */
+  const ketemu = await cariAlat(unit, alat);
   if (!ketemu) {
     return res.type('html').send(halamanPindai({
       judul: `Sejarah ${alatNama || alat}`,
       isi: kepala + `<div class="kosong"><b>${escHtml(alatNama || alat)}</b><br><br>
-        Belum ada lembar sejarah resmi untuk alat ini.<br>
-        Lembar muncul di sini setelah dicetak lewat dashboard dan disetujui penanggung jawabnya.</div>`
+        Alat ini sudah tidak ada di daftar peralatan unit.</div>`
     }));
   }
-
-  const { lembar, alat: a, induk } = ketemu;
-  const nama = induk ? `${induk.nama || ''} — ${a.nama || ''}` : (a.nama || alatNama || alat);
+  const sjrUnit = (await bacaJson(SEJARAH_JSON, {}))[unit] || {};
+  const resmi = (id) => (Array.isArray(sjrUnit[id]) ? sjrUnit[id] : []).filter((k) => k?.pjStatus === 'disetujui');
+  const induk = ketemu.induk;
+  const a = ketemu.alat;
+  const nama = namaAlatLengkap(ketemu, alatNama || alat);
+  const subs = induk ? [] : (Array.isArray(a.sub) ? a.sub : []).filter((x) => x && x.id && x.nama);
   const bersih = (v) => (v && v !== '—' ? v : '');
-  /* Kolom Teknisi Pelaksana dan Manager Teknik per baris riwayat — sama
-     dengan lembar cetaknya (sjrTabelCetakHtml di 36-cetak.js). Lembar di sini
-     selalu sudah disetujui, jadi kolom Manager Teknik selalu terisi. TTD
-     teknisi = TTD tersimpan akun pencatat; yang belum punya dibiarkan kosong. */
-  const ttd = await ttdSebagaiDataUrl(lembar.ttdPejabatUrl);
-  const namaMt = lembar.ttdPejabatNama || lembar.pejabatNama || '';
-  const ttdTeknisi = new Map();
-  for (const x of [a, ...(induk ? [] : (Array.isArray(a.sub) ? a.sub : []))]) {
-    for (const k of (Array.isArray(x?.sejarah) ? x.sejarah : [])) {
-      const oleh = String(k?.oleh || '');
-      if (oleh && !ttdTeknisi.has(oleh)) {
-        ttdTeknisi.set(oleh, usernameSah(oleh) ? await ttdSebagaiDataUrl(`/ttd-akun/${encodeURIComponent(oleh)}/gambar`) : '');
+
+  // TTD tersimpan tiap orang yang muncul (pencatat dan penanggung jawab).
+  const ttdOrang = new Map();
+  for (const x of [a, ...subs]) {
+    for (const k of resmi(x.id)) {
+      for (const u of [k.oleh, k.pjUser]) {
+        const nm = String(u || '');
+        if (nm && !ttdOrang.has(nm)) {
+          ttdOrang.set(nm, usernameSah(nm) ? await ttdSebagaiDataUrl(`/ttd-akun/${encodeURIComponent(nm)}/gambar`) : '');
+        }
       }
     }
   }
-  const gbrTtd = (url) => (url ? `<img class="ttd-baris" src="${url}" data-perlu-hitam alt="TTD">` : '');
-  /* Satu bagian = identitas + riwayat satu alat. Dipakai untuk alat yang
-     dipindai, dan — kalau yang dipindai itu INDUK — diulang untuk tiap
-     sub-unitnya, supaya satu stiker di induk sudah membawa semuanya. */
+  const gbrTtd = (u) => (ttdOrang.get(String(u || ''))
+    ? `<img class="ttd-baris" src="${ttdOrang.get(String(u))}" data-perlu-hitam alt="TTD">` : '');
+
+  /* Satu bagian = identitas + riwayat satu alat. Kalau yang dipindai INDUK,
+     diulang untuk tiap sub-unitnya — satu stiker di induk membawa semuanya. */
   const bagian = (x, namaX, lengkap) => {
     const spek = [
       ['Penyelenggara Pelayanan', 'Perum LPPNPI'],
@@ -3264,14 +3408,14 @@ async function halamanQr(req, res) {
       ['Lokasi', bersih(x.lokasi)],
       ['Status', bersih(x.status)]
     ].filter(([k, v], i) => (lengkap ? i < 5 : (i >= 2 && i < 5)) || (i >= 5 && v));
-    const sejarah = Array.isArray(x.sejarah) ? x.sejarah : [];
+    const sejarah = resmi(x.id);
     const baris = sejarah.length
       ? sejarah.map((k, i) => `<tr><td class="tengah">${i + 1}</td><td class="tengah">${escHtml(k.tgl ? tglId(k.tgl) : '—')}</td>
           <td><b>${escHtml(k.judul || '')}</b>${k.rinci ? '<br>' + escHtml(k.rinci) : ''}</td>
           <td>${escHtml(TINGKAT_SJR[k.warna || ''] || '—')}</td>
-          <td class="tengah">${escHtml(k.olehNama || '—')}</td><td class="tengah">${gbrTtd(ttdTeknisi.get(k.oleh))}</td>
-          <td class="tengah">${escHtml(namaMt)}</td><td class="tengah">${gbrTtd(ttd)}</td></tr>`).join('')
-      : '<tr><td colspan="8" class="tengah"><i>Belum ada kegiatan tercatat pada lembar ini.</i></td></tr>';
+          <td class="tengah">${escHtml(k.olehNama || '—')}</td><td class="tengah">${gbrTtd(k.oleh)}</td>
+          <td class="tengah">${escHtml(k.pjNama || '—')}</td><td class="tengah">${gbrTtd(k.pjUser)}</td></tr>`).join('')
+      : '<tr><td colspan="8" class="tengah"><i>Belum ada kegiatan yang disetujui penanggung jawabnya.</i></td></tr>';
     return `
       <table class="spek">${spek.map(([k, v]) => `<tr><td>${escHtml(k)}</td><td>: ${escHtml(v || '—')}</td></tr>`).join('')}</table>
       <h3>Riwayat Kegiatan</h3>
@@ -3281,18 +3425,14 @@ async function halamanQr(req, res) {
         <tr><th style="width:13%">Nama</th><th style="width:64px">TTD</th><th style="width:13%">Nama</th><th style="width:64px">TTD</th></tr></thead>
         <tbody>${baris}</tbody></table></div>`;
   };
-  const subs = induk ? [] : (Array.isArray(a.sub) ? a.sub : []).filter((s) => s && s.nama);
-  const bagianSub = subs.map((s) => `
-      <h3 class="sub-judul">Sub-unit: ${escHtml(s.nama)}</h3>${bagian(s, `${nama} — ${s.nama}`, false)}`).join('');
+  const bagianSub = subs.map((x) => `
+      <h3 class="sub-judul">Sub-unit: ${escHtml(x.nama)}</h3>${bagian(x, `${nama} — ${x.nama}`, false)}`).join('');
 
   res.type('html').send(halamanPindai({
     judul: `Sejarah ${nama}`,
     isi: kepala + bagian(a, nama, true) + bagianSub + `
-      <div class="ttd">Mengetahui,<br>Penanggung Jawab
-        <div class="kotak">${ttd ? `<img src="${ttd}" data-perlu-hitam alt="TTD">` : ''}</div>
-        <div class="nama">${escHtml(lembar.ttdPejabatNama || lembar.pejabatNama || '')}</div></div>
-      <div class="ket">Lembar resmi, disetujui <b>${escHtml(tglId(lembar.tanggalTtd))}</b>.
-        <span class="ket-layar">Kegiatan yang dicatat sesudah tanggal itu belum tampil sampai lembar berikutnya disetujui.</span></div>
+      <div class="ket">Yang tampil hanya kegiatan yang sudah ditandatangani penanggung jawabnya.
+        <span class="ket-layar">Kegiatan yang masih menunggu tanda tangan belum tampil.</span></div>
       <button class="tombol" onclick="window.print()">Cetak / Simpan PDF</button>`
   }));
 }

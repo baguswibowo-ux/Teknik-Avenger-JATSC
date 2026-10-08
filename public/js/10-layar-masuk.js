@@ -63,7 +63,8 @@ function bukaDashboard(){
          yang terjadi jauh sebelum ada yang masuk — dijawab 401 dan galerinya
          tinggal kosong sampai halaman disegarkan. */
       await Promise.all([bklMuat(), psnMuat(), muatGaleri(),
-        (typeof muatAntrianCetak === 'function') ? muatAntrianCetak() : null].filter(Boolean));
+        (typeof muatAntrianCetak === 'function') ? muatAntrianCetak() : null,
+        (typeof muatSjrTtd === 'function') ? muatSjrTtd() : null].filter(Boolean));
       gambarUbin(); gambarPerhatian(); gambarLonceng(); gambarPersonel();
       // Lencana kotak masuk ikut memperhitungkan antrian cetak — panggil
       // gambar ulang supaya angkanya benar sejak layar dashboard pertama tampil.

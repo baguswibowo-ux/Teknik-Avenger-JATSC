@@ -259,6 +259,100 @@ function ttdMasukKartu(it){
   </article>`;
 }
 
+/* ---------- Riwayat peralatan menunggu tanda tangan saya ----------
+   Tiap kejadian di Sejarah Peralatan ditandatangani penanggung jawabnya
+   sendiri-sendiri (GET /sejarah-ttd, POST /sejarah-ttd/setujui di server.js).
+   Menyetujui = membubuhkan TTD TERSIMPAN akun ini pada baris itu; yang belum
+   punya TTD tersimpan menggambarnya sekali di sini. */
+let SJR_TTD = [];
+async function muatSjrTtd(){
+  try{
+    const r = await srvFetch('/sejarah-ttd', {}, 10000);
+    const j = await r.json().catch(()=>null);
+    if(r.ok && j && Array.isArray(j.daftar)) SJR_TTD = j.daftar;
+  }catch(e){
+    console.warn('[kotak] riwayat peralatan menunggu TTD tidak terbaca:', e && e.message || e);
+  }
+}
+const sjrTtdBelumPunya = () => {
+  const t = (akun && typeof TTD_AKUN !== 'undefined') ? TTD_AKUN.get(String(akun.user || '')) : null;
+  return !t || !t.ada;
+};
+function gambarSeksiSjrTtd(){
+  if(!SJR_TTD.length) return '';
+  const kanvas = sjrTtdBelumPunya() ? `<div class="catatan" style="margin-bottom:10px">
+      <b>${T('Anda belum punya TTD tersimpan.','You have no saved signature yet.')}</b>
+      ${T('Gambar sekali di kotak ini — tersimpan saat Anda menyetujui, lalu dipakai untuk persetujuan berikutnya.',
+          'Draw it once in this box — it is saved when you approve, then reused for later approvals.')}
+      <canvas id="sjrPjKanvas" style="display:block;width:100%;max-width:420px;height:130px;margin-top:8px;background:#fff;border-radius:8px;touch-action:none"></canvas>
+      <div style="margin-top:6px"><button class="btn garis kecil" type="button" id="sjrPjBersih">${T('Bersihkan','Clear')}</button></div>
+    </div>` : '';
+  return `<div class="panel" style="margin-bottom:14px">
+    <div class="kepala"><h3>${T('Riwayat Peralatan — Menunggu Tanda Tangan Anda','Equipment History — Awaiting Your Signature')}</h3>
+      <span style="display:flex;gap:8px;align-items:center"><span class="ket">${SJR_TTD.length} ${T('kejadian','events')}</span>
+        ${SJR_TTD.length > 1 ? `<button class="btn kecil" data-sjr-setuju-semua>${T('Setujui semua','Approve all')}</button>` : ''}</span></div>
+    <div class="badan" style="display:grid;gap:10px">${kanvas}${SJR_TTD.map((it, i)=>`<article class="kmk saya">
+      <div class="kmk-kiri">
+        <div class="kmk-jd">
+          <span class="cip awas">${esc(T('Menunggu TTD','Awaiting signature').toUpperCase())}</span>
+          <span class="cip">${esc(String(namaUnit(it.unit) || it.unit).toUpperCase())}</span>
+          <b>${esc(it.alatNama || it.alat)}${it.tgl ? ' · ' + esc(tglRingkas(it.tgl)) : ''}</b>
+        </div>
+        <div class="kmk-rn"><b>${esc(it.judul || '')}</b>${it.rinci ? ' — ' + esc(it.rinci) : ''}</div>
+        <div class="kmk-rn">${T('Teknisi pelaksana','Technician')}: <b>${esc(it.olehNama || '-')}</b></div>
+      </div>
+      <div class="kmk-kanan"><span class="kmk-tombol">
+        <button class="btn kecil" data-sjr-setuju="${i}">${T('Setujui & TTD','Approve & sign')}</button></span></div>
+    </article>`).join('')}</div>
+  </div>`;
+}
+async function sjrTtdSetujui(butir, tombol){
+  if(!butir.length) return;
+  if(tombol) tombol.disabled = true;
+  try{
+    if(sjrTtdBelumPunya()){
+      const k = (typeof CETAK !== 'undefined') && CETAK.kanvasPj;
+      if(!k || !k.ada){
+        pesan(T('Gambar tanda tangan Anda dulu di kotak yang tersedia.','Draw your signature in the box first.'));
+        return;
+      }
+      await srvApi('simpanTtdSaya', { dataUrl: k.el.toDataURL('image/png'), slotIdx: 0 });
+      await ttdAkunInvalidate(akun.user);
+      await ttdAkunAmbil(akun.user, { paksa:true });
+    }
+    const r = await srvFetch('/sejarah-ttd/setujui', {
+      method:'POST', headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({ butir: butir.map(b=>({ unit:b.unit, alat:b.alat, id:b.id })) })
+    }, 15000);
+    const j = await r.json().catch(()=>null);
+    if(!r.ok) throw new Error((j && j.error) || ('server menjawab ' + r.status));
+    pesan(T(`${j.jumlah} kejadian disetujui.`, `${j.jumlah} events approved.`));
+  }catch(e){
+    pesan(T('Gagal menyetujui: ','Could not approve: ') + (e && e.message || e));
+  }finally{
+    await muatSjrTtd();
+    if(typeof sjrMuat === 'function') await sjrMuat().catch(()=>{});
+    gambarKotakMasuk();
+  }
+}
+function pasangAksiSjrTtd(){
+  const kanvas = el('sjrPjKanvas');
+  if(kanvas && typeof cetakPasangKanvas === 'function'){
+    cetakPasangKanvas(kanvas, 'kanvasPj');
+    const bersih = el('sjrPjBersih');
+    if(bersih) bersih.addEventListener('click', ()=>cetakPasangKanvas(kanvas, 'kanvasPj'));
+  }
+  document.querySelectorAll('[data-sjr-setuju]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const it = SJR_TTD[Number(b.dataset.sjrSetuju)];
+      if(it) sjrTtdSetujui([it], b);
+    });
+  });
+  document.querySelectorAll('[data-sjr-setuju-semua]').forEach(b=>{
+    b.addEventListener('click', ()=>sjrTtdSetujui(SJR_TTD.slice(), b));
+  });
+}
+
 function gambarSeksiTtdMasuk(){
   if(!TTD_MASUK.length) return '';
   return `<div class="panel" style="margin-bottom:14px">
@@ -277,7 +371,7 @@ function gambarKotakMasuk(){
   const tampil = KOTAK_SARING === 'saya' ? milikSaya : semua;
 
   const lencana = el('lencanaKotak');
-  const n = kotakUntukSaya().length + (CETAK_ANTRIAN.menungguSaya || 0) + TTD_MASUK.length;
+  const n = kotakUntukSaya().length + (CETAK_ANTRIAN.menungguSaya || 0) + TTD_MASUK.length + SJR_TTD.length;
   if(lencana){ lencana.textContent = n; lencana.hidden = !n; }
 
   el('ketKotak').textContent =
@@ -290,7 +384,7 @@ function gambarKotakMasuk(){
   ].map(([nilai, teks])=>`<button class="btn ${KOTAK_SARING === nilai ? '' : 'garis '}kecil"
       data-saring-kotak="${nilai}">${esc(teks)}</button>`).join('');
 
-  const seksiCetak = gambarSeksiTtdMasuk() + gambarSeksiAntrianCetak(kotak);
+  const seksiCetak = gambarSeksiSjrTtd() + gambarSeksiTtdMasuk() + gambarSeksiAntrianCetak(kotak);
 
   if(!tampil.length){
     kotak.innerHTML = seksiCetak + `<div class="panel"><div class="badan" style="color:var(--muted);font-size:12.5px;line-height:1.7">${
@@ -303,6 +397,7 @@ function gambarKotakMasuk(){
             'No recurring jobs in the units you may open yet.')}</div></div>`;
     kotakPasang();
     pasangAksiAntrianCetak();
+    pasangAksiSjrTtd();
     return;
   }
 
@@ -329,6 +424,7 @@ function gambarKotakMasuk(){
 
   kotakPasang();
   pasangAksiAntrianCetak();
+  pasangAksiSjrTtd();
 }
 
 /** Satu baris pekerjaan di dalam kelompok tanggalnya. */

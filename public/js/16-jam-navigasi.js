@@ -46,7 +46,8 @@ function pindahLayar(nama){
     // menyegarkan tanpa memuat ulang halaman.
     // Kotak masuk TTD E-Logbook ikut disegarkan dengan alasan yang sama.
     if(typeof muatAntrianCetak === 'function'){
-      Promise.all([muatAntrianCetak(), muatTtdMasuk()]).then(gambarKotakMasuk);
+      Promise.all([muatAntrianCetak(), muatTtdMasuk(),
+        (typeof muatSjrTtd === 'function') ? muatSjrTtd() : null]).then(gambarKotakMasuk);
     }else{
       gambarKotakMasuk();
     }

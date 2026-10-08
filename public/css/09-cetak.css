@@ -651,6 +651,11 @@
   text-align: center;
   vertical-align: middle;
 }
+.cetak-lembar table.data.sjr-tabel .sjr-tunggu {
+  font-size: 7.5pt;
+  font-style: italic;
+  color: #666;
+}
 .cetak-lembar table.data.sjr-tabel img.sjr-ttd {
   display: block;
   margin: 0 auto;

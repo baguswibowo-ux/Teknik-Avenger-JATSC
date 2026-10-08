@@ -136,6 +136,8 @@ async function cetakBuka(mode, unit, opts){
      lembar Sejarah Peralatan perlu disetujui oleh Kepala/Manajer
      (sesuai form fisiknya), jadi jalur "langsung cetak" yang dulu
      ada dilepas: hanya pejabat yang boleh mengeluarkan lembar akhir.  */
+  if(mode === 'peralatan'){ await cetakPeralatanLangsung(); return; }
+
   cetakKartuGambar();
   el('lapisCetak').classList.add('buka');
 
@@ -623,17 +625,6 @@ async function cetakLakukan(){
   }
   if(tombolCetak) tombolCetak.disabled = false;
 
-  /* "Lembar siap" (Cetak / Kirim PDF) hanya untuk lembar yang SUDAH
-     ditandatangani. Jalur ini dilewati pengesah yang mencetak langsung; kalau
-     TTD penanda tangannya belum ada - belum tersimpan dan tidak digambar di
-     kartu ini - lembarnya belum boleh keluar. Jadwal Dinas dikecualikan:
-     footernya dua penanda tangan dan punya alurnya sendiri. */
-  if(CETAK.mode !== 'dinas' && !(CETAK.ttdPejabat && CETAK.ttdPejabat.ada)){
-    pesan(T('Lembar belum bisa dicetak: tanda tangannya belum ada. Gambar TTD di kartu ini dulu, atau minta penanda tangannya menyimpan TTD-nya.',
-            'The sheet cannot be printed yet: it has no signature. Draw the signature on this card first, or ask the signer to save theirs.'));
-    return;
-  }
-
   const html = await cetakLembarHtml();
   const area = el('printArea');
   area.innerHTML = html;
@@ -870,7 +861,42 @@ async function cetakLembarHtml(){
   if(CETAK.mode === 'sparepart'){
     return `<div class="cetak-lembar">${kopLembar()}${htmlSparepart(blokTtd())}</div>`;
   }
+  // Sejarah Peralatan: tanda tangannya per kejadian, di dalam tabel — tanpa
+  // blok Mengetahui di kaki lembar.
+  if(CETAK.mode === 'peralatan') return `<div class="cetak-lembar">${kopLembar()}${isi}</div>`;
   return `<div class="cetak-lembar">${kopLembar()}${isi}${blokTtd()}</div>`;
+}
+
+/**
+ * Sejarah Peralatan dicetak LANGSUNG oleh siapa saja yang membuka unitnya —
+ * tanpa kartu pilih pejabat dan tanpa antrian. Persetujuannya sudah terjadi
+ * per kejadian (penanggung jawab menyetujui lewat Kotak Masuk), jadi lembarnya
+ * tinggal memuat apa yang sudah dan belum ditandatangani saat itu.
+ */
+async function cetakPeralatanLangsung(){
+  // Persetujuan orang lain bisa masuk sejak halaman ini dimuat — baca ulang.
+  if(typeof sjrMuat === 'function') await sjrMuat().catch(()=>{});
+  const area = el('printArea');
+  area.innerHTML = await cetakLembarHtml();
+  area.classList.remove('lanskap');
+  pasangOrientasiCetak(null);
+  const imgs = Array.from(area.querySelectorAll('img[data-perlu-hitam]'));
+  await Promise.all(imgs.map(async img=>{
+    try{
+      await new Promise((res, rej)=>{
+        if(img.complete && img.naturalWidth) return res();
+        img.onload = res; img.onerror = rej;
+        setTimeout(res, 3000);
+      });
+      const baru = ttdKeHitam(img);
+      if(baru) img.src = baru;
+    }catch{ /* TTD yang tidak ada sudah melepas dirinya (onerror) */ }
+  }));
+  try{
+    await cetakAtauKirimPdf(area, 'peralatan', CETAK.unit);
+  }finally{
+    area.innerHTML = '';
+  }
 }
 
 function htmlSparepart(ttd = ''){
@@ -1003,9 +1029,11 @@ function tabelSparepartCetak(rows){
  *   - Teknisi Pelaksana = pencatat kejadian (oleh/olehNama, ditetapkan server
  *     dari sesinya). TTD-nya TTD tersimpan akun itu; yang belum punya TTD
  *     tersimpan dibiarkan kosong untuk ditandatangani tangan.
- *   - Penanggung Jawab = `mt` { nama, url }: pejabat yang menyetujui lembar
- *     (belum tentu Manager Teknik).
- *     null (belum disetujui / cetak langsung) = kosong.
+ *   - Penanggung Jawab = penanggung jawab KEJADIAN itu (pjUser/pjNama), yang
+ *     menyetujuinya sendiri-sendiri lewat Kotak Masuk. TTD-nya baru tercetak
+ *     sesudah ia menyetujui (pjStatus 'disetujui'); sebelum itu "menunggu TTD".
+ *     `mt` { nama, url } hanya cadangan untuk lembar lama yang disetujui per
+ *     lembar (snapshot di Kotak Masuk) — dipakai bila barisnya tanpa pjUser.
  * Tanpa kejadian, sepuluh baris kosong siap ditulis tangan.
  */
 function sjrTabelCetakHtml(daftar, labelTingkat, mt){
@@ -1043,8 +1071,12 @@ function sjrTabelCetakHtml(daftar, labelTingkat, mt){
       <td>${esc(labelTingkat(k.warna))}</td>
       <td class="sjr-nama">${esc(k.olehNama || '—')}</td>
       <td class="tengah">${ttdTeknisi(k)}</td>
-      <td class="sjr-nama">${mt ? esc(mt.nama || '') : ''}</td>
-      <td class="tengah">${mt ? gbr(mt.url) : ''}</td>
+      <td class="sjr-nama">${k.pjUser ? esc(k.pjNama || k.pjUser) : (mt ? esc(mt.nama || '') : '')}</td>
+      <td class="tengah">${k.pjUser
+        ? (k.pjStatus === 'disetujui' && /^[a-z0-9._-]{1,64}$/i.test(k.pjUser)
+            ? gbr('/ttd-akun/' + encodeURIComponent(k.pjUser) + '/gambar')
+            : `<span class="sjr-tunggu">${T('menunggu TTD','awaiting signature')}</span>`)
+        : (mt ? gbr(mt.url) : '')}</td>
     </tr>`).join('')}</tbody></table>`;
 }
 
@@ -1121,11 +1153,7 @@ function htmlPeralatan(){
       const n = p ? p[1] : ['','—'];
       return T(n[0], n[1]);
     };
-    /* Cetak langsung oleh pengesah: dialah penanggung jawab lembar ini, jadi
-       nama dan TTD-nya mengisi kolom tiap baris, sama dengan blok Mengetahui. */
-    const pj = (CETAK.ttdPejabat && CETAK.ttdPejabat.ada)
-      ? { nama: CETAK.ttdPejabat.nama || CETAK.pejabatDipilih || '', url: CETAK.ttdPejabat.url } : null;
-    return sjrTabelCetakHtml(daftar, labelTingkat, pj);
+    return sjrTabelCetakHtml(daftar, labelTingkat, null);
   };
 
   /* Satu section per identitas: parent dulu, lalu tiap sub-unitnya

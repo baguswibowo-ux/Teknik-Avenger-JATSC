@@ -20,7 +20,8 @@
 const SJR = {
   isi: {},            // unit -> { idAlat -> [kejadian] }
   bisaTulis: true,    // simpanan servernya permanen?
-  sunting: null       // { unit, alat, daftar } saat panelnya sedang disunting
+  sunting: null,      // { unit, alat, daftar } saat panelnya sedang disunting
+  pj: {}              // unit -> [{ username, nama }] yang boleh jadi penanggung jawab
 };
 
 const SJR_WARNA = [
@@ -60,7 +61,42 @@ const sjrButir = (k) => `
       k.olehNama ? ' · ' + esc(k.olehNama) : ''}</div>
     <div class="kepala-butir">${esc(k.judul)}</div>
     ${k.rinci ? `<div class="rinci">${esc(k.rinci)}</div>` : ''}
+    ${k.pjUser ? `<div class="tgl" style="margin-top:4px">${k.pjStatus === 'disetujui'
+        ? `<span class="cip aman">${T('DISETUJUI','APPROVED')}</span> ${esc(k.pjNama || k.pjUser)}`
+        : `<span class="cip awas">${T('MENUNGGU TTD','AWAITING SIGNATURE')}</span> ${esc(k.pjNama || k.pjUser)}`}</div>` : ''}
   </div>`;
+
+/* ---------- Penanggung jawab per kejadian ----------
+   Tiap kejadian ditandatangani penanggung jawab yang dipilih pencatatnya; ia
+   menyetujuinya di Kotak Masuk (27-kotak-masuk.js). Daftar calonnya sama
+   dengan penanda tangan lembar Sejarah Peralatan selama ini: pejabat unit itu
+   yang berhak atas jenis 'peralatan' (Hak Akses → TTD Sejarah, dan "Boleh
+   menandatangani dokumen jenis" di Kelola Akun). */
+async function sjrMuatPj(unit){
+  if(SJR.pj[unit]) return SJR.pj[unit];
+  try{
+    const [dariUnit, hak] = await Promise.all([
+      srvApi('listPejabatUnit', unit).catch(()=>[]),
+      srvFetch('/pejabat-hak-cetak', {}, 8000).then(r=>r.ok ? r.json() : null).catch(()=>null)
+    ]);
+    SJR.pj[unit] = (await cetakPejabatBerhak(dariUnit, hak, 'peralatan'))
+      .map(p=>({ username: String(p.username || '').toLowerCase(), nama: p.nama || p.username }));
+  }catch(e){
+    console.warn('[sejarah] daftar penanggung jawab tidak terbaca:', e && e.message || e);
+    SJR.pj[unit] = [];
+  }
+  return SJR.pj[unit];
+}
+const sjrKunciPj = (unit) => 'sjr_pj:' + unit;
+/** Penanggung jawab bawaan baris baru: yang terakhir dipakai di unit ini, atau
+    satu-satunya calon kalau memang cuma satu. */
+function sjrPjBawaan(unit){
+  const calon = SJR.pj[unit] || [];
+  let ingat = '';
+  try{ ingat = localStorage.getItem(sjrKunciPj(unit)) || ''; }catch(e){}
+  const p = calon.find(x=>x.username === ingat) || (calon.length === 1 ? calon[0] : null);
+  return p ? { pjUser: p.username, pjNama: p.nama } : { pjUser: '', pjNama: '' };
+}
 
 /** Satu baris dalam keadaan sunting. */
 const sjrBarisSunting = (k, i) => `
@@ -82,6 +118,18 @@ const sjrBarisSunting = (k, i) => `
       <input type="text" data-sj="${i}" data-kolom="rinci" value="${esc(k.rinci || '')}"
         placeholder="${T('apa yang dikerjakan, hasilnya, sisa pekerjaannya',
                          'what was done, the result, what is left')}"></div>
+    <div class="isian" style="margin-bottom:0;min-width:190px">
+      <label>${T('Penanggung jawab','Person in charge')}</label>
+      <select data-sj="${i}" data-kolom="pjUser">${(()=>{
+        const calon = (SJR.sunting && SJR.pj[SJR.sunting.unit]) || [];
+        const ada = calon.some(p=>p.username === k.pjUser);
+        return `<option value="">${T('— pilih —','— pick —')}</option>`
+          + (k.pjUser && !ada ? `<option value="${esc(k.pjUser)}" selected>${esc(k.pjNama || k.pjUser)}</option>` : '')
+          + calon.map(p=>`<option value="${esc(p.username)}"${p.username === k.pjUser ? ' selected' : ''}>${esc(p.nama)}</option>`).join('');
+      })()}</select>
+      ${k.pjStatus === 'disetujui' ? `<div class="bantu">${
+        T('Sudah disetujui. Mengubah isi baris ini meminta TTD ulang.',
+          'Already approved. Changing this row asks for a new signature.')}</div>` : ''}</div>
     <button class="btn garis kecil" data-sjr-buang="${i}"
       title="${T('Hapus baris ini','Delete this row')}">✕</button>
   </div>`;
@@ -177,7 +225,9 @@ function sjrPanel(unit, alat){
 /** Pendengar panel Sejarah. Dipanggil sekali tiap gambarRinciAlat(). */
 function sjrPasang(unit, alat){
   const ubah = el('sjrUbah');
-  if(ubah) ubah.addEventListener('click', ()=>{
+  if(ubah) ubah.addEventListener('click', async ()=>{
+    ubah.disabled = true;
+    await sjrMuatPj(unit);     // pilihan penanggung jawab harus ada sebelum barisnya digambar
     // Salinan dalam, supaya Batal benar-benar mengembalikan keadaan semula.
     SJR.sunting = { unit, alat: alat.id,
       daftar: JSON.parse(JSON.stringify(sjrUntuk(unit, alat.id))) };
@@ -204,7 +254,7 @@ function sjrPasang(unit, alat){
   if(tambah) tambah.addEventListener('click', ()=>{
     /* Tanpa oleh/olehNama: pencatatnya ditetapkan server dari sesi, dan
        mengirimkannya dari sini cuma akan terbaca seolah layar yang memutuskan. */
-    SJR.sunting.daftar.unshift({ id: '', tgl: isoHariIni(), warna: '', judul: '', rinci: '' });
+    SJR.sunting.daftar.unshift({ id: '', tgl: isoHariIni(), warna: '', judul: '', rinci: '', ...sjrPjBawaan(unit) });
     gambarRinciAlat();
   });
 
@@ -213,6 +263,11 @@ function sjrPasang(unit, alat){
     if(!k) return;
     i.addEventListener(i.tagName === 'SELECT' ? 'change' : 'input', ()=>{
       k[i.dataset.kolom] = i.value;
+      // Nama ikut penanggung jawab yang dipilih; server tetap menetapkannya ulang.
+      if(i.dataset.kolom === 'pjUser'){
+        const p = (SJR.pj[unit] || []).find(x=>x.username === i.value);
+        k.pjNama = p ? p.nama : '';
+      }
     });
   });
   document.querySelectorAll('[data-sjr-buang]').forEach(b=>{
@@ -231,6 +286,19 @@ async function sjrSimpan(unit, alat){
   // Baris tanpa judul dibuang tanpa berkata apa-apa: menekan Tambah kejadian
   // lalu berubah pikiran bukan kesalahan yang perlu dilaporkan.
   const daftar = SJR.sunting.daftar.filter(k=>String(k.judul || '').trim());
+
+  /* Tiap kejadian baru langsung dimintakan tanda tangan penanggung jawabnya,
+     jadi orangnya harus dipilih. Baris lama (sebelum TTD per kejadian) boleh
+     tetap tanpa penanggung jawab. Kalau daftar calonnya kosong, tidak ada yang
+     bisa dipilih — jangan sampai itu mengunci pencatatan. */
+  const calonPj = SJR.pj[unit] || [];
+  if(calonPj.length && daftar.some(k=>!k.id && !k.pjUser)){
+    pesan(T('Pilih penanggung jawab untuk tiap kejadian baru — ia yang menandatanganinya.',
+            'Pick a person in charge for every new event — they sign it.'));
+    return;
+  }
+  const pjTerakhir = (daftar.find(k=>!k.id && k.pjUser) || {}).pjUser;
+  if(pjTerakhir){ try{ localStorage.setItem(sjrKunciPj(unit), pjTerakhir); }catch(e){} }
 
   tombol.disabled = true;
   try{
