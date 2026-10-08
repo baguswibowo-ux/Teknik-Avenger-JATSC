@@ -432,6 +432,12 @@ tr.kelompok-akun .jumlah{color:var(--muted);margin-left:8px;letter-spacing:.04em
 .atur-data{display:flex;justify-content:space-between;align-items:center;gap:12px;
   flex-wrap:wrap;margin-bottom:14px;}
 .atur-data .ket{color:var(--muted);font-size:12px;font-family:var(--font-mono);}
+/* Keterangan di baris alat ("Jadwal Oktober 2026 · Radtel", "3 peralatan ...")
+   duduk langsung di atas gambar latar dan tenggelam di sana. Diberi kotak
+   berlatar panel: gelap di mode gelap, putih di mode terang. Yang sudah berada
+   di dalam panel tidak perlu kotak lagi. */
+.atur-data .ket{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 10px;}
+.panel .atur-data .ket{background:none;border:0;border-radius:0;padding:0;}
 .atur-data .tombol{display:flex;gap:8px;flex-wrap:wrap;}
 
 /* ---------- Kegiatan berkala ---------- */
