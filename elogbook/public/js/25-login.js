@@ -17,6 +17,7 @@ let userSaatIni = null;
 
 function tampilkanUser(user){
   userSaatIni = user;
+  terapkanTema(temaTersimpan());   // tema milik akun ini (01-tema.js)
   // Sisa unit milik akun sebelumnya dibuang. Tanpa ini, kalau sesi habis lalu
   // orang lain masuk di halaman yang sama, layarnya masih memakai unit orang
   // yang tadi sampai data baru datang.
@@ -83,6 +84,7 @@ function tampilkanPintuTutup(kunciPesan){
 async function doLogout(){
   try{ await fetch('/api/logout', { method:'POST', credentials:'same-origin' }); }catch(e){}
   userSaatIni = null;
+  terapkanTema(temaTersimpan());   // tanpa akun = terang
 
   // Sesinya cuma satu: menekan Keluar di sini juga mengeluarkan orang itu dari
   // dashboard. Jadi keluarnya diantar ke layar masuk dashboard.

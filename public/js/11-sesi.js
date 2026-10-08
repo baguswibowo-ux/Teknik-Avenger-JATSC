@@ -91,7 +91,7 @@ async function pulihkanSesi(){
     console.warn('Sesi sebelumnya tidak bisa dipulihkan:', e && e.message || e);
     lupakanSesi();
     if(dariSimpanan){
-      akun = null; unitDibuka = null;
+      akun = null; unitDibuka = null; terapkanTemaAkun();
       el('app').classList.remove('tampil');
       el('layarMasuk').classList.remove('pergi');
       segarkanKartuMasuk();
@@ -121,7 +121,7 @@ function pulihkanLayar(s){
 
 el('tombolKeluar').addEventListener('click', async ()=>{
   lupakanSesi();
-  akun = null; unitDibuka = null;
+  akun = null; unitDibuka = null; terapkanTemaAkun();
   el('app').classList.remove('tampil');
   el('layarMasuk').classList.remove('pergi');
   el('iPass').value = '';

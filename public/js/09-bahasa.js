@@ -49,6 +49,22 @@ function terapkanBahasa(){
 }
 
 let akun = null;          // akun yang sedang masuk
+
+/* TEMA: bawaannya TERANG untuk semua orang, dan sebelum ada yang masuk selalu
+   terang. Pilihan gelap/terang disimpan PER AKUN (kunci berisi username), jadi
+   komputer yang dipakai bergantian tidak membawa pilihan orang sebelumnya, dan
+   yang sudah memilih gelap mendapatkannya lagi saat masuk berikutnya. Kuncinya
+   dipakai bersama E-Logbook (js/01-tema.js) - satu pilihan untuk keduanya.
+   Tersimpan di peramban perangkat itu, bukan di server. */
+const kunciTema = (username) => 'avenger.tema:' + String(username || '').trim().toLowerCase();
+function temaAkun(username){
+  try{ return localStorage.getItem(kunciTema(username)) === 'gelap' ? 'gelap' : 'terang'; }
+  catch(e){ return 'terang'; }
+}
+/** Pasang tema akun yang sedang masuk; terang kalau tidak ada yang masuk. */
+function terapkanTemaAkun(){
+  document.documentElement.dataset.tema = (akun && akun.user) ? temaAkun(akun.user) : 'terang';
+}
 let unitDibuka = null;    // unit yang sedang dibuka di layar Database Unit
 let subtabAktif = 'peralatan';
 let alatDipilih = null;

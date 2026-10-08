@@ -2,18 +2,25 @@
    Dimuat dari index.html sesuai nomor berkas; urutannya berpengaruh. */
 
 /* ============== TEMA GELAP / TERANG ==============
-   Pilihannya disimpan di perangkat masing-masing. Kalau belum pernah dipilih,
-   ikut setelan sistem operasi — jadi HP yang sudah mode gelap langsung gelap. */
+   Bawaannya TERANG untuk semua orang (permintaan Bagus, Okt 2026). Pilihan
+   gelap/terang disimpan PER AKUN di perangkat itu, dengan kunci yang sama
+   dengan dashboard (kunciTema di public/js/09-bahasa.js) — memilih gelap di
+   salah satunya berlaku di keduanya, dan komputer yang dipakai bergantian
+   tidak membawa pilihan orang sebelumnya. Kunci lama 'elogbook_tema' (satu
+   untuk seluruh perangkat) tidak dibaca lagi. */
 
-const KUNCI_TEMA = 'elogbook_tema';
+const kunciTemaAkun = (username) => 'avenger.tema:' + String(username || '').trim().toLowerCase();
+/** Username akun yang sedang masuk, atau '' — userSaatIni baru lahir di
+    25-login.js, jadi sebelum itu jawabannya kosong (tema terang). */
+function userTema(){
+  return (typeof userSaatIni !== 'undefined' && userSaatIni && userSaatIni.username) || '';
+}
 
-/* Bawaannya gelap. Layar logbook dipakai di ruangan remang saat dinas malam,
-   dan mode terang menyilaukan di sana. Yang sudah memilih sendiri tetap
-   dihormati pilihannya. */
 function temaTersimpan(){
-  const t = localStorage.getItem(KUNCI_TEMA);
-  if(t === 'terang' || t === 'gelap') return t;
-  return 'gelap';
+  const u = userTema();
+  if(!u) return 'terang';
+  try{ return localStorage.getItem(kunciTemaAkun(u)) === 'gelap' ? 'gelap' : 'terang'; }
+  catch(e){ return 'terang'; }
 }
 
 function terapkanTema(tema){
@@ -34,6 +41,7 @@ function terapkanTema(tema){
 
 function gantiTema(){
   const baru = document.documentElement.getAttribute('data-tema') === 'terang' ? 'gelap' : 'terang';
-  localStorage.setItem(KUNCI_TEMA, baru);
+  const u = userTema();
+  if(u){ try{ localStorage.setItem(kunciTemaAkun(u), baru); }catch(e){ /* seumur tab saja */ } }
   terapkanTema(baru);
 }

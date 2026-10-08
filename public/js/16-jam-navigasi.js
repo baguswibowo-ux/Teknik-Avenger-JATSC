@@ -130,6 +130,10 @@ document.addEventListener('keydown', e=>{
 el('tombolTema').addEventListener('click', ()=>{
   const h = document.documentElement;
   h.dataset.tema = h.dataset.tema === 'terang' ? 'gelap' : 'terang';
+  // Diingat untuk akun ini - lihat kunciTema di 09-bahasa.js.
+  if(akun && akun.user){
+    try{ localStorage.setItem(kunciTema(akun.user), h.dataset.tema); }catch(e){ /* seumur tab saja */ }
+  }
 });
 
 el('tombolBahasa').addEventListener('click', ()=>{

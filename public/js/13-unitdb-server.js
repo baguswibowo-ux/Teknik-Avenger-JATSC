@@ -284,6 +284,7 @@ function srvPasang(unitSaya, paket, unitSemua){
     superadmin: !!SRV.sesi.superadmin,
     unit:  UNIT.every(u=>kodeBoleh.includes(u.kode)) ? 'semua' : kodeBoleh
   };
+  terapkanTemaAkun();
 
   SRV.aktif = true;
   SRV.unit  = kodeBoleh;
