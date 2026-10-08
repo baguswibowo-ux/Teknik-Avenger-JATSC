@@ -63,7 +63,14 @@ function temaAkun(username){
 }
 /** Pasang tema akun yang sedang masuk; terang kalau tidak ada yang masuk. */
 function terapkanTemaAkun(){
-  document.documentElement.dataset.tema = (akun && akun.user) ? temaAkun(akun.user) : 'terang';
+  const tema = (akun && akun.user) ? temaAkun(akun.user) : 'terang';
+  document.documentElement.dataset.tema = tema;
+  ingatTemaTerakhir(tema);
+}
+/** Tema yang dipasang paling awal saat halaman dimuat ulang - dibaca skrip
+    kecil di <head> index.html, sebelum akun diketahui, supaya tidak berkedip. */
+function ingatTemaTerakhir(tema){
+  try{ localStorage.setItem('avenger.tema.terakhir', tema); }catch(e){ /* tidak apa-apa */ }
 }
 let unitDibuka = null;    // unit yang sedang dibuka di layar Database Unit
 let subtabAktif = 'peralatan';

@@ -133,6 +133,7 @@ el('tombolTema').addEventListener('click', ()=>{
   // Diingat untuk akun ini - lihat kunciTema di 09-bahasa.js.
   if(akun && akun.user){
     try{ localStorage.setItem(kunciTema(akun.user), h.dataset.tema); }catch(e){ /* seumur tab saja */ }
+    ingatTemaTerakhir(h.dataset.tema);
   }
 });
 

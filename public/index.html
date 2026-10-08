@@ -3,8 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0a0e13">
-<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#eef2f6">
+<meta name="color-scheme" content="light dark">
+<!-- Tema dipasang DI SINI, sebelum apa pun digambar - bukan menunggu skrip di
+     kaki halaman. Kalau menunggu, tiap refresh halamannya sempat tampil dengan
+     tema yang salah lalu berganti (kedip). Yang dibaca: tema terakhir yang
+     dipakai di perangkat ini (avenger.tema.terakhir), ditulis tiap kali tema
+     akun diterapkan dan dikembalikan ke terang saat keluar. Bawaannya terang. -->
+<script>
+try{ document.documentElement.setAttribute('data-tema',
+  localStorage.getItem('avenger.tema.terakhir') === 'gelap' ? 'gelap' : 'terang'); }catch(e){}
+</script>
 <title>Dashboard Fasilitas Teknik — JATSC</title>
 <!-- Bisa dipasang di layar utama HP sebagai "Avengers" dan menerima notifikasi
      (js/40-notif-hp.js, sw.js). iPhone membaca apple-touch-icon dan judul

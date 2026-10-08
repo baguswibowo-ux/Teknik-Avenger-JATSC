@@ -16,9 +16,22 @@ function userTema(){
   return (typeof userSaatIni !== 'undefined' && userSaatIni && userSaatIni.username) || '';
 }
 
+/* Tema terakhir yang dipakai di perangkat ini. Dibaca skrip kecil di <head>
+   index.html untuk memasang tema sebelum halaman digambar (tanpa kedip), dan di
+   sini selama akunnya belum diketahui - supaya skrip pemuat tidak membalikkannya
+   ke terang lalu ke gelap lagi. Kunci yang sama dipakai dashboard. */
+const KUNCI_TEMA_TERAKHIR = 'avenger.tema.terakhir';
+function temaTerakhir(){
+  try{ return localStorage.getItem(KUNCI_TEMA_TERAKHIR) === 'gelap' ? 'gelap' : 'terang'; }
+  catch(e){ return 'terang'; }
+}
+function ingatTemaTerakhir(tema){
+  try{ localStorage.setItem(KUNCI_TEMA_TERAKHIR, tema); }catch(e){ /* tidak apa-apa */ }
+}
+
 function temaTersimpan(){
   const u = userTema();
-  if(!u) return 'terang';
+  if(!u) return temaTerakhir();
   try{ return localStorage.getItem(kunciTemaAkun(u)) === 'gelap' ? 'gelap' : 'terang'; }
   catch(e){ return 'terang'; }
 }
@@ -43,5 +56,6 @@ function gantiTema(){
   const baru = document.documentElement.getAttribute('data-tema') === 'terang' ? 'gelap' : 'terang';
   const u = userTema();
   if(u){ try{ localStorage.setItem(kunciTemaAkun(u), baru); }catch(e){ /* seumur tab saja */ } }
+  ingatTemaTerakhir(baru);
   terapkanTema(baru);
 }

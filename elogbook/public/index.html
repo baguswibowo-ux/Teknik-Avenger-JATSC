@@ -1,12 +1,21 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" data-tema="terang">
 <head>
 <meta charset="UTF-8">
 <!-- Tanpa ini halaman dibuka di HP selebar desktop lalu diperkecil, dan tulisannya
      jadi tidak terbaca. viewport-fit=cover supaya aman di layar berponi. -->
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta id="metaTema" name="theme-color" content="#eef2f6">
-<meta name="color-scheme" content="dark light">
+<meta name="color-scheme" content="light dark">
+<!-- Tema dipasang DI SINI, sebelum apa pun digambar - bukan menunggu skrip di
+     kaki halaman. Kalau menunggu, tiap refresh halamannya sempat tampil dengan
+     tema yang salah lalu berganti (kedip). Yang dibaca: tema terakhir yang
+     dipakai di perangkat ini (avenger.tema.terakhir), ditulis tiap kali tema
+     akun diterapkan dan dikembalikan ke terang saat keluar. Bawaannya terang. -->
+<script>
+try{ document.documentElement.setAttribute('data-tema',
+  localStorage.getItem('avenger.tema.terakhir') === 'gelap' ? 'gelap' : 'terang'); }catch(e){}
+</script>
 <base target="_top">
 <title>E-Logbook — Airnav Teknik JATSC</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -2586,7 +2595,7 @@
 </div>
 
 <script src="avenger-tautan.js"></script>
-<script src="js/01-tema.js?v=20261009terang"></script>
+<script src="js/01-tema.js?v=20261009kedip"></script>
 <script src="js/02-bahasa.js?v=20261009lampiran3"></script>
 <script src="js/03-waktu.js"></script>
 <script src="js/04-toast-tab.js"></script>
@@ -2628,7 +2637,7 @@
 <script src="js/27-ttd-tersimpan.js"></script>
 <script src="js/28b-ph.js?v=20260916phperiode"></script>
 <script src="js/29-rekap.js"></script>
-<script src="js/25-login.js?v=20261009terang"></script>
+<script src="js/25-login.js?v=20261009kedip"></script>
 <script src="js/26-init.js?v=20260916tautan"></script>
 <!-- Pilihan Cetak / Kirim PDF. Berkasnya milik dashboard (asal yang sama,
      E-Logbook disajikan di /logbook/); kalau tidak termuat, tombol Cetak
