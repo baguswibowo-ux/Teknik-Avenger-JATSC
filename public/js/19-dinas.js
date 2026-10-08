@@ -95,7 +95,7 @@ function gambarDinas(){
     const { petak, kodeHari } = petakUnit.get(u.kode);
     const terisi = petak.filter(s=>s.o.length);
     return `<div style="margin-bottom:20px">
-      <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:10px">
+      <div class="kepala-dinas-unit">
         <h3 style="font-size:14px">${esc(u.nama)}</h3>
         <span class="mono" style="font-size:10.5px;color:var(--muted)">${terisi.length
           ? `${T('kode dinas','shift codes')}: ${terisi.map(s=>s.k).join(' · ')}`
