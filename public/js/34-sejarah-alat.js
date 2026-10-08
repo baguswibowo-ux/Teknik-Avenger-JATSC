@@ -105,11 +105,6 @@ const sjrBarisSunting = (k, i) => `
     <div class="isian" style="margin-bottom:0;min-width:140px">
       <label>${T('Tanggal','Date')}</label>
       <input type="date" data-sj="${i}" data-kolom="tgl" value="${esc(k.tgl || '')}"></div>
-    <div class="isian" style="margin-bottom:0;min-width:150px">
-      <label>${T('Tingkat','Level')}</label>
-      <select data-sj="${i}" data-kolom="warna">${SJR_WARNA.map(([nilai, nama])=>
-        `<option value="${esc(nilai)}"${nilai === (k.warna || '') ? ' selected' : ''}>${
-          esc(T(nama[0], nama[1]))}</option>`).join('')}</select></div>
     <div class="isian" style="margin-bottom:0;flex:2;min-width:180px">
       <label>${T('Kejadian','Event')}</label>
       <input type="text" data-sj="${i}" data-kolom="judul" value="${esc(k.judul || '')}"
@@ -122,7 +117,7 @@ const sjrBarisSunting = (k, i) => `
     <div class="isian" style="margin-bottom:0;flex:2;min-width:170px">
       <label>${T('Keterangan','Note')}</label>
       <input type="text" data-sj="${i}" data-kolom="ket" maxlength="200" value="${esc(k.ket || '')}"
-        placeholder="${T('kosong = ditulis tingkatnya','empty = the level is printed')}"></div>
+        placeholder="${T('boleh dikosongkan','optional')}"></div>
     <div class="isian" style="margin-bottom:0;min-width:190px">
       <label>${T('Penanggung jawab','Person in charge')}</label>
       <select data-sj="${i}" data-kolom="pjUser">${(()=>{

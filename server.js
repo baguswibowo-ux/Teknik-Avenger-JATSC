@@ -2909,8 +2909,9 @@ function rapikanKejadian(k, id) {
     warna: SEJARAH_WARNA.has(k?.warna) ? (k.warna || '') : '',
     judul,
     rinci: String(k?.rinci || '').trim().slice(0, 1000),
-    // Keterangan bebas untuk kolom Keterangan di lembar. Kosong = lembar
-    // menulis label tingkatnya (Biasa / Perlu diperhatikan / Gangguan).
+    // Keterangan bebas untuk kolom Keterangan di lembar. Pilihan Tingkat sudah
+    // dibuang dari form; baris lama yang bertingkat kuning/merah dan tanpa
+    // keterangan masih menuliskan label tingkatnya.
     ket: String(k?.ket || '').trim().slice(0, 200),
     /* Ketiganya ditimpa rutenya dari sesi yang sedang berjalan — yang
        dikirim layar tidak pernah dipakai. Tetap dirapikan di sini supaya
@@ -3435,7 +3436,7 @@ async function halamanQr(req, res) {
     const baris = sejarah.length
       ? sejarah.map((k, i) => `<tr><td class="tengah mono">${i + 1}</td><td class="mono tengah">${escHtml(k.tgl ? tglId(k.tgl) : '—')}</td>
           <td><b>${escHtml(k.judul || '')}</b>${k.rinci ? '<br>' + escHtml(k.rinci) : ''}</td>
-          <td>${escHtml(k.ket || TINGKAT_SJR[k.warna || ''] || '—')}</td>
+          <td>${escHtml(k.ket || (k.warna ? TINGKAT_SJR[k.warna] || '' : ''))}</td>
           <td class="sjr-nama">${escHtml(k.olehNama || '—')}</td><td class="tengah">${gbrTtd(k.oleh)}</td>
           <td class="sjr-nama">${escHtml(k.pjNama || '—')}</td><td class="tengah">${gbrTtd(k.pjUser)}</td></tr>`).join('')
       : '<tr><td colspan="8" class="tengah"><i>Belum ada kegiatan yang disetujui penanggung jawabnya.</i></td></tr>';

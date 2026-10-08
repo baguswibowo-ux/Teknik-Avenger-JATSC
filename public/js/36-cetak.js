@@ -1068,7 +1068,7 @@ function sjrTabelCetakHtml(daftar, labelTingkat, mt){
       <td class="tengah mono">${i+1}</td>
       <td class="mono tengah">${esc(k.tgl ? tglRingkas(k.tgl) : '—')}</td>
       <td><b>${esc(k.judul || '')}</b>${k.rinci ? `<br>${esc(k.rinci)}` : ''}</td>
-      <td>${esc(k.ket || labelTingkat(k.warna))}</td>
+      <td>${esc(k.ket || (k.warna ? labelTingkat(k.warna) : ''))}</td>
       <td class="sjr-nama">${esc(k.olehNama || '—')}</td>
       <td class="tengah">${ttdTeknisi(k)}</td>
       <td class="sjr-nama">${k.pjUser ? esc(k.pjNama || k.pjUser) : (mt ? esc(mt.nama || '') : '')}</td>
