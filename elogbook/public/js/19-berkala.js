@@ -695,6 +695,7 @@ async function saveBerkala(){
       // memang tidak menyentuhnya — itu bukti kerja yang sudah dibubuhkan,
       // sama seperti pada catatan logbook.
       const saved = await gsRun('updateBerkala', berkalaEditingId, payload);
+      await unggahLampiranForm('lfBk', 'berkala', saved);   // berkas yang dipilih di form (10-lampiran.js)
       const i = berkalaList.findIndex(x=>x.id === berkalaEditingId);
       if(i !== -1) berkalaList[i] = mapBerkala(saved);
       closeBerkalaModal();
@@ -706,6 +707,7 @@ async function saveBerkala(){
       return;
     }
     const saved = await gsRun('addBerkala', payload);
+    await unggahLampiranForm('lfBk', 'berkala', saved);   // berkas yang dipilih di form (10-lampiran.js)
     berkalaList.unshift(mapBerkala(saved));
     renderBerkalaList();
     closeBerkalaModal();

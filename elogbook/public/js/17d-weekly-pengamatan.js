@@ -496,6 +496,7 @@ async function saveWk(){
     };
     if(menyunting){
       const saved = await gsRun('updateDsTest', wkEditingId, payload);
+      await unggahLampiranForm('lfWk', 'dstest', saved);   // berkas yang dipilih di form (10-lampiran.js)
       const i = dsList.findIndex(x=>x.id === wkEditingId);
       if(i !== -1) dsList[i] = mapDs(saved);
       const form = wkForm;
@@ -508,6 +509,7 @@ async function saveWk(){
       return;
     }
     const saved = await gsRun('addDsTest', payload);
+    await unggahLampiranForm('lfWk', 'dstest', saved);   // berkas yang dipilih di form (10-lampiran.js)
     dsList.unshift(mapDs(saved));
     renderWkList(wkForm);
     closeWkModal();

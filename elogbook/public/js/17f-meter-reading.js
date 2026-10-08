@@ -701,6 +701,7 @@ async function saveMr(){
     };
     if(menyunting){
       const saved = await gsRun('updateDsTest', mrEditingId, payload);
+      await unggahLampiranForm('lfMr', 'dstest', saved);   // berkas yang dipilih di form (10-lampiran.js)
       const i = dsList.findIndex(x=>x.id === mrEditingId);
       if(i !== -1) dsList[i] = mapDs(saved);
       const form = mrForm;
@@ -713,6 +714,7 @@ async function saveMr(){
       return;
     }
     const saved = await gsRun('addDsTest', payload);
+    await unggahLampiranForm('lfMr', 'dstest', saved);   // berkas yang dipilih di form (10-lampiran.js)
     dsList.unshift(mapDs(saved));
     renderMrList(mrForm);
     closeMrModal();

@@ -490,6 +490,7 @@ async function saveDs(){
     };
     if(menyunting){
       const saved = await gsRun('updateDsTest', dsEditingId, payload);
+      await unggahLampiranForm('lfDs', 'dstest', saved);   // berkas yang dipilih di form (10-lampiran.js)
       const i = dsList.findIndex(x=>x.id === dsEditingId);
       if(i !== -1) dsList[i] = mapDs(saved);
       closeDsModal();
@@ -505,6 +506,7 @@ async function saveDs(){
       return;
     }
     const saved = await gsRun('addDsTest', payload);
+    await unggahLampiranForm('lfDs', 'dstest', saved);   // berkas yang dipilih di form (10-lampiran.js)
     dsList.unshift(mapDs(saved));
     renderDsList();
     // Ingat sesi yang barusan tersimpan (untuk auto-advance form berikutnya)

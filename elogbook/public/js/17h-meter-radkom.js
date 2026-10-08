@@ -651,6 +651,7 @@ async function saveRk(){
     };
     if(menyunting){
       const saved = await gsRun('updateDsTest', rkEditingId, payload);
+      await unggahLampiranForm('lfRk', 'dstest', saved);   // berkas yang dipilih di form (10-lampiran.js)
       const i = dsList.findIndex(x=>x.id === rkEditingId);
       if(i !== -1) dsList[i] = mapDs(saved);
       const form = rkForm;
@@ -661,6 +662,7 @@ async function saveRk(){
       toast(T('tersimpanPerubahan'));
     }else{
       const saved = await gsRun('addDsTest', payload);
+      await unggahLampiranForm('lfRk', 'dstest', saved);   // berkas yang dipilih di form (10-lampiran.js)
       dsList.unshift(mapDs(saved));
       renderRkList(rkForm);
       closeRkModal();

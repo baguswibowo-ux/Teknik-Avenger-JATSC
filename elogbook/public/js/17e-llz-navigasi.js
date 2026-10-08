@@ -373,6 +373,7 @@ async function saveLlz(){
     };
     if(menyunting){
       const saved = await gsRun('updateDsTest', llzEditingId, payload);
+      await unggahLampiranForm('lfLlz', 'dstest', saved);   // berkas yang dipilih di form (10-lampiran.js)
       const i = dsList.findIndex(x=>x.id === llzEditingId);
       if(i !== -1) dsList[i] = mapDs(saved);
       const form = llzForm;
@@ -385,6 +386,7 @@ async function saveLlz(){
       return;
     }
     const saved = await gsRun('addDsTest', payload);
+    await unggahLampiranForm('lfLlz', 'dstest', saved);   // berkas yang dipilih di form (10-lampiran.js)
     dsList.unshift(mapDs(saved));
     renderLlzList(llzForm);
     closeLlzModal();

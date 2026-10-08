@@ -404,6 +404,7 @@ async function saveDailyCheck(){
   try{
     if(menyunting){
       const saved = await gsRun('updateDailyCheck', dcEditingId, payload);
+      await unggahLampiranForm('lfDc', 'dailycheck', saved);   // berkas yang dipilih di form (10-lampiran.js)
       const i = dcHistory.findIndex(x=>x.id===dcEditingId);
       if(i !== -1) dcHistory[i] = mapDc(saved);
       renderDcHistory();
@@ -411,6 +412,7 @@ async function saveDailyCheck(){
       toast(T('tersimpanPerubahan'));
     }else{
       const saved = await gsRun('addDailyCheck', payload);
+      await unggahLampiranForm('lfDc', 'dailycheck', saved);   // berkas yang dipilih di form (10-lampiran.js)
       dcHistory.unshift(mapDc(saved));
       renderDcHistory();
       closeDcFormModal();

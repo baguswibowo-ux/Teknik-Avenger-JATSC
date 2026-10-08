@@ -937,6 +937,7 @@ async function saveMl(){
     };
     if(menyunting){
       const saved = await gsRun('updateDsTest', mlEditingId, payload);
+      await unggahLampiranForm('lfMl', 'dstest', saved);   // berkas yang dipilih di form (10-lampiran.js)
       const i = dsList.findIndex(x=>x.id === mlEditingId);
       if(i !== -1) dsList[i] = mapDs(saved);
       const form = mlForm;
@@ -947,6 +948,7 @@ async function saveMl(){
       toast(T('tersimpanPerubahan'));
     }else{
       const saved = await gsRun('addDsTest', payload);
+      await unggahLampiranForm('lfMl', 'dstest', saved);   // berkas yang dipilih di form (10-lampiran.js)
       dsList.unshift(mapDs(saved));
       renderMlList(mlForm);
       closeMlModal();

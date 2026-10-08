@@ -432,6 +432,7 @@ async function saveRadio(){
     };
     if(menyunting){
       const saved = await gsRun('updateDsTest', radioEditingId, payload);
+      await unggahLampiranForm('lfRadio', 'dstest', saved);   // berkas yang dipilih di form (10-lampiran.js)
       const i = dsList.findIndex(x=>x.id === radioEditingId);
       if(i !== -1) dsList[i] = mapDs(saved);
       closeRadioModal();
@@ -447,6 +448,7 @@ async function saveRadio(){
       return;
     }
     const saved = await gsRun('addDsTest', payload);
+    await unggahLampiranForm('lfRadio', 'dstest', saved);   // berkas yang dipilih di form (10-lampiran.js)
     dsList.unshift(mapDs(saved));
     renderRadioList();
     radioCatatSesi(radioSesi);

@@ -234,3 +234,57 @@ async function simpanLampiranCatatan(){
   }
   btn.disabled = false;
 }
+
+/* ---------- Kolom lampiran di FORM pengisian ----------
+   Permintaan Bagus: tiap form Daily Check dan Preventive punya kolom "Lampiran"
+   seperti form Buku Catatan — berkas dipilih sekalian saat mengisi. Lembarnya
+   harus tersimpan dulu supaya punya id, jadi berkasnya diunggah tepat SESUDAH
+   simpan berhasil (unggahLampiranForm, dipanggil tiap fungsi simpan).
+
+   Kolomnya disisipkan dari sini, di atas baris tombol Simpan tiap form, supaya
+   bentuknya satu dan tidak perlu disalin ke sembilan tempat di index.html.
+   [id tombol simpan, kotak lampiran, jenis lembar]. Form Daily Check AMHS
+   (simpan per sub-sistem) belum ikut — lampirannya lewat jendela detail. */
+const LAMPIRAN_FORM = [
+  ['dcSaveBtn', 'lfDc', 'dailycheck'], ['dsSaveBtn', 'lfDs', 'dstest'], ['radioSaveBtn', 'lfRadio', 'dstest'],
+  ['wkSaveBtn', 'lfWk', 'dstest'], ['llzSaveBtn', 'lfLlz', 'dstest'], ['mrSaveBtn', 'lfMr', 'dstest'],
+  ['mlSaveBtn', 'lfMl', 'dstest'], ['rkSaveBtn', 'lfRk', 'dstest'], ['bkSaveBtn', 'lfBk', 'berkala']
+];
+
+function pasangLampiranForm(){
+  for(const [idTombol, kotak] of LAMPIRAN_FORM){
+    const tombol = document.getElementById(idTombol);
+    if(!tombol || document.getElementById(kotak)) continue;
+    const baris = tombol.closest('.modal-footer') || tombol.parentElement;
+    baris.insertAdjacentHTML('beforebegin', `
+      <div class="field" style="margin-top:10px;">
+        <label data-t-html="labelLampiranLtk">${T('labelLampiranLtk')}</label>
+        <input type="file" id="${kotak}" multiple accept="image/jpeg,image/png,image/webp,application/pdf" onchange="pilihLampiran(this, '${kotak}')">
+        <div class="lampiran-hint" id="${kotak}Hint" data-t="hintLampiranPanjang">${PESAN_LAMPIRAN}</div>
+        <div id="${kotak}List"></div>
+      </div>`);
+  }
+}
+
+/**
+ * Unggah berkas yang dipilih di kotak form, ke lembar yang baru saja tersimpan.
+ * Gagal mengunggah tidak membatalkan lembarnya: lembar sudah tersimpan, dan
+ * berkasnya masih bisa ditempel lewat Detail → Kelola lampiran.
+ */
+async function unggahLampiranForm(kotak, jenis, saved){
+  const id = saved && (saved.ID || saved.id);
+  const berkas = kirimLampiran(kotak);
+  if(!id || !berkas.length) return;
+  try{
+    toast(T('mengunggahLampiran'));
+    LC.cache[lcKunci(jenis, id)] = await gsRun('suntingLampiranCatatan', jenis, id, berkas, []) || [];
+  }catch(e){
+    toast(T('lcGagalUnggah') + ' — ' + (e.message || T('coba')));
+  }
+  resetLampiran(kotak);
+  const input = document.getElementById(kotak);
+  if(input) input.value = '';
+  renderLampiranPilihan(kotak);
+}
+
+pasangLampiranForm();
