@@ -298,7 +298,7 @@ function gambarSeksiSjrTtd(){
           <span class="cip">${esc(String(namaUnit(it.unit) || it.unit).toUpperCase())}</span>
           <b>${esc(it.alatNama || it.alat)}${it.tgl ? ' · ' + esc(tglRingkas(it.tgl)) : ''}</b>
         </div>
-        <div class="kmk-rn"><b>${esc(it.judul || '')}</b>${it.rinci ? ' — ' + esc(it.rinci) : ''}</div>
+        <div class="kmk-rn"><b>${esc(it.judul || '')}</b>${it.rinci ? ' — ' + esc(it.rinci) : ''}${it.ket ? ' · ' + esc(it.ket) : ''}</div>
         <div class="kmk-rn">${T('Teknisi pelaksana','Technician')}: <b>${esc(it.olehNama || '-')}</b></div>
       </div>
       <div class="kmk-kanan"><span class="kmk-tombol">

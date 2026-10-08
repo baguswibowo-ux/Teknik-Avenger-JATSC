@@ -2909,6 +2909,9 @@ function rapikanKejadian(k, id) {
     warna: SEJARAH_WARNA.has(k?.warna) ? (k.warna || '') : '',
     judul,
     rinci: String(k?.rinci || '').trim().slice(0, 1000),
+    // Keterangan bebas untuk kolom Keterangan di lembar. Kosong = lembar
+    // menulis label tingkatnya (Biasa / Perlu diperhatikan / Gangguan).
+    ket: String(k?.ket || '').trim().slice(0, 200),
     /* Ketiganya ditimpa rutenya dari sesi yang sedang berjalan — yang
        dikirim layar tidak pernah dipakai. Tetap dirapikan di sini supaya
        bentuk barisnya lengkap walau pemanggil lain suatu saat lupa. */
@@ -3044,7 +3047,8 @@ app.put('/sejarah/:unit/:alat', badanDinas, async (req, res) => {
     for (const k of daftar) {
       const lama = sebelum.get(k.id);
       const isiSama = !!lama && lama.tgl === k.tgl && lama.judul === k.judul
-        && lama.rinci === k.rinci && (lama.warna || '') === (k.warna || '');
+        && lama.rinci === k.rinci && (lama.warna || '') === (k.warna || '')
+        && (lama.ket || '') === (k.ket || '');
       const pjDiminta = k.pjUser || (lama && lama.pjUser) || '';
       if (!pjDiminta) {
         Object.assign(k, { pjUser: '', pjNama: '', pjStatus: '', pjPada: '' });
@@ -3121,7 +3125,7 @@ app.get('/sejarah-ttd', async (req, res) => {
       for (const k of (Array.isArray(kejadian) ? kejadian : [])) {
         if (k?.pjStatus === 'menunggu' && k.pjUser === saya) {
           daftar.push({ unit, alat, alatNama: namaAlat(unit, alat), id: k.id, tgl: k.tgl, warna: k.warna || '',
-            judul: k.judul, rinci: k.rinci || '', olehNama: k.olehNama || k.oleh || '', dicatat: k.dicatat || '' });
+            judul: k.judul, rinci: k.rinci || '', ket: k.ket || '', olehNama: k.olehNama || k.oleh || '', dicatat: k.dicatat || '' });
         }
       }
     }
@@ -3296,26 +3300,37 @@ function halamanPindai({ judul, isi }) {
 <meta name="robots" content="noindex,nofollow">
 <title>${escHtml(judul)}</title>
 <style>
+  /* Sama dengan lembar cetak Sejarah Peralatan (.cetak-lembar di
+     public/css/09-cetak.css) — yang memindai melihat lembar yang sama dengan
+     yang keluar dari printer. Kalau gaya cetaknya diubah, ubah juga di sini. */
   :root{color-scheme:light}
-  body{margin:0;background:#eef1f4;color:#111;font:14px/1.5 Arial,Helvetica,sans-serif}
-  .kertas{max-width:820px;margin:16px auto;background:#fff;padding:22px 20px;box-shadow:0 1px 4px rgba(0,0,0,.15)}
-  h1{font-size:17px;text-align:center;margin:0 0 2px;text-transform:uppercase;letter-spacing:.03em}
-  h2{font-size:14px;text-align:center;margin:0 0 14px;font-weight:normal;color:#444}
-  h3{font-size:14px;margin:16px 0 6px}
-  h3.sub-judul{margin-top:26px;padding-top:12px;border-top:2px solid #111;font-size:15px}
+  body{margin:0;background:#eef1f4;color:#000}
+  .kertas{max-width:190mm;margin:14px auto;background:#fff;padding:8mm 6mm;box-shadow:0 1px 4px rgba(0,0,0,.15);
+    font-family:'Times New Roman',Times,serif;font-size:10.5pt;line-height:1.4;box-sizing:border-box}
+  h1{font-size:13pt;text-align:center;margin:0 0 4pt;text-transform:uppercase;letter-spacing:.5px}
+  h2{font-size:11pt;text-align:center;margin:0 0 12pt;font-weight:600}
+  .alat-cetak{margin-top:10pt;padding-top:8pt;border-top:1px solid #000}
+  .alat-cetak:first-of-type{margin-top:4pt;padding-top:0;border-top:0}
+  .alat-cetak h3{font-size:11pt;font-weight:700;margin:0 0 4pt}
+  .alat-cetak.sub-cetak{margin-left:12pt;padding-top:6pt;border-top:1px dashed #999}
+  .alat-cetak.sub-cetak h3{font-size:10pt;font-weight:600;color:#222}
+  .alat-cetak-sub{font-size:9pt;font-weight:700;letter-spacing:.4px;text-transform:uppercase;margin:6pt 0 3pt}
   table{border-collapse:collapse;width:100%}
-  .spek td{padding:2px 4px;vertical-align:top}.spek td:first-child{width:42%;color:#333}
-  .data th,.data td{border:1px solid #444;padding:4px 5px;vertical-align:top;font-size:12.5px}
-  .data th{background:#f2f2f2}.tengah{text-align:center}
-  .data img.ttd-baris{max-height:34px;max-width:100%;display:block;margin:0 auto}
+  table.spek-cetak{font-size:9.5pt}
+  table.spek-cetak td{vertical-align:top;padding:1pt 6pt 1pt 0}
+  table.spek-cetak td:first-child{width:180px;color:#333}
+  table.data{font-size:9.5pt;margin-top:1pt;min-width:640px}
+  table.data th,table.data td{border:1px solid #000;padding:3pt 5pt;vertical-align:top}
+  table.data th{background:#eee;text-align:center;font-weight:600}
+  table.data td.mono{font-family:Consolas,'Courier New',monospace;font-size:9pt}
+  table.data td.tengah{text-align:center}
+  table.data td.sjr-nama{font-size:8.5pt;text-align:center;vertical-align:middle}
+  table.data img.ttd-baris{display:block;margin:0 auto;max-width:100%;max-height:26pt}
   .gulir{overflow-x:auto}
-  .ttd{margin:18px 0 0 auto;width:220px;text-align:center}
-  .ttd img{max-height:70px;max-width:200px}.ttd .kotak{height:76px;display:flex;align-items:center;justify-content:center}
-  .ttd .nama{border-top:1px solid #111;padding-top:3px;font-weight:bold}
-  .ket{font-size:12px;color:#555;margin-top:14px;border-top:1px dashed #bbb;padding-top:8px}
-  .kosong{text-align:center;padding:30px 10px;color:#444}
+  .ket{font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#555;margin-top:14px;border-top:1px dashed #bbb;padding-top:8px}
+  .kosong{font-family:Arial,Helvetica,sans-serif;font-size:14px;text-align:center;padding:30px 10px;color:#444}
   .tombol{display:block;margin:12px auto 0;padding:9px 18px;font-size:14px;border:1px solid #333;background:#fff;border-radius:6px}
-  @media print{body{background:#fff}.kertas{box-shadow:none;margin:0;max-width:none}.tombol,.ket-layar{display:none}}
+  @media print{body{background:#fff}.kertas{box-shadow:none;margin:0;max-width:none}.tombol,.ket-layar{display:none}table.data{min-width:0}}
 </style></head><body><div class="kertas">${isi}</div>
 <script>
 /* TTD tersimpan bergaris putih (digambar di layar gelap): dihitamkan untuk
@@ -3358,7 +3373,7 @@ async function halamanQr(req, res) {
     }));
   }
   const { unit, alat, alatNama, unitNama, kelompok } = catatanQr;
-  const kepala = `<h1>Sejarah Peralatan</h1><h2>${escHtml(unitNama || unit)}</h2>`;
+  const kepala = `<h1>Daftar Peralatan</h1><h2>${escHtml(unitNama || unit)}</h2>`;
 
   /* Sejak TTD per kejadian, tidak ada lagi "lembar yang disetujui": halaman
      ini membaca data yang berlaku sekarang, dan — karena terbuka tanpa login —
@@ -3394,43 +3409,51 @@ async function halamanQr(req, res) {
   const gbrTtd = (u) => (ttdOrang.get(String(u || ''))
     ? `<img class="ttd-baris" src="${ttdOrang.get(String(u))}" data-perlu-hitam alt="TTD">` : '');
 
-  /* Satu bagian = identitas + riwayat satu alat. Kalau yang dipindai INDUK,
-     diulang untuk tiap sub-unitnya — satu stiker di induk membawa semuanya. */
-  const bagian = (x, namaX, lengkap) => {
-    const spek = [
+  /* Susunannya mengikuti lembar cetak (htmlPeralatan + sjrTabelCetakHtml di
+     36-cetak.js): tiap alat satu seksi — judul bernomor, tabel identitas,
+     "Riwayat Kegiatan", tabel delapan kolom. Kalau yang dipindai INDUK, tiap
+     sub-unitnya menyusul sebagai seksi 1.1, 1.2, ... — satu stiker di induk
+     membawa semuanya. */
+  const seksi = (x, judul, sub) => {
+    const pokok = [
       ['Penyelenggara Pelayanan', 'Perum LPPNPI'],
       ['Kelompok Fasilitas', kelompok],
-      ['Nama Peralatan', namaX],
+      ['Nama Peralatan', x.nama || ''],
       ['Merek dan Tipe Peralatan', [x.merk, x.tipe].map(bersih).filter(Boolean).join(' — ')],
-      ['Nomor Seri Peralatan', bersih(x.sn)],
+      ['Nomor Seri Peralatan', bersih(x.sn)]
+    ];
+    const tambahan = [
       ['Part Number (P/N)', bersih(x.pn)],
       ['Tahun Pembuatan', bersih(x.tahun)],
       ['Lokasi', bersih(x.lokasi)],
       ['Status', bersih(x.status)]
-    ].filter(([k, v], i) => (lengkap ? i < 5 : (i >= 2 && i < 5)) || (i >= 5 && v));
+    ].filter(([, v]) => v);
     const sejarah = resmi(x.id);
     const baris = sejarah.length
-      ? sejarah.map((k, i) => `<tr><td class="tengah">${i + 1}</td><td class="tengah">${escHtml(k.tgl ? tglId(k.tgl) : '—')}</td>
+      ? sejarah.map((k, i) => `<tr><td class="tengah mono">${i + 1}</td><td class="mono tengah">${escHtml(k.tgl ? tglId(k.tgl) : '—')}</td>
           <td><b>${escHtml(k.judul || '')}</b>${k.rinci ? '<br>' + escHtml(k.rinci) : ''}</td>
-          <td>${escHtml(TINGKAT_SJR[k.warna || ''] || '—')}</td>
-          <td class="tengah">${escHtml(k.olehNama || '—')}</td><td class="tengah">${gbrTtd(k.oleh)}</td>
-          <td class="tengah">${escHtml(k.pjNama || '—')}</td><td class="tengah">${gbrTtd(k.pjUser)}</td></tr>`).join('')
+          <td>${escHtml(k.ket || TINGKAT_SJR[k.warna || ''] || '—')}</td>
+          <td class="sjr-nama">${escHtml(k.olehNama || '—')}</td><td class="tengah">${gbrTtd(k.oleh)}</td>
+          <td class="sjr-nama">${escHtml(k.pjNama || '—')}</td><td class="tengah">${gbrTtd(k.pjUser)}</td></tr>`).join('')
       : '<tr><td colspan="8" class="tengah"><i>Belum ada kegiatan yang disetujui penanggung jawabnya.</i></td></tr>';
-    return `
-      <table class="spek">${spek.map(([k, v]) => `<tr><td>${escHtml(k)}</td><td>: ${escHtml(v || '—')}</td></tr>`).join('')}</table>
-      <h3>Riwayat Kegiatan</h3>
-      <div class="gulir"><table class="data"><thead><tr><th rowspan="2" style="width:28px">No</th><th rowspan="2" style="width:80px">Tanggal</th>
+    return `<section class="alat-cetak${sub ? ' sub-cetak' : ''}">
+      <h3>${escHtml(judul)}</h3>
+      <table class="spek-cetak">${pokok.concat(tambahan).map(([k, v]) => `<tr><td>${escHtml(k)}</td><td>: ${escHtml(v || '—')}</td></tr>`).join('')}</table>
+      <div class="alat-cetak-sub">Riwayat Kegiatan</div>
+      <div class="gulir"><table class="data"><thead><tr>
+        <th rowspan="2" style="width:22px">No</th><th rowspan="2" style="width:60px">Tanggal</th>
         <th rowspan="2">Uraian</th><th rowspan="2" style="width:13%">Keterangan</th>
         <th colspan="2">Teknisi Pelaksana</th><th colspan="2">Penanggung Jawab</th></tr>
-        <tr><th style="width:13%">Nama</th><th style="width:64px">TTD</th><th style="width:13%">Nama</th><th style="width:64px">TTD</th></tr></thead>
-        <tbody>${baris}</tbody></table></div>`;
+        <tr><th style="width:14%">Nama</th><th style="width:54px">TTD</th><th style="width:14%">Nama</th><th style="width:54px">TTD</th></tr></thead>
+        <tbody>${baris}</tbody></table></div>
+    </section>`;
   };
-  const bagianSub = subs.map((x) => `
-      <h3 class="sub-judul">Sub-unit: ${escHtml(x.nama)}</h3>${bagian(x, `${nama} — ${x.nama}`, false)}`).join('');
+  const isiSeksi = seksi(a, `1. ${nama}`, false)
+    + subs.map((x, i) => seksi(x, `1.${i + 1}. ${nama} — ${x.nama}`, true)).join('');
 
   res.type('html').send(halamanPindai({
     judul: `Sejarah ${nama}`,
-    isi: kepala + bagian(a, nama, true) + bagianSub + `
+    isi: kepala + isiSeksi + `
       <div class="ket">Yang tampil hanya kegiatan yang sudah ditandatangani penanggung jawabnya.
         <span class="ket-layar">Kegiatan yang masih menunggu tanda tangan belum tampil.</span></div>
       <button class="tombol" onclick="window.print()">Cetak / Simpan PDF</button>`

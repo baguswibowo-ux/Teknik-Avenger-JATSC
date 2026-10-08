@@ -61,6 +61,7 @@ const sjrButir = (k) => `
       k.olehNama ? ' · ' + esc(k.olehNama) : ''}</div>
     <div class="kepala-butir">${esc(k.judul)}</div>
     ${k.rinci ? `<div class="rinci">${esc(k.rinci)}</div>` : ''}
+    ${k.ket ? `<div class="rinci" style="font-style:italic">${T('Ket','Note')}: ${esc(k.ket)}</div>` : ''}
     ${k.pjUser ? `<div class="tgl" style="margin-top:4px">${k.pjStatus === 'disetujui'
         ? `<span class="cip aman">${T('DISETUJUI','APPROVED')}</span> ${esc(k.pjNama || k.pjUser)}`
         : `<span class="cip awas">${T('MENUNGGU TTD','AWAITING SIGNATURE')}</span> ${esc(k.pjNama || k.pjUser)}`}</div>` : ''}
@@ -118,6 +119,10 @@ const sjrBarisSunting = (k, i) => `
       <input type="text" data-sj="${i}" data-kolom="rinci" value="${esc(k.rinci || '')}"
         placeholder="${T('apa yang dikerjakan, hasilnya, sisa pekerjaannya',
                          'what was done, the result, what is left')}"></div>
+    <div class="isian" style="margin-bottom:0;flex:2;min-width:170px">
+      <label>${T('Keterangan','Note')}</label>
+      <input type="text" data-sj="${i}" data-kolom="ket" maxlength="200" value="${esc(k.ket || '')}"
+        placeholder="${T('kosong = ditulis tingkatnya','empty = the level is printed')}"></div>
     <div class="isian" style="margin-bottom:0;min-width:190px">
       <label>${T('Penanggung jawab','Person in charge')}</label>
       <select data-sj="${i}" data-kolom="pjUser">${(()=>{
@@ -254,7 +259,7 @@ function sjrPasang(unit, alat){
   if(tambah) tambah.addEventListener('click', ()=>{
     /* Tanpa oleh/olehNama: pencatatnya ditetapkan server dari sesi, dan
        mengirimkannya dari sini cuma akan terbaca seolah layar yang memutuskan. */
-    SJR.sunting.daftar.unshift({ id: '', tgl: isoHariIni(), warna: '', judul: '', rinci: '', ...sjrPjBawaan(unit) });
+    SJR.sunting.daftar.unshift({ id: '', tgl: isoHariIni(), warna: '', judul: '', rinci: '', ket: '', ...sjrPjBawaan(unit) });
     gambarRinciAlat();
   });
 
