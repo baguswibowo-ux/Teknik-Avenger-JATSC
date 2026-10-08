@@ -253,9 +253,6 @@ function gambarUnit(){
       <div style="flex:1;min-width:200px">
         <h2>${esc(u.nama)}</h2>
         <div class="sub">${esc(NAMA_ALAT[unitDibuka] || u.alat)}</div>
-        <div class="mono" style="font-size:10.5px;color:var(--muted);margin-top:5px">
-          ${T('kode dinas','shift codes')} ${u.dinas.join(' · ')} · ${alat.length}
-          ${T('peralatan terdaftar','equipment registered')}</div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         ${bolehGantiIkon() ? `<button class="btn garis kecil" id="alatUnitUbah" title="${
