@@ -3168,6 +3168,7 @@ function halamanPindai({ judul, isi }) {
   .spek td{padding:2px 4px;vertical-align:top}.spek td:first-child{width:42%;color:#333}
   .data th,.data td{border:1px solid #444;padding:4px 5px;vertical-align:top;font-size:12.5px}
   .data th{background:#f2f2f2}.tengah{text-align:center}
+  .data img.ttd-baris{max-height:34px;max-width:100%;display:block;margin:0 auto}
   .gulir{overflow-x:auto}
   .ttd{margin:18px 0 0 auto;width:220px;text-align:center}
   .ttd img{max-height:70px;max-width:200px}.ttd .kotak{height:76px;display:flex;align-items:center;justify-content:center}
@@ -3232,6 +3233,22 @@ async function halamanQr(req, res) {
   const { lembar, alat: a, induk } = ketemu;
   const nama = induk ? `${induk.nama || ''} — ${a.nama || ''}` : (a.nama || alatNama || alat);
   const bersih = (v) => (v && v !== '—' ? v : '');
+  /* Kolom Teknisi Pelaksana dan Manager Teknik per baris riwayat — sama
+     dengan lembar cetaknya (sjrTabelCetakHtml di 36-cetak.js). Lembar di sini
+     selalu sudah disetujui, jadi kolom Manager Teknik selalu terisi. TTD
+     teknisi = TTD tersimpan akun pencatat; yang belum punya dibiarkan kosong. */
+  const ttd = await ttdSebagaiDataUrl(lembar.ttdPejabatUrl);
+  const namaMt = lembar.ttdPejabatNama || lembar.pejabatNama || '';
+  const ttdTeknisi = new Map();
+  for (const x of [a, ...(induk ? [] : (Array.isArray(a.sub) ? a.sub : []))]) {
+    for (const k of (Array.isArray(x?.sejarah) ? x.sejarah : [])) {
+      const oleh = String(k?.oleh || '');
+      if (oleh && !ttdTeknisi.has(oleh)) {
+        ttdTeknisi.set(oleh, usernameSah(oleh) ? await ttdSebagaiDataUrl(`/ttd-akun/${encodeURIComponent(oleh)}/gambar`) : '');
+      }
+    }
+  }
+  const gbrTtd = (url) => (url ? `<img class="ttd-baris" src="${url}" data-perlu-hitam alt="TTD">` : '');
   /* Satu bagian = identitas + riwayat satu alat. Dipakai untuk alat yang
      dipindai, dan — kalau yang dipindai itu INDUK — diulang untuk tiap
      sub-unitnya, supaya satu stiker di induk sudah membawa semuanya. */
@@ -3251,19 +3268,22 @@ async function halamanQr(req, res) {
     const baris = sejarah.length
       ? sejarah.map((k, i) => `<tr><td class="tengah">${i + 1}</td><td class="tengah">${escHtml(k.tgl ? tglId(k.tgl) : '—')}</td>
           <td><b>${escHtml(k.judul || '')}</b>${k.rinci ? '<br>' + escHtml(k.rinci) : ''}</td>
-          <td>${escHtml(TINGKAT_SJR[k.warna || ''] || '—')}</td><td>${escHtml(k.olehNama || '—')}</td></tr>`).join('')
-      : '<tr><td colspan="5" class="tengah"><i>Belum ada kegiatan tercatat pada lembar ini.</i></td></tr>';
+          <td>${escHtml(TINGKAT_SJR[k.warna || ''] || '—')}</td>
+          <td class="tengah">${escHtml(k.olehNama || '—')}</td><td class="tengah">${gbrTtd(ttdTeknisi.get(k.oleh))}</td>
+          <td class="tengah">${escHtml(namaMt)}</td><td class="tengah">${gbrTtd(ttd)}</td></tr>`).join('')
+      : '<tr><td colspan="8" class="tengah"><i>Belum ada kegiatan tercatat pada lembar ini.</i></td></tr>';
     return `
       <table class="spek">${spek.map(([k, v]) => `<tr><td>${escHtml(k)}</td><td>: ${escHtml(v || '—')}</td></tr>`).join('')}</table>
       <h3>Riwayat Kegiatan</h3>
-      <div class="gulir"><table class="data"><thead><tr><th style="width:28px">No</th><th style="width:88px">Tanggal</th>
-        <th>Uraian</th><th style="width:22%">Keterangan</th><th style="width:110px">Paraf</th></tr></thead>
+      <div class="gulir"><table class="data"><thead><tr><th rowspan="2" style="width:28px">No</th><th rowspan="2" style="width:80px">Tanggal</th>
+        <th rowspan="2">Uraian</th><th rowspan="2" style="width:13%">Keterangan</th>
+        <th colspan="2">Teknisi Pelaksana</th><th colspan="2">Manager Teknik</th></tr>
+        <tr><th style="width:13%">Nama</th><th style="width:64px">TTD</th><th style="width:13%">Nama</th><th style="width:64px">TTD</th></tr></thead>
         <tbody>${baris}</tbody></table></div>`;
   };
   const subs = induk ? [] : (Array.isArray(a.sub) ? a.sub : []).filter((s) => s && s.nama);
   const bagianSub = subs.map((s) => `
       <h3 class="sub-judul">Sub-unit: ${escHtml(s.nama)}</h3>${bagian(s, `${nama} — ${s.nama}`, false)}`).join('');
-  const ttd = await ttdSebagaiDataUrl(lembar.ttdPejabatUrl);
 
   res.type('html').send(halamanPindai({
     judul: `Sejarah ${nama}`,

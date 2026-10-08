@@ -645,6 +645,18 @@
 .cetak-lembar table.data.sjr-tabel {
   margin-top: 1pt;
 }
+/* Kolom Nama + TTD (Teknisi Pelaksana, Manager Teknik) per baris riwayat. */
+.cetak-lembar table.data.sjr-tabel td.sjr-nama {
+  font-size: 8.5pt;
+  text-align: center;
+  vertical-align: middle;
+}
+.cetak-lembar table.data.sjr-tabel img.sjr-ttd {
+  display: block;
+  margin: 0 auto;
+  max-width: 100%;
+  max-height: 26pt;
+}
 .cetak-lembar .sjr-kosong {
   font-size: 9pt;
   color: #444;

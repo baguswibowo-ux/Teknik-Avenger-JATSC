@@ -978,6 +978,60 @@ function tabelSparepartCetak(rows){
     </table>`;
 }
 
+/**
+ * Tabel Riwayat Kegiatan pada lembar Sejarah Peralatan — satu bentuk untuk
+ * cetak langsung dan lembar dari snapshot.
+ *
+ * Kolom: No / Tanggal / Uraian / Keterangan / Teknisi Pelaksana (Nama, TTD) /
+ * Manager Teknik (Nama, TTD). Dulu kolom terakhirnya "Paraf" berisi nama
+ * pencatat saja.
+ *   - Teknisi Pelaksana = pencatat kejadian (oleh/olehNama, ditetapkan server
+ *     dari sesinya). TTD-nya TTD tersimpan akun itu; yang belum punya TTD
+ *     tersimpan dibiarkan kosong untuk ditandatangani tangan.
+ *   - Manager Teknik = `mt` { nama, url }: pejabat yang menyetujui lembar.
+ *     null (belum disetujui / cetak langsung) = kosong.
+ * Tanpa kejadian, sepuluh baris kosong siap ditulis tangan.
+ */
+function sjrTabelCetakHtml(daftar, labelTingkat, mt){
+  const kepala = `<table class="data sjr-tabel">
+    <thead><tr>
+      <th rowspan="2" style="width:22px" class="tengah">${T('No','No')}</th>
+      <th rowspan="2" style="width:60px" class="tengah">${T('Tanggal','Date')}</th>
+      <th rowspan="2">${T('Uraian','Description')}</th>
+      <th rowspan="2" style="width:13%">${T('Keterangan','Note')}</th>
+      <th colspan="2" class="tengah">${T('Teknisi Pelaksana','Technician')}</th>
+      <th colspan="2" class="tengah">${T('Manager Teknik','Technical Manager')}</th>
+    </tr><tr>
+      <th style="width:14%" class="tengah">${T('Nama','Name')}</th>
+      <th style="width:54px" class="tengah">TTD</th>
+      <th style="width:14%" class="tengah">${T('Nama','Name')}</th>
+      <th style="width:54px" class="tengah">TTD</th>
+    </tr></thead>`;
+  if(!Array.isArray(daftar) || !daftar.length){
+    const kosong = Array.from({length:10}, (_,i)=>`
+      <tr>
+        <td class="tengah mono">${i+1}</td>
+        <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+      </tr>`).join('');
+    return kepala + `<tbody>${kosong}</tbody></table>`;
+  }
+  const gbr = (url)=> url
+    ? `<img class="sjr-ttd" src="${esc(url)}" data-perlu-hitam alt="" onerror="this.remove()">` : '';
+  const ttdTeknisi = (k)=> /^[a-z0-9._-]{3,32}$/.test(String(k.oleh || ''))
+    ? gbr('/ttd-akun/' + encodeURIComponent(k.oleh) + '/gambar') : '';
+  return kepala + `<tbody>${daftar.map((k,i)=>`
+    <tr>
+      <td class="tengah mono">${i+1}</td>
+      <td class="mono tengah">${esc(k.tgl ? tglRingkas(k.tgl) : '—')}</td>
+      <td><b>${esc(k.judul || '')}</b>${k.rinci ? `<br>${esc(k.rinci)}` : ''}</td>
+      <td>${esc(labelTingkat(k.warna))}</td>
+      <td class="sjr-nama">${esc(k.olehNama || '—')}</td>
+      <td class="tengah">${ttdTeknisi(k)}</td>
+      <td class="sjr-nama">${mt ? esc(mt.nama || '') : ''}</td>
+      <td class="tengah">${mt ? gbr(mt.url) : ''}</td>
+    </tr>`).join('')}</tbody></table>`;
+}
+
 function htmlPeralatan(){
   // Tab grup lokasi menyaring lembar cetak — kalau tab "Semua" yang aktif
   // (CETAK.grup = ''), seluruh peralatan ikut; kalau tab lain, hanya baris
@@ -1040,13 +1094,9 @@ function htmlPeralatan(){
     }</table>`;
   };
 
-  /* Tabel sejarah — kolom mengikuti docx: No / Tanggal / Uraian /
-     Keterangan / Paraf. Uraian menampung judul (utama, tebal) plus
-     rincian di bawahnya; Keterangan menyimpan label tingkat (Biasa/
-     Perlu diperhatikan/Gangguan) supaya cetak hitam putih tetap
-     membawa artinya. Paraf diisi nama pencatat — tanda tangan sungguhan
-     ada di blok Mengetahui di kaki lembar, bukan per baris. Waktu kosong,
-     tabel tetap digambar dengan sepuluh baris kosong siap ditulis tangan. */
+  /* Tabel sejarah — bentuknya di sjrTabelCetakHtml (dipakai juga oleh lembar
+     dari snapshot). Cetak langsung belum melewati persetujuan, jadi kolom
+     Manager Teknik per barisnya dibiarkan kosong. */
   const sejarah = (a)=>{
     const daftar = (typeof sjrUntuk === 'function')
       ? sjrUntuk(CETAK.unit, a.id) : [];
@@ -1056,32 +1106,7 @@ function htmlPeralatan(){
       const n = p ? p[1] : ['','—'];
       return T(n[0], n[1]);
     };
-    const kepala = `<table class="data sjr-tabel">
-      <thead><tr>
-        <th style="width:28px" class="tengah">${T('No','No')}</th>
-        <th style="width:78px" class="tengah">${T('Tanggal','Date')}</th>
-        <th>${T('Uraian','Description')}</th>
-        <th style="width:22%">${T('Keterangan','Note')}</th>
-        <th style="width:110px">${T('Paraf','Signed')}</th>
-      </tr></thead>`;
-    if(!daftar.length){
-      // Sepuluh baris kosong: form yang bisa dicetak dan ditulis tangan
-      // — sesuai kebiasaan form dokumen fisik yang ada sekarang.
-      const kosong = Array.from({length:10}, (_,i)=>`
-        <tr>
-          <td class="tengah mono">${i+1}</td>
-          <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
-        </tr>`).join('');
-      return kepala + `<tbody>${kosong}</tbody></table>`;
-    }
-    return kepala + `<tbody>${daftar.map((k,i)=>`
-      <tr>
-        <td class="tengah mono">${i+1}</td>
-        <td class="mono tengah">${esc(k.tgl ? tglRingkas(k.tgl) : '—')}</td>
-        <td><b>${esc(k.judul || '')}</b>${k.rinci ? `<br>${esc(k.rinci)}` : ''}</td>
-        <td>${esc(labelTingkat(k.warna))}</td>
-        <td>${esc(k.olehNama || '—')}</td>
-      </tr>`).join('')}</tbody></table>`;
+    return sjrTabelCetakHtml(daftar, labelTingkat, null);
   };
 
   /* Satu section per identitas: parent dulu, lalu tiap sub-unitnya
@@ -1840,31 +1865,14 @@ function cetakIsiSnapshotHtml(p, snap, ttd = ''){
       const n = pw ? pw[1] : ['','—'];
       return T(n[0], n[1]);
     };
+    /* Kolom Manager Teknik per baris baru terisi sesudah lembarnya disetujui:
+       nama dan TTD pejabat yang menyetujui, sama dengan blok Mengetahui. */
+    const mtBaris = p.status === 'disetujui' ? {
+      nama: p.ttdPejabatNama || p.pejabatNama || p.pejabatUser || '',
+      url: (CETAK.ttdPejabat && CETAK.ttdPejabat.ada) ? CETAK.ttdPejabat.url : ''
+    } : null;
     const sejarahTabel = (daftar)=>{
-      const kepala = `<table class="data sjr-tabel">
-        <thead><tr>
-          <th style="width:28px" class="tengah">${T('No','No')}</th>
-          <th style="width:78px" class="tengah">${T('Tanggal','Date')}</th>
-          <th>${T('Uraian','Description')}</th>
-          <th style="width:22%">${T('Keterangan','Note')}</th>
-          <th style="width:110px">${T('Paraf','Signed')}</th>
-        </tr></thead>`;
-      if(!Array.isArray(daftar) || !daftar.length){
-        const kosong = Array.from({length:10}, (_,i)=>`
-          <tr>
-            <td class="tengah mono">${i+1}</td>
-            <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
-          </tr>`).join('');
-        return kepala + `<tbody>${kosong}</tbody></table>`;
-      }
-      return kepala + `<tbody>${daftar.map((k,i)=>`
-        <tr>
-          <td class="tengah mono">${i+1}</td>
-          <td class="mono tengah">${esc(k.tgl ? tglRingkas(k.tgl) : '—')}</td>
-          <td><b>${esc(k.judul || '')}</b>${k.rinci ? `<br>${esc(k.rinci)}` : ''}</td>
-          <td>${esc(labelTingkat(k.warna))}</td>
-          <td>${esc(k.olehNama || '—')}</td>
-        </tr>`).join('')}</tbody></table>`;
+      return sjrTabelCetakHtml(daftar, labelTingkat, mtBaris);
     };
 
     if(!rows.length){
