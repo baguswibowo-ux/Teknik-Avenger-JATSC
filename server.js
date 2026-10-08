@@ -3226,7 +3226,7 @@ async function halamanQr(req, res) {
       judul: `Sejarah ${alatNama || alat}`,
       isi: kepala + `<div class="kosong"><b>${escHtml(alatNama || alat)}</b><br><br>
         Belum ada lembar sejarah resmi untuk alat ini.<br>
-        Lembar muncul di sini setelah dicetak lewat dashboard dan disetujui Manager Teknik.</div>`
+        Lembar muncul di sini setelah dicetak lewat dashboard dan disetujui penanggung jawabnya.</div>`
     }));
   }
 
@@ -3277,7 +3277,7 @@ async function halamanQr(req, res) {
       <h3>Riwayat Kegiatan</h3>
       <div class="gulir"><table class="data"><thead><tr><th rowspan="2" style="width:28px">No</th><th rowspan="2" style="width:80px">Tanggal</th>
         <th rowspan="2">Uraian</th><th rowspan="2" style="width:13%">Keterangan</th>
-        <th colspan="2">Teknisi Pelaksana</th><th colspan="2">Manager Teknik</th></tr>
+        <th colspan="2">Teknisi Pelaksana</th><th colspan="2">Penanggung Jawab</th></tr>
         <tr><th style="width:13%">Nama</th><th style="width:64px">TTD</th><th style="width:13%">Nama</th><th style="width:64px">TTD</th></tr></thead>
         <tbody>${baris}</tbody></table></div>`;
   };
@@ -3288,7 +3288,7 @@ async function halamanQr(req, res) {
   res.type('html').send(halamanPindai({
     judul: `Sejarah ${nama}`,
     isi: kepala + bagian(a, nama, true) + bagianSub + `
-      <div class="ttd">Mengetahui,<br>Manager Teknik
+      <div class="ttd">Mengetahui,<br>Penanggung Jawab
         <div class="kotak">${ttd ? `<img src="${ttd}" data-perlu-hitam alt="TTD">` : ''}</div>
         <div class="nama">${escHtml(lembar.ttdPejabatNama || lembar.pejabatNama || '')}</div></div>
       <div class="ket">Lembar resmi, disetujui <b>${escHtml(tglId(lembar.tanggalTtd))}</b>.

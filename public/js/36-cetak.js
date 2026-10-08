@@ -797,7 +797,7 @@ function blokTtd(){
      kanan. Yang menyusunnya dinasFooterHtml(); jalur ini cuma dilewati oleh
      mode lain (peralatan, sparepart). */
 
-  return ttdTunggalHtml(mengertUrl, mengertNama, kosongTeks);
+  return ttdTunggalHtml(mengertUrl, mengertNama, kosongTeks, CETAK.mode === 'peralatan' ? JABATAN_PJ_ALAT() : '');
 }
 
 /**
@@ -807,13 +807,17 @@ function blokTtd(){
  * bawah nama dan sel tabelnya ikut bergaris — terbaca sebagai garis
  * bertumpuk.
  */
-function ttdTunggalHtml(url, nama, kosongTeks){
+/* Lembar Sejarah Peralatan ditandatangani PENANGGUNG JAWAB peralatannya -
+   belum tentu Manager Teknik - jadi sebutannya dibedakan dari lembar lain. */
+const JABATAN_PJ_ALAT = () => T('Penanggung Jawab','Person in Charge');
+
+function ttdTunggalHtml(url, nama, kosongTeks, jabatan){
   return `
     <table class="ttd-blok ttd-blok-tunggal">
       <tr>
         <td>
           <div class="peran-ttd">${T('Mengetahui,','Approved by,')}</div>
-          <div class="jabatan-ttd">${esc(T('Manager Teknik','Technical Manager'))}</div>
+          <div class="jabatan-ttd">${esc(jabatan || T('Manager Teknik','Technical Manager'))}</div>
           <div class="kotak-ttd">${url
             ? `<img src="${url}" data-perlu-hitam alt="">`
             : `<span class="kosong-ket">${esc(kosongTeks)}</span>`}</div>
@@ -983,12 +987,13 @@ function tabelSparepartCetak(rows){
  * cetak langsung dan lembar dari snapshot.
  *
  * Kolom: No / Tanggal / Uraian / Keterangan / Teknisi Pelaksana (Nama, TTD) /
- * Manager Teknik (Nama, TTD). Dulu kolom terakhirnya "Paraf" berisi nama
+ * Penanggung Jawab (Nama, TTD). Dulu kolom terakhirnya "Paraf" berisi nama
  * pencatat saja.
  *   - Teknisi Pelaksana = pencatat kejadian (oleh/olehNama, ditetapkan server
  *     dari sesinya). TTD-nya TTD tersimpan akun itu; yang belum punya TTD
  *     tersimpan dibiarkan kosong untuk ditandatangani tangan.
- *   - Manager Teknik = `mt` { nama, url }: pejabat yang menyetujui lembar.
+ *   - Penanggung Jawab = `mt` { nama, url }: pejabat yang menyetujui lembar
+ *     (belum tentu Manager Teknik).
  *     null (belum disetujui / cetak langsung) = kosong.
  * Tanpa kejadian, sepuluh baris kosong siap ditulis tangan.
  */
@@ -1000,7 +1005,7 @@ function sjrTabelCetakHtml(daftar, labelTingkat, mt){
       <th rowspan="2">${T('Uraian','Description')}</th>
       <th rowspan="2" style="width:13%">${T('Keterangan','Note')}</th>
       <th colspan="2" class="tengah">${T('Teknisi Pelaksana','Technician')}</th>
-      <th colspan="2" class="tengah">${T('Manager Teknik','Technical Manager')}</th>
+      <th colspan="2" class="tengah">${JABATAN_PJ_ALAT()}</th>
     </tr><tr>
       <th style="width:14%" class="tengah">${T('Nama','Name')}</th>
       <th style="width:54px" class="tengah">TTD</th>
@@ -1946,7 +1951,8 @@ async function cetakLembarPermintaanHtml(p, snap){
     });
   }else{
     blok = ttdTunggalHtml(mengertUrl, p.pejabatNama || p.pejabatUser || '',
-      T('(belum ada TTD tersimpan)','(no saved signature)'));
+      T('(belum ada TTD tersimpan)','(no saved signature)'),
+      p.jenis === 'peralatan' ? JABATAN_PJ_ALAT() : '');
   }
 
   // Rekap semua unit membawa kopnya sendiri (judul stok opname + periode).
