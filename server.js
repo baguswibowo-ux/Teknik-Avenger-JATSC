@@ -3295,8 +3295,11 @@ function tglId(iso) {
 const TINGKAT_SJR = { '': 'Biasa', kuning: 'Perlu diperhatikan', merah: 'Gangguan' };
 
 function halamanPindai({ judul, isi }) {
+  /* Lebar tampilan dikunci selebar kertas (bukan selebar layar): di HP
+     halamannya tampil utuh seperti pratinjau cetak - mengecil pas layar, bisa
+     dicubit untuk memperbesar - bukan tabel yang harus digeser ke samping. */
   return `<!doctype html><html lang="id"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=780">
 <meta name="robots" content="noindex,nofollow">
 <title>${escHtml(judul)}</title>
 <style>
@@ -3305,7 +3308,7 @@ function halamanPindai({ judul, isi }) {
      yang keluar dari printer. Kalau gaya cetaknya diubah, ubah juga di sini. */
   :root{color-scheme:light}
   body{margin:0;background:#eef1f4;color:#000}
-  .kertas{max-width:190mm;margin:14px auto;background:#fff;padding:8mm 6mm;box-shadow:0 1px 4px rgba(0,0,0,.15);
+  .kertas{width:190mm;max-width:100%;margin:14px auto;background:#fff;padding:8mm 6mm;box-shadow:0 1px 4px rgba(0,0,0,.15);
     font-family:'Times New Roman',Times,serif;font-size:10.5pt;line-height:1.4;box-sizing:border-box}
   h1{font-size:13pt;text-align:center;margin:0 0 4pt;text-transform:uppercase;letter-spacing:.5px}
   h2{font-size:11pt;text-align:center;margin:0 0 12pt;font-weight:600}
@@ -3319,7 +3322,7 @@ function halamanPindai({ judul, isi }) {
   table.spek-cetak{font-size:9.5pt}
   table.spek-cetak td{vertical-align:top;padding:1pt 6pt 1pt 0}
   table.spek-cetak td:first-child{width:180px;color:#333}
-  table.data{font-size:9.5pt;margin-top:1pt;min-width:640px}
+  table.data{font-size:9.5pt;margin-top:1pt}
   table.data th,table.data td{border:1px solid #000;padding:3pt 5pt;vertical-align:top}
   table.data th{background:#eee;text-align:center;font-weight:600}
   table.data td.mono{font-family:Consolas,'Courier New',monospace;font-size:9pt}
@@ -3330,7 +3333,7 @@ function halamanPindai({ judul, isi }) {
   .ket{font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#555;margin-top:14px;border-top:1px dashed #bbb;padding-top:8px}
   .kosong{font-family:Arial,Helvetica,sans-serif;font-size:14px;text-align:center;padding:30px 10px;color:#444}
   .tombol{display:block;margin:12px auto 0;padding:9px 18px;font-size:14px;border:1px solid #333;background:#fff;border-radius:6px}
-  @media print{body{background:#fff}.kertas{box-shadow:none;margin:0;max-width:none}.tombol,.ket-layar{display:none}table.data{min-width:0}}
+  @media print{body{background:#fff}.kertas{box-shadow:none;margin:0;max-width:none}.tombol,.ket-layar{display:none}}
 </style></head><body><div class="kertas">${isi}</div>
 <script>
 /* TTD tersimpan bergaris putih (digambar di layar gelap): dihitamkan untuk
