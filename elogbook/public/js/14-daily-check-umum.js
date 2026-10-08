@@ -708,7 +708,8 @@ async function openDcDetail(id){
     <div class="detail-ttd">
       <div class="sig-block"><b>${T('teknisiPelaksana')}</b>${tekHtml}</div>
       <div class="sig-block"><b>Mengetahui — Manager Teknik</b>${renderPihakKedua('dc', r.id, r.managerNama, managerTtd)}${sigPejabatHtml('dailycheck', r.id, managerTtd, r)}</div>
-    </div>`;
+    </div>
+    ${lampiranCatatanHtml('dailycheck', r.id)}`;
 }
 
 /* ---------- Sunting daily check tersimpan (di form utama) ----------

@@ -771,6 +771,7 @@ function renderDcAmhsDetail(r, detail, state){
     <div class="detail-ttd" style="margin-top:14px;">
       <div class="sig-block"><b>Mengetahui — Manager Teknik</b>${renderPihakKedua('dc', r.id, r.managerNama, detail.managerTtd || r.managerTtd)}${sigPejabatHtml('dailycheck', r.id, detail.managerTtd || r.managerTtd, r)}</div>
     </div>
+    ${lampiranCatatanHtml('dailycheck', r.id)}
     <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line);">${amhsDiinputHtml(r, state)}</div>`;
 }
 

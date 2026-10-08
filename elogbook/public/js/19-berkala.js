@@ -1040,6 +1040,7 @@ function openBerkalaDetail(id, penuh){
       <div class="sig-block"><b>${T('teknisiPelaksana')}</b>${escapeHtml(b.teknisiNama)||'-'}${sigThumbHtml(b.teknisiTtd)}</div>
       <div class="sig-block"><b>${T('mengetahuiManager')}</b>${renderPihakKedua('berkala', b.id, b.managerNama, b.managerTtd)}${sigPejabatHtml('berkala', b.id, b.managerTtd, b)}</div>
     </div>
+    ${lampiranCatatanHtml('berkala', b.id)}
     <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line);">${diinputOlehHtml(b.diinputOleh, b.dibuatPada, String(b.tanggal||'').slice(0,10))}</div>`;
   document.getElementById('formDetailPrintBtn').onclick = ()=>{ closeFormDetail(); printBerkala(id); };
   pasangTombolCatatanDariDokumen('berkala', id);

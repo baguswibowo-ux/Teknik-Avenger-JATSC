@@ -245,6 +245,24 @@ CREATE TABLE IF NOT EXISTS lampiran_bapb (
 );
 CREATE INDEX IF NOT EXISTS idx_lampiran_bapb ON lampiran_bapb(bapb_id);
 
+-- Lampiran lembar Daily Check dan Preventive Maintenance (DS Test dan seluruh
+-- lembar berkala). Satu tabel untuk ketiganya: jenis = 'dailycheck' | 'dstest'
+-- | 'berkala', catatan_id = id lembarnya. Tanpa REFERENCES karena induknya
+-- tiga tabel berbeda — barisnya dibuang hapusLampiranCatatanSemua() saat
+-- lembarnya dihapus. dibuat_oleh = username pengunggah (yang boleh membuangnya).
+CREATE TABLE IF NOT EXISTS lampiran_catatan (
+  id           TEXT PRIMARY KEY,
+  jenis        TEXT NOT NULL,
+  catatan_id   TEXT NOT NULL,
+  nama         TEXT NOT NULL DEFAULT '',
+  path         TEXT NOT NULL DEFAULT '',
+  mime         TEXT NOT NULL DEFAULT '',
+  ukuran       INTEGER NOT NULL DEFAULT 0,
+  dibuat_pada  TEXT NOT NULL,
+  dibuat_oleh  TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_lampiran_catatan ON lampiran_catatan(jenis, catatan_id);
+
 -- DS Test: uji sambungan direct speech ke tiap site, satu lembar per sesi uji.
 CREATE TABLE IF NOT EXISTS dstest (
   id                TEXT PRIMARY KEY,
@@ -1538,6 +1556,62 @@ export function suntingLampiranBapb(bapbId, tambah, buang, { username = '', admi
   return getBapb(String(bapbId));
 }
 
+/* ============== LAMPIRAN DAILY CHECK & PREVENTIVE ==============
+ * Dokumen pendukung (foto, scan) yang ditempel ke lembar yang SUDAH tersimpan.
+ * Lampiran bukan isi lembar yang disahkan, jadi boleh ditambah juga sesudah
+ * Manager Teknik menandatangani — sama dengan lampiran BAPB dan LTK.
+ */
+export const JENIS_LAMPIRAN_CATATAN = ['dailycheck', 'dstest', 'berkala'];
+const TABEL_LAMPIRAN_CATATAN = { dailycheck: 'dailychecks', dstest: 'dstest', berkala: 'berkala' };
+
+export function listLampiranCatatan(jenis, catatanId) {
+  if (!JENIS_LAMPIRAN_CATATAN.includes(jenis)) return [];
+  return db.prepare('SELECT * FROM lampiran_catatan WHERE jenis = ? AND catatan_id = ? ORDER BY dibuat_pada')
+    .all(jenis, String(catatanId))
+    .map((l) => ({ ...rowToLampiran(l), Oleh: l.dibuat_oleh || '' }));
+}
+
+/**
+ * Tambah dan/atau buang lampiran satu lembar sekaligus. Menambah boleh siapa
+ * saja yang lolos pagar pemanggilnya (boleh menulis di unit itu); membuang
+ * hanya pengunggahnya sendiri atau admin (`admin`).
+ */
+export function suntingLampiranCatatan(jenis, catatanId, tambah, buang, { username = '', admin = false } = {}) {
+  if (!JENIS_LAMPIRAN_CATATAN.includes(jenis)) throw new Error('Jenis lembar tidak dikenal: ' + jenis);
+  const id = String(catatanId);
+  if (!db.prepare(`SELECT id FROM ${TABEL_LAMPIRAN_CATATAN[jenis]} WHERE id = ?`).get(id)) {
+    throw new Error('Lembar tidak ditemukan — mungkin sudah dihapus.');
+  }
+  const daftarTambah = Array.isArray(tambah) ? tambah : [];
+  const idBuang = (Array.isArray(buang) ? buang : []).map(String);
+  const milik = db.prepare('SELECT id, path, dibuat_oleh FROM lampiran_catatan WHERE jenis = ? AND catatan_id = ?').all(jenis, id);
+  const dibuang = milik.filter((l) => idBuang.includes(String(l.id)));
+  if (!admin && dibuang.some((l) => String(l.dibuat_oleh || '') !== String(username || ''))) {
+    throw new Error('Lampiran hanya boleh dibuang oleh pengunggahnya sendiri atau admin.');
+  }
+  const sisa = milik.length - dibuang.length;
+  if (sisa + daftarTambah.length > LAMPIRAN_MAKS_JUMLAH) {
+    throw new Error(`Maksimal ${LAMPIRAN_MAKS_JUMLAH} lampiran per lembar. Sesudah yang dibuang tinggal ${sisa}.`);
+  }
+  const ins = db.prepare(`INSERT INTO lampiran_catatan (id, jenis, catatan_id, nama, path, mime, ukuran, dibuat_pada, dibuat_oleh)
+                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+  for (const f of daftarTambah) {
+    const row = tulisBerkasLampiran(f);
+    if (!row) continue;
+    ins.run(row.id, jenis, id, row.nama, row.path, row.mime, row.ukuran, nowIso(), String(username || ''));
+  }
+  const del = db.prepare('DELETE FROM lampiran_catatan WHERE id = ?');
+  for (const l of dibuang) { del.run(l.id); removeSignatureFile(l.path); }
+  return listLampiranCatatan(jenis, id);
+}
+
+/** Buang seluruh lampiran sebuah lembar (baris dan berkasnya) — dipanggil saat lembarnya dihapus. */
+function hapusLampiranCatatanSemua(jenis, catatanId) {
+  const rows = db.prepare('SELECT path FROM lampiran_catatan WHERE jenis = ? AND catatan_id = ?').all(jenis, String(catatanId));
+  db.prepare('DELETE FROM lampiran_catatan WHERE jenis = ? AND catatan_id = ?').run(jenis, String(catatanId));
+  for (const l of rows) removeSignatureFile(l.path);
+}
+
 /* ============== LOGBOOK ============== */
 
 /**
@@ -1876,6 +1950,7 @@ export function insertDailyCheck(rec, olehUsername = '', olehNama = '') {
 export function removeDailyCheck(id) {
   const r = db.prepare('SELECT teknisi_ttd, manager_ttd FROM dailychecks WHERE id = ?').get(id);
   db.prepare('DELETE FROM dailychecks WHERE id = ?').run(id);
+  hapusLampiranCatatanSemua('dailycheck', id);
   if (r) { removeSignatureFile(r.teknisi_ttd); removeSignatureFile(r.manager_ttd); }
   return true;
 }
@@ -2397,6 +2472,7 @@ export function updateDsTest(id, patch = {}, actor = {}) {
 export function removeDsTest(id) {
   const r = db.prepare('SELECT teknisi_ttd, manager_ttd FROM dstest WHERE id = ?').get(id);
   db.prepare('DELETE FROM dstest WHERE id = ?').run(id);
+  hapusLampiranCatatanSemua('dstest', id);
   if (r) { removeSignatureFile(r.teknisi_ttd); removeSignatureFile(r.manager_ttd); }
   return true;
 }
@@ -2525,6 +2601,7 @@ export function updateBerkala(id, patch = {}, actor = {}) {
 export function removeBerkala(id) {
   const r = db.prepare('SELECT teknisi_ttd, manager_ttd FROM berkala WHERE id = ?').get(id);
   db.prepare('DELETE FROM berkala WHERE id = ?').run(id);
+  hapusLampiranCatatanSemua('berkala', id);
   if (r) { removeSignatureFile(r.teknisi_ttd); removeSignatureFile(r.manager_ttd); }
   return true;
 }

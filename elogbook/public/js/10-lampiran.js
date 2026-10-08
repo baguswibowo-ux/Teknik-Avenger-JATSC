@@ -134,3 +134,103 @@ function lampiranGaleriHtml(daftar){
     <div class="lampiran-galeri">${kartu}</div>`;
 }
 function escapeHtml(s){ if(!s) return ''; return String(s).replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
+
+/* ============== LAMPIRAN LEMBAR DAILY CHECK & PREVENTIVE ==============
+   Dokumen pendukung yang ditempel ke lembar yang sudah tersimpan — dari jendela
+   detailnya. Tiap jendela detail menyisipkan lampiranCatatanHtml(jenis, id);
+   isinya diambil belakangan (getLampiranCatatan) supaya daftar lembar tidak
+   perlu membawa lampirannya. jenis = 'dailycheck' | 'dstest' | 'berkala'.
+   Menambah: siapa saja yang boleh menulis di unit itu. Membuang: pengunggahnya
+   sendiri atau admin/admin unit. Server menjaga keduanya (suntingLampiranCatatan). */
+const LC = { cache: {}, jenis: '', id: '', buang: [] };
+const lcKunci = (jenis, id) => jenis + ':' + id;
+
+function lampiranCatatanHtml(jenis, id){
+  setTimeout(()=>muatLampiranCatatan(jenis, id), 0);
+  return `<div class="lampiran-catatan" data-lc="${escapeHtml(lcKunci(jenis, id))}"
+      style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line);">
+    <b>📎 ${T('lcJudul')}</b>
+    <div class="lc-isi"><div class="subtle-note">${T('lcMemuat')}</div></div>
+  </div>`;
+}
+
+async function muatLampiranCatatan(jenis, id){
+  let gagal = false;
+  try{ LC.cache[lcKunci(jenis, id)] = await gsRun('getLampiranCatatan', jenis, id) || []; }
+  catch(e){ gagal = true; }
+  gambarLampiranCatatan(jenis, id, gagal);
+}
+
+function gambarLampiranCatatan(jenis, id, gagal){
+  const kunci = lcKunci(jenis, id);
+  const daftar = LC.cache[kunci] || [];
+  const boleh = typeof bolehMenulis === 'function' && bolehMenulis();
+  document.querySelectorAll('.lampiran-catatan').forEach(w=>{
+    if(w.dataset.lc !== kunci) return;
+    const isi = w.querySelector('.lc-isi');
+    if(!isi) return;
+    isi.innerHTML = (gagal ? `<div class="subtle-note">${T('lcGagal')}</div>`
+        : daftar.length ? lampiranGaleriHtml(daftar)
+        : `<div class="subtle-note">${T('bapbLampiranKosong')}</div>`)
+      + (boleh && !gagal ? `<div style="margin-top:8px;"><button class="btn ghost" style="padding:6px 10px;"
+          onclick="bukaLampiranCatatan('${jenis}','${id}')">${T('bapbKelolaLampiran')}</button></div>` : '');
+  });
+}
+
+function gambarLcAda(){
+  const wrap = document.getElementById('lcAda');
+  if(!wrap) return;
+  const daftar = LC.cache[lcKunci(LC.jenis, LC.id)] || [];
+  if(!daftar.length){ wrap.innerHTML = `<div class="subtle-note">${T('bapbLampiranKosong')}</div>`; return; }
+  const admin = typeof kelolaUnitAktif === 'function' && kelolaUnitAktif();
+  const saya = (userSaatIni && userSaatIni.username) || '';
+  wrap.innerHTML = daftar.map(l=>{
+    const buang = LC.buang.includes(l.ID);
+    const bolehBuang = admin || (saya && l.Oleh === saya);
+    return `
+    <div class="lampiran-item${buang ? ' dibuang' : ''}">
+      <span>${String(l.Mime||'').startsWith('image/') ? '🖼' : '📄'}</span>
+      <a class="nama" href="${l.Path}" target="_blank" rel="noopener" title="${escapeHtml(l.Nama)}">${escapeHtml(l.Nama)}</a>
+      <span class="ukuran">${ukuranTeks(l.Ukuran||0)}</span>
+      ${bolehBuang ? `<button class="icon-btn" title="${buang ? T('batalBuangLampiran') : T('buangLampiran')}"
+        onclick="toggleBuangLc('${l.ID}')">${buang ? '↺' : '✕'}</button>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function toggleBuangLc(id){
+  LC.buang = LC.buang.includes(id) ? LC.buang.filter(x=>x !== id) : LC.buang.concat(id);
+  gambarLcAda();
+}
+
+function bukaLampiranCatatan(jenis, id){
+  LC.jenis = jenis; LC.id = id; LC.buang = [];
+  resetLampiran('lcBaru');
+  gambarLcAda();
+  document.getElementById('lcBg').classList.add('show');
+}
+
+function tutupLampiranCatatan(){
+  document.getElementById('lcBg').classList.remove('show');
+  LC.buang = [];
+  resetLampiran('lcBaru');
+}
+
+async function simpanLampiranCatatan(){
+  if(!LC.jenis || !LC.id) return;
+  const jenis = LC.jenis, id = LC.id;
+  const tambah = kirimLampiran('lcBaru');
+  const buang = LC.buang.slice();
+  if(!tambah.length && !buang.length){ toast(T('bapbLampiranTakBerubah')); return; }
+  const btn = document.getElementById('lcSaveBtn'); btn.disabled = true;
+  if(tambah.length) toast(T('mengunggahLampiran'));
+  try{
+    LC.cache[lcKunci(jenis, id)] = await gsRun('suntingLampiranCatatan', jenis, id, tambah, buang) || [];
+    tutupLampiranCatatan();
+    gambarLampiranCatatan(jenis, id, false);
+    toast(T('lcTersimpan'));
+  }catch(e){
+    toast(T('gagalSimpan') + ' — ' + (e.message || T('coba')));
+  }
+  btn.disabled = false;
+}

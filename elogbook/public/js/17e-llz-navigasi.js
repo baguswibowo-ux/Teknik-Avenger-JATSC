@@ -480,6 +480,7 @@ function openLlzDetail(id){
       <div class="sig-block"><b>${T('teknisiPelaksana')}</b>${escapeHtml(d.teknisiNama) || '-'}${sigThumbHtml(d.teknisiTtd)}</div>
       <div class="sig-block"><b>${T('mengetahuiManager')}</b>${renderPihakKedua('dstest', d.id, d.managerNama, d.managerTtd)}${sigPejabatHtml('dstest', d.id, d.managerTtd, d)}</div>
     </div>
+    ${lampiranCatatanHtml('dstest', d.id)}
     <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line);">${diinputOlehHtml(d.diinputOleh, d.dibuatPada, String(d.tanggal || '').slice(0, 10))}</div>`;
   document.getElementById('formDetailPrintBtn').onclick = () => { closeFormDetail(); printLlz(id); };
   document.getElementById('formDetailBg').classList.add('show');

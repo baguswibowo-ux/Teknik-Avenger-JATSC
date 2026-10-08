@@ -71,6 +71,7 @@ const {
   tambahLampiranLtk, hapusLampiranLtk, getLtk,
   listLtk, insertLtk, removeLtk,
   listBapb, insertBapb, updateBapb, removeBapb, suntingLampiranBapb,
+  listLampiranCatatan, suntingLampiranCatatan, JENIS_LAMPIRAN_CATATAN,
   getUserByUsername, verifyPassword, createUser, countUsers, hapusUser,
   jenisTtdSah, unitCatatan, unitHapus, pemilikLembarForm, tandaTanganiCatatan, batalkanTtdCatatan, listPejabatAktif, listPejabatUnit, listTeknisiUnit, listAkunAktif, getInboxTtd,
   getTtdTersimpan, simpanTtdTersimpan, hapusTtdTersimpan, pilihTtdTersimpanAktif, rekapMentah,
@@ -930,7 +931,7 @@ async function unitDanHakAkses(user, unit) {
 /** Fungsi yang menambah atau mengubah data. Pejabat ditolak di sini. */
 const API_TULIS = new Set([
   'addEntry', 'addDailyCheck', 'addIssue', 'addMonitoring', 'addLtk', 'addDsTest', 'addBerkala',
-  'addBapb', 'updateBapb', 'suntingLampiranBapb',
+  'addBapb', 'updateBapb', 'suntingLampiranBapb', 'suntingLampiranCatatan',
   'updateEntry', 'updateDailyCheck', 'updateDsTest', 'updateBerkala', 'updateTtdRouting',
   // Menutup isu dan menempel bukti penutup bukan admin-only: teknisi
   // yang menyelesaikan gangguan boleh menandai isunya selesai.
@@ -1406,6 +1407,33 @@ const API = {
 
   /** Sunting susulan panel Manager Pemakai — hanya pembuat lembar atau admin,
       dan hanya selama Manager Teknik belum menandatangani (dijaga updateBapb). */
+  /* Lampiran lembar Daily Check dan Preventive (DS Test, berkala). Membaca:
+     siapa saja yang boleh membuka unit lembar itu. Menambah: siapa saja yang
+     boleh menulis di unit itu (API_TULIS menahan pejabat) — bukan hanya
+     pembuat lembarnya, karena dokumen pendukung sering menyusul dari rekan
+     dinas berikutnya. Membuang: pengunggahnya sendiri atau admin/admin unit.
+     Identitas diambil dari argumen TERAKHIR, supaya argumen lebih dari klien
+     tidak bisa mengisinya. */
+  getLampiranCatatan: async (jenis, id, ...sisa) => {
+    const user = sisa[sisa.length - 1];
+    const j = String(jenis || '');
+    if (!JENIS_LAMPIRAN_CATATAN.includes(j)) throw new Error('Jenis lembar tidak dikenal: ' + j);
+    const unit = await unitCatatan(j, String(id));
+    if (!unit) throw new Error('Lembar tidak ditemukan — mungkin sudah dihapus.');
+    await pastikanUnit(user, unit);
+    return listLampiranCatatan(j, String(id));
+  },
+  suntingLampiranCatatan: async (jenis, id, tambah, buang, ...sisa) => {
+    const user = sisa[sisa.length - 1];
+    const j = String(jenis || '');
+    if (!JENIS_LAMPIRAN_CATATAN.includes(j)) throw new Error('Jenis lembar tidak dikenal: ' + j);
+    const unit = await unitCatatan(j, String(id));
+    if (!unit) throw new Error('Lembar tidak ditemukan — mungkin sudah dihapus.');
+    await pastikanUnit(user, unit);
+    return suntingLampiranCatatan(j, String(id), tambah || [], buang || [],
+                                  { username: user.username, admin: kelolaUnit(user) });
+  },
+
   /** Tambah/buang lampiran BAPB — pembuat lembar atau admin, juga sesudah
       Manager Teknik tanda tangan (dijaga suntingLampiranBapb di db.js). */
   suntingLampiranBapb: async (id, tambah, buang, user) => {
