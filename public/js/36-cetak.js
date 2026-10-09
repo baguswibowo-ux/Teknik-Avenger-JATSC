@@ -682,10 +682,7 @@ async function cetakKeKertas(){
   area.classList.toggle('lanskap', CETAK.mode === 'dinas');
   pasangOrientasiCetak(CETAK.mode === 'dinas' ? 'landscape' : null);
   if(CETAK.mode === 'sparepart') muatkanSatuHalaman(area);
-  /* Per grup = satu lembar per grup, tiap lembar di halamannya sendiri: kurungan
-     satu-halaman dilepas (.bersambung), bukan dikecilkan jadi satu. */
-  if(CETAK.gabungan) area.classList.add('bersambung');
-  else if(CETAK.mode === 'dinas') muatkanLanskap(area);
+  if(CETAK.mode === 'dinas') muatkanLanskap(area);
   /* Kalau TTD-nya digambar putih di E-Logbook, ubah jadi hitam untuk
      kertas putih. Piksel bergaris (alpha > 0) dipaksa hitam pekat. */
   const imgs = Array.from(area.querySelectorAll('img[data-perlu-hitam]'));
@@ -772,29 +769,36 @@ const LANSKAP_TINGGI_MM = 194;   // sama dengan kurungan di 09-cetak.css
 const LANSKAP_LEBAR_MM  = 281;   // 297 - margin 8mm kiri-kanan
 const LANSKAP_KECIL_MIN = 0.72;  // di bawah ini huruf 7pt jadi < 5pt
 function muatkanLanskap(area){
-  const lembar = area.querySelector('.cetak-lembar');
-  if(!lembar) return;
-  area.classList.remove('bersambung');
+  const semua = Array.from(area.querySelectorAll('.cetak-lembar'));
+  if(!semua.length) return;
+  /* Lebih dari satu lembar (Cetak PUM per grup dicetak langsung): tiap lembar
+     di halamannya sendiri, jadi kurungan satu-halaman milik #printArea dilepas
+     dan tiap lembar dimuatkan sendiri-sendiri. */
+  const banyak = semua.length > 1;
+  area.classList.toggle('bersambung', banyak);
   const mm = 96 / 25.4;
+  const batas = LANSKAP_TINGGI_MM * mm;
   const gayaLama = area.getAttribute('style') || '';
   area.style.cssText = `display:block;position:fixed;left:-10000px;top:0;
     width:${LANSKAP_LEBAR_MM * mm}px;font-family:'Times New Roman',Times,serif;font-size:10.5pt;`;
   /* scrollHeight, bukan tinggi kotaknya: kalau suatu saat kurungan 194mm ikut
      berlaku di luar cetak, tinggi kotak akan selalu 194mm dan ukurannya bohong. */
-  const gayaBawah = getComputedStyle(lembar).paddingBottom;
-  const tinggi = Math.max(lembar.scrollHeight, lembar.getBoundingClientRect().height)
-               - (parseFloat(gayaBawah) || 0);   // di kertas padding bawahnya 0
+  const tinggi = semua.map(lembar=>
+    Math.max(lembar.scrollHeight, lembar.getBoundingClientRect().height)
+      - (parseFloat(getComputedStyle(lembar).paddingBottom) || 0));   // di kertas padding bawahnya 0
   area.setAttribute('style', gayaLama);
-  const batas = LANSKAP_TINGGI_MM * mm;
-  if(tinggi <= batas) return;
-  const z = (batas / tinggi) * 0.975;
-  if(z < LANSKAP_KECIL_MIN){ area.classList.add('bersambung'); return; }
-  /* zoom ikut mengecilkan kotak lembarnya sendiri, termasuk kurungan 194mm dan
-     lebar 275mm-nya — dibesarkan balik supaya sesudah dikecilkan tetap satu
-     halaman penuh, bukan halaman yang ikut menciut. */
-  lembar.style.zoom = String(z);
-  lembar.style.height = lembar.style.maxHeight = (LANSKAP_TINGGI_MM / z) + 'mm';
-  lembar.style.maxWidth = (275 / z) + 'mm';
+  semua.forEach((lembar, k)=>{
+    if(tinggi[k] <= batas) return;
+    const z = (batas / tinggi[k]) * 0.975;
+    if(z < LANSKAP_KECIL_MIN){ area.classList.add('bersambung'); return; }
+    /* zoom ikut mengecilkan kotak lembarnya sendiri, termasuk kurungan 194mm dan
+       lebar 275mm-nya — dibesarkan balik supaya sesudah dikecilkan tetap satu
+       halaman penuh, bukan halaman yang ikut menciut. */
+    lembar.style.zoom = String(z);
+    lembar.style.height = lembar.style.maxHeight = (LANSKAP_TINGGI_MM / z) + 'mm';
+    lembar.style.maxWidth = (275 / z) + 'mm';
+    if(banyak) lembar.style.overflow = 'hidden';
+  });
 }
 
 /**
@@ -1325,11 +1329,19 @@ function dinasGabunganGrup(){
     if(lepas) tanpa.push({ unit, jumlah: lepas });
   });
   const grup = [...peta.keys()].sort((a, b)=>a - b)
-    .map(nomor=>({ nomor, nama: 'GRUP ' + nomor, orang: peta.get(nomor) }));
+    .map(nomor=>({ nomor, nama: 'GROUP ' + nomor, orang: peta.get(nomor) }));
   return { grup, tanpa };
 }
 
 const gabunganBulan = () => JDW.lihat || JDW.bulanIni || bulanKode(new Date());
+
+/** Kop lembar grup — sama dengan lembar Manager Teknik: "JADWAL DINAS UNIT
+    TEKNIK GROUP 1" lalu "BULAN OKTOBER 2026". Nama unit tidak disebut. */
+function gabunganKopHtml(grup, bulan){
+  return `
+    <h1>${esc('JADWAL DINAS UNIT TEKNIK ' + String(grup || '').toUpperCase())}</h1>
+    <h2>${esc('BULAN ' + String(namaBulan(bulan) || '').toUpperCase())}</h2>`;
+}
 
 function gabunganLabelKirim(){
   const n = dinasGabunganGrup().grup.length;
@@ -1375,6 +1387,7 @@ function cetakLembarGabunganHtml(){
   return grup.map(g=>{
     const snap = gabunganSnapshot(g);
     const kaki = dinasFooterHtml({
+      gabungan: true,
       pum: true, tanggalIso: snap.tanggalCetak, cutiRows: dinasBarisCuti(g.orang, bulan),
       ttdMengertUrl:  (CETAK.ttdDeputy  && CETAK.ttdDeputy.ada)  ? CETAK.ttdDeputy.url  : '',
       ttdMengertNama: (CETAK.ttdDeputy  && (CETAK.ttdDeputy.nama || CETAK.deputyDipilih)) || '',
@@ -1382,8 +1395,7 @@ function cetakLembarGabunganHtml(){
       ttdManagerNama: (CETAK.ttdPejabat && (CETAK.ttdPejabat.nama || CETAK.pejabatDipilih)) || ''
     });
     return `<div class="cetak-lembar">
-      <h1>${esc(CETAK_JUDUL.dinas?.() || '')} — ${esc(namaBulan(bulan))}</h1>
-      <h2>${esc(g.nama)}</h2>
+      ${gabunganKopHtml(g.nama, bulan)}
       ${cetakIsiSnapshotHtml({ jenis:'dinas', bulan }, snap)}${kaki}</div>`;
   }).join('');
 }
@@ -2078,7 +2090,7 @@ function cetakIsiSnapshotHtml(p, snap, ttd = ''){
   }
   if(p.jenis === 'dinas'){
     const bulan = snap.bulan || p.bulan;
-    const orang = dinasBarisCetak(Array.isArray(snap.orang) ? snap.orang : []);
+    const orang = Array.isArray(snap.orang) ? snap.orang : [];
     if(!bulan || !/^\d{4}-\d{2}$/.test(String(bulan))){
       return `<div style="text-align:center;font-style:italic;padding:12pt 0">${
         T('Snapshot bulan tidak sah — permintaan ini mungkin dibuat versi lama.',
@@ -2099,17 +2111,21 @@ function cetakIsiSnapshotHtml(p, snap, ttd = ''){
        (yang sudah kosong sekali kotak masuk ditutup). Kalau tidak ada,
        jatuh ke 'teknik' (kode apa adanya) — itu perilaku lama. */
     const pum = snap.format === 'pum';
+    /* Lembar PUM per grup mengikuti lembar "JADWAL DINAS UNIT TEKNIK GROUP n"
+       Manager Teknik: kolom ENIK di depan NAMA, dan hari kosong ditulis "-". */
+    const gab = !!snap.gabungan;
     const nomorUrut = jdwNomorUrut(orang);
+    const selNama = (o, idx)=>`<td class="nama"${nomorUrut[idx] === '' ? ' style="font-weight:700"' : ''}>${esc(o.nama || '')}</td>`;
+    const selNik = (o)=>`<td class="nik">${esc(o.nik || '—')}</td>`;
     const barisOrang = orang.length ? orang.map((o,idx)=>`
       <tr>
         <td class="no">${nomorUrut[idx]}</td>
-        <td class="nama"${nomorUrut[idx] === '' ? ' style="font-weight:700"' : ''}>${esc(o.nama || '')}</td>
-        <td class="nik">${esc(o.nik || '—')}</td>
+        ${gab ? selNik(o) + selNama(o, idx) : selNama(o, idx) + selNik(o)}
         ${Array.from({length:hariN}, (_,i)=>{
           const asli = (o.hari || [])[i] || '';
           const nilai = pum ? dinasKodePUM(asli) : asli;
           const libur = !!tanggalMerah(bulan, i+1);
-          return `<td class="${libur?'hari-libur':''}">${esc(nilai) || '·'}</td>`;
+          return `<td class="${libur?'hari-libur':''}">${esc(nilai) || (gab ? '-' : '·')}</td>`;
         }).join('')}
       </tr>`).join('') : `
       <tr><td colspan="${hariN + 3}" style="text-align:center;padding:8pt;font-style:italic">${
@@ -2118,8 +2134,9 @@ function cetakIsiSnapshotHtml(p, snap, ttd = ''){
       <table class="data jdw">
         <thead><tr>
           <th style="width:26px">${T('No','No')}</th>
-          <th style="width:165px">${T('Nama','Name')}</th>
-          <th style="width:64px">NIK</th>
+          ${gab
+            ? `<th style="width:64px">ENIK</th><th style="width:165px">${T('Nama','Name')}</th>`
+            : `<th style="width:165px">${T('Nama','Name')}</th><th style="width:64px">NIK</th>`}
           ${kepalaHari}
         </tr></thead>
         <tbody>${barisOrang}</tbody></table>`;
@@ -2223,9 +2240,11 @@ async function cetakLembarPermintaanHtml(p, snap){
   // langsung: informasi Penyelenggara + Kelompok Fasilitas sudah muncul di
   // blok identitas per-alat; Tanggal Cetak & Dicetak Oleh tidak diminta form.
   /* Lembar PUM per grup tidak menyebut unit — isinya orang dari semua unit. */
-  const kop = `
+  const kop = (snap && snap.gabungan)
+    ? gabunganKopHtml(snap.grup, snap.bulan || p.bulan)
+    : `
     <h1>${esc(judul)}${esc(bulan)}</h1>
-    <h2>${esc(snap && snap.gabungan ? (snap.grup || '') : (u.nama || p.unit))}</h2>`;
+    <h2>${esc(u.nama || p.unit)}</h2>`;
 
   const mengertUrl = CETAK.ttdPejabat && CETAK.ttdPejabat.ada ? CETAK.ttdPejabat.url : '';
   let blok;
@@ -2239,6 +2258,7 @@ async function cetakLembarPermintaanHtml(p, snap){
     const orang = Array.isArray(snap.orang) ? snap.orang : [];
     const deputyUrl = CETAK.ttdDeputy && CETAK.ttdDeputy.ada ? CETAK.ttdDeputy.url : '';
     blok = dinasFooterHtml({
+      gabungan: !!snap.gabungan,
       pum: snap.format === 'pum',
       tanggalIso: snap.tanggalCetak || '',
       cutiRows: dinasBarisCuti(orang, bulan),
@@ -2470,6 +2490,36 @@ function dinasFooterHtml(ctx){
           ${noteLi}
         </div>`;
 
+  /* Lembar grup: daftar KETERANGAN (cuti dsb.) di kiri tanpa garis tabel, tanggal
+     dan dua kolom TTD di kanannya — susunan lembar Manager Teknik. Nama yang
+     punya lebih dari satu baris hanya ditulis di baris pertamanya. */
+  if(ctx.gabungan){
+    let sebelum = null;
+    const baris = ctx.cutiRows.map(r=>{
+      const sama = r.nama === sebelum; sebelum = r.nama;
+      return `<tr><td>${sama ? '' : esc(r.nama)}</td><td>${esc(String(r.keterangan || '').toUpperCase())}</td>
+        <td>${esc(String(r.tanggal || '').toUpperCase())}</td></tr>`;
+    }).join('');
+    return `
+    <div class="dinas-footer">
+      <div class="dinas-bawah">
+        <div class="dinas-ket-kiri">
+          <div class="dinas-note-jd">KETERANGAN:</div>
+          ${baris ? `<table class="dinas-ket-tabel"><tbody>${baris}</tbody></table>` : ''}
+        </div>
+        <div class="dinas-ttd-kanan">
+          <div class="dinas-ttd-tanggal">${kotaTgl}</div>
+          <table class="ttd-blok">
+            <tr>
+              ${kotakTtd('Mengetahui,', ctx.ttdMengertUrl, ctx.ttdMengertNama, 'DEPUTY GENERAL MANAGER TEKNIK')}
+              ${kotakTtd('Dibuat Oleh,', ctx.ttdManagerUrl, ctx.ttdManagerNama, 'MANAGER TEKNIK')}
+            </tr>
+          </table>
+        </div>
+      </div>
+    </div>`;
+  }
+
   return `
     <div class="dinas-footer">
       <table class="data dinas-cuti">
@@ -2508,7 +2558,7 @@ function htmlDinas(){
      pernah dipilih), pakai bulan berjalan sebagai bawaan. */
   const bulan = JDW.lihat || JDW.bulanIni || bulanKode(new Date());
   const hariN = jumlahHari(bulan);
-  const orang = dinasBarisCetak((JDW.jadwalLihat && JDW.jadwalLihat[unit]) || []);
+  const orang = (JDW.jadwalLihat && JDW.jadwalLihat[unit]) || [];
   const pum = CETAK.formatDinas === 'pum';
 
   const hariMinggu = (h)=>{

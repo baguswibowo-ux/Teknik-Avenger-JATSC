@@ -817,3 +817,11 @@
 /* Cetak PUM per grup langsung (tanpa antrian): beberapa lembar dalam satu
    cetakan, tiap grup mulai di halaman baru. */
 #printArea .cetak-lembar + .cetak-lembar { break-before: page; page-break-before: always; }
+
+/* Kaki lembar PUM per grup: daftar KETERANGAN di kiri, tanpa garis tabel.
+   Aturan umum layar (td berpadding besar, garis bawah, baris genap berwarna,
+   table selebar wadah) dimatikan satu per satu. */
+.cetak-lembar .dinas-ket-kiri { flex: 1; font-size: 8pt; line-height: 1.35; padding-right: 12pt; }
+.cetak-lembar table.dinas-ket-tabel { width: auto; border-collapse: collapse; font-size: 8pt; margin-top: 1pt; }
+.cetak-lembar table.dinas-ket-tabel tr { background: none !important; }
+.cetak-lembar table.dinas-ket-tabel td { border: none; padding: 0 14pt 0 0; vertical-align: top; text-align: left; white-space: nowrap; }
