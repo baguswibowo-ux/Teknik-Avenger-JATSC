@@ -2078,7 +2078,7 @@ function cetakIsiSnapshotHtml(p, snap, ttd = ''){
   }
   if(p.jenis === 'dinas'){
     const bulan = snap.bulan || p.bulan;
-    const orang = Array.isArray(snap.orang) ? snap.orang : [];
+    const orang = dinasBarisCetak(Array.isArray(snap.orang) ? snap.orang : []);
     if(!bulan || !/^\d{4}-\d{2}$/.test(String(bulan))){
       return `<div style="text-align:center;font-style:italic;padding:12pt 0">${
         T('Snapshot bulan tidak sah — permintaan ini mungkin dibuat versi lama.',
@@ -2262,6 +2262,27 @@ async function cetakLembarPermintaanHtml(p, snap){
     return `<div class="cetak-lembar">${kop}${cetakIsiSnapshotHtml(p, snap, blok)}</div>`;
   }
   return `<div class="cetak-lembar">${kop}${cetakIsiSnapshotHtml(p, snap)}${blok}</div>`;
+}
+
+/**
+ * Baris jadwal yang ikut ke lembar cetak.
+ *
+ * Baris TANPA NIK yang juga tanpa isian dinas bukan orang — itu baris judul
+ * grup ("GRUP 1", "GRUP 2", ...) atau baris pemisah yang ikut terimpor dari
+ * Excel. Di layar jadwal baris itu berguna (pembagian grupnya terbaca, dan
+ * Cetak PUM per Grup membacanya), tapi di kertas ia tercetak sebagai orang
+ * bernomor urut tanpa NIK. Jadi tidak dicetak, dan nomor urutnya rapat.
+ *
+ * Orang sungguhan yang NIK-nya belum diisi TETAP tercetak selama ada isian
+ * dinasnya — jadwal lama (sebelum kolom NIK ada) seluruhnya tanpa NIK, dan
+ * menghilangkan orang dari lembar resmi lebih berbahaya daripada NIK kosong.
+ */
+function dinasBarisCetak(orang){
+  return (Array.isArray(orang) ? orang : []).filter(o=>{
+    if(!o) return false;
+    if(String(o.nik || '').trim()) return true;
+    return (o.hari || []).some(h=>String(h || '').trim());
+  });
 }
 
 /**
@@ -2487,7 +2508,7 @@ function htmlDinas(){
      pernah dipilih), pakai bulan berjalan sebagai bawaan. */
   const bulan = JDW.lihat || JDW.bulanIni || bulanKode(new Date());
   const hariN = jumlahHari(bulan);
-  const orang = (JDW.jadwalLihat && JDW.jadwalLihat[unit]) || [];
+  const orang = dinasBarisCetak((JDW.jadwalLihat && JDW.jadwalLihat[unit]) || []);
   const pum = CETAK.formatDinas === 'pum';
 
   const hariMinggu = (h)=>{
