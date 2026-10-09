@@ -259,6 +259,7 @@ function buildDcPgmPrintHtml(r, state){
     lembar ini (Baik / Perlu Perhatian / Rusak), bukan Normal/Alarm/Gangguan. */
 function buildDcFgkPrintHtml(r, state){
   const form = fgkFormSah(state && state.__fgkForm);
+  if(form === 'akses') return buildDcFgkAksesPrintHtml(r, state);
   const sub = (typeof DC_FGK_SUBJUDUL !== 'undefined' && DC_FGK_SUBJUDUL[form]) || '';
   // Lokasi IKUT lembarnya — kedua lembar milik gedung yang berbeda, jadi tidak
   // boleh dipatok 'JATSC' seperti cetakan unit lain yang cuma punya satu gedung.
@@ -271,17 +272,6 @@ function buildDcFgkPrintHtml(r, state){
       #printArea .pgm-print td, #printArea .fgk-cetak td{padding:0 3px;line-height:1.1;}
       #printArea .pgm-print .p-kepala td, #printArea .fgk-cetak .p-kepala td{font-size:6pt;}
       #printArea .fgk-cetak .fgk-sel{display:block;}
-      /* Lembar yang barisnya sedikit (Lift & Akses Door): jangan dirapatkan.
-         Ukurannya meniru lembar Excel aslinya: huruf 7,2pt, baris setinggi 17pt.
-         !important karena ukuran huruf dan jarak bloknya ditulis inline oleh
-         fgkBlokHtml() untuk lembar yang rapat. */
-      #printArea .fgk-cetak.fgk-lega table table{font-size:7.5pt !important;}
-      #printArea .fgk-cetak.fgk-lega table table td{padding:4px 5px;line-height:1.3;vertical-align:middle;}
-      #printArea .fgk-cetak.fgk-lega .p-kepala td{font-size:7pt;padding:4px 5px;}
-      #printArea .fgk-cetak.fgk-lega > table > tbody > tr > td{padding:0 10px 0 0 !important;}
-      #printArea .fgk-cetak.fgk-lega > table > tbody > tr > td:last-child{padding-right:0 !important;}
-      #printArea .fgk-cetak.fgk-lega > table > tbody > tr > td > div{margin-bottom:6px !important;font-size:8pt !important;}
-      #printArea .fgk-cetak.fgk-lega > table > tbody > tr > td > div > div{font-size:7pt !important;margin-bottom:2px !important;}
     </style>
     <div style="text-align:center;font-weight:bold;font-size:12pt;margin-bottom:2px;">
       PENGECEKAN HARIAN FASILITAS GEDUNG DAN KEAMANAN
@@ -318,6 +308,64 @@ function buildDcFgkPrintHtml(r, state){
             ${r.managerTtd ? (escapeHtml(r.managerNama) || '&nbsp;') : '&nbsp;'}
           </div>
         </td>
+      </tr>
+    </table>`;
+}
+
+/** Halaman cetak lembar Lift & Akses Door (NEW JATSC) — meniru lembar kertasnya
+    dari kepala sampai kotak tanda tangan, bukan pola cetak FGK lain: logo dan
+    dua baris judul, Hari/Tanggal, satu tabel menyatu (fgkCetakAksesHtml di
+    12f), kotak CATATAN, lalu tiga kotak MANAGER TEKNIK / SUPERVISOR / TEKNISI.
+    Ukurannya dari lembar aslinya: huruf 7,2pt, baris setinggi 17pt.
+    "Waktu" di kertas diisi dinasnya. Kotak SUPERVISOR dibiarkan kosong untuk
+    tanda tangan basah — E-Logbook tidak punya TTD supervisor. CATATAN memuat
+    keterangan lift (kotak di bawah tabel Lift di layar) dan Remark dinasnya. */
+function buildDcFgkAksesPrintHtml(r, state){
+  const st = state || {};
+  const catatan = [st[fgkKunciKet('A')], r.remark].map(x=>String(x || '').trim()).filter(Boolean)
+    .map(x=>escapeHtml(x).replace(/\n/g, '<br>')).join('<br>');
+  return `
+    <style>
+      #printArea .fgk-asli{table-layout:fixed;width:100%;border-collapse:collapse;font-size:7.2pt;}
+      #printArea .fgk-asli td{height:17pt;padding:0 3px;line-height:1.15;vertical-align:middle;text-align:left;}
+      #printArea .fgk-asli td.t{text-align:center;padding:0 1px;}
+      #printArea .fgk-asli thead td{font-weight:bold;text-align:center;padding:0 1px;}
+      #printArea .fgk-ttd{table-layout:fixed;width:100%;border-collapse:collapse;font-size:7.2pt;}
+      #printArea .fgk-ttd td{padding:2px 4px;vertical-align:middle;}
+    </style>
+    <table class="no-border" style="margin-bottom:6px;"><tr>
+      <td style="width:22%;vertical-align:bottom;font-size:7pt;font-weight:bold;">
+        <img src="images/airnav-logo-128.png" alt="" style="height:30pt;display:block;margin-bottom:2px;" onerror="this.style.display='none'">
+        AirNav Indonesia
+      </td>
+      <td style="text-align:center;vertical-align:bottom;font-weight:bold;font-size:11.8pt;line-height:1.45;">
+        FASILITAS GEDUNG DAN KEAMANAN<br>JAKARTA AIR TRAFFIC SERVICE CENTRE
+      </td>
+      <td style="width:22%;"></td>
+    </tr></table>
+    <table class="no-border" style="font-size:8.2pt;margin-bottom:3px;"><tr>
+      <td style="width:53%;">Hari/ Tanggal : ${escapeHtml(r.tanggal) || ''}</td>
+      <td>Waktu : ${r.dinas ? 'Dinas ' + escapeHtml(r.dinas) : ''}</td>
+    </tr></table>
+
+    ${dcFgkTabelBaca('akses', st, true)}
+
+    <table class="fgk-ttd"><tr>
+      <td style="height:120pt;vertical-align:top;"><b>CATATAN:</b>${catatan ? '<br>' + catatan : ''}
+        <div style="font-size:6.5pt;color:#444;margin-top:4px;">✓ : Baik &nbsp; ! : Perlu Perhatian &nbsp; ✕ : Rusak / Tidak Berfungsi</div></td>
+    </tr></table>
+    <table class="fgk-ttd">
+      <colgroup><col style="width:35%"><col style="width:37%"><col style="width:28%"></colgroup>
+      <tr style="font-weight:bold;text-align:center;">
+        <td style="height:17pt;text-align:center;">MANAGER TEKNIK</td><td style="text-align:center;">SUPERVISOR</td><td style="text-align:center;">TEKNISI</td>
+      </tr>
+      <tr>
+        <td style="height:68pt;text-align:center;">
+          <div style="height:44px;">${ttdImg(r.managerTtd, 40)}</div>
+          ${r.managerTtd ? (escapeHtml(r.managerNama) || '&nbsp;') : '&nbsp;'}
+        </td>
+        <td></td>
+        <td>${teknisiPrintBlock(r)}</td>
       </tr>
     </table>`;
 }
