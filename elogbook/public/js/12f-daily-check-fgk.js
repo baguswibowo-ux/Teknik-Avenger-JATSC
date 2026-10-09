@@ -21,6 +21,8 @@
    baris boleh berupa:
      'Nama'                              → sel status (klik untuk berputar)
      { n:'Nama', t:'isi', sat:'°C' }     → sel isian angka/teks
+   Kepala kolom pertama tiap blok 'Item', kecuali blok yang membawa `kepala`
+   (lembar Lift & Akses Door memakai kepala kertas aslinya).
    Sel status memakai skema yang sama dengan unit lain — ✓ Baik / ! Perlu
    Perhatian / ✕ Rusak (ok / warn / fail) — supaya render, temuan, dan cetaknya
    bisa memakai pola yang sudah teruji.
@@ -210,12 +212,12 @@ const FGK_PINTU = ['READER','MAGNETIC','PUSH BUTTON','STATUS LOCK','KETERANGAN']
 
 const DC_FGK_AKSES = [
   { kode:'A', judul:'A. LIFT GEDUNG ATS', catatan:true, blok:[
-    { judul:'Tegangan (V)', kolom:['CEKLIS / UKUR'], baris:[
+    { judul:'Tegangan (V)', kepala:'URAIAN KEGIATAN', kolom:['CEKLIS / UKUR'], baris:[
       { n:'L1-L2 / L1-N', t:'isi', ph:'390 / 226' },
       { n:'L2-L3 / L2-N', t:'isi', ph:'391 / 227' },
       { n:'L3-L1 / L3-N', t:'isi', ph:'388 / 227' }
     ]},
-    { judul:'Pemeriksaan', kolom:['CEKLIS / UKUR'], baris:[
+    { judul:'Pemeriksaan', kepala:'URAIAN KEGIATAN', kolom:['CEKLIS / UKUR'], baris:[
       'Panel Control',
       { n:'Suhu dalam Car', t:'isi', sat:'°C', ph:'24' },
       'Fungsi tombol & indikator dalam car',
@@ -230,7 +232,7 @@ const DC_FGK_AKSES = [
   ]},
 
   { kode:'B', judul:'B. AKSES DOOR GEDUNG ATS', blok:[
-    { judul:'Per ruang (jumlah pintu)', kolom:FGK_PINTU, isiKolom:['KETERANGAN'], baris:[
+    { judul:'Per ruang (jumlah pintu)', kepala:'URAIAN KEGIATAN', kolom:FGK_PINTU, isiKolom:['KETERANGAN'], baris:[
       'Ruang MER (4)',
       'Ruang Mantek (1)',
       'Engineering Workshop (1)',
@@ -429,13 +431,13 @@ function fgkBlokHtml(seksi, blok, bi, st, mode){
     const sub = blok.judul ? `<div style="font-size:6.5pt;color:#333;margin:1px 0 0;">${escapeHtml(blok.judul)}</div>` : '';
     const head = blok.kolom.map(k=>`<td${fgkKolomIsi(blok, k) ? ' style="width:26%;"' : ''}>${escapeHtml(k)}</td>`).join('');
     return `<div style="margin:0 0 3px;">${sub}<table style="width:100%;font-size:7pt;border-collapse:collapse;">
-      <thead><tr class="p-kepala"><td>Item</td>${head}</tr></thead>
+      <thead><tr class="p-kepala"><td>${escapeHtml(blok.kepala || 'Item')}</td>${head}</tr></thead>
       <tbody>${rows}</tbody></table></div>`;
   }
   const sub = blok.judul ? `<div class="pgm-blok-judul">${escapeHtml(blok.judul)}</div>` : '';
   const head = blok.kolom.map(k=>`<th${fgkKolomIsi(blok, k) ? ' class="fgk-th-bebas"' : ''}>${escapeHtml(k)}</th>`).join('');
   return `<div class="pgm-blok">${sub}<table class="pgm">
-    <thead><tr><th>Item</th>${head}</tr></thead>
+    <thead><tr><th>${escapeHtml(blok.kepala || 'Item')}</th>${head}</tr></thead>
     <tbody>${rows}</tbody></table></div>`;
 }
 
