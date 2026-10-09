@@ -39,13 +39,16 @@ const SHIFT = {
      yang dipecah memakai PJ/SJ di atas, `geser` ikut memundurkan MJ SEMUA orang
      ke 13:00 — padahal malam rombongan PS tetap berangkat 12:00. Karena itu
      pecahannya diberi kode sendiri: P1/S1 TANPA `geser`, dan M1 yang jamnya
-     memang 13:00, jadi M biasa hari itu tidak tersentuh. */
-  'P1J':  { mulai:0,  sampai:7,  warna:'var(--accent)', nama:'Pagi 1 JATSC',      pita:'P' },
-  'P1NJ':  { mulai:0,  sampai:7,  warna:'var(--accent)', nama:'Pagi 1 New JATSC',  pita:'P' },
-  'S1J':  { mulai:7,  sampai:13, warna:'var(--warn)',   nama:'Siang 1 JATSC',     pita:'S' },
-  'S1NJ':  { mulai:7,  sampai:13, warna:'var(--warn)',   nama:'Siang 1 New JATSC', pita:'S' },
-  'M1J':  { mulai:13, sampai:24, warna:'var(--muted)',  nama:'Malam 1 JATSC',     pita:'M', malam:true },
-  'M1NJ':  { mulai:13, sampai:24, warna:'var(--muted)',  nama:'Malam 1 New JATSC', pita:'M', malam:true },
+     memang 13:00, jadi M biasa hari itu tidak tersentuh.
+     `cetak` = tulisan di lembar cetak PUM: P1 / S1 / M1 tanpa huruf gedung,
+     supaya di lembar itu pecahan tiga tetap terbedakan dari PS dan M biasa
+     (tanpa `cetak`, yang tercetak pitanya: PS, M, P, S). */
+  'P1J':  { mulai:0,  sampai:7,  warna:'var(--accent)', nama:'Pagi 1 JATSC',      pita:'P', cetak:'P1' },
+  'P1NJ':  { mulai:0,  sampai:7,  warna:'var(--accent)', nama:'Pagi 1 New JATSC',  pita:'P', cetak:'P1' },
+  'S1J':  { mulai:7,  sampai:13, warna:'var(--warn)',   nama:'Siang 1 JATSC',     pita:'S', cetak:'S1' },
+  'S1NJ':  { mulai:7,  sampai:13, warna:'var(--warn)',   nama:'Siang 1 New JATSC', pita:'S', cetak:'S1' },
+  'M1J':  { mulai:13, sampai:24, warna:'var(--muted)',  nama:'Malam 1 JATSC',     pita:'M', cetak:'M1', malam:true },
+  'M1NJ':  { mulai:13, sampai:24, warna:'var(--muted)',  nama:'Malam 1 New JATSC', pita:'M', cetak:'M1', malam:true },
   /* Tanpa huruf gedung. Tidak ditawarkan di daftar kode unit — lembar yang
      menulis 'PS' saja belum menyebut JATSC atau New JATSC, dan impor memang
      harus melaporkannya sebagai kode asing supaya dilengkapi. Tetap dikenal

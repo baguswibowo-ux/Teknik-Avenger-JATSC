@@ -2011,7 +2011,8 @@ async function cetakLembarPermintaanHtml(p, snap){
 /**
  * Peta kode dinas untuk versi PUM.
  *
- * Yang tampil di lembar PUM hanya empat kode dasar: PS, M, P, S. Semua kode
+ * Yang tampil di lembar PUM hanya kode dasar tanpa huruf gedung: PS, M, P, S,
+ * dan untuk pola campuran (hybrid) P1, S1, M1. Semua kode
  * lain — SPKL apa pun bentuknya, CUTI, CAP, IJIN, DL, dan kode yang tidak
  * dikenali — dikosongkan supaya lembar yang diserahkan ke PUM hanya berisi ritme jaga
  * pokok, tanpa lembur dan tanpa keterangan absen yang bukan urusan mereka.
@@ -2036,8 +2037,10 @@ function dinasKodePUM(kode){
      punya tempat sendiri di tabel bawah lembar (lihat dinasBarisCuti). */
   if(s.libur) return '';
   /* Yang tersisa tinggal ritme jaga pokok, dan `pita` memang sudah menyebutnya
-     dengan empat huruf yang sama: PS, M, P, S. */
-  return s.pita || '';
+     dengan empat huruf yang sama: PS, M, P, S. Pecahan tiga pola campuran
+     membawa tulisannya sendiri (`cetak`: P1, S1, M1) — kalau ikut pitanya,
+     M1 yang berangkat 13:00 tercetak sama dengan M yang berangkat 12:00. */
+  return s.cetak || s.pita || '';
 }
 
 /* Nama bulan Bahasa Indonesia — dipakai untuk baris "Tangerang, 15 Agustus
