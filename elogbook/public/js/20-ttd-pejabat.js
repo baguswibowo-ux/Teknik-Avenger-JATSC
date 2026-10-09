@@ -13,7 +13,7 @@
 
    Yang menahan sebenarnya tetap server: ia menolak permintaan dari peran lain,
    dan menolak menimpa petak yang sudah terisi. Tanda tangan yang terlanjur
-   keliru tidak ditimpa siapa pun: administrator membatalkannya dan lembarnya
+   keliru tidak ditimpa siapa pun: administrator atau admin unit membatalkannya dan lembarnya
    kembali ke pejabatnya — lihat "Minta TTD ulang" di bawah.
 
    Kalau catatan menunjuk akun tertentu (ttdUntuk — lihat ttdUntukDariNama),
@@ -106,12 +106,14 @@ function sigPejabatHtml(jenis, id, ttdUrl, rec){
   return `<button class="btn btn-ttd" onclick="openTtdModal('${jenis}','${id}')">${T('bubuhkanTtd')}</button>`;
 }
 
-/* ---------- Minta TTD ulang (administrator) ----------
+/* ---------- Minta TTD ulang (administrator & admin unit) ----------
    Pejabatnya sudah menyetujui, tetapi gambar yang terbubuh keliru — mis. TTD
    tersimpan di akunnya waktu itu masih goresan PH-nya. Administrator tidak
    memasang tanda tangan pengganti: ia membatalkan yang keliru, dan lembarnya
    kembali ke Kotak Masuk TTD pejabat itu untuk ditandatangani ulang olehnya
-   sendiri (mintaTtdUlang di server.js, batalkanTtdCatatan di db.js). */
+   sendiri (mintaTtdUlang di server.js, batalkanTtdCatatan di db.js).
+   Admin unit boleh melakukan hal yang sama di unitnya — server yang memeriksa
+   unit tiap dokumen (UBAH_ADMINUNIT di server.js). */
 
 /** Catatan di memori untuk satu jenis — daftar yang sama dengan titipan PH. */
 function catatanTtd(jenis, id){
@@ -120,7 +122,7 @@ function catatanTtd(jenis, id){
 }
 
 function tombolTtdUlangHtml(jenis, id, rec){
-  if(!adminAktif() || (rec && rec.__titipan)) return '';
+  if(!kelolaUnitAktif() || (rec && rec.__titipan)) return '';
   return `<button class="btn ghost" style="display:block;margin-top:5px;padding:2px 8px;font-size:11px;"
     title="Batalkan tanda tangan yang keliru dan kirim lagi dokumen ini ke pejabatnya untuk ditandatangani ulang"
     onclick="mintaTtdUlang('${jenis}','${id}')">minta TTD ulang</button>`;

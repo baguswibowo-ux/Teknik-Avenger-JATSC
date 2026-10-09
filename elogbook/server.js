@@ -1903,6 +1903,8 @@ const API_ADMIN = {
      dan kirim lembarnya kembali ke Kotak Masuk TTD pejabat itu. Administrator
      tidak memasang tanda tangan siapa pun — pejabatnya sendiri yang
      menandatangani ulang (lihat batalkanTtdCatatan di db.js).
+     Admin unit juga boleh, untuk dokumen di unit yang dipegangnya
+     (UBAH_ADMINUNIT).
      Tercatat di log aktivitas (aksi 'ttd-ulang'), dan akun yang dituju
      dikabari "perlu tanda tangan" seperti lembar baru. */
   mintaTtdUlang: async (jenis, id, user) => {
@@ -1910,7 +1912,7 @@ const API_ADMIN = {
     if (!jenisTtdSah(j)) throw new Error('Jenis catatan tidak dikenal: ' + j);
     const hasil = await batalkanTtdCatatan(j, String(id));
     notifPerluTtd(j, hasil.ttdUntuk, { unit: hasil.unit, tanggal: hasil.tanggal },
-      `${user.nama || user.username} (administrator) — minta tanda tangan ulang`, hasil.id);
+      `${user.nama || user.username} (${isAdmin(user) ? 'administrator' : 'admin unit'}) — minta tanda tangan ulang`, hasil.id);
     return { jenis: hasil.jenis, id: hasil.id, nama: hasil.nama, ttdUntuk: hasil.ttdUntuk, penandaLama: hasil.penandaLama };
   },
 
@@ -2209,7 +2211,9 @@ const HAPUS_ADMINUNIT = {
 
 /* Fungsi admin yang juga dibuka untuk admin unit, di unitnya sendiri: mengubah
    kolom trouble dan menambah lampiran trouble/LTK. Sama bentuknya dengan
-   HAPUS_ADMINUNIT — [jenis catatan, posisi argumen id] untuk mencari unitnya. */
+   HAPUS_ADMINUNIT — [jenis catatan, posisi argumen id] untuk mencari unitnya.
+   mintaTtdUlang berlaku untuk semua jenis dokumen ber-TTD, jadi jenisnya
+   dibaca dari argumennya (fungsi), bukan tetap. */
 /* Lembar tab FORM yang boleh dihapus PEMBUATNYA SENDIRI (teknisi biasa),
    selama pejabatnya belum TTD — lihat pemilikLembarForm di db.js. Nilai =
    jenis catatannya. Admin & admin unit tetap lewat jalur di atas. */
@@ -2232,7 +2236,8 @@ async function tolakHapusPembuat(fn, req) {
 const UBAH_ADMINUNIT = {
   updateIssueField: ['isu', 0],
   addIssueLampiran: ['isu', 0],
-  addLtkLampiran:   ['ltk', 0]
+  addLtkLampiran:   ['ltk', 0],
+  mintaTtdUlang:    [(a) => String(a[0] || ''), 1]
 };
 
 const API_ADMIN_UNTUK_ADMINUNIT = new Set([
@@ -2263,8 +2268,9 @@ const API_ADMIN_UNTUK_ADMINUNIT = new Set([
  *
  * TTD, PH, dan langganan notifikasi HP sengaja tidak dicatat di sini; begitu juga
  * masuk/keluar akun. Satu pengecualian: administrator yang mengganti TTD
- * tersimpan milik pejabat (simpanTtdMilik), atau membatalkan tanda tangan
- * yang sudah dibubuhkan supaya diteken ulang (mintaTtdUlang).
+ * tersimpan milik pejabat (simpanTtdMilik), atau administrator/admin unit yang
+ * membatalkan tanda tangan yang sudah dibubuhkan supaya diteken ulang
+ * (mintaTtdUlang).
  *
  * Pencatatan tidak pernah menggagalkan pekerjaan yang dicatat: kalau penulisan
  * log-nya gagal, yang gagal cuma log-nya.
@@ -2567,8 +2573,9 @@ app.post('/api/:fn', requireAuth, async (req, res) => {
     }
     // Admin unit menghapus atau mengubah: catatannya harus milik unit yang dipegangnya.
     if (!hapusSendiri && (hapusUnit || ubahUnit)) {
-      const [jenis, posisi] = hapusUnit ? HAPUS_ADMINUNIT[fn] : UBAH_ADMINUNIT[fn];
+      const [jenisPeta, posisi] = hapusUnit ? HAPUS_ADMINUNIT[fn] : UBAH_ADMINUNIT[fn];
       const argsUnit = Array.isArray(req.body?.args) ? req.body.args : [];
+      const jenis = typeof jenisPeta === 'function' ? jenisPeta(argsUnit) : jenisPeta;
       const unit = await unitHapus(jenis, argsUnit[posisi]);
       if (!unit) return res.status(404).json({ error: 'Catatan tidak ditemukan — mungkin sudah dihapus.' });
       if (!(await unitUntukUser(req.user)).includes(unit)) {
