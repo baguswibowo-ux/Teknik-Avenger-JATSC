@@ -104,6 +104,25 @@ const bolehBubuhkanTtdOrang = () =>
 const bolehCetakLangsung = () =>
   !!akun && (akun.role === 'pejabat' || (akun.role === 'pejabatnonop' && CETAK.nonopBoleh === true));
 
+/* Administrator boleh mencetak Jadwal Dinas LANGSUNG untuk memeriksa bentuk
+   lembarnya (permintaan Bagus, 9 Okt 2026) — tanpa mengirim ke pejabat lebih
+   dulu. Aturan di atas tidak dilanggar: lembar periksa ini keluar dengan kotak
+   TTD KOSONG, jadi yang bertanda tangan tetap hanya lembar yang disetujui
+   pejabat lewat antrian. Hanya Jadwal Dinas; jenis lain tetap lewat antrian. */
+const bolehCetakPeriksa = () =>
+  !!akun && (akun.role === 'admin' || akun.superadmin === true) && CETAK.mode === 'dinas';
+
+async function cetakPeriksaAdmin(){
+  if(!bolehCetakPeriksa()) return;
+  /* TTD pejabat yang sudah termuat untuk pilihan di kartu disingkirkan dulu —
+     kalau tidak, lembar periksa ikut memuat tanda tangan orang yang belum
+     pernah melihatnya. Dikembalikan sesudahnya supaya kartunya tetap utuh. */
+  const simpan = { p: CETAK.ttdPejabat, d: CETAK.ttdDeputy };
+  CETAK.ttdPejabat = null; CETAK.ttdDeputy = null;
+  try{ await cetakKeKertas(); }
+  finally{ CETAK.ttdPejabat = simpan.p; CETAK.ttdDeputy = simpan.d; }
+}
+
 /* ---------- Titik masuk: dipanggil tombol Cetak di ketiga tab ---------- */
 async function cetakBuka(mode, unit, opts){
   if(!akun){ pesan(T('Masuk dulu untuk mencetak.','Sign in first to print.')); return; }
@@ -391,6 +410,14 @@ function cetakKartuGambar(){
     <div class="cetak-ket" style="margin-top:6px">${T(
       'Tanggal ini tampil di kaki lembar cetak. Boleh disunting; bawaannya hari ini.',
       'This date appears at the foot of the printed sheet. Editable; defaults to today.')}</div>
+    ${bolehCetakPeriksa() ? `
+    <div class="cetak-baris" style="margin-top:12px">
+      <button type="button" class="btn garis" id="btnCetakPeriksa" style="flex:1">${
+        T('🖨 Cetak langsung untuk diperiksa (tanpa kirim)','🖨 Print now to check (without sending)')}</button>
+    </div>
+    <div class="cetak-ket" style="margin-top:6px">${T(
+      'Khusus administrator: lembarnya langsung keluar tanpa masuk Kotak Masuk pejabat, dengan kotak TTD kosong. Untuk lembar resmi yang bertanda tangan, tetap pakai Kirim untuk disetujui.',
+      'Administrators only: the sheet prints straight away without going to an officer\'s Inbox, with empty signature boxes. For the signed official sheet, still use Send for approval.')}</div>` : ''}
   ` : '';
 
   const badanHtml = kirimSaja ? `${ringkasRekap}
@@ -451,6 +478,8 @@ function cetakWaktuRingkas(iso){
 }
 
 function cetakPasangKartu(){
+  const periksa = el('btnCetakPeriksa');
+  if(periksa) periksa.addEventListener('click', cetakPeriksaAdmin);
   const pilih = el('cetakPilihPejabat');
   if(pilih) pilih.addEventListener('change', async ()=>{
     CETAK.pejabatDipilih = pilih.value;
@@ -625,6 +654,12 @@ async function cetakLakukan(){
   }
   if(tombolCetak) tombolCetak.disabled = false;
 
+  await cetakKeKertas();
+}
+
+/** Susun lembar dari keadaan CETAK sekarang lalu buka dialog cetak. Dipakai
+    cetak langsung pejabat (cetakLakukan) dan cetak periksa administrator. */
+async function cetakKeKertas(){
   const html = await cetakLembarHtml();
   const area = el('printArea');
   area.innerHTML = html;
