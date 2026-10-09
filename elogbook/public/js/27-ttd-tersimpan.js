@@ -295,3 +295,145 @@ async function hapusSlotTtd(i){
 async function hapusTtdSaya(){
   return hapusSlotTtd(ttdTersimpanInfo.aktif);
 }
+
+/* ---------- Tanda tangan dari berkas gambar (pilih berkas / tempel) ----------
+   Banyak orang sudah punya gambar tanda tangannya — yang biasa ditempel ke Word
+   atau Excel. Gambar itu boleh dipakai di jendela "TTD Saya" sebagai ganti
+   menggambar: lewat tombol "pilih berkas gambar", atau disalin lalu ditempel
+   (Ctrl+V) selagi jendelanya terbuka.
+
+   Gambarnya TIDAK disimpan apa adanya. Seluruh aplikasi menganggap tanda tangan
+   itu goresan PUTIH di atas latar TEMBUS PANDANG (papan gelap di layar; modul
+   cetak yang membaliknya jadi tinta hitam), sedangkan berkas orang hampir
+   selalu tinta gelap di atas kertas putih. Jadi tiap titik diubah: makin gelap
+   titiknya, makin pekat putihnya; latar kertasnya jadi tembus pandang. Hasilnya
+   dituang ke kanvas papan, sehingga Simpan, slot, dan pemakaiannya di formulir
+   berjalan persis seperti tanda tangan yang digambar. */
+
+/** Sisi terpanjang gambar yang diolah — cukup tajam untuk cetak, dan foto HP
+    belasan megapiksel tidak membuat peramban tersendat. */
+const TTD_TEMPEL_SISI_MAKS = 1400;
+
+function muatGambarBerkas(berkas){
+  return new Promise((resolve)=>{
+    const url = URL.createObjectURL(berkas);
+    const img = new Image();
+    img.onload = ()=>{ URL.revokeObjectURL(url); resolve(img); };
+    img.onerror = ()=>{ URL.revokeObjectURL(url); resolve(null); };
+    img.src = url;
+  });
+}
+
+/** Gambar -> kanvas berisi goresan putih di atas latar tembus pandang, sudah
+    dipangkas ke tepi goresannya. null kalau tidak ada goresan yang terbaca. */
+function gambarJadiGoresanTtd(img){
+  const skala = Math.min(1, TTD_TEMPEL_SISI_MAKS / Math.max(img.naturalWidth, img.naturalHeight));
+  const w = Math.max(1, Math.round(img.naturalWidth * skala));
+  const h = Math.max(1, Math.round(img.naturalHeight * skala));
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const ctx = c.getContext('2d', { willReadFrequently:true });
+  ctx.drawImage(img, 0, 0, w, h);
+  const asli = ctx.getImageData(0, 0, w, h);
+  const px = asli.data;
+  const n = w * h;
+
+  // Kecerahan tiap titik seandainya gambarnya diletakkan di atas kertas putih
+  // (PNG berlatar tembus pandang ikut terbaca benar), plus sebarannya.
+  const terang = new Uint8Array(n);
+  const sebaran = new Uint32Array(256);
+  let tembus = 0;
+  for(let i = 0; i < n; i++){
+    const a = px[i * 4 + 3] / 255;
+    if(a < 0.5) tembus++;
+    const l = 0.299 * px[i * 4] + 0.587 * px[i * 4 + 1] + 0.114 * px[i * 4 + 2];
+    const v = Math.round(l * a + 255 * (1 - a));
+    terang[i] = v; sebaran[v]++;
+  }
+  const persentil = (p)=>{ let jml = 0; const batas = n * p; for(let v = 0; v < 256; v++){ jml += sebaran[v]; if(jml >= batas) return v; } return 255; };
+  // Latar = kecerahan yang dimiliki kebanyakan titik; tinta = yang tergelap.
+  // Persentil tintanya kecil sekali: tanda tangan tipis di tengah pindaian
+  // selembar penuh bisa cuma sepersekian persen dari seluruh titik.
+  const latar = persentil(0.85), tinta = persentil(0.0005);
+
+  const pekat = new Uint8ClampedArray(n);
+  if(latar - tinta >= 40){
+    // Sepertiga rentang teratas dianggap latar (bayangan kertas, bintik JPG).
+    const atas = latar - (latar - tinta) * 0.33, rentang = Math.max(1, atas - tinta);
+    for(let i = 0; i < n; i++) pekat[i] = Math.max(0, Math.min(1, (atas - terang[i]) / rentang)) * 255;
+  }else if(tembus > n * 0.3){
+    // Tinta terang di atas latar tembus pandang (mis. PNG keluaran aplikasi
+    // ini sendiri): bentuknya ada di kanal alfa, bukan di warnanya.
+    for(let i = 0; i < n; i++) pekat[i] = px[i * 4 + 3];
+  }else{
+    return null;
+  }
+
+  // Pangkas ke tepi goresan, supaya tanda tangannya memenuhi papan dan tidak
+  // tenggelam di tengah halaman kosong hasil pindaian.
+  let x0 = w, y0 = h, x1 = -1, y1 = -1;
+  for(let y = 0; y < h; y++){
+    for(let x = 0; x < w; x++){
+      if(pekat[y * w + x] > 90){
+        if(x < x0) x0 = x; if(x > x1) x1 = x;
+        if(y < y0) y0 = y; if(y > y1) y1 = y;
+      }
+    }
+  }
+  if(x1 < x0 || y1 < y0) return null;
+  // Goresan yang nyaris memenuhi seluruh gambar berarti latarnya ikut terbaca
+  // sebagai tinta (foto gelap, gambar bukan tanda tangan) — tolak saja.
+  let isi = 0;
+  for(let i = 0; i < n; i++) if(pekat[i] > 90) isi++;
+  if(isi > n * 0.6) return null;
+
+  for(let i = 0; i < n; i++){
+    px[i * 4] = 255; px[i * 4 + 1] = 255; px[i * 4 + 2] = 255; px[i * 4 + 3] = pekat[i];
+  }
+  ctx.putImageData(asli, 0, 0);
+  const lw = x1 - x0 + 1, lh = y1 - y0 + 1;
+  const hasil = document.createElement('canvas');
+  hasil.width = lw; hasil.height = lh;
+  hasil.getContext('2d').drawImage(c, x0, y0, lw, lh, 0, 0, lw, lh);
+  return hasil;
+}
+
+/** Tuang berkas gambar ke papan "TTD Saya". Dipanggil pemilih berkas dan
+    penangan tempel di bawah. */
+async function tempelGambarTtd(berkas){
+  if(!berkas) return;
+  if(!/^image\//.test(berkas.type || '')){ toast(T('ttdTempelBukanGambar')); return; }
+  const img = await muatGambarBerkas(berkas);
+  if(!img || !img.naturalWidth){ toast(T('ttdTempelBukanGambar')); return; }
+  const goresan = gambarJadiGoresanTtd(img);
+  if(!goresan){ toast(T('ttdTempelKosong')); return; }
+
+  const id = 'sigTtdSaya';
+  if(!sigPads[id]) setupSigCanvas(id);
+  clearSig(id);
+  const s = sigPads[id];
+  if(!s) return;
+  const kotak = s.canvas.getBoundingClientRect();
+  if(!kotak.width || !kotak.height) return;
+  // Muat utuh di dalam papan dengan sedikit jarak tepi; tidak diperbesar
+  // melebihi papan, tidak digepengkan.
+  const tepi = 10;
+  const k = Math.min((kotak.width - tepi * 2) / goresan.width, (kotak.height - tepi * 2) / goresan.height);
+  const gw = goresan.width * k, gh = goresan.height * k;
+  s.ctx.imageSmoothingQuality = 'high';
+  s.ctx.drawImage(goresan, (kotak.width - gw) / 2, (kotak.height - gh) / 2, gw, gh);
+  s.empty = false;
+  toast(T('ttdTempelOk'));
+}
+
+/* Tempel (Ctrl+V) selagi jendela "TTD Saya" terbuka. Hanya gambar yang
+   ditangkap — menempel teks ke kotak isian di jendela itu (panel PH) tetap
+   berjalan seperti biasa. */
+document.addEventListener('paste', (e)=>{
+  if(!document.getElementById('ttdSayaModalBg')?.classList.contains('show')) return;
+  const butir = [...(e.clipboardData?.items || [])].find(b=>b.kind === 'file' && /^image\//.test(b.type));
+  const berkas = butir && butir.getAsFile();
+  if(!berkas) return;
+  e.preventDefault();
+  tempelGambarTtd(berkas);
+});

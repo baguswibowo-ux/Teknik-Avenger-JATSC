@@ -354,6 +354,10 @@ const KAMUS = {
     ttdTersimpanDihapus:'TTD tersimpan Anda dihapus.',
     ttdTersimpanHapusTanya:'Hapus tanda tangan tersimpan Anda? Yang sudah dibubuhkan pada catatan tidak ikut terhapus.',
     ttdTersimpanGagal:'Gagal menyimpan TTD.',
+    ttdTempelHint:'gambar di sini, atau tempel gambar (Ctrl+V)', ttdTempelTombol:'📎 pilih berkas gambar',
+    ttdTempelOk:'Gambar tanda tangan dimuat. Periksa hasilnya, lalu tekan Simpan TTD.',
+    ttdTempelBukanGambar:'Berkas itu bukan gambar. Pakai PNG atau JPG.',
+    ttdTempelKosong:'Tanda tangannya tidak terbaca di gambar itu. Pakai gambar dengan tinta gelap di atas latar terang.',
     /* multi-slot TTD (admin & pejabat) */
     ttdSlot:'Slot', ttdSlotDipilih:'Sedang dipakai', ttdSlotPilih:'Pakai TTD ini',
     ttdSlotIsi:'Isi', ttdSlotGanti:'Ganti', ttdSlotHapus:'Hapus',
@@ -740,6 +744,10 @@ const KAMUS = {
     ttdTersimpanDihapus:'Your saved signature has been deleted.',
     ttdTersimpanHapusTanya:'Delete your saved signature? Signatures already placed on records are not removed.',
     ttdTersimpanGagal:'Could not save the signature.',
+    ttdTempelHint:'draw here, or paste an image (Ctrl+V)', ttdTempelTombol:'📎 choose image file',
+    ttdTempelOk:'Signature image loaded. Check the result, then press Save signature.',
+    ttdTempelBukanGambar:'That file is not an image. Use PNG or JPG.',
+    ttdTempelKosong:'No signature could be read from that image. Use dark ink on a light background.',
     /* multi-slot signature (admin & officer) */
     ttdSlot:'Slot', ttdSlotDipilih:'In use', ttdSlotPilih:'Use this signature',
     ttdSlotIsi:'Fill', ttdSlotGanti:'Replace', ttdSlotHapus:'Delete',
@@ -1092,6 +1100,10 @@ const KAMUS = {
     ttdTersimpanDihapus:'Su firma guardada se ha borrado.',
     ttdTersimpanHapusTanya:'¿Borrar su firma guardada? Las firmas ya puestas en registros no se eliminan.',
     ttdTersimpanGagal:'No se pudo guardar la firma.',
+    ttdTempelHint:'dibuje aquí, o pegue una imagen (Ctrl+V)', ttdTempelTombol:'📎 elegir imagen',
+    ttdTempelOk:'Imagen de la firma cargada. Revise el resultado y pulse Guardar firma.',
+    ttdTempelBukanGambar:'Ese archivo no es una imagen. Use PNG o JPG.',
+    ttdTempelKosong:'No se pudo leer la firma en esa imagen. Use tinta oscura sobre fondo claro.',
     /* varias firmas guardadas (admin y oficial) */
     ttdSlot:'Slot', ttdSlotDipilih:'En uso', ttdSlotPilih:'Usar esta firma',
     ttdSlotIsi:'Guardar', ttdSlotGanti:'Reemplazar', ttdSlotHapus:'Borrar',

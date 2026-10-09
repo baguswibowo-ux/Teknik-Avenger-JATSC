@@ -46,6 +46,11 @@
    Disisipkan lewat kode — lihat pasangTombolTtdTersimpan di js/27. */
 .sig-pakai{background:none; border:none; color:var(--accent); font-size:11px; cursor:pointer; font-family:var(--font-mono);}
 .sig-pakai:hover{text-decoration:underline;}
+/* "pilih berkas gambar" di papan jendela TTD Saya. Kelasnya sengaja bukan
+   .sig-pakai — tombol itu disembunyikan selama belum ada TTD tersimpan. */
+.sig-tempel{background:none; border:none; color:var(--accent); font-size:11px; cursor:pointer;
+            font-family:var(--font-mono); margin-left:auto; margin-right:12px;}
+.sig-tempel:hover{text-decoration:underline;}
 
 /* Lapisan yang menutupi kanvas begitu TTD tersimpan dipakai. Latarnya sama
    dengan papan (--tinta-bg) karena goresannya putih, sama seperti saat digambar
