@@ -271,6 +271,16 @@ function buildDcFgkPrintHtml(r, state){
       #printArea .pgm-print td, #printArea .fgk-cetak td{padding:0 3px;line-height:1.1;}
       #printArea .pgm-print .p-kepala td, #printArea .fgk-cetak .p-kepala td{font-size:6pt;}
       #printArea .fgk-cetak .fgk-sel{display:block;}
+      /* Lembar yang barisnya sedikit (Lift & Akses Door): jangan dirapatkan.
+         !important karena ukuran huruf dan jarak bloknya ditulis inline oleh
+         fgkBlokHtml() untuk lembar yang rapat. */
+      #printArea .fgk-cetak.fgk-lega table table{font-size:9pt !important;}
+      #printArea .fgk-cetak.fgk-lega table table td{padding:4px 7px;line-height:1.3;}
+      #printArea .fgk-cetak.fgk-lega .p-kepala td{font-size:7.5pt;padding:5px 7px;}
+      #printArea .fgk-cetak.fgk-lega > table > tbody > tr > td{padding:0 16px 0 0 !important;}
+      #printArea .fgk-cetak.fgk-lega > table > tbody > tr > td:last-child{padding-right:0 !important;}
+      #printArea .fgk-cetak.fgk-lega > table > tbody > tr > td > div{margin-bottom:10px !important;font-size:9pt !important;}
+      #printArea .fgk-cetak.fgk-lega > table > tbody > tr > td > div > div{font-size:8pt !important;margin-bottom:3px !important;}
     </style>
     <div style="text-align:center;font-weight:bold;font-size:12pt;margin-bottom:2px;">
       PENGECEKAN HARIAN FASILITAS GEDUNG DAN KEAMANAN

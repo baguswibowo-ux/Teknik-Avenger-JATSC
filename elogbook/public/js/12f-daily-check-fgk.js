@@ -282,6 +282,12 @@ const DC_FGK_ALIR = { toilet:true, akses:false, jatsc:false };
     bersebelahan seperti di lembar aslinya. */
 const DC_FGK_CETAK_PENUH = { akses:0, jatsc:1 };
 
+/** CETAK lega: lembar yang barisnya sedikit tidak perlu dirapatkan demi muat
+    satu halaman — huruf lebih besar dan sel berjarak (aturannya .fgk-lega di
+    24-cetak-daily-check.js). Lembar JATSC tetap rapat; longgar sedikit saja
+    sudah lewat satu halaman A4. */
+const DC_FGK_CETAK_LEGA = { akses:true };
+
 /** Form yang sedang dipilih. Sub-tab menggantikan selektor Lokasi Radtel. */
 let dcFgkForm = 'toilet';
 
@@ -477,7 +483,8 @@ function dcFgkTabelBaca(form, state, cetak){
     const penuh = DC_FGK_CETAK_PENUH[form] == null ? 1 : DC_FGK_CETAK_PENUH[form];
     const atas = data.slice(0, penuh).map(s=>`<div style="margin-bottom:4px;">${seksiHtml(s)}</div>`).join('');
     const sisa = data.slice(penuh);
-    if(!sisa.length) return `<div class="fgk-cetak">${atas}</div>`;
+    const kelas = 'fgk-cetak' + (DC_FGK_CETAK_LEGA[form] ? ' fgk-lega' : '');
+    if(!sisa.length) return `<div class="${kelas}">${atas}</div>`;
     // Bagi sisa seksi ke dua kolom sesuai jumlah barisnya, bukan sekadar
     // separuh-separuh — supaya kedua kolom kira-kira sama tingginya.
     const beban = sisa.map(s=>s.blok.reduce((n, b)=>n + b.baris.length + 2, 0));
@@ -488,7 +495,7 @@ function dcFgkTabelBaca(form, state, cetak){
     const cells = kolom.map(k=>
       `<td style="border:none;vertical-align:top;width:${(100 / kolom.length).toFixed(2)}%;padding:0 6px 0 0;">${k.map(seksiHtml).join('')}</td>`
     ).join('');
-    return `<div class="fgk-cetak">${atas}
+    return `<div class="${kelas}">${atas}
       <table style="table-layout:fixed;width:100%;border-collapse:collapse;"><tbody><tr>${cells}</tr></tbody></table></div>`;
   }
 
