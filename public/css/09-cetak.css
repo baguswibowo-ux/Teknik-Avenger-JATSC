@@ -791,7 +791,7 @@
   transform: none !important;
   box-shadow: none !important;
 }
-.cetak-lembar table.jdw thead th,
+.cetak-lembar table th,
 .cetak-lembar table.jdw td { color: #000; }
 
 /* Nama yang panjang melipat ke baris kedua di dalam kolomnya, bukan menjulur
