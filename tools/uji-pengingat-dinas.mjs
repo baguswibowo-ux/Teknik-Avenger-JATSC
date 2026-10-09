@@ -59,7 +59,7 @@ test('kodeBaku sama dengan milik dashboard untuk tulisan bersih dan kotor', () =
     ...Object.keys(SHIFT_MULAI), 'psj', ' MN ', 'MJ (SPKL)', 'PSJ (SPKL)', 'C  U  T  I',
     'pagi', 'SIANG', 'Malam', 'ct', 'Cuti Tahunan', 'Izin', 'Dinas Luar', 'SAKIT',
     'PAGI (SPKL)', 'SPKL', 'XYZ', '', null, undefined, '  ', 'P (SPKL)', 'S(SPKL)',
-    'm1j', ' P1 N ', 'M1', 'P2J', 'M1J (SPKL)'
+    'm1j', ' P1 NJ ', 'M1', 'P2J', 'M1J (SPKL)'
   ];
   for (const c of contoh) assert.equal(kodeBaku(c), dash.kodeBaku(c), `kodeBaku(${JSON.stringify(c)})`);
   assert.equal(kodeBaku('MJ (SPKL)'), 'SPKLMJ');
