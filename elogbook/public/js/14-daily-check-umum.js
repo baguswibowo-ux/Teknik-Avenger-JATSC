@@ -375,7 +375,7 @@ async function saveDailyCheck(){
       : { __lokasi:'new-jatsc', __tempat: tempatDipilih };
   // Pengamatan, Gedung & Keamanan, dan Listrik & Mekanik menumpang tabel
   // dailychecks yang sama (pola AMHS): lembar mana yang dipakai ditandai
-  // __format + __pgmForm (ckg3/mer), __fgkForm (toilet/akses/jatsc), atau __lkForm
+  // __format + __pgmForm (ckg3/mer), __fgkForm (toilet/lift/akses/jatsc), atau __lkForm
   // (sts/mds/beban/ups) di dalam state JSON.
   const stateDipakai = radkom ? dcRkState
                      : nav    ? { ...dcNState, ...meta }

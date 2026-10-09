@@ -214,8 +214,8 @@ try{ document.documentElement.setAttribute('data-tema',
       <button class="subtab-btn" data-pgmform="mer"
               onclick="setDcPgmForm('mer')">📡 Fasilitas Pengamatan</button>
     </nav>
-    <!-- Sub-tab pemilih LOKASI untuk unit Gedung & Keamanan: New JATSC (dua
-         lembar: ceklis toilet & mushalla, dan lift & akses door) vs JATSC
+    <!-- Sub-tab pemilih LOKASI untuk unit Gedung & Keamanan: New JATSC (tiga
+         lembar: ceklis toilet & mushalla, lift, dan akses door) vs JATSC
          (lift · server CCTV · sistem pengendali jalan masuk). Labelnya lokasi
          — sama gaya dengan sub-tab Radtel di atas.
          setDcFgkForm() di js/12f-daily-check-fgk.js menukar isi #dcFgkWrap.
@@ -223,8 +223,10 @@ try{ document.documentElement.setAttribute('data-tema',
     <nav class="subtabs" id="dcFgkSubtabs" style="display:none;">
       <button class="subtab-btn active" data-fgkform="toilet"
               onclick="setDcFgkForm('toilet')">📍 New JATSC · Toilet</button>
+      <button class="subtab-btn" data-fgkform="lift"
+              onclick="setDcFgkForm('lift')">📍 New JATSC · Lift</button>
       <button class="subtab-btn" data-fgkform="akses"
-              onclick="setDcFgkForm('akses')">📍 New JATSC · Lift &amp; Akses Door</button>
+              onclick="setDcFgkForm('akses')">📍 New JATSC · Akses Door</button>
       <button class="subtab-btn" data-fgkform="jatsc"
               onclick="setDcFgkForm('jatsc')">📍 JATSC</button>
     </nav>
@@ -2614,7 +2616,7 @@ try{ document.documentElement.setAttribute('data-tema',
 <script src="js/12c-daily-check-navigasi.js"></script>
 <script src="js/12d-daily-check-amhs.js?v=20261009lampiran3"></script>
 <script src="js/12e-daily-check-pengamatan.js"></script>
-<script src="js/12f-daily-check-fgk.js?v=20261009akses"></script>
+<script src="js/12f-daily-check-fgk.js?v=20261009akses2"></script>
 <script src="js/12g-daily-check-listrik.js"></script>
 <script src="js/12h-daily-check-rdps.js"></script>
 <script src="js/13-daily-check-radkom.js"></script>
