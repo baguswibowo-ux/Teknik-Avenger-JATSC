@@ -272,15 +272,16 @@ function buildDcFgkPrintHtml(r, state){
       #printArea .pgm-print .p-kepala td, #printArea .fgk-cetak .p-kepala td{font-size:6pt;}
       #printArea .fgk-cetak .fgk-sel{display:block;}
       /* Lembar yang barisnya sedikit (Lift & Akses Door): jangan dirapatkan.
+         Ukurannya meniru lembar Excel aslinya: huruf 7,2pt, baris setinggi 17pt.
          !important karena ukuran huruf dan jarak bloknya ditulis inline oleh
          fgkBlokHtml() untuk lembar yang rapat. */
-      #printArea .fgk-cetak.fgk-lega table table{font-size:8pt !important;}
-      #printArea .fgk-cetak.fgk-lega table table td{padding:2px 5px;line-height:1.2;}
-      #printArea .fgk-cetak.fgk-lega .p-kepala td{font-size:7pt;padding:2px 5px;}
+      #printArea .fgk-cetak.fgk-lega table table{font-size:7.5pt !important;}
+      #printArea .fgk-cetak.fgk-lega table table td{padding:4px 5px;line-height:1.3;vertical-align:middle;}
+      #printArea .fgk-cetak.fgk-lega .p-kepala td{font-size:7pt;padding:4px 5px;}
       #printArea .fgk-cetak.fgk-lega > table > tbody > tr > td{padding:0 10px 0 0 !important;}
       #printArea .fgk-cetak.fgk-lega > table > tbody > tr > td:last-child{padding-right:0 !important;}
-      #printArea .fgk-cetak.fgk-lega > table > tbody > tr > td > div{margin-bottom:6px !important;font-size:8.5pt !important;}
-      #printArea .fgk-cetak.fgk-lega > table > tbody > tr > td > div > div{font-size:7.5pt !important;margin-bottom:2px !important;}
+      #printArea .fgk-cetak.fgk-lega > table > tbody > tr > td > div{margin-bottom:6px !important;font-size:8pt !important;}
+      #printArea .fgk-cetak.fgk-lega > table > tbody > tr > td > div > div{font-size:7pt !important;margin-bottom:2px !important;}
     </style>
     <div style="text-align:center;font-weight:bold;font-size:12pt;margin-bottom:2px;">
       PENGECEKAN HARIAN FASILITAS GEDUNG DAN KEAMANAN
