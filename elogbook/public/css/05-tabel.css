@@ -78,6 +78,10 @@ table.pgm input.fgk-isi{width:100%; min-width:54px; background:var(--panel-2);
              border:1px solid var(--line); color:var(--text); border-radius:4px;
              padding:2px 4px; font-size:11px; text-align:center;}
 table.pgm input.fgk-isi:focus{border-color:var(--accent); outline:none;}
+/* Kolom isian bebas (KETERANGAN per baris di lembar Akses Door): teks rata
+   kiri dan kolomnya lebar — isinya kalimat pendek, bukan angka. */
+table.pgm input.fgk-isi-bebas{text-align:left; min-width:150px;}
+table.pgm th.fgk-th-bebas{width:32%;}
 /* Keterangan per seksi — di lembar aslinya kolom memanjang di samping tabel.
    Di layar dibuat sebentuk Remark (.field + textarea) supaya tidak terlihat
    seperti kotak isian sempit yang nyempil; textarea-nya lebih pendek dari

@@ -491,12 +491,16 @@ function renderDcHistory(){
   if(dcHistory.length===0){ wrap.innerHTML = '<div class="empty">' + T('belumAdaDc') + '</div>'; return; }
   const daftar = dcHistoryTersaring();
   if(daftar.length===0){ wrap.innerHTML = '<div class="empty">' + T('takAdaFilter') + '</div>'; return; }
+  // Gedung & Keamanan: tiga lembar masuk satu daftar, jadi kartunya menyebut
+  // lembar yang mana (kolom Form dari server = __fgkForm catatan itu).
+  const fgk = (typeof dcGedungKeamananAktif === 'function') && dcGedungKeamananAktif();
   wrap.innerHTML = daftar.map(r=>{
+    const lembar = fgk ? ' &middot; <b style="color:var(--accent);">' + escapeHtml(DC_FGK_NAMA[fgkFormSah(r.form)]) + '</b>' : '';
     const tag = r.fails.length ? `<span class="tag fail">${r.fails.length} gangguan</span>`
               : r.warns.length ? `<span class="tag warn">${r.warns.length} alarm</span>`
               : `<span class="tag ok">semua normal</span>`;
     return `<div class="dc-history-item">
-      <div><b>${r.tanggal}</b> &middot; Dinas ${escapeHtml(r.dinas)}${unitPakaiSuhuMer() ? ' &middot; Suhu MER ' + (escapeHtml(r.suhu)||'-') : ''}</div>
+      <div><b>${r.tanggal}</b> &middot; Dinas ${escapeHtml(r.dinas)}${lembar}${unitPakaiSuhuMer() ? ' &middot; Suhu MER ' + (escapeHtml(r.suhu)||'-') : ''}</div>
       ${tag}
       ${dcChipDinasHtml(r)}
       <div style="font-size:11.5px;color:var(--muted);">Teknisi: ${escapeHtml(r.teknisiNama)||'-'} &middot; Mengetahui: ${escapeHtml(r.managerNama)||'-'}</div>

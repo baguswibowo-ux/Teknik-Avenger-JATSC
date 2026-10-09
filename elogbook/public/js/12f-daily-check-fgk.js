@@ -203,9 +203,10 @@ const DC_FGK_JATSC = [
 /* Lembar aslinya dua tabel bersebelahan: lift gedung ATS (satu lift, satu kolom
    "Cheklist/Pengukuran") dan akses door per ruang. Kolom BAIK / U/S tiap
    komponen akses door dilebur jadi satu sel status (✓ = baik, ✕ = U/S), dan
-   Qty ditulis menyatu dengan nama ruangnya. Kolom KETERANGAN per baris jadi
-   catatan per seksi, sama dengan lembar JATSC. */
-const FGK_PINTU = ['READER','MAGNETIC','PUSH BUTTON','STATUS LOCK'];
+   Qty ditulis menyatu dengan nama ruangnya. Kolom KETERANGAN akses door tetap
+   per baris seperti di kertasnya — kolom isian bebas (isiKolom), jadi seksi
+   itu tidak perlu catatan di bawah tabelnya. */
+const FGK_PINTU = ['READER','MAGNETIC','PUSH BUTTON','STATUS LOCK','KETERANGAN'];
 
 const DC_FGK_AKSES = [
   { kode:'A', judul:'A. LIFT GEDUNG ATS', catatan:true, blok:[
@@ -228,8 +229,8 @@ const DC_FGK_AKSES = [
     ]}
   ]},
 
-  { kode:'B', judul:'B. AKSES DOOR GEDUNG ATS', catatan:true, blok:[
-    { judul:'Per ruang (jumlah pintu)', kolom:FGK_PINTU, baris:[
+  { kode:'B', judul:'B. AKSES DOOR GEDUNG ATS', blok:[
+    { judul:'Per ruang (jumlah pintu)', kolom:FGK_PINTU, isiKolom:['KETERANGAN'], baris:[
       'Ruang MER (4)',
       'Ruang Mantek (1)',
       'Engineering Workshop (1)',
@@ -258,6 +259,10 @@ const fgkFormSah = f => (DC_FGK[f] ? f : 'toilet');
 /** Info bar & halaman cetak: LOKASI gedungnya, sama gaya dengan Radtel. */
 const DC_FGK_LABEL = { toilet:'New JATSC', akses:'New JATSC', jatsc:'JATSC' };
 
+/** Nama lembar selengkapnya — untuk kartu riwayat, yang memuat ketiga lembar
+    campur jadi satu daftar. */
+const DC_FGK_NAMA = { toilet:'New JATSC · Toilet', akses:'New JATSC · Lift & Akses Door', jatsc:'JATSC' };
+
 /** Isi lembar di lokasi itu — pendamping label di info bar, supaya tahu apa
     yang diperiksa tanpa harus menggulir formnya. */
 const DC_FGK_ISI = {
@@ -282,6 +287,10 @@ const DC_FGK_ALIR = { toilet:true, akses:false, jatsc:false };
     bersebelahan seperti di lembar aslinya. */
 const DC_FGK_CETAK_PENUH = { akses:0, jatsc:1 };
 
+/** CETAK: lebar (%) kolom-kolom yang disandingkan, kalau tidak dibagi rata.
+    Tabel Akses Door enam kolom termasuk Keterangan; tabel Lift cuma dua. */
+const DC_FGK_CETAK_LEBAR = { akses:[34, 66] };
+
 /** CETAK lega: lembar yang barisnya sedikit tidak perlu dirapatkan demi muat
     satu halaman — huruf lebih besar dan sel berjarak (aturannya .fgk-lega di
     24-cetak-daily-check.js). Lembar JATSC tetap rapat; longgar sedikit saja
@@ -304,6 +313,8 @@ function fgkKunciKet(sk){ return `${sk}|__ket`; }
 /** Nama baris boleh string (sel status) atau objek (sel isian). */
 const fgkNama  = b => (typeof b === 'string' ? b : (b && b.n) || '');
 const fgkIsian = b => !!(b && typeof b === 'object' && b.t === 'isi');
+/** Kolom isian bebas — diketik di SEMUA baris blok itu (mis. KETERANGAN). */
+const fgkKolomIsi = (blok, kk) => !!(blok.isiKolom && blok.isiKolom.includes(kk));
 
 function initDcFgkState(){
   dcFgkState = { toilet:{}, akses:{}, jatsc:{} };
@@ -313,8 +324,8 @@ function initDcFgkState(){
       seksi.blok.forEach((blok, bi)=>{
         blok.baris.forEach((baris, ri)=>{
           if(!fgkNama(baris)) return;
-          const awal = fgkIsian(baris) ? '' : 'ok';
           blok.kolom.forEach(kk=>{
+            const awal = (fgkIsian(baris) || fgkKolomIsi(blok, kk)) ? '' : 'ok';
             dcFgkState[form][fgkKunci(seksi.kode, bi, ri, kk)] = awal;
           });
         });
@@ -351,6 +362,7 @@ function fgkTemuan(form){
         const nama = fgkNama(baris);
         if(!nama || fgkIsian(baris)) return;
         blok.kolom.forEach(kk=>{
+          if(fgkKolomIsi(blok, kk)) return;
           const s = st[fgkKunci(seksi.kode, bi, ri, kk)];
           const satuKolom = blok.kolom.length === 1;
           const label = `${seksi.kode} · ${blok.judul ? blok.judul + ' · ' : ''}${nama}${satuKolom ? '' : ' (' + kk + ')'}`;
@@ -376,6 +388,14 @@ function fgkBlokHtml(seksi, blok, bi, st, mode){
     const sel = blok.kolom.map(kk=>{
       const k = fgkKunci(seksi.kode, bi, ri, kk);
       const v = st[k];
+      if(fgkKolomIsi(blok, kk)){
+        const teks = escapeHtml(v == null ? '' : String(v));
+        if(mode === 'isi'){
+          return `<td><input type="text" class="fgk-isi fgk-isi-bebas" value="${teks}"
+                    oninput="setDcFgkIsi('${k}', this.value)"></td>`;
+        }
+        return `<td style="text-align:left;">${teks}</td>`;
+      }
       if(fgkIsian(baris)){
         // Satuan duduk SEBARIS di kanan kotaknya (bukan turun ke baris kedua),
         // supaya baris pengukuran tidak jadi dua kali lebih tinggi dari baris
@@ -407,13 +427,13 @@ function fgkBlokHtml(seksi, blok, bi, st, mode){
 
   if(cetak){
     const sub = blok.judul ? `<div style="font-size:6.5pt;color:#333;margin:1px 0 0;">${escapeHtml(blok.judul)}</div>` : '';
-    const head = blok.kolom.map(k=>`<td>${escapeHtml(k)}</td>`).join('');
+    const head = blok.kolom.map(k=>`<td${fgkKolomIsi(blok, k) ? ' style="width:30%;"' : ''}>${escapeHtml(k)}</td>`).join('');
     return `<div style="margin:0 0 3px;">${sub}<table style="width:100%;font-size:7pt;border-collapse:collapse;">
       <thead><tr class="p-kepala"><td>Item</td>${head}</tr></thead>
       <tbody>${rows}</tbody></table></div>`;
   }
   const sub = blok.judul ? `<div class="pgm-blok-judul">${escapeHtml(blok.judul)}</div>` : '';
-  const head = blok.kolom.map(k=>`<th>${escapeHtml(k)}</th>`).join('');
+  const head = blok.kolom.map(k=>`<th${fgkKolomIsi(blok, k) ? ' class="fgk-th-bebas"' : ''}>${escapeHtml(k)}</th>`).join('');
   return `<div class="pgm-blok">${sub}<table class="pgm">
     <thead><tr><th>Item</th>${head}</tr></thead>
     <tbody>${rows}</tbody></table></div>`;
@@ -492,8 +512,9 @@ function dcFgkTabelBaca(form, state, cetak){
     let potong = 1, kiri = beban[0];
     while(potong < sisa.length && kiri + beban[potong] <= total / 2){ kiri += beban[potong]; potong++; }
     const kolom = [sisa.slice(0, potong), sisa.slice(potong)].filter(k=>k.length);
-    const cells = kolom.map(k=>
-      `<td style="border:none;vertical-align:top;width:${(100 / kolom.length).toFixed(2)}%;padding:0 6px 0 0;">${k.map(seksiHtml).join('')}</td>`
+    const lebar = DC_FGK_CETAK_LEBAR[form];
+    const cells = kolom.map((k, i)=>
+      `<td style="border:none;vertical-align:top;width:${((lebar && lebar.length === kolom.length) ? lebar[i] : 100 / kolom.length).toFixed(2)}%;padding:0 6px 0 0;">${k.map(seksiHtml).join('')}</td>`
     ).join('');
     return `<div class="${kelas}">${atas}
       <table style="table-layout:fixed;width:100%;border-collapse:collapse;"><tbody><tr>${cells}</tr></tbody></table></div>`;
