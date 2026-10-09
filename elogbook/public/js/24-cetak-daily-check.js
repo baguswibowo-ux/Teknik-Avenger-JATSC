@@ -262,7 +262,7 @@ function buildDcFgkPrintHtml(r, state){
   const sub = (typeof DC_FGK_SUBJUDUL !== 'undefined' && DC_FGK_SUBJUDUL[form]) || '';
   // Lokasi IKUT lembarnya — kedua lembar milik gedung yang berbeda, jadi tidak
   // boleh dipatok 'JATSC' seperti cetakan unit lain yang cuma punya satu gedung.
-  const lokasi = (typeof DC_FGK_LABEL !== 'undefined' && DC_FGK_LABEL[form]) || 'New JATSC';
+  const lokasi = (typeof DC_FGK_LABEL !== 'undefined' && DC_FGK_LABEL[form]) || 'NEW JATSC';
   return `
     <style>
       /* Rapatkan sel khusus lembar gedung & keamanan supaya muat satu halaman.

@@ -257,11 +257,11 @@ const DC_FGK = { toilet: DC_FGK_TOILET, akses: DC_FGK_AKSES, jatsc: DC_FGK_JATSC
 const fgkFormSah = f => (DC_FGK[f] ? f : 'toilet');
 
 /** Info bar & halaman cetak: LOKASI gedungnya, sama gaya dengan Radtel. */
-const DC_FGK_LABEL = { toilet:'New JATSC', akses:'New JATSC', jatsc:'JATSC' };
+const DC_FGK_LABEL = { toilet:'NEW JATSC', akses:'NEW JATSC', jatsc:'JATSC' };
 
 /** Nama lembar selengkapnya — untuk kartu riwayat, yang memuat ketiga lembar
     campur jadi satu daftar. */
-const DC_FGK_NAMA = { toilet:'New JATSC · Toilet', akses:'New JATSC · Lift & Akses Door', jatsc:'JATSC' };
+const DC_FGK_NAMA = { toilet:'NEW JATSC · Toilet', akses:'NEW JATSC · Lift & Akses Door', jatsc:'JATSC' };
 
 /** Isi lembar di lokasi itu — pendamping label di info bar, supaya tahu apa
     yang diperiksa tanpa harus menggulir formnya. */

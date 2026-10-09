@@ -691,7 +691,7 @@ async function openDcDetail(id){
   body.innerHTML = `
     <div style="font-size:13px;margin-bottom:10px;line-height:1.7;">
       <b>${escapeHtml(r.tanggal)}</b><br>
-      Dinas: ${escapeHtml(r.dinas)||'-'}${(!unitPakaiSuhuMer() || jatscTersimpan || navTersimpan || pgmTersimpan || fgkTersimpan || lkTersimpan) ? '' : ' &middot; Suhu MER: ' + (escapeHtml(r.suhu)||'-')}${pgmTersimpan ? ' &middot; Form: ' + escapeHtml((typeof DC_PGM_LABEL !== 'undefined' && DC_PGM_LABEL[state.__pgmForm]) || 'Radar CKG 3') : ''}${fgkTersimpan ? ' &middot; Lokasi: ' + escapeHtml((typeof DC_FGK_LABEL !== 'undefined' && DC_FGK_LABEL[state.__fgkForm]) || 'New JATSC') : ''}${lkTersimpan ? ' &middot; Lembar: ' + escapeHtml((typeof DC_LK_LABEL !== 'undefined' && DC_LK_LABEL[state.__lkForm]) || 'STS') : ''}
+      Dinas: ${escapeHtml(r.dinas)||'-'}${(!unitPakaiSuhuMer() || jatscTersimpan || navTersimpan || pgmTersimpan || fgkTersimpan || lkTersimpan) ? '' : ' &middot; Suhu MER: ' + (escapeHtml(r.suhu)||'-')}${pgmTersimpan ? ' &middot; Form: ' + escapeHtml((typeof DC_PGM_LABEL !== 'undefined' && DC_PGM_LABEL[state.__pgmForm]) || 'Radar CKG 3') : ''}${fgkTersimpan ? ' &middot; Lokasi: ' + escapeHtml((typeof DC_FGK_LABEL !== 'undefined' && DC_FGK_LABEL[state.__fgkForm]) || 'NEW JATSC') : ''}${lkTersimpan ? ' &middot; Lembar: ' + escapeHtml((typeof DC_LK_LABEL !== 'undefined' && DC_LK_LABEL[state.__lkForm]) || 'STS') : ''}
     </div>
     ${dcRadkomAktif()
       ? dcRkDetailHtml(state)
