@@ -315,10 +315,10 @@ function buildDcFgkPrintHtml(r, state){
 /** Halaman cetak lembar Lift & Akses Door (NEW JATSC) — meniru lembar kertasnya
     dari kepala sampai kotak tanda tangan, bukan pola cetak FGK lain: logo dan
     dua baris judul, Hari/Tanggal, satu tabel menyatu (fgkCetakAksesHtml di
-    12f), kotak CATATAN, lalu tiga kotak MANAGER TEKNIK / SUPERVISOR / TEKNISI.
+    12f), kotak CATATAN, lalu dua kotak MANAGER TEKNIK / TEKNISI.
     Ukurannya dari lembar aslinya: huruf 7,2pt, baris setinggi 17pt.
-    "Waktu" di kertas diisi dinasnya. Kotak SUPERVISOR dibiarkan kosong untuk
-    tanda tangan basah — E-Logbook tidak punya TTD supervisor. CATATAN memuat
+    "Waktu" di kertas diisi dinasnya. Kotak SUPERVISOR di kertas tidak ikut —
+    permintaan Bagus, E-Logbook tidak punya TTD supervisor. CATATAN memuat
     keterangan lift (kotak di bawah tabel Lift di layar) dan Remark dinasnya. */
 function buildDcFgkAksesPrintHtml(r, state){
   const st = state || {};
@@ -355,16 +355,15 @@ function buildDcFgkAksesPrintHtml(r, state){
         <div style="font-size:6.5pt;color:#444;margin-top:4px;">✓ : Baik &nbsp; ! : Perlu Perhatian &nbsp; ✕ : Rusak / Tidak Berfungsi</div></td>
     </tr></table>
     <table class="fgk-ttd">
-      <colgroup><col style="width:35%"><col style="width:37%"><col style="width:28%"></colgroup>
+      <colgroup><col style="width:50%"><col style="width:50%"></colgroup>
       <tr style="font-weight:bold;text-align:center;">
-        <td style="height:17pt;text-align:center;">MANAGER TEKNIK</td><td style="text-align:center;">SUPERVISOR</td><td style="text-align:center;">TEKNISI</td>
+        <td style="height:17pt;text-align:center;">MANAGER TEKNIK</td><td style="text-align:center;">TEKNISI</td>
       </tr>
       <tr>
         <td style="height:68pt;text-align:center;">
           <div style="height:44px;">${ttdImg(r.managerTtd, 40)}</div>
           ${r.managerTtd ? (escapeHtml(r.managerNama) || '&nbsp;') : '&nbsp;'}
         </td>
-        <td></td>
         <td>${teknisiPrintBlock(r)}</td>
       </tr>
     </table>`;
