@@ -214,22 +214,30 @@ try{ document.documentElement.setAttribute('data-tema',
       <button class="subtab-btn" data-pgmform="mer"
               onclick="setDcPgmForm('mer')">📡 Fasilitas Pengamatan</button>
     </nav>
-    <!-- Sub-tab pemilih LOKASI untuk unit Gedung & Keamanan: New JATSC (tiga
-         lembar: ceklis toilet & mushalla, lift, dan akses door) vs JATSC
-         (lift · server CCTV · sistem pengendali jalan masuk). Labelnya lokasi
-         — sama gaya dengan sub-tab Radtel di atas.
-         setDcFgkForm() di js/12f-daily-check-fgk.js menukar isi #dcFgkWrap.
-         07-unit.js menampilkan nav ini hanya untuk unit gedungkeamanan. -->
-    <nav class="subtabs" id="dcFgkSubtabs" style="display:none;">
-      <button class="subtab-btn active" data-fgkform="toilet"
-              onclick="setDcFgkForm('toilet')">📍 New JATSC · Toilet</button>
-      <button class="subtab-btn" data-fgkform="lift"
-              onclick="setDcFgkForm('lift')">📍 New JATSC · Lift</button>
-      <button class="subtab-btn" data-fgkform="akses"
-              onclick="setDcFgkForm('akses')">📍 New JATSC · Akses Door</button>
-      <button class="subtab-btn" data-fgkform="jatsc"
-              onclick="setDcFgkForm('jatsc')">📍 JATSC</button>
-    </nav>
+    <!-- Sub-tab unit Gedung & Keamanan, DUA TINGKAT. Baris atas memilih LOKASI
+         — New JATSC vs JATSC, sama gaya dengan sub-tab Radtel di atas. New
+         JATSC punya tiga lembar (toilet & mushalla, lift, akses door) yang
+         dipilih di baris kedua; baris itu hilang selagi JATSC yang dibuka,
+         karena JATSC lembarnya satu (lift · server CCTV · sistem pengendali
+         jalan masuk). setDcFgkLokasi() / setDcFgkForm() di
+         js/12f-daily-check-fgk.js menukar isi #dcFgkWrap. 07-unit.js
+         menampilkan wadah ini hanya untuk unit gedungkeamanan. -->
+    <div id="dcFgkSubtabs" style="display:none;">
+      <nav class="subtabs" style="margin-bottom:8px;">
+        <button class="subtab-btn active" data-fgklokasi="nj"
+                onclick="setDcFgkLokasi('nj')">📍 New JATSC</button>
+        <button class="subtab-btn" data-fgklokasi="jatsc"
+                onclick="setDcFgkForm('jatsc')">📍 JATSC</button>
+      </nav>
+      <nav class="subtabs" id="dcFgkLembar">
+        <button class="subtab-btn active" data-fgkform="toilet"
+                onclick="setDcFgkForm('toilet')">Toilet</button>
+        <button class="subtab-btn" data-fgkform="lift"
+                onclick="setDcFgkForm('lift')">Lift</button>
+        <button class="subtab-btn" data-fgkform="akses"
+                onclick="setDcFgkForm('akses')">Akses Door</button>
+      </nav>
+    </div>
     <!-- Sub-tab pemilih LEMBAR untuk unit Listrik & Mekanik: empat lembar
          pengecekan harian yang di berkas aslinya jadi empat sheet — STS, MDS
          No Break, Beban Listrik, dan UPS. Labelnya nama lembar (bukan lokasi):
@@ -2616,7 +2624,7 @@ try{ document.documentElement.setAttribute('data-tema',
 <script src="js/12c-daily-check-navigasi.js"></script>
 <script src="js/12d-daily-check-amhs.js?v=20261009lampiran3"></script>
 <script src="js/12e-daily-check-pengamatan.js"></script>
-<script src="js/12f-daily-check-fgk.js?v=20261009akses2"></script>
+<script src="js/12f-daily-check-fgk.js?v=20261009akses3"></script>
 <script src="js/12g-daily-check-listrik.js"></script>
 <script src="js/12h-daily-check-rdps.js"></script>
 <script src="js/13-daily-check-radkom.js"></script>

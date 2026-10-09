@@ -1,9 +1,10 @@
 /* E-Logbook · js/12f-daily-check-fgk.js — Daily check Fasilitas Gedung & Keamanan
    Dimuat dari index.html sesuai nomor berkas; urutannya berpengaruh.
 
-   Unit "Gedung dan Keamanan" punya EMPAT lembar harian di dua gedung —
-   sub-tabnya berlabel LOKASI seperti Radtel, dan New JATSC yang punya tiga
-   lembar menyebut isinya di belakang lokasinya:
+   Unit "Gedung dan Keamanan" punya EMPAT lembar harian di dua gedung.
+   Sub-tabnya dua tingkat: baris atas LOKASI (New JATSC / JATSC) seperti
+   Radtel, dan di dalam New JATSC baris kedua memilih satu dari tiga lembarnya
+   (Toilet / Lift / Akses Door). JATSC lembarnya satu, tanpa baris kedua:
      · "New JATSC · Toilet" — CEKLIS FASILITAS TOILET NEW JATSC: status per alat
        di tiap toilet/mushalla, dikelompokkan per gedung dan lantai.
      · "New JATSC · Lift" — CEK LIST HARIAN NEW JATSC, tabel kiri: lift gedung
@@ -541,21 +542,42 @@ function dcFgkTabelBaca(form, state, cetak){
 /** Detail modal: pilih lembar dari __fgkForm yang tersimpan (default toilet). */
 const dcFgkDetailHtml = state => dcFgkTabelBaca(fgkFormSah(state && state.__fgkForm), state, false);
 
-/* ---------- Selektor form (sub-tab) ---------- */
+/* ---------- Selektor form (sub-tab dua tingkat) ---------- */
+/** Lembar New JATSC yang terakhir dibuka — tujuan tombol lokasi "New JATSC"
+    sepulang dari JATSC. */
+let dcFgkFormNj = 'toilet';
+
 /** Dipanggil sub-tab. Ganti lembar yang tampak; isian lembar lain tetap tinggal. */
 function setDcFgkForm(nilai){
   if(!DC_FGK[nilai]) return;
-  if(dcFgkForm === nilai){ sinkronSubtabFgk(); return; }
-  dcFgkForm = nilai;
-  renderDcFgkTable();
+  if(dcFgkForm !== nilai){
+    dcFgkForm = nilai;
+    renderDcFgkTable();
+  }
   sinkronSubtabFgk();
+  // Penangan klik .subtab-btn umum (04-toast-tab.js) jalan SESUDAH onclick ini
+  // dan mencabut sorotan semua sub-tab kecuali yang ditekan — padahal di sini
+  // dua tombol harus menyala sekaligus (lokasi + lembarnya). Pasang lagi.
+  setTimeout(sinkronSubtabFgk, 0);
+}
+
+/** Tombol lokasi baris atas. 'nj' kembali ke lembar New JATSC yang terakhir
+    dibuka; JATSC lembarnya satu, jadi tombolnya langsung setDcFgkForm('jatsc'). */
+function setDcFgkLokasi(lokasi){
+  setDcFgkForm(lokasi === 'jatsc' ? 'jatsc' : dcFgkFormNj);
 }
 
 /** Sorot sub-tab yang cocok + segarkan info bar (lokasi & isi lembarnya). */
 function sinkronSubtabFgk(){
+  const diJatsc = dcFgkForm === 'jatsc';
+  if(!diJatsc) dcFgkFormNj = dcFgkForm;
   document.querySelectorAll('#dcFgkSubtabs .subtab-btn').forEach(b=>{
-    b.classList.toggle('active', b.dataset.fgkform === dcFgkForm);
+    b.classList.toggle('active', b.dataset.fgklokasi
+      ? (b.dataset.fgklokasi === 'jatsc') === diJatsc
+      : b.dataset.fgkform === dcFgkForm);
   });
+  const lembar = document.getElementById('dcFgkLembar');
+  if(lembar) lembar.style.display = diJatsc ? 'none' : '';
   const bar = document.getElementById('dcFgkInfo');
   if(bar){
     bar.style.display = dcGedungKeamananAktif() ? '' : 'none';
