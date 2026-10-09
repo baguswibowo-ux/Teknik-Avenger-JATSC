@@ -774,3 +774,27 @@
 }
 .cetak-lembar .str-cetak b { font-weight: 600; }
 .cetak-lembar .str-cetak i { color: #555; font-size: 8.5pt; }
+
+/* ============== Gaya LAYAR jangan ikut ke kertas ==============
+   Tabel di lembar cetak memakai tag dan kelas yang sama dengan tabel di layar
+   (th, table.jdw), jadi aturan layarnya ikut menempel:
+     · th{position:sticky;top:0} (05-ubin-panel-tabel.css) dan
+       table.jdw thead th{transform:translateY(...)} (06-pita-berjalan.css) —
+       kepala tabel yang "menempel saat digulir". Di kertas tidak ada yang
+       digulir; di dalam #printArea yang overflow:hidden kepala itu malah
+       bergeser menimpa baris pertama dan meninggalkan garis-garis putih.
+     · table.jdw td / thead th{color:var(--muted)} — tulisan abu-abu di kertas.
+   !important karena aturan layarnya sama kuat atau lebih spesifik. */
+.cetak-lembar table th,
+.cetak-lembar table td {
+  position: static !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+.cetak-lembar table.jdw thead th,
+.cetak-lembar table.jdw td { color: #000; }
+
+/* Nama yang panjang melipat ke baris kedua di dalam kolomnya, bukan menjulur
+   melewati garis ke kolom NIK. Lebar kolomnya sendiri sudah dilebarkan di
+   htmlDinas (36-cetak.js), jadi ini hanya untuk nama yang benar-benar panjang. */
+.cetak-lembar table.jdw td.nama { white-space: normal; overflow-wrap: anywhere; }

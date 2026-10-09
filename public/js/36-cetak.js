@@ -1898,8 +1898,8 @@ function cetakIsiSnapshotHtml(p, snap, ttd = ''){
       <table class="data jdw">
         <thead><tr>
           <th style="width:26px">${T('No','No')}</th>
-          <th style="width:130px">${T('Nama','Name')}</th>
-          <th style="width:90px">NIK</th>
+          <th style="width:165px">${T('Nama','Name')}</th>
+          <th style="width:64px">NIK</th>
           ${kepalaHari}
         </tr></thead>
         <tbody>${barisOrang}</tbody></table>`;
@@ -2298,8 +2298,8 @@ function htmlDinas(){
     <table class="data jdw">
       <thead><tr>
         <th style="width:26px">${T('No','No')}</th>
-        <th style="width:130px">${T('Nama','Name')}</th>
-        <th style="width:90px">NIK</th>
+        <th style="width:165px">${T('Nama','Name')}</th>
+        <th style="width:64px">NIK</th>
         ${kepalaHari}
       </tr></thead>
       <tbody>${barisOrang}</tbody>
