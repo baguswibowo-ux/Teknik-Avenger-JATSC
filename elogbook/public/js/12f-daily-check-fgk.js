@@ -205,7 +205,8 @@ const DC_FGK_JATSC = [
 /* Lembar aslinya dua tabel bersebelahan: lift gedung ATS (satu lift, satu kolom
    "Cheklist/Pengukuran") dan akses door per ruang. Kolom BAIK / U/S tiap
    komponen akses door dilebur jadi satu sel status (✓ = baik, ✕ = U/S), dan
-   Qty ditulis menyatu dengan nama ruangnya. Kolom KETERANGAN akses door tetap
+   Qty tampil di kolomnya sendiri seperti di kertas — angka tetap bawaan baris
+   (blok ber-`qty`), bukan isian. Kolom KETERANGAN akses door tetap
    per baris seperti di kertasnya — kolom isian bebas (isiKolom), jadi seksi
    itu tidak perlu catatan di bawah tabelnya. */
 const FGK_PINTU = ['READER','MAGNETIC','PUSH BUTTON','STATUS LOCK','KETERANGAN'];
@@ -232,22 +233,22 @@ const DC_FGK_AKSES = [
   ]},
 
   { kode:'B', judul:'B. AKSES DOOR GEDUNG ATS', blok:[
-    { judul:'Per ruang (jumlah pintu)', kepala:'URAIAN KEGIATAN', kolom:FGK_PINTU, isiKolom:['KETERANGAN'], baris:[
-      'Ruang MER (4)',
-      'Ruang Mantek (1)',
-      'Engineering Workshop (1)',
-      'Engineering Locker Room (1)',
-      'AMHS-RDPS (1)',
-      'Test Bed (2)',
-      'Ruang Comm/AMHS (1)',
-      'Ruang OP INMC (1)',
-      'Ops Room (3)',
-      'FIC Room (1)',
-      'Ruang Rapat OPS Room (1)',
-      'Ruang UPS (1)',
-      'Ruang Panel (1)',
-      'Pintu Kaca Samping (1)',
-      'Pintu Kaca Lantai 2 (1)'
+    { judul:'Per ruang', kepala:'URAIAN KEGIATAN', qty:true, kolom:FGK_PINTU, isiKolom:['KETERANGAN'], baris:[
+      { n:'Ruang MER', qty:4 },
+      { n:'Ruang Mantek', qty:1 },
+      { n:'Engineering Workshop', qty:1 },
+      { n:'Engineering Locker Room', qty:1 },
+      { n:'AMHS-RDPS', qty:1 },
+      { n:'Test Bed', qty:2 },
+      { n:'Ruang Comm/AMHS', qty:1 },
+      { n:'Ruang OP INMC', qty:1 },
+      { n:'Ops Room', qty:3 },
+      { n:'FIC Room', qty:1 },
+      { n:'Ruang Rapat OPS Room', qty:1 },
+      { n:'Ruang UPS', qty:1 },
+      { n:'Ruang Panel', qty:1 },
+      { n:'Pintu Kaca Samping', qty:1 },
+      { n:'Pintu Kaca Lantai 2', qty:1 }
     ]}
   ]}
 ];
@@ -312,7 +313,8 @@ let dcFgkState = { toilet:{}, akses:{}, jatsc:{} };
 function fgkKunci(sk, bi, ri, kk){ return `${sk}|${bi}|${ri}|${kk}`; }
 function fgkKunciKet(sk){ return `${sk}|__ket`; }
 
-/** Nama baris boleh string (sel status) atau objek (sel isian). */
+/** Nama baris boleh string (sel status) atau objek (sel isian, atau baris
+    status yang membawa `qty`). */
 const fgkNama  = b => (typeof b === 'string' ? b : (b && b.n) || '');
 const fgkIsian = b => !!(b && typeof b === 'object' && b.t === 'isi');
 /** Kolom isian bebas — diketik di SEMUA baris blok itu (mis. KETERANGAN). */
@@ -424,20 +426,22 @@ function fgkBlokHtml(seksi, blok, bi, st, mode){
     const namaTd = cetak
       ? `<td style="text-align:left;">${escapeHtml(nama)}</td>`
       : `<td class="name">${escapeHtml(nama)}</td>`;
-    return `<tr>${namaTd}${sel}</tr>`;
+    // Qty: angka tetap dari lembarnya, bukan isian — tidak punya kunci state.
+    const qtyTd = blok.qty ? `<td style="text-align:center;">${escapeHtml(baris.qty == null ? '' : String(baris.qty))}</td>` : '';
+    return `<tr>${namaTd}${qtyTd}${sel}</tr>`;
   }).join('');
 
   if(cetak){
     const sub = blok.judul ? `<div style="font-size:6.5pt;color:#333;margin:1px 0 0;">${escapeHtml(blok.judul)}</div>` : '';
     const head = blok.kolom.map(k=>`<td${fgkKolomIsi(blok, k) ? ' style="width:26%;"' : ''}>${escapeHtml(k)}</td>`).join('');
     return `<div style="margin:0 0 3px;">${sub}<table style="width:100%;font-size:7pt;border-collapse:collapse;">
-      <thead><tr class="p-kepala"><td>${escapeHtml(blok.kepala || 'Item')}</td>${head}</tr></thead>
+      <thead><tr class="p-kepala"><td>${escapeHtml(blok.kepala || 'Item')}</td>${blok.qty ? '<td>QTY</td>' : ''}${head}</tr></thead>
       <tbody>${rows}</tbody></table></div>`;
   }
   const sub = blok.judul ? `<div class="pgm-blok-judul">${escapeHtml(blok.judul)}</div>` : '';
   const head = blok.kolom.map(k=>`<th${fgkKolomIsi(blok, k) ? ' class="fgk-th-bebas"' : ''}>${escapeHtml(k)}</th>`).join('');
   return `<div class="pgm-blok">${sub}<table class="pgm">
-    <thead><tr><th>${escapeHtml(blok.kepala || 'Item')}</th>${head}</tr></thead>
+    <thead><tr><th>${escapeHtml(blok.kepala || 'Item')}</th>${blok.qty ? '<th>QTY</th>' : ''}${head}</tr></thead>
     <tbody>${rows}</tbody></table></div>`;
 }
 
