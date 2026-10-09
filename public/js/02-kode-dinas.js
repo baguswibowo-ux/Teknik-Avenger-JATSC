@@ -34,6 +34,18 @@ const SHIFT = {
   'PNJ':  { mulai:0,  sampai:7,  warna:'var(--accent)', nama:'Pagi New JATSC',  pita:'P', geser:true },
   'SJ':   { mulai:7,  sampai:13, warna:'var(--warn)',   nama:'Siang JATSC',     pita:'S', geser:true },
   'SNJ':  { mulai:7,  sampai:13, warna:'var(--warn)',   nama:'Siang New JATSC', pita:'S', geser:true },
+  /* Pola campuran ("hybrid", mis. Listrik): dalam satu hari sebagian orang
+     berdinas PS + M (12 jam) dan sebagian lagi P + S + M (dipecah tiga). Kalau
+     yang dipecah memakai PJ/SJ di atas, `geser` ikut memundurkan MJ SEMUA orang
+     ke 13:00 — padahal malam rombongan PS tetap berangkat 12:00. Karena itu
+     pecahannya diberi kode sendiri: P1/S1 TANPA `geser`, dan M1 yang jamnya
+     memang 13:00, jadi M biasa hari itu tidak tersentuh. */
+  'P1J':  { mulai:0,  sampai:7,  warna:'var(--accent)', nama:'Pagi 1 JATSC',      pita:'P' },
+  'P1N':  { mulai:0,  sampai:7,  warna:'var(--accent)', nama:'Pagi 1 New JATSC',  pita:'P' },
+  'S1J':  { mulai:7,  sampai:13, warna:'var(--warn)',   nama:'Siang 1 JATSC',     pita:'S' },
+  'S1N':  { mulai:7,  sampai:13, warna:'var(--warn)',   nama:'Siang 1 New JATSC', pita:'S' },
+  'M1J':  { mulai:13, sampai:24, warna:'var(--muted)',  nama:'Malam 1 JATSC',     pita:'M', malam:true },
+  'M1N':  { mulai:13, sampai:24, warna:'var(--muted)',  nama:'Malam 1 New JATSC', pita:'M', malam:true },
   /* Tanpa huruf gedung. Tidak ditawarkan di daftar kode unit — lembar yang
      menulis 'PS' saja belum menyebut JATSC atau New JATSC, dan impor memang
      harus melaporkannya sebagai kode asing supaya dilengkapi. Tetap dikenal
@@ -160,7 +172,11 @@ const ALIAS_SHIFT = {
 
 /** Kunci SHIFT untuk satu tulisan kode, atau '' kalau memang tidak dikenal. */
 function kodeBaku(kode){
-  const huruf = String(kode == null ? '' : kode).toUpperCase().replace(/[^A-Z]/g, '');
+  /* Kode berangka (P1J, M1N) dicocokkan dulu selagi angkanya masih ada —
+     kalau angkanya ikut dibuang, 'M1J' terbaca 'MJ' dan jamnya salah. */
+  const rapat = String(kode == null ? '' : kode).toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if(/\d/.test(rapat) && SHIFT[rapat]) return rapat;
+  const huruf = rapat.replace(/[^A-Z]/g, '');
   if(!huruf) return '';
   if(SHIFT[huruf]) return huruf;
   if(ALIAS_SHIFT[huruf] && SHIFT[ALIAS_SHIFT[huruf]]) return ALIAS_SHIFT[huruf];

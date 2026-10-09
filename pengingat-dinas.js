@@ -53,6 +53,12 @@ export const SHIFT_MULAI = {
   PNJ: { mulai: 0, nama: 'Pagi New JATSC', geser: true },
   SJ:  { mulai: 7, nama: 'Siang JATSC', geser: true },
   SNJ: { mulai: 7, nama: 'Siang New JATSC', geser: true },
+  P1J: { mulai: 0, nama: 'Pagi 1 JATSC' },
+  P1N: { mulai: 0, nama: 'Pagi 1 New JATSC' },
+  S1J: { mulai: 7, nama: 'Siang 1 JATSC' },
+  S1N: { mulai: 7, nama: 'Siang 1 New JATSC' },
+  M1J: { mulai: 13, nama: 'Malam 1 JATSC', malam: true },
+  M1N: { mulai: 13, nama: 'Malam 1 New JATSC', malam: true },
   PS:  { mulai: 0, nama: 'Pagi–Siang' },
   M:   { mulai: 12, nama: 'Malam', malam: true },
   Pagi:  { mulai: 0, nama: 'Pagi', geser: true },
@@ -89,7 +95,9 @@ const KUNCI_BESAR = Object.fromEntries(Object.keys(SHIFT_MULAI).map((k) => [k.to
 /** Kunci SHIFT_MULAI untuk satu tulisan kode jadwal, atau '' kalau tak dikenal.
     Aturannya sama persis dengan kodeBaku() dashboard. */
 export function kodeBaku(kode) {
-  const huruf = String(kode == null ? '' : kode).toUpperCase().replace(/[^A-Z]/g, '');
+  const rapat = String(kode == null ? '' : kode).toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (/\d/.test(rapat) && KUNCI_BESAR[rapat]) return KUNCI_BESAR[rapat];
+  const huruf = rapat.replace(/[^A-Z]/g, '');
   if (!huruf) return '';
   if (KUNCI_BESAR[huruf]) return KUNCI_BESAR[huruf];
   if (ALIAS[huruf]) return ALIAS[huruf];
