@@ -27,7 +27,7 @@ try{ document.documentElement.setAttribute('data-tema',
 <link rel="stylesheet" href="css/02-kepala-tab.css">
 <link rel="stylesheet" href="css/03-tombol-formulir.css">
 <link rel="stylesheet" href="css/04-catatan.css?v=20260916tautan">
-<link rel="stylesheet" href="css/05-tabel.css">
+<link rel="stylesheet" href="css/05-tabel.css?v=20261009akses6">
 <link rel="stylesheet" href="css/06-peran-lampiran.css?v=20261009berkas">
 <link rel="stylesheet" href="css/07-modal-toast.css?v=20260916tutup">
 <link rel="stylesheet" href="css/08-layar-kecil.css">
@@ -214,18 +214,28 @@ try{ document.documentElement.setAttribute('data-tema',
       <button class="subtab-btn" data-pgmform="mer"
               onclick="setDcPgmForm('mer')">📡 Fasilitas Pengamatan</button>
     </nav>
-    <!-- Sub-tab pemilih LOKASI untuk unit Gedung & Keamanan: New JATSC (ceklis
-         toilet & mushalla) vs JATSC (lift · server CCTV · sistem pengendali
-         jalan masuk). Dua lembar itu memang milik gedung yang berbeda, jadi
-         labelnya lokasi — sama gaya dengan sub-tab Radtel di atas.
-         setDcFgkForm() di js/12f-daily-check-fgk.js menukar isi #dcFgkWrap.
-         07-unit.js menampilkan nav ini hanya untuk unit gedungkeamanan. -->
-    <nav class="subtabs" id="dcFgkSubtabs" style="display:none;">
-      <button class="subtab-btn active" data-fgkform="toilet"
-              onclick="setDcFgkForm('toilet')">📍 New JATSC</button>
-      <button class="subtab-btn" data-fgkform="jatsc"
-              onclick="setDcFgkForm('jatsc')">📍 JATSC</button>
-    </nav>
+    <!-- Sub-tab unit Gedung & Keamanan, DUA TINGKAT. Baris atas memilih LOKASI
+         — New JATSC vs JATSC, sama gaya dengan sub-tab Radtel di atas. New
+         JATSC punya dua lembar (toilet & mushalla, dan lift & akses door) yang
+         dipilih di baris kedua; baris itu hilang selagi JATSC yang dibuka,
+         karena JATSC lembarnya satu (lift · server CCTV · sistem pengendali
+         jalan masuk). setDcFgkLokasi() / setDcFgkForm() di
+         js/12f-daily-check-fgk.js menukar isi #dcFgkWrap. 07-unit.js
+         menampilkan wadah ini hanya untuk unit gedungkeamanan. -->
+    <div id="dcFgkSubtabs" style="display:none;">
+      <nav class="subtabs" style="margin-bottom:8px;">
+        <button class="subtab-btn active" data-fgklokasi="nj"
+                onclick="setDcFgkLokasi('nj')">📍 NEW JATSC</button>
+        <button class="subtab-btn" data-fgklokasi="jatsc"
+                onclick="setDcFgkForm('jatsc')">📍 JATSC</button>
+      </nav>
+      <nav class="subtabs" id="dcFgkLembar">
+        <button class="subtab-btn active" data-fgkform="toilet"
+                onclick="setDcFgkForm('toilet')">Toilet</button>
+        <button class="subtab-btn" data-fgkform="akses"
+                onclick="setDcFgkForm('akses')">Lift &amp; Akses Door</button>
+      </nav>
+    </div>
     <!-- Sub-tab pemilih LEMBAR untuk unit Listrik & Mekanik: empat lembar
          pengecekan harian yang di berkas aslinya jadi empat sheet — STS, MDS
          No Break, Beban Listrik, dan UPS. Labelnya nama lembar (bukan lokasi):
@@ -321,7 +331,7 @@ try{ document.documentElement.setAttribute('data-tema',
            lembar ini bicara Baik / Perlu Perhatian / Rusak, bukan Normal /
            Alarm / Gangguan. Diisi sinkronSubtabFgk() di 12f-daily-check-fgk.js. -->
       <div id="dcFgkInfo" style="display:none;margin-bottom:10px;font-size:12.5px;color:var(--muted);padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:var(--panel-2);">
-        <b style="color:var(--text);">Lokasi:</b> <span id="dcFgkInfoNama" style="color:var(--accent);font-weight:600;">New JATSC</span>
+        <b style="color:var(--text);">Lokasi:</b> <span id="dcFgkInfoNama" style="color:var(--accent);font-weight:600;">NEW JATSC</span>
         &nbsp;·&nbsp; <span id="dcFgkInfoIsi" style="color:var(--text);">Toilet &amp; Mushalla</span>
         &nbsp;·&nbsp; ✓ Baik &nbsp;·&nbsp; ! Perlu Perhatian &nbsp;·&nbsp; ✕ Rusak / Tidak Berfungsi
       </div>
@@ -2601,7 +2611,7 @@ try{ document.documentElement.setAttribute('data-tema',
 <script src="js/04-toast-tab.js"></script>
 <script src="js/05-jembatan-server.js"></script>
 <script src="js/06-keadaan.js?v=20260916tautan"></script>
-<script src="js/07-unit.js?v=dc-warisi"></script>
+<script src="js/07-unit.js?v=20261009akses6"></script>
 <script src="js/08-tanda-tangan.js"></script>
 <script src="js/09-peran.js?v=20261007picunit"></script>
 <script src="js/10-lampiran.js?v=20261009lampiran3"></script>
@@ -2612,11 +2622,11 @@ try{ document.documentElement.setAttribute('data-tema',
 <script src="js/12c-daily-check-navigasi.js"></script>
 <script src="js/12d-daily-check-amhs.js?v=20261009lampiran3"></script>
 <script src="js/12e-daily-check-pengamatan.js"></script>
-<script src="js/12f-daily-check-fgk.js"></script>
+<script src="js/12f-daily-check-fgk.js?v=20261009b3"></script>
 <script src="js/12g-daily-check-listrik.js"></script>
 <script src="js/12h-daily-check-rdps.js"></script>
 <script src="js/13-daily-check-radkom.js"></script>
-<script src="js/14-daily-check-umum.js?v=20261009lampiran3"></script>
+<script src="js/14-daily-check-umum.js?v=20261009akses7"></script>
 <script src="js/15-isu.js?v=20260916adminunit"></script>
 <script src="js/16-monitoring.js?v=20261009lampiran3"></script>
 <script src="js/17-ds-test.js?v=20261009lampiran3"></script>
@@ -2633,7 +2643,7 @@ try{ document.documentElement.setAttribute('data-tema',
 <script src="js/21-cetak-dasar.js"></script>
 <script src="js/22-cetak-logbook.js?v=20260916tautan"></script>
 <script src="js/23-cetak-isu.js"></script>
-<script src="js/24-cetak-daily-check.js?v=gatevox-psu"></script>
+<script src="js/24-cetak-daily-check.js?v=20261009b1"></script>
 <script src="js/27-ttd-tersimpan.js"></script>
 <script src="js/28b-ph.js?v=20260916phperiode"></script>
 <script src="js/29-rekap.js"></script>

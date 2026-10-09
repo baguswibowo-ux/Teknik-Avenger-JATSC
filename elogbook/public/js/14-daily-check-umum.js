@@ -375,7 +375,7 @@ async function saveDailyCheck(){
       : { __lokasi:'new-jatsc', __tempat: tempatDipilih };
   // Pengamatan, Gedung & Keamanan, dan Listrik & Mekanik menumpang tabel
   // dailychecks yang sama (pola AMHS): lembar mana yang dipakai ditandai
-  // __format + __pgmForm (ckg3/mer), __fgkForm (toilet/jatsc), atau __lkForm
+  // __format + __pgmForm (ckg3/mer), __fgkForm (toilet/akses/jatsc), atau __lkForm
   // (sts/mds/beban/ups) di dalam state JSON.
   const stateDipakai = radkom ? dcRkState
                      : nav    ? { ...dcNState, ...meta }
@@ -491,12 +491,16 @@ function renderDcHistory(){
   if(dcHistory.length===0){ wrap.innerHTML = '<div class="empty">' + T('belumAdaDc') + '</div>'; return; }
   const daftar = dcHistoryTersaring();
   if(daftar.length===0){ wrap.innerHTML = '<div class="empty">' + T('takAdaFilter') + '</div>'; return; }
+  // Gedung & Keamanan: tiga lembar masuk satu daftar, jadi kartunya menyebut
+  // lembar yang mana (kolom Form dari server = __fgkForm catatan itu).
+  const fgk = (typeof dcGedungKeamananAktif === 'function') && dcGedungKeamananAktif();
   wrap.innerHTML = daftar.map(r=>{
+    const lembar = fgk ? ' &middot; <b style="color:var(--accent);">' + escapeHtml(DC_FGK_NAMA[fgkFormSah(r.form)]) + '</b>' : '';
     const tag = r.fails.length ? `<span class="tag fail">${r.fails.length} gangguan</span>`
               : r.warns.length ? `<span class="tag warn">${r.warns.length} alarm</span>`
               : `<span class="tag ok">semua normal</span>`;
     return `<div class="dc-history-item">
-      <div><b>${r.tanggal}</b> &middot; Dinas ${escapeHtml(r.dinas)}${unitPakaiSuhuMer() ? ' &middot; Suhu MER ' + (escapeHtml(r.suhu)||'-') : ''}</div>
+      <div><b>${r.tanggal}</b> &middot; Dinas ${escapeHtml(r.dinas)}${lembar}${unitPakaiSuhuMer() ? ' &middot; Suhu MER ' + (escapeHtml(r.suhu)||'-') : ''}</div>
       ${tag}
       ${dcChipDinasHtml(r)}
       <div style="font-size:11.5px;color:var(--muted);">Teknisi: ${escapeHtml(r.teknisiNama)||'-'} &middot; Mengetahui: ${escapeHtml(r.managerNama)||'-'}</div>
@@ -687,7 +691,7 @@ async function openDcDetail(id){
   body.innerHTML = `
     <div style="font-size:13px;margin-bottom:10px;line-height:1.7;">
       <b>${escapeHtml(r.tanggal)}</b><br>
-      Dinas: ${escapeHtml(r.dinas)||'-'}${(!unitPakaiSuhuMer() || jatscTersimpan || navTersimpan || pgmTersimpan || fgkTersimpan || lkTersimpan) ? '' : ' &middot; Suhu MER: ' + (escapeHtml(r.suhu)||'-')}${pgmTersimpan ? ' &middot; Form: ' + escapeHtml((typeof DC_PGM_LABEL !== 'undefined' && DC_PGM_LABEL[state.__pgmForm]) || 'Radar CKG 3') : ''}${fgkTersimpan ? ' &middot; Lokasi: ' + escapeHtml((typeof DC_FGK_LABEL !== 'undefined' && DC_FGK_LABEL[state.__fgkForm]) || 'New JATSC') : ''}${lkTersimpan ? ' &middot; Lembar: ' + escapeHtml((typeof DC_LK_LABEL !== 'undefined' && DC_LK_LABEL[state.__lkForm]) || 'STS') : ''}
+      Dinas: ${escapeHtml(r.dinas)||'-'}${(!unitPakaiSuhuMer() || jatscTersimpan || navTersimpan || pgmTersimpan || fgkTersimpan || lkTersimpan) ? '' : ' &middot; Suhu MER: ' + (escapeHtml(r.suhu)||'-')}${pgmTersimpan ? ' &middot; Form: ' + escapeHtml((typeof DC_PGM_LABEL !== 'undefined' && DC_PGM_LABEL[state.__pgmForm]) || 'Radar CKG 3') : ''}${fgkTersimpan ? ' &middot; Lokasi: ' + escapeHtml((typeof DC_FGK_LABEL !== 'undefined' && DC_FGK_LABEL[state.__fgkForm]) || 'NEW JATSC') : ''}${lkTersimpan ? ' &middot; Lembar: ' + escapeHtml((typeof DC_LK_LABEL !== 'undefined' && DC_LK_LABEL[state.__lkForm]) || 'STS') : ''}
     </div>
     ${dcRadkomAktif()
       ? dcRkDetailHtml(state)
@@ -758,7 +762,7 @@ async function openDcEditModal(id){
     dcPgmForm = (state.__pgmForm === 'mer') ? 'mer' : 'ckg3';
   }
   if(isFgk && typeof setDcFgkForm === 'function'){
-    dcFgkForm = (state.__fgkForm === 'jatsc') ? 'jatsc' : 'toilet';
+    dcFgkForm = fgkFormSah(state.__fgkForm);
   }
   if(isLk && typeof lkFormTersimpan === 'function'){
     dcLkForm = lkFormTersimpan(state);

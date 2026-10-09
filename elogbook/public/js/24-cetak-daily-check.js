@@ -252,17 +252,17 @@ function buildDcPgmPrintHtml(r, state){
     </table>`;
 }
 
-/** Halaman cetak daily check Gedung & Keamanan — dua lembar (New JATSC /
-    JATSC) yang dipilih dari __fgkForm. Sama pola dengan Pengamatan:
+/** Halaman cetak daily check Gedung & Keamanan — tiga lembar (New JATSC
+    Toilet, New JATSC Lift & Akses Door, JATSC) yang dipilih dari __fgkForm. Sama pola dengan Pengamatan:
     kepala judul, tiga kolom meta, tabel baca-saja, legenda NB, keterangan
     opsional, lalu blok TTD teknisi & manager. Legendanya memakai istilah
     lembar ini (Baik / Perlu Perhatian / Rusak), bukan Normal/Alarm/Gangguan. */
 function buildDcFgkPrintHtml(r, state){
-  const form = (state && state.__fgkForm === 'jatsc') ? 'jatsc' : 'toilet';
+  const form = fgkFormSah(state && state.__fgkForm);
   const sub = (typeof DC_FGK_SUBJUDUL !== 'undefined' && DC_FGK_SUBJUDUL[form]) || '';
   // Lokasi IKUT lembarnya — kedua lembar milik gedung yang berbeda, jadi tidak
   // boleh dipatok 'JATSC' seperti cetakan unit lain yang cuma punya satu gedung.
-  const lokasi = (typeof DC_FGK_LABEL !== 'undefined' && DC_FGK_LABEL[form]) || 'New JATSC';
+  const lokasi = (typeof DC_FGK_LABEL !== 'undefined' && DC_FGK_LABEL[form]) || 'NEW JATSC';
   return `
     <style>
       /* Rapatkan sel khusus lembar gedung & keamanan supaya muat satu halaman.
@@ -271,6 +271,19 @@ function buildDcFgkPrintHtml(r, state){
       #printArea .pgm-print td, #printArea .fgk-cetak td{padding:0 3px;line-height:1.1;}
       #printArea .pgm-print .p-kepala td, #printArea .fgk-cetak .p-kepala td{font-size:6pt;}
       #printArea .fgk-cetak .fgk-sel{display:block;}
+      /* Lembar yang barisnya sedikit (Lift & Akses Door): jangan dirapatkan.
+         Ukurannya meniru lembar Excel aslinya: huruf 7,2pt, baris setinggi 17pt.
+         !important karena ukuran huruf dan jarak bloknya ditulis inline oleh
+         fgkBlokHtml() untuk lembar yang rapat. */
+      #printArea .fgk-cetak.fgk-lega table table{font-size:7.5pt !important;}
+      #printArea .fgk-cetak.fgk-lega table table td{padding:4px 5px;line-height:1.3;vertical-align:middle;}
+      #printArea .fgk-cetak.fgk-lega .p-kepala td{font-size:7pt;padding:4px 5px;}
+      #printArea .fgk-cetak.fgk-lega table table td:first-child{white-space:nowrap;}
+      #printArea .fgk-cetak.fgk-lega .fgk-sel{text-align:center;}
+      #printArea .fgk-cetak.fgk-lega > table > tbody > tr > td{padding:0 10px 0 0 !important;}
+      #printArea .fgk-cetak.fgk-lega > table > tbody > tr > td:last-child{padding-right:0 !important;}
+      #printArea .fgk-cetak.fgk-lega > table > tbody > tr > td > div{margin-bottom:6px !important;font-size:8pt !important;}
+      #printArea .fgk-cetak.fgk-lega > table > tbody > tr > td > div > div{font-size:7pt !important;margin-bottom:2px !important;}
     </style>
     <div style="text-align:center;font-weight:bold;font-size:12pt;margin-bottom:2px;">
       PENGECEKAN HARIAN FASILITAS GEDUNG DAN KEAMANAN
