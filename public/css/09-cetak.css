@@ -320,6 +320,20 @@
   #printArea.lanskap .dinas-ttd-kanan table.ttd-blok,
   #printArea.lanskap .dinas-note { margin-bottom: 0; }
 
+  /* Lembar yang terlalu panjang untuk dikecilkan (muatkanLanskap di
+     36-cetak.js): kurungannya dilepas, lembarnya bersambung ke halaman dua. */
+  #printArea.lanskap.bersambung,
+  #printArea.lanskap.bersambung .cetak-lembar {
+    height: auto; max-height: none; overflow: visible;
+    page-break-inside: auto; break-inside: auto;
+  }
+}
+
+/* Pemadat kaki lembar lanskap. Sengaja DI LUAR @media print: #printArea tidak
+   pernah tampak di layar, dan muatkanLanskap() mengukur tinggi lembarnya di
+   luar layar — ukurannya harus sama dengan yang nanti tercetak. */
+@media all {
+
   /* Padatkan tinggi bagian-bagian tinggi supaya sisa ruang mencukupi
      tanpa kehilangan keterbacaan. Angka-angka di sini dipilih setelah
      menghitung: h1+h2 ~10mm, jdw 16 baris ~65mm, pic ~7mm, cuti ~25mm,
@@ -792,6 +806,7 @@
   box-shadow: none !important;
 }
 .cetak-lembar table th,
+.cetak-lembar table.jdw thead th,
 .cetak-lembar table.jdw td { color: #000; }
 
 /* Nama yang panjang melipat ke baris kedua di dalam kolomnya, bukan menjulur

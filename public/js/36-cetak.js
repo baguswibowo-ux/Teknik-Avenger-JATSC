@@ -673,6 +673,7 @@ async function cetakKeKertas(){
   area.classList.toggle('lanskap', CETAK.mode === 'dinas');
   pasangOrientasiCetak(CETAK.mode === 'dinas' ? 'landscape' : null);
   if(CETAK.mode === 'sparepart') muatkanSatuHalaman(area);
+  if(CETAK.mode === 'dinas') muatkanLanskap(area);
   /* Kalau TTD-nya digambar putih di E-Logbook, ubah jadi hitam untuk
      kertas putih. Piksel bergaris (alpha > 0) dipaksa hitam pekat. */
   const imgs = Array.from(area.querySelectorAll('img[data-perlu-hitam]'));
@@ -696,7 +697,7 @@ async function cetakKeKertas(){
      supaya isinya tidak menempel di background layar dashboard. */
   await cetakAtauKirimPdf(area, CETAK.mode, CETAK.unit);
   area.innerHTML = '';
-  area.classList.remove('lanskap');
+  area.classList.remove('lanskap', 'bersambung');
   pasangOrientasiCetak(null);   // kembalikan @page ke bawaan potret
 }
 
@@ -741,6 +742,47 @@ function muatkanSatuHalaman(area){
   if(tinggi > tinggiHalaman && tinggi <= tinggiHalaman * BATAS){
     lembar.style.zoom = String((tinggiHalaman / tinggi) * 0.94);
   }
+}
+
+/**
+ * Lembar Jadwal Dinas (A4 lanskap) dikurung SATU halaman oleh 09-cetak.css:
+ * tingginya dipatok 194mm dan sisanya dipotong. Unit yang orangnya banyak dan
+ * cutinya banyak (mis. Listrik: 22 orang + 8 baris cuti) melewati batas itu,
+ * dan yang terpotong justru ujung tabel cuti dan blok TTD.
+ *
+ * Di sini lembarnya diukur dulu di luar layar dengan lebar kertasnya. Kalau
+ * lebih tinggi dari satu halaman, seluruh lembar dikecilkan proporsional
+ * sampai muat. Kalau pengecilannya terlalu jauh (huruf jadi tak terbaca),
+ * kurungannya dilepas (.bersambung) dan lembarnya bersambung ke halaman dua —
+ * lebih baik dua halaman daripada TTD-nya hilang.
+ */
+const LANSKAP_TINGGI_MM = 194;   // sama dengan kurungan di 09-cetak.css
+const LANSKAP_LEBAR_MM  = 281;   // 297 - margin 8mm kiri-kanan
+const LANSKAP_KECIL_MIN = 0.72;  // di bawah ini huruf 7pt jadi < 5pt
+function muatkanLanskap(area){
+  const lembar = area.querySelector('.cetak-lembar');
+  if(!lembar) return;
+  area.classList.remove('bersambung');
+  const mm = 96 / 25.4;
+  const gayaLama = area.getAttribute('style') || '';
+  area.style.cssText = `display:block;position:fixed;left:-10000px;top:0;
+    width:${LANSKAP_LEBAR_MM * mm}px;font-family:'Times New Roman',Times,serif;font-size:10.5pt;`;
+  /* scrollHeight, bukan tinggi kotaknya: kalau suatu saat kurungan 194mm ikut
+     berlaku di luar cetak, tinggi kotak akan selalu 194mm dan ukurannya bohong. */
+  const gayaBawah = getComputedStyle(lembar).paddingBottom;
+  const tinggi = Math.max(lembar.scrollHeight, lembar.getBoundingClientRect().height)
+               - (parseFloat(gayaBawah) || 0);   // di kertas padding bawahnya 0
+  area.setAttribute('style', gayaLama);
+  const batas = LANSKAP_TINGGI_MM * mm;
+  if(tinggi <= batas) return;
+  const z = (batas / tinggi) * 0.975;
+  if(z < LANSKAP_KECIL_MIN){ area.classList.add('bersambung'); return; }
+  /* zoom ikut mengecilkan kotak lembarnya sendiri, termasuk kurungan 194mm dan
+     lebar 275mm-nya — dibesarkan balik supaya sesudah dikecilkan tetap satu
+     halaman penuh, bukan halaman yang ikut menciut. */
+  lembar.style.zoom = String(z);
+  lembar.style.height = lembar.style.maxHeight = (LANSKAP_TINGGI_MM / z) + 'mm';
+  lembar.style.maxWidth = (275 / z) + 'mm';
 }
 
 /**
@@ -1819,6 +1861,7 @@ async function cetakDariPermintaan(p){
   area.classList.toggle('lanskap', p.jenis === 'dinas');
   pasangOrientasiCetak(p.jenis === 'dinas' ? 'landscape' : null);
   if(p.jenis === 'sparepart') muatkanSatuHalaman(area);
+  if(p.jenis === 'dinas') muatkanLanskap(area);
   const imgs = Array.from(area.querySelectorAll('img[data-perlu-hitam]'));
   await Promise.all(imgs.map(async img=>{
     try{
@@ -1836,7 +1879,7 @@ async function cetakDariPermintaan(p){
     await cetakAtauKirimPdf(area, p.jenis, p.unit);
   }finally{
     area.innerHTML = '';
-    area.classList.remove('lanskap');
+    area.classList.remove('lanskap', 'bersambung');
     pasangOrientasiCetak(null);
     Object.assign(CETAK, asal);
   }
