@@ -375,7 +375,7 @@ async function saveDailyCheck(){
       : { __lokasi:'new-jatsc', __tempat: tempatDipilih };
   // Pengamatan, Gedung & Keamanan, dan Listrik & Mekanik menumpang tabel
   // dailychecks yang sama (pola AMHS): lembar mana yang dipakai ditandai
-  // __format + __pgmForm (ckg3/mer), __fgkForm (toilet/jatsc), atau __lkForm
+  // __format + __pgmForm (ckg3/mer), __fgkForm (toilet/akses/jatsc), atau __lkForm
   // (sts/mds/beban/ups) di dalam state JSON.
   const stateDipakai = radkom ? dcRkState
                      : nav    ? { ...dcNState, ...meta }
@@ -758,7 +758,7 @@ async function openDcEditModal(id){
     dcPgmForm = (state.__pgmForm === 'mer') ? 'mer' : 'ckg3';
   }
   if(isFgk && typeof setDcFgkForm === 'function'){
-    dcFgkForm = (state.__fgkForm === 'jatsc') ? 'jatsc' : 'toilet';
+    dcFgkForm = fgkFormSah(state.__fgkForm);
   }
   if(isLk && typeof lkFormTersimpan === 'function'){
     dcLkForm = lkFormTersimpan(state);

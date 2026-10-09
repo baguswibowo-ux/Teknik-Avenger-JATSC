@@ -252,13 +252,13 @@ function buildDcPgmPrintHtml(r, state){
     </table>`;
 }
 
-/** Halaman cetak daily check Gedung & Keamanan — dua lembar (New JATSC /
-    JATSC) yang dipilih dari __fgkForm. Sama pola dengan Pengamatan:
+/** Halaman cetak daily check Gedung & Keamanan — tiga lembar (New JATSC
+    Toilet, New JATSC Lift & Akses Door, JATSC) yang dipilih dari __fgkForm. Sama pola dengan Pengamatan:
     kepala judul, tiga kolom meta, tabel baca-saja, legenda NB, keterangan
     opsional, lalu blok TTD teknisi & manager. Legendanya memakai istilah
     lembar ini (Baik / Perlu Perhatian / Rusak), bukan Normal/Alarm/Gangguan. */
 function buildDcFgkPrintHtml(r, state){
-  const form = (state && state.__fgkForm === 'jatsc') ? 'jatsc' : 'toilet';
+  const form = fgkFormSah(state && state.__fgkForm);
   const sub = (typeof DC_FGK_SUBJUDUL !== 'undefined' && DC_FGK_SUBJUDUL[form]) || '';
   // Lokasi IKUT lembarnya — kedua lembar milik gedung yang berbeda, jadi tidak
   // boleh dipatok 'JATSC' seperti cetakan unit lain yang cuma punya satu gedung.

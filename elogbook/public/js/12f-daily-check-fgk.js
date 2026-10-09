@@ -1,15 +1,18 @@
 /* E-Logbook · js/12f-daily-check-fgk.js — Daily check Fasilitas Gedung & Keamanan
    Dimuat dari index.html sesuai nomor berkas; urutannya berpengaruh.
 
-   Unit "Gedung dan Keamanan" punya DUA lembar harian, satu per gedung —
-   jadi sub-tabnya berlabel LOKASI seperti Radtel, bukan nama form:
-     · "New JATSC" — CEKLIS FASILITAS TOILET NEW JATSC: status per alat di tiap
-       toilet/mushalla, dikelompokkan per gedung dan lantai.
+   Unit "Gedung dan Keamanan" punya TIGA lembar harian di dua gedung —
+   sub-tabnya berlabel LOKASI seperti Radtel, dan New JATSC yang punya dua
+   lembar menyebut isinya di belakang lokasinya:
+     · "New JATSC · Toilet" — CEKLIS FASILITAS TOILET NEW JATSC: status per alat
+       di tiap toilet/mushalla, dikelompokkan per gedung dan lantai.
+     · "New JATSC · Lift & Akses Door" — CEK LIST HARIAN NEW JATSC: lift gedung
+       ATS dan akses door (reader, magnetic, push button, status lock) per ruang.
      · "JATSC"     — CHEKLIST HARIAN DI JATSC: lift penumpang/service, server
        CCTV, dan sistem pengendali jalan masuk.
-   Kunci internalnya tetap 'toilet' dan 'jatsc' (tertanam di state catatan yang
-   sudah tersimpan lewat __fgkForm) — yang berubah cuma labelnya; peta lokasi
-   dan isinya ada di DC_FGK_LABEL / DC_FGK_ISI di bawah.
+   Kunci internalnya 'toilet', 'akses', dan 'jatsc' (tertanam di state catatan
+   yang sudah tersimpan lewat __fgkForm) — jangan diganti; peta lokasi dan
+   isinya ada di DC_FGK_LABEL / DC_FGK_ISI di bawah.
 
    Bedanya dengan lembar Pengamatan: lembar JATSC bukan status semata —
    ada kolom pengukuran (tegangan lift, suhu car, tegangan UPS, suhu ruangan,
@@ -195,27 +198,88 @@ const DC_FGK_JATSC = [
   ]}
 ];
 
-const DC_FGK = { toilet: DC_FGK_TOILET, jatsc: DC_FGK_JATSC };
+/* ---------- Form 3: LIFT & AKSES DOOR (New JATSC) ---------- */
+/* Lembar aslinya dua tabel bersebelahan: lift gedung ATS (satu lift, satu kolom
+   "Cheklist/Pengukuran") dan akses door per ruang. Kolom BAIK / U/S tiap
+   komponen akses door dilebur jadi satu sel status (✓ = baik, ✕ = U/S), dan
+   Qty ditulis menyatu dengan nama ruangnya. Kolom KETERANGAN per baris jadi
+   catatan per seksi, sama dengan lembar JATSC. */
+const FGK_PINTU = ['READER','MAGNETIC','PUSH BUTTON','STATUS LOCK'];
 
-/** Label sub-tab & info bar: LOKASI gedungnya, sama gaya dengan Radtel. */
-const DC_FGK_LABEL = { toilet:'New JATSC', jatsc:'JATSC' };
+const DC_FGK_AKSES = [
+  { kode:'A', judul:'A. LIFT GEDUNG ATS', catatan:true, blok:[
+    { judul:'Tegangan (V)', kolom:['CEKLIS / UKUR'], baris:[
+      { n:'L1-L2 / L1-N', t:'isi', ph:'390 / 226' },
+      { n:'L2-L3 / L2-N', t:'isi', ph:'391 / 227' },
+      { n:'L3-L1 / L3-N', t:'isi', ph:'388 / 227' }
+    ]},
+    { judul:'Pemeriksaan', kolom:['CEKLIS / UKUR'], baris:[
+      'Panel Control',
+      { n:'Suhu dalam Car', t:'isi', sat:'°C', ph:'24' },
+      'Fungsi tombol & indikator dalam car',
+      'Fungsi tombol & indikator operasi',
+      'Interkom System',
+      'Penerangan dalam Car',
+      'System buka / tutup pintu car',
+      'System pengamanan pintu Car',
+      'Pembersihan Seal Pintu',
+      'Pembersihan Seal Car'
+    ]}
+  ]},
+
+  { kode:'B', judul:'B. AKSES DOOR GEDUNG ATS', catatan:true, blok:[
+    { judul:'Per ruang (jumlah pintu)', kolom:FGK_PINTU, baris:[
+      'Ruang MER (4)',
+      'Ruang Mantek (1)',
+      'Engineering Workshop (1)',
+      'Engineering Locker Room (1)',
+      'AMHS-RDPS (1)',
+      'Test Bed (2)',
+      'Ruang Comm/AMHS (1)',
+      'Ruang OP INMC (1)',
+      'Ops Room (3)',
+      'FIC Room (1)',
+      'Ruang Rapat OPS Room (1)',
+      'Ruang UPS (1)',
+      'Ruang Panel (1)',
+      'Pintu Kaca Samping (1)',
+      'Pintu Kaca Lantai 2 (1)'
+    ]}
+  ]}
+];
+
+const DC_FGK = { toilet: DC_FGK_TOILET, akses: DC_FGK_AKSES, jatsc: DC_FGK_JATSC };
+
+/** Kunci lembar yang sah dari state tersimpan; catatan lama tanpa __fgkForm
+    adalah lembar Toilet. */
+const fgkFormSah = f => (DC_FGK[f] ? f : 'toilet');
+
+/** Info bar & halaman cetak: LOKASI gedungnya, sama gaya dengan Radtel. */
+const DC_FGK_LABEL = { toilet:'New JATSC', akses:'New JATSC', jatsc:'JATSC' };
 
 /** Isi lembar di lokasi itu — pendamping label di info bar, supaya tahu apa
     yang diperiksa tanpa harus menggulir formnya. */
 const DC_FGK_ISI = {
   toilet:'Toilet & Mushalla',
+  akses :'Lift · Akses Door',
   jatsc :'Lift · Server CCTV · Sistem Pengendali Jalan Masuk'
 };
 
 /** Baris judul kedua di halaman cetak — menyebut lembar aslinya. */
 const DC_FGK_SUBJUDUL = {
   toilet:'FASILITAS TOILET DAN MUSHALLA — NEW JATSC',
+  akses :'LIFT · AKSES DOOR GEDUNG ATS — NEW JATSC',
   jatsc :'LIFT · SERVER CCTV · SISTEM PENGENDALI JALAN MASUK — JATSC'
 };
 
 /** alir = blok dialirkan ke kolom sempit (lembar Toilet yang cuma 1 kolom
-    status). Lembar JATSC tabelnya lebar, jadi ditumpuk lebar penuh. */
-const DC_FGK_ALIR = { toilet:true, jatsc:false };
+    status). Lembar lain tabelnya lebar, jadi ditumpuk lebar penuh. */
+const DC_FGK_ALIR = { toilet:true, akses:false, jatsc:false };
+
+/** CETAK lembar yang ditumpuk: berapa seksi pertama yang memakai lebar penuh;
+    sisanya disandingkan dua kolom. Lift & Akses Door 0 — kedua tabelnya
+    bersebelahan seperti di lembar aslinya. */
+const DC_FGK_CETAK_PENUH = { akses:0, jatsc:1 };
 
 /** Form yang sedang dipilih. Sub-tab menggantikan selektor Lokasi Radtel. */
 let dcFgkForm = 'toilet';
@@ -225,7 +289,7 @@ let dcFgkForm = 'toilet';
     form: "sk|bi|ri|kk" (seksi kode, blok index, baris index, kolom); catatan
     per-seksi memakai kunci "sk|__ket". Nama item tidak dipakai di kunci —
     item yang kebetulan bernama sama antar blok tidak saling menimpa. */
-let dcFgkState = { toilet:{}, jatsc:{} };
+let dcFgkState = { toilet:{}, akses:{}, jatsc:{} };
 
 function fgkKunci(sk, bi, ri, kk){ return `${sk}|${bi}|${ri}|${kk}`; }
 function fgkKunciKet(sk){ return `${sk}|__ket`; }
@@ -235,7 +299,7 @@ const fgkNama  = b => (typeof b === 'string' ? b : (b && b.n) || '');
 const fgkIsian = b => !!(b && typeof b === 'object' && b.t === 'isi');
 
 function initDcFgkState(){
-  dcFgkState = { toilet:{}, jatsc:{} };
+  dcFgkState = { toilet:{}, akses:{}, jatsc:{} };
   Object.keys(DC_FGK).forEach(form=>{
     DC_FGK[form].forEach(seksi=>{
       if(seksi.catatan) dcFgkState[form][fgkKunciKet(seksi.kode)] = '';
@@ -281,7 +345,7 @@ function fgkTemuan(form){
         if(!nama || fgkIsian(baris)) return;
         blok.kolom.forEach(kk=>{
           const s = st[fgkKunci(seksi.kode, bi, ri, kk)];
-          const satuKolom = kk === 'STATUS' || kk === 'JAWABAN';
+          const satuKolom = blok.kolom.length === 1;
           const label = `${seksi.kode} · ${blok.judul ? blok.judul + ' · ' : ''}${nama}${satuKolom ? '' : ' (' + kk + ')'}`;
           if(s === 'fail') fails.push(label);
           else if(s === 'warn') warns.push(label);
@@ -409,8 +473,9 @@ function dcFgkTabelBaca(form, state, cetak){
       const blok = seksi.blok.map((b, bi)=>fgkBlokHtml(seksi, b, bi, state, 'cetak')).join('');
       return `${kepala}${blok}${fgkKetHtml(seksi, state, 'cetak')}`;
     };
-    const atas = data.slice(0, 1).map(s=>`<div style="margin-bottom:4px;">${seksiHtml(s)}</div>`).join('');
-    const sisa = data.slice(1);
+    const penuh = DC_FGK_CETAK_PENUH[form] == null ? 1 : DC_FGK_CETAK_PENUH[form];
+    const atas = data.slice(0, penuh).map(s=>`<div style="margin-bottom:4px;">${seksiHtml(s)}</div>`).join('');
+    const sisa = data.slice(penuh);
     if(!sisa.length) return `<div class="fgk-cetak">${atas}</div>`;
     // Bagi sisa seksi ke dua kolom sesuai jumlah barisnya, bukan sekadar
     // separuh-separuh — supaya kedua kolom kira-kira sama tingginya.
@@ -473,7 +538,7 @@ function dcFgkTabelBaca(form, state, cetak){
 }
 
 /** Detail modal: pilih lembar dari __fgkForm yang tersimpan (default toilet). */
-const dcFgkDetailHtml = state => dcFgkTabelBaca((state && state.__fgkForm) || 'toilet', state, false);
+const dcFgkDetailHtml = state => dcFgkTabelBaca(fgkFormSah(state && state.__fgkForm), state, false);
 
 /* ---------- Selektor form (sub-tab) ---------- */
 /** Dipanggil sub-tab. Ganti lembar yang tampak; isian lembar lain tetap tinggal. */

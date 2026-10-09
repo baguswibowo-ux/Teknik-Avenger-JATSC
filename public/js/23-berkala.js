@@ -377,6 +377,7 @@ Object.assign(BERKALA_SUMBER, {
   'dc-pgm-ckg3':   bklSumberDc('pengamatan', 'ckg3', 'Radar CKG 3'),
   'dc-pgm-mer':    bklSumberDc('pengamatan', 'mer',  'Fasilitas Pengamatan'),
   'dc-fgk-toilet': bklSumberDc('gedungkeamanan', 'toilet', 'New JATSC'),
+  'dc-fgk-akses':  bklSumberDc('gedungkeamanan', 'akses',  'New JATSC Lift & Akses Door'),
   'dc-fgk-jatsc':  bklSumberDc('gedungkeamanan', 'jatsc',  'JATSC'),
   'dc-lk-sts':     bklSumberDc('listrikmekanik', 'sts',   'STS'),
   'dc-lk-mds':     bklSumberDc('listrikmekanik', 'mds',   'MDS'),

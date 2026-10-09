@@ -214,15 +214,17 @@ try{ document.documentElement.setAttribute('data-tema',
       <button class="subtab-btn" data-pgmform="mer"
               onclick="setDcPgmForm('mer')">📡 Fasilitas Pengamatan</button>
     </nav>
-    <!-- Sub-tab pemilih LOKASI untuk unit Gedung & Keamanan: New JATSC (ceklis
-         toilet & mushalla) vs JATSC (lift · server CCTV · sistem pengendali
-         jalan masuk). Dua lembar itu memang milik gedung yang berbeda, jadi
-         labelnya lokasi — sama gaya dengan sub-tab Radtel di atas.
+    <!-- Sub-tab pemilih LOKASI untuk unit Gedung & Keamanan: New JATSC (dua
+         lembar: ceklis toilet & mushalla, dan lift & akses door) vs JATSC
+         (lift · server CCTV · sistem pengendali jalan masuk). Labelnya lokasi
+         — sama gaya dengan sub-tab Radtel di atas.
          setDcFgkForm() di js/12f-daily-check-fgk.js menukar isi #dcFgkWrap.
          07-unit.js menampilkan nav ini hanya untuk unit gedungkeamanan. -->
     <nav class="subtabs" id="dcFgkSubtabs" style="display:none;">
       <button class="subtab-btn active" data-fgkform="toilet"
-              onclick="setDcFgkForm('toilet')">📍 New JATSC</button>
+              onclick="setDcFgkForm('toilet')">📍 New JATSC · Toilet</button>
+      <button class="subtab-btn" data-fgkform="akses"
+              onclick="setDcFgkForm('akses')">📍 New JATSC · Lift &amp; Akses Door</button>
       <button class="subtab-btn" data-fgkform="jatsc"
               onclick="setDcFgkForm('jatsc')">📍 JATSC</button>
     </nav>
