@@ -44,7 +44,7 @@ const KODE_DINAS = [
   'PSJ','PSN','MJ','MN','P','S','PJ','PNJ','SJ','SNJ',
   /* Pecahan tiga untuk pola campuran (hybrid): dipakai berdampingan dengan
      PS + M di hari yang sama, tanpa memundurkan M biasa — lihat SHIFT. */
-  'P1J','S1J','M1J','P1N','S1N','M1N',
+  'P1J','S1J','M1J','P1NJ','S1NJ','M1NJ',
   /* SPKL — Surat Perintah Kerja Lembur; satu varian untuk tiap bentuk dinas
      dasarnya, supaya kartu SPKL berdiri sejajar dengan petak dinas biasa di
      jadwal harian. Jam dan pita cakupan mengikuti varian dasarnya (lihat
