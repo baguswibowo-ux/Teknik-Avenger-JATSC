@@ -57,7 +57,7 @@ const BARIS = (() => {
     { Tanggal: '', DibuatPada: '' }
   ];
   const lokasi = ['', 'jatsc', 'new-jatsc'];
-  const form = ['', 'ckg3', 'mer', 'toilet', 'lift', 'akses', 'jatsc', 'sts', 'mds', 'beban', 'ups', 'amhs', 'aadps', 'd-atis'];
+  const form = ['', 'ckg3', 'mer', 'toilet', 'akses', 'jatsc', 'sts', 'mds', 'beban', 'ups', 'amhs', 'aadps', 'd-atis'];
   const kategori = ['radio', 'pgmweekly', 'llzgc', 'mrreading', 'maintlistrik', 'domestik'];
   const state = [{}, { __wForm: 'ckg3' }, { __wForm: 'smrt1' }, { __wForm: 'smrt3' },
     { __llzForm: '07l' }, { __llzForm: '25r' }, { __mrForm: 'gp-07r' }, { __mrForm: 'om-25r' },

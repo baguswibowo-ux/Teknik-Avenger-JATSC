@@ -252,8 +252,8 @@ function buildDcPgmPrintHtml(r, state){
     </table>`;
 }
 
-/** Halaman cetak daily check Gedung & Keamanan — empat lembar (New JATSC
-    Toilet, New JATSC Lift, New JATSC Akses Door, JATSC) yang dipilih dari __fgkForm. Sama pola dengan Pengamatan:
+/** Halaman cetak daily check Gedung & Keamanan — tiga lembar (New JATSC
+    Toilet, New JATSC Lift & Akses Door, JATSC) yang dipilih dari __fgkForm. Sama pola dengan Pengamatan:
     kepala judul, tiga kolom meta, tabel baca-saja, legenda NB, keterangan
     opsional, lalu blok TTD teknisi & manager. Legendanya memakai istilah
     lembar ini (Baik / Perlu Perhatian / Rusak), bukan Normal/Alarm/Gangguan. */
