@@ -140,6 +140,8 @@ function cetakAntrianKartu(p, hanyaLihat){
         <span class="cip ${rupaCip}">${esc(teksCip.toUpperCase())}</span>
         <span class="cip">${esc(jenisNama.toUpperCase())}</span>
         <b>${rekap ? esc(T('Semua unit','All units') + (p.snapshot.periode ? ' · ' + p.snapshot.periode : ''))
+          : (p.snapshot && p.snapshot.gabungan)
+            ? esc(T('Semua unit','All units') + ' · ' + (p.snapshot.grup || '')) + (p.bulan ? ' · ' + esc(namaBulan(p.bulan)) : '')
           : esc(namaUnit(p.unit)) + (p.bulan ? ' · ' + esc(namaBulan(p.bulan)) : '')}</b>
       </div>
       <div class="kmk-rn">${T('Dari','From')}: <b>${esc(p.pembuatNama || p.pembuatUser)}</b>

@@ -135,6 +135,10 @@ async function cetakBuka(mode, unit, opts){
      Cetak PUM / Cetak Teknik. Mode non-dinas tetap set ke 'teknik' sebagai
      bawaan yang aman (tidak dipakai, tapi tidak boleh undefined). */
   CETAK.formatDinas = (mode === 'dinas' && opts && opts.formatDinas === 'pum') ? 'pum' : 'teknik';
+  /* Cetak PUM per Grup: nama dari SEMUA unit dijadikan satu lalu dipecah per
+     grup jaga — lihat blok "CETAK PUM PER GRUP" di bawah. Selalu ragam PUM. */
+  CETAK.gabungan = mode === 'dinas' && !!(opts && opts.gabungan);
+  if(CETAK.gabungan) CETAK.formatDinas = 'pum';
   CETAK.rekap = mode === 'sparepart' && !!(opts && opts.rekap);
   CETAK.pejabatDipilih = null;
   CETAK.ttdPejabat = null;
@@ -356,6 +360,10 @@ function cetakKartuGambar(){
     const ragam = CETAK.mode === 'dinas'
       ? ' — ' + (CETAK.formatDinas === 'pum' ? T('PUM','PUM') : T('Teknik','Teknik'))
       : '';
+    if(CETAK.gabungan){
+      kepJudul.textContent = T('Cetak: Jadwal Dinas — PUM per Grup (semua unit)',
+                               'Print: Duty Roster — PUM per Group (all units)');
+    }else
     kepJudul.textContent = CETAK.rekap
       ? T('Cetak: Rekap Stok Opname — Semua Unit','Print: Stock Count Summary — All Units')
       : T('Cetak: ','Print: ') + (CETAK_JUDUL[CETAK.mode]?.() || CETAK.mode) +
@@ -364,6 +372,7 @@ function cetakKartuGambar(){
   /* Ringkasan isi rekap di atas pilihan pejabat, supaya pengirim tahu apa
      yang akan dibekukan dan dikirim. */
   const ringkasRekap = (()=>{
+    if(CETAK.gabungan) return gabunganRingkasHtml();
     if(!CETAK.rekap) return '';
     const bagian = rekapSparepartData();
     const total = rekapTotal(bagian);
@@ -453,7 +462,7 @@ function cetakKartuGambar(){
   const btnCetak = el('btnLakukanCetak');
   if(btnCetak){
     btnCetak.textContent = kirimSaja
-      ? T('Kirim untuk disetujui','Send for approval')
+      ? (CETAK.gabungan ? gabunganLabelKirim() : T('Kirim untuk disetujui','Send for approval'))
       : T('Cetak','Print');
   }
   /* Tombol "Setujui & Kirim" hanya untuk kartu review pejabat — di kartu
@@ -660,7 +669,7 @@ async function cetakLakukan(){
 /** Susun lembar dari keadaan CETAK sekarang lalu buka dialog cetak. Dipakai
     cetak langsung pejabat (cetakLakukan) dan cetak periksa administrator. */
 async function cetakKeKertas(){
-  const html = await cetakLembarHtml();
+  const html = CETAK.gabungan ? cetakLembarGabunganHtml() : await cetakLembarHtml();
   const area = el('printArea');
   area.innerHTML = html;
   /* Jadwal Dinas dicetak lanskap satu halaman — kolom 31 hari + Nama + NIK
@@ -673,7 +682,10 @@ async function cetakKeKertas(){
   area.classList.toggle('lanskap', CETAK.mode === 'dinas');
   pasangOrientasiCetak(CETAK.mode === 'dinas' ? 'landscape' : null);
   if(CETAK.mode === 'sparepart') muatkanSatuHalaman(area);
-  if(CETAK.mode === 'dinas') muatkanLanskap(area);
+  /* Per grup = satu lembar per grup, tiap lembar di halamannya sendiri: kurungan
+     satu-halaman dilepas (.bersambung), bukan dikecilkan jadi satu. */
+  if(CETAK.gabungan) area.classList.add('bersambung');
+  else if(CETAK.mode === 'dinas') muatkanLanskap(area);
   /* Kalau TTD-nya digambar putih di E-Logbook, ubah jadi hitam untuk
      kertas putih. Piksel bergaris (alpha > 0) dipaksa hitam pekat. */
   const imgs = Array.from(area.querySelectorAll('img[data-perlu-hitam]'));
@@ -1264,6 +1276,167 @@ function htmlPeralatan(){
 }
 
 /* =======================================================================
+   CETAK PUM PER GRUP — semua unit dijadikan satu, lalu dipecah per grup
+
+   Permintaan Bagus (9 Okt 2026): PIC dafdin atau administrator mengirim
+   Cetak PUM SEKALI, dan yang sampai ke pejabat bukan lembar per unit
+   (Listrik, Radtel, ...) melainkan satu lembar per GRUP jaga berisi orang dari
+   semua unit — lima grup berarti lima berkas, masing-masing dengan blok TTD-nya.
+
+   Grupnya dibaca dari jadwal yang sudah ada: baris judul "GRUP 1", "GRUP 2",
+   ... di daftar orang tiap unit (begitulah lembar Listrik diimpor dari Excel) —
+   baris tanpa isian hari yang namanya "GRUP n". Orang di bawahnya anggota grup
+   itu sampai baris judul berikutnya. Unit yang jadwalnya belum punya baris
+   judul grup tidak bisa ditempatkan; orangnya dilaporkan di kartu kirim dan
+   TIDAK ikut ke berkas mana pun, supaya ketahuan sebelum dikirim.
+
+   Tiap berkas adalah permintaan cetak biasa (jenis 'dinas') yang snapshot-nya
+   bertanda `gabungan:true` dan membawa nama grupnya; alur setuju/TTD-nya sama
+   persis dengan Cetak PUM per unit. Unit pembawanya unit yang sedang dibuka.
+   ======================================================================= */
+
+/** Nomor grup kalau baris ini baris JUDUL grup, 0 kalau bukan. */
+function dinasNomorGrup(o){
+  if(!o || (o.hari || []).some(h=>String(h || '').trim())) return 0;
+  const m = String(o.nama || '').trim().match(/^(?:GRUP|GROUP|GRUB|REGU)\s*[-.:]?\s*(\d{1,2}|[IVX]{1,4})$/i);
+  if(!m) return 0;
+  if(/^\d+$/.test(m[1])) return Number(m[1]);
+  return ({ I:1, II:2, III:3, IV:4, V:5, VI:6, VII:7, VIII:8, IX:9, X:10 })[m[1].toUpperCase()] || 0;
+}
+
+/** Jadwal semua unit pada bulan yang sedang dibuka, dipecah per grup:
+    { grup:[{ nomor, nama:'GRUP 1', orang:[...] }], tanpa:[{ unit, jumlah }] }. */
+function dinasGabunganGrup(){
+  const semua = (JDW.jadwalLihat && typeof JDW.jadwalLihat === 'object') ? JDW.jadwalLihat : {};
+  const urut = UNIT.map(u=>u.kode);
+  const kode = Object.keys(semua).filter(k=>k[0] !== '_' && Array.isArray(semua[k]))
+    .sort((a, b)=>{ const ia = urut.indexOf(a), ib = urut.indexOf(b); return (ia < 0 ? 999 : ia) - (ib < 0 ? 999 : ib); });
+  const peta = new Map(), tanpa = [];
+  kode.forEach(unit=>{
+    let nomor = 0, lepas = 0;
+    semua[unit].forEach(o=>{
+      const n = dinasNomorGrup(o);
+      if(n){ nomor = n; return; }
+      if(!o || !String(o.nama || '').trim()) return;
+      if(!nomor){ lepas++; return; }
+      if(!peta.has(nomor)) peta.set(nomor, []);
+      peta.get(nomor).push({ nama:o.nama, nik:o.nik || '', hari:[...(o.hari || [])] });
+    });
+    if(lepas) tanpa.push({ unit, jumlah: lepas });
+  });
+  const grup = [...peta.keys()].sort((a, b)=>a - b)
+    .map(nomor=>({ nomor, nama: 'GRUP ' + nomor, orang: peta.get(nomor) }));
+  return { grup, tanpa };
+}
+
+const gabunganBulan = () => JDW.lihat || JDW.bulanIni || bulanKode(new Date());
+
+function gabunganLabelKirim(){
+  const n = dinasGabunganGrup().grup.length;
+  return T(`Kirim ${n} berkas untuk disetujui`, `Send ${n} files for approval`);
+}
+
+/** Ringkasan di kartu kirim: grup apa saja yang akan jadi berkas, dan siapa
+    yang belum bergrup (tidak ikut). */
+function gabunganRingkasHtml(){
+  const { grup, tanpa } = dinasGabunganGrup();
+  const daftar = grup.length
+    ? grup.map(g=>`<b>${esc(g.nama)}</b> ${g.orang.length} ${T('orang','people')}`).join(' · ')
+    : T('Belum ada grup. Tambahkan baris judul "GRUP 1", "GRUP 2", ... di jadwal dinas unit (lewat Sunting jadwal atau impor Excel), di atas anggota tiap grup.',
+        'No groups yet. Add heading rows "GRUP 1", "GRUP 2", ... to the unit rosters, above each group\'s members.');
+  const awas = tanpa.length ? `<div class="cetak-ket awas" style="margin-bottom:10px">${esc(T(
+    'Belum bergrup, TIDAK ikut ke berkas mana pun: ' + tanpa.map(t=>`${namaUnit(t.unit)} (${t.jumlah} orang)`).join(', ')
+      + '. Beri baris judul "GRUP n" di jadwal unit itu dulu kalau orangnya harus ikut.',
+    'Not in any group, NOT included in any file: ' + tanpa.map(t=>`${namaUnit(t.unit)} (${t.jumlah})`).join(', ') + '.'))}</div>` : '';
+  return `<div class="cetak-ket" style="margin-bottom:10px">${esc(T(
+      `${namaBulan(gabunganBulan())} · nama dari semua unit dijadikan satu, satu berkas per grup: `,
+      `${namaBulan(gabunganBulan())} · all units combined, one file per group: `))}${daftar}</div>${awas}`;
+}
+
+/** Snapshot satu grup — bentuknya sama dengan snapshot dinas per unit. */
+function gabunganSnapshot(g){
+  return {
+    jenis: 'dinas', unit: CETAK.unit, bulan: gabunganBulan(), orang: g.orang,
+    format: 'pum', tanggalCetak: CETAK.tanggalCetak || '',
+    gabungan: true, grup: g.nama
+  };
+}
+
+/** Cetak langsung (pejabat, atau cetak periksa administrator): satu lembar per
+    grup, berurutan, tiap lembar di halamannya sendiri. */
+function cetakLembarGabunganHtml(){
+  const bulan = gabunganBulan();
+  const { grup } = dinasGabunganGrup();
+  if(!grup.length){
+    return `<div class="cetak-lembar"><h1>${esc(CETAK_JUDUL.dinas?.() || '')} — ${esc(namaBulan(bulan))}</h1>
+      <div style="text-align:center;font-style:italic;padding:12pt 0">${
+        T('Belum ada grup di jadwal dinas bulan ini.','No groups in this month\'s roster yet.')}</div></div>`;
+  }
+  return grup.map(g=>{
+    const snap = gabunganSnapshot(g);
+    const kaki = dinasFooterHtml({
+      pum: true, tanggalIso: snap.tanggalCetak, cutiRows: dinasBarisCuti(g.orang, bulan),
+      ttdMengertUrl:  (CETAK.ttdDeputy  && CETAK.ttdDeputy.ada)  ? CETAK.ttdDeputy.url  : '',
+      ttdMengertNama: (CETAK.ttdDeputy  && (CETAK.ttdDeputy.nama || CETAK.deputyDipilih)) || '',
+      ttdManagerUrl:  (CETAK.ttdPejabat && CETAK.ttdPejabat.ada) ? CETAK.ttdPejabat.url : '',
+      ttdManagerNama: (CETAK.ttdPejabat && (CETAK.ttdPejabat.nama || CETAK.pejabatDipilih)) || ''
+    });
+    return `<div class="cetak-lembar">
+      <h1>${esc(CETAK_JUDUL.dinas?.() || '')} — ${esc(namaBulan(bulan))}</h1>
+      <h2>${esc(g.nama)}</h2>
+      ${cetakIsiSnapshotHtml({ jenis:'dinas', bulan }, snap)}${kaki}</div>`;
+  }).join('');
+}
+
+/** Sekali tekan: satu permintaan cetak per grup, semuanya ke pejabat yang sama. */
+async function cetakKirimGabungan(){
+  const { grup } = dinasGabunganGrup();
+  if(!grup.length){
+    pesan(T('Belum ada grup di jadwal dinas bulan ini — tidak ada yang dikirim.',
+            'No groups in this month\'s roster — nothing was sent.'));
+    return;
+  }
+  const tombol = el('btnLakukanCetak');
+  const pejabat = CETAK.pejabat.find(p=>p.username === CETAK.pejabatDipilih) || {};
+  const pejabatNama = pejabat.nama || CETAK.pejabatDipilih;
+  const terkirim = [];
+  let galat = '';
+  if(tombol) tombol.disabled = true;
+  for(const g of grup){
+    if(tombol) tombol.textContent = T(`Mengirim ${g.nama}…`, `Sending ${g.nama}…`);
+    try{
+      const jawab = await fetch('/cetak-antrian', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jenis: 'dinas', unit: CETAK.unit, bulan: gabunganBulan(),
+          pejabatUser: CETAK.pejabatDipilih, pejabatNama,
+          snapshot: gabunganSnapshot(g),
+          catatan: `PUM ${g.nama} — semua unit`
+        })
+      });
+      const j = await jawab.json().catch(()=>({}));
+      if(!jawab.ok) throw new Error(j.error || `HTTP ${jawab.status}`);
+      terkirim.push(g.nama);
+    }catch(e){
+      console.error('[cetak] gagal kirim', g.nama, e);
+      galat = `${g.nama}: ${e && e.message || e}`;
+      break;   // sisanya ditahan — jangan sampai pejabat menerima set yang bolong tanpa ada yang tahu
+    }
+  }
+  if(tombol){ tombol.disabled = false; tombol.textContent = gabunganLabelKirim(); }
+  if(typeof muatAntrianCetak === 'function') muatAntrianCetak().then(()=>gambarKotakMasuk?.());
+  if(galat){
+    pesan(T(`Terkirim ${terkirim.length} dari ${grup.length} berkas (${terkirim.join(', ') || '—'}). Berhenti di ${galat}`,
+            `Sent ${terkirim.length} of ${grup.length} files (${terkirim.join(', ') || '—'}). Stopped at ${galat}`));
+    return;
+  }
+  el('lapisCetak').classList.remove('buka');
+  pesan(T(`${terkirim.length} berkas PUM per grup dikirim ke ${pejabatNama}. Pantau statusnya di Kotak Masuk.`,
+          `${terkirim.length} per-group PUM files sent to ${pejabatNama}. Track them in the Inbox.`));
+}
+
+/* =======================================================================
    KIRIM KE PEJABAT — jalur teknisi/PIC/adminunit
    ======================================================================= */
 
@@ -1333,6 +1506,7 @@ async function cetakKirimKePejabat(){
             'Pick the receiving officer first.'));
     return;
   }
+  if(CETAK.gabungan){ await cetakKirimGabungan(); return; }
   const tombol = el('btnLakukanCetak');
   if(tombol){ tombol.disabled = true; tombol.textContent = T('Mengirim…','Sending…'); }
 
@@ -1494,7 +1668,9 @@ function cetakKartuReviewGambar(){
     <div class="cetak-review-cip">
       <span class="cip ${statusRupa}">${esc(statusTeks.toUpperCase())}</span>
       <span class="cip">${esc(jenisNama.toUpperCase())}</span>
-      <span class="cip">${esc((snapRekap ? T('Semua unit','All units') : (u && u.nama || p.unit)).toUpperCase())}${esc(bulanTag.toUpperCase())}</span>
+      <span class="cip">${esc((snapRekap ? T('Semua unit','All units')
+        : (p.snapshot && p.snapshot.gabungan) ? T('Semua unit','All units') + ' · ' + (p.snapshot.grup || '')
+        : (u && u.nama || p.unit)).toUpperCase())}${esc(bulanTag.toUpperCase())}</span>
       <span class="cip">${esc(cetakWaktuRingkas(p.tanggalKirim))}</span>
     </div>
 
@@ -2046,9 +2222,10 @@ async function cetakLembarPermintaanHtml(p, snap){
   // Blok kop-tabel di sini juga dilepas — sama alasannya dengan kopLembar()
   // langsung: informasi Penyelenggara + Kelompok Fasilitas sudah muncul di
   // blok identitas per-alat; Tanggal Cetak & Dicetak Oleh tidak diminta form.
+  /* Lembar PUM per grup tidak menyebut unit — isinya orang dari semua unit. */
   const kop = `
     <h1>${esc(judul)}${esc(bulan)}</h1>
-    <h2>${esc(u.nama || p.unit)}</h2>`;
+    <h2>${esc(snap && snap.gabungan ? (snap.grup || '') : (u.nama || p.unit))}</h2>`;
 
   const mengertUrl = CETAK.ttdPejabat && CETAK.ttdPejabat.ada ? CETAK.ttdPejabat.url : '';
   let blok;

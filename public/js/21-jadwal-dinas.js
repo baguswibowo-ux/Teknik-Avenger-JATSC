@@ -561,6 +561,10 @@ function jdwIsi(unit){
                T('Versi untuk PUM: hanya kode PS/M/P/S; SPKL, cuti, dan lainnya dikosongkan.',
                  'PUM version: only PS/M/P/S codes; SPKL, leave, and others are blanked.')}">${
                T('Cetak PUM','Print (PUM)')}</button>
+             <button class="btn garis kecil" id="jdwCetakPumGrup" title="${
+               T('PUM per grup: nama dari semua unit dijadikan satu, satu berkas per grup (GRUP 1, GRUP 2, ...).',
+                 'PUM per group: all units combined, one file per group.')}">${
+               T('Cetak PUM per Grup','Print (PUM per Group)')}</button>
              <button class="btn garis kecil" id="jdwCetakTeknik" title="${
                T('Versi internal Teknik: seluruh kode ditampilkan apa adanya.',
                  'Internal Teknik version: every code is shown as-is.')}">${
@@ -766,6 +770,8 @@ function jdwPasang(unit){
 
   const btnCetakPum = kotak.querySelector('#jdwCetakPum');
   if(btnCetakPum) btnCetakPum.addEventListener('click', ()=>cetakBuka('dinas', unit, { formatDinas:'pum' }));
+  const btnCetakPumGrup = kotak.querySelector('#jdwCetakPumGrup');
+  if(btnCetakPumGrup) btnCetakPumGrup.addEventListener('click', ()=>cetakBuka('dinas', unit, { formatDinas:'pum', gabungan:true }));
   const btnCetakTeknik = kotak.querySelector('#jdwCetakTeknik');
   if(btnCetakTeknik) btnCetakTeknik.addEventListener('click', ()=>cetakBuka('dinas', unit, { formatDinas:'teknik' }));
 

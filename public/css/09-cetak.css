@@ -813,3 +813,7 @@
    melewati garis ke kolom NIK. Lebar kolomnya sendiri sudah dilebarkan di
    htmlDinas (36-cetak.js), jadi ini hanya untuk nama yang benar-benar panjang. */
 .cetak-lembar table.jdw td.nama { white-space: normal; overflow-wrap: anywhere; }
+
+/* Cetak PUM per grup langsung (tanpa antrian): beberapa lembar dalam satu
+   cetakan, tiap grup mulai di halaman baru. */
+#printArea .cetak-lembar + .cetak-lembar { break-before: page; page-break-before: always; }
