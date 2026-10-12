@@ -49,10 +49,11 @@ const SHIFT = {
   'S1NJ':  { mulai:7,  sampai:13, warna:'var(--warn)',   nama:'Siang 1 New JATSC', pita:'S', cetak:'S1' },
   'M1J':  { mulai:13, sampai:24, warna:'var(--muted)',  nama:'Malam 1 JATSC',     pita:'M', cetak:'M1', malam:true },
   'M1NJ':  { mulai:13, sampai:24, warna:'var(--muted)',  nama:'Malam 1 New JATSC', pita:'M', cetak:'M1', malam:true },
-  /* Tanpa huruf gedung. Tidak ditawarkan di daftar kode unit — lembar yang
-     menulis 'PS' saja belum menyebut JATSC atau New JATSC, dan impor memang
-     harus melaporkannya sebagai kode asing supaya dilengkapi. Tetap dikenal
-     di sini supaya jamnya dan warnanya betul kalau terlanjur terisi. */
+  /* Tanpa huruf gedung. 'PS' tidak ditawarkan di daftar kode unit — lembar
+     yang menulis 'PS' saja belum menyebut JATSC atau New JATSC, dan impor
+     memang harus melaporkannya sebagai kode asing supaya dilengkapi. Tetap
+     dikenal di sini supaya jamnya dan warnanya betul kalau terlanjur terisi.
+     'M' DITAWARKAN (lihat KODE_DINAS): ia malamnya pola P / S / M polos. */
   'PS':   { mulai:0,  sampai:12, warna:'var(--ok)',     nama:'Pagi–Siang',      pita:'PS' },
   'M':    { mulai:12, sampai:24, warna:'var(--muted)',  nama:'Malam',           pita:'M', malam:true },
   /* Nama lama, dari sebelum kode JATSC/New dipakai. Masih ada di jadwal yang
