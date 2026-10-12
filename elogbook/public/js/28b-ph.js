@@ -159,3 +159,15 @@ async function akhiriPh(){
   }
   renderPh();
 }
+
+/* Tombol menu jendela ini. Sejak TTD menjadi QR isinya tinggal panel PH, jadi
+   tombolnya hanya ditampilkan untuk yang punya urusan dengan PH: boleh
+   menunjuk, atau sedang mewakili seseorang. */
+async function tampilkanTombolPh(){
+  try{
+    const info = await gsRun('phStatus');
+    const b = document.querySelector('button[onclick="openTtdSayaModal()"]');
+    if(b && info && (info.boleh || (info.mewakili || []).length)) b.classList.add('ph-tampil');
+  }catch(_){ /* belum masuk / server diam: tombolnya tetap tersembunyi */ }
+}
+window.addEventListener('load', ()=> setTimeout(tampilkanTombolPh, 1500));

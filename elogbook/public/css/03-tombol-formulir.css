@@ -142,8 +142,12 @@ html[data-tema="terang"] input[type=datetime-local], html[data-tema="terang"] in
   align-items:center; justify-content:center; gap:14px; cursor:zoom-out;}
 .qr-besar img{width:min(86vw, 70vh, 420px); height:auto; background:#fff; border-radius:10px; padding:10px;}
 .qr-besar span{color:#e8eef5; font-size:12px; font-family:var(--font-mono);}
-/* "TTD Saya" (coretan tersimpan) tidak dipakai lagi sejak TTD menjadi QR. */
-button[onclick="openTtdSayaModal()"], #ttdTersimpanJalur{display:none !important;}
+/* Coretan tersimpan tidak dipakai lagi sejak TTD menjadi QR. Jendelanya tetap
+   ada karena panel PH (Pelaksana Harian) tinggal di dalamnya: tombol menunya
+   hanya muncul untuk yang boleh menunjuk PH atau sedang jadi PH (kelas
+   ph-tampil dipasang 28b-ph.js), dan bagian coretannya disembunyikan. */
+button[onclick="openTtdSayaModal()"]:not(.ph-tampil), #ttdTersimpanJalur{display:none !important;}
+#ttdSayaModalBg .modal > .field, #ttdSayaModalBg .modal > div:has(> #ttdSayaPratinjau), #ttdSayaPratinjau, #ttdSayaModalBg .subtle-note[data-t="ttdSayaCatatan"], #ttdSayaSaveBtn{display:none !important;}
 /* Lembar cetak: petak TTD setinggi goresan (40-48 px) dibiarkan meninggi
    mengikuti QR-nya, supaya tidak menimpa nama di bawahnya. */
 div:has(> img.ttd-qr){height:auto !important;}

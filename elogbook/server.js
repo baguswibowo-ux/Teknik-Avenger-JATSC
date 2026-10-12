@@ -76,7 +76,7 @@ const {
   getUserByUsername, verifyPassword, createUser, countUsers, hapusUser,
   jenisTtdSah, unitCatatan, unitHapus, pemilikLembarForm, tandaTanganiCatatan, batalkanTtdCatatan, listPejabatAktif, listPejabatUnit, listTeknisiUnit, listAkunAktif, listPemantauDinas, getInboxTtd,
   getTtdTersimpan, simpanTtdTersimpan, hapusTtdTersimpan, pilihTtdTersimpanAktif, rekapMentah,
-  listUsers, setPassword, setAktif, setRole, setNama, setUsername, setIdentitasTtdAkun, identitasTtdAkun, ROLE_VALID, SEMUA_UNIT, jumlahAdminAktif,
+  listUsers, setPassword, setAktif, setRole, setNama, setUsername, setIdentitasTtdAkun, identitasTtdAkun, unitMilikUser, ROLE_VALID, SEMUA_UNIT, jumlahAdminAktif,
   UNIT, KODE_UNIT, unitSah, unitUntukUser, setUnitUser,
   createSession, getSessionUser, deleteSession, purgeExpiredSessions,
   ambilBerkas,
@@ -1737,7 +1737,7 @@ const API = {
        dibuatPada diisi sidik alamatnya: begitu NIK atau jabatan akun diubah,
        sidiknya ikut berganti dan salinan di dashboard disegarkan. */
     const identitas = await identitasTtdAkun(target.username);
-    const unitnya = identitas.jabatan || SEMUA_UNIT.includes(target.role) ? [] : await unitUntukUser(target);
+    const unitnya = identitas.jabatan ? [] : await unitMilikUser(target);
     const jalur = urlTtdQr({
       unit: unitnya.length ? namaUnit(unitnya[0]) : '',
       nama: target.nama || target.username, ...identitas

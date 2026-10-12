@@ -813,11 +813,30 @@ export const unitSah = (kode) => KODE_UNIT.includes(kode);
 export function unitUntukUser(user) {
   if (!user) return [];
   if (SEMUA_UNIT.includes(user.role)) return KODE_UNIT.slice();
+  // Yang sedang ditunjuk jadi PH (Pelaksana Harian) memegang semua unit selama
+  // masa penunjukannya: ia menggantikan pejabat yang memeriksa pekerjaan
+  // seluruh unit. Begitu masanya lewat, aksesnya kembali ke unitnya sendiri
+  // tanpa ada yang perlu dicabut.
+  if (sedangJadiPhAkun(user.username)) return KODE_UNIT.slice();
   const rows = db.prepare('SELECT unit FROM user_unit WHERE user_id = ?').all(user.id);
   const punya = new Set(rows.map((r) => r.unit));
   // Urutkan mengikuti urutan baku UNIT, bukan urutan baris di database. Tanpa ini
   // unit bawaan yang terbuka bergantung pada urutan administrator mencentang.
   return KODE_UNIT.filter((k) => punya.has(k));
+}
+
+/** Unit yang memang dicentang untuk akun ini — tanpa perluasan karena PH. */
+export function unitMilikUser(user) {
+  if (!user || SEMUA_UNIT.includes(user.role)) return [];
+  const punya = new Set(db.prepare('SELECT unit FROM user_unit WHERE user_id = ?').all(user.id).map((r) => r.unit));
+  return KODE_UNIT.filter((k) => punya.has(k));
+}
+
+/** Sedang mewakili pejabat lain sebagai PH hari ini (tanggal UTC)? */
+export function sedangJadiPhAkun(username) {
+  const u = String(username || '').trim().toLowerCase();
+  if (!u) return false;
+  return listDiwakiliOleh(u, today()).some((p) => String(p.username || '').toLowerCase() !== u);
 }
 
 export function setUnitUser(userId, daftar) {

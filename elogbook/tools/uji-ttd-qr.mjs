@@ -119,3 +119,20 @@ test('lembar AMHS: petak dinas yang sudah terisi tidak ditandatangani ulang oran
   assert.equal(lanjut.state.dinasTtd.pagi, pagi);
   assert.equal(bacaUrlTtdQr(lanjut.state.dinasTtd.siang, DATA).nama, 'Arya Gunanawan');
 });
+
+test('yang sedang jadi PH memegang semua unit; sesudah masanya kembali ke unitnya', () => {
+  const bagus = db.getUserByUsername('10012550');
+  db.setUnitUser(bagus.id, ['radtel']);
+  assert.deepEqual(db.unitUntukUser(bagus), ['radtel']);
+
+  db.setPh('arya', '10012550', '2099-12-31', '');
+  assert.equal(db.sedangJadiPhAkun('10012550'), true);
+  assert.ok(db.unitUntukUser(bagus).length > 1);
+  assert.deepEqual(db.unitUntukUser(bagus), db.unitUntukUser(db.getUserByUsername('arya')));
+  assert.deepEqual(db.unitMilikUser(bagus), ['radtel']);   // unit miliknya sendiri tidak berubah
+
+  db.setPh('arya', '10012550', '2020-01-01', '');          // masa PH sudah lewat
+  assert.equal(db.sedangJadiPhAkun('10012550'), false);
+  assert.deepEqual(db.unitUntukUser(bagus), ['radtel']);
+  db.setPh('arya', '', '', '');
+});
