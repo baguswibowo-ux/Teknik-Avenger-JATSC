@@ -2491,12 +2491,16 @@ app.put('/internal/nama-alat', hanyaInternal, (req, res) => {
 });
 
 /** Akun aktif [{username, nama}] untuk mencocokkan nama/NIK di jadwal, dan
-    daftar unit [{kode, nama}] untuk menulis nama unit di pesan. */
+    daftar unit [{kode, nama}] untuk menulis nama unit di pesan. Dengan ?unit=
+    ikut pulang `anggota`: akun aktif yang memegang unit itu — penerima kabar
+    perubahan (daftar dinas, riwayat peralatan) dari dashboard. */
 app.get('/internal/daftar', hanyaInternal, async (req, res) => {
   try {
+    const unit = String(req.query?.unit || '').toLowerCase();
     res.json({
       akun: await listAkunAktif(),
-      unit: (UNIT || []).map((u) => ({ kode: u.kode, nama: u.nama }))
+      unit: (UNIT || []).map((u) => ({ kode: u.kode, nama: u.nama })),
+      ...(UNIT.some((u) => u.kode === unit) ? { anggota: await listTeknisiUnit(unit) } : {})
     });
   } catch (err) {
     res.status(500).json({ error: err?.message || String(err) });

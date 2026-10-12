@@ -33,7 +33,10 @@ import {
 import {
   kegiatanUntukDinas, paketDibutuhkan, kunciPengingatBerkala
 } from './pengingat-berkala.js';
-import { pesanDinasMendatang, pesanBerkalaDinas } from './pesan-notif.js';
+import {
+  pesanDinasMendatang, pesanBerkalaDinas, pesanDafdinBerubah, pesanSejarahBerubah
+} from './pesan-notif.js';
+import { selisihJadwal, penerimaDafdin, selisihSejarah, namaBulan } from './kabar-perubahan.js';
 import { htmlKePdf, susunDokumen, pdfTersedia } from './cetak-pdf.js';
 import { svgQr } from './qr-kode/svg.js';
 import crypto from 'node:crypto';
@@ -1838,6 +1841,7 @@ app.put('/dinas/bulan/:bulan/:unit', badanDinas, async (req, res) => {
     // sebulan penuh, dan tidak meninggalkan apa pun untuk dikembalikan. Itu
     // penghapusan, apa pun nama tombolnya di layar.
     const adaIsinya = Array.isArray(semua[bulan][unit]) && semua[bulan][unit].length > 0;
+    const lama = adaIsinya ? semua[bulan][unit] : [];
     // Siapa masuk, siapa keluar, jadwal siapa berubah — dikunci nama orangnya,
     // karena baris jadwal tidak punya id.
     const selisih = selisihDaftar(adaIsinya ? semua[bulan][unit] : [], orang, {
@@ -1862,6 +1866,8 @@ app.put('/dinas/bulan/:bulan/:unit', badanDinas, async (req, res) => {
       rincian: `${bulan} · ${orang.length} orang${beda ? ' · ' + beda : ' · tidak ada yang berubah'}`
     });
     res.json({ ok: true, jumlah: orang.length });
+    // Sesudah jawaban terkirim: kabar ke HP tidak boleh menahan tombol Simpan.
+    kabariDafdin({ bulan, unit, lama, baru: orang, user });
   } catch (e) {
     console.error('[dinas] gagal menyimpan:', e);
     res.status(500).json({ error: 'Gagal menyimpan jadwal: ' + (e?.message || e) });
@@ -3100,6 +3106,11 @@ app.put('/sejarah/:unit/:alat', badanDinas, async (req, res) => {
           .catch((e) => console.warn('[sejarah] notif penanggung jawab gagal:', e?.message || e));
       }
     }
+    // Penanggung jawab di atas sudah dikabari lewat pesan TTD-nya sendiri.
+    kabariSejarah({
+      unit, alat, sebelum: [...sebelum.values()], sesudah: daftar, user,
+      kecuali: perluKabar.map((k) => k.pjUser)
+    });
   } catch (e) {
     console.error('[sejarah] gagal menyimpan:', e);
     res.status(500).json({ error: 'Gagal menyimpan sejarah: ' + (e?.message || e) });
@@ -5194,23 +5205,27 @@ const PENGINGAT_DINAS_MENIT = Math.max(1, Number(process.env.PENGINGAT_DINAS_MEN
 const PENGINGAT_JSON = path.join(DATA_DIR, 'pengingat-terkirim.json');
 const PENGINGAT_SIMPAN_MS = 7 * 86400000;
 
-/** Akun aktif [{username, nama}] dan unit [{kode, nama}] dari E-Logbook. */
-async function daftarELogbook() {
-  const jawab = await fetch(ASAL + '/internal/daftar', { signal: AbortSignal.timeout(8000) });
+/** Akun aktif [{username, nama}] dan unit [{kode, nama}] dari E-Logbook.
+    Dengan `anggotaUnit`, ikut pulang `anggota`: akun aktif yang memegang unit
+    itu — kosong kalau E-Logbook di sebelah masih salinan lama. */
+async function daftarELogbook(anggotaUnit = '') {
+  const jawab = await fetch(ASAL + '/internal/daftar'
+    + (anggotaUnit ? '?unit=' + encodeURIComponent(anggotaUnit) : ''), { signal: AbortSignal.timeout(8000) });
   if (!jawab.ok) throw new Error(`E-Logbook menjawab ${jawab.status} untuk /internal/daftar`);
   const j = await jawab.json();
   return {
     akun: Array.isArray(j?.akun) ? j.akun : [],
-    unit: Array.isArray(j?.unit) ? j.unit : []
+    unit: Array.isArray(j?.unit) ? j.unit : [],
+    anggota: Array.isArray(j?.anggota) ? j.anggota : []
   };
 }
 
 /** Titipkan satu pesan ke E-Logbook → { aktif, tertaut, terkirim }. */
-async function kirimNotifKeAkun(username, teks) {
+async function kirimNotifKeAkun(username, teks, { url = '/', tag = '' } = {}) {
   const jawab = await fetch(ASAL + '/internal/notif/kirim', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, teks }),
+    body: JSON.stringify({ username, teks, url, tag }),
     signal: AbortSignal.timeout(15000)
   });
   if (!jawab.ok) throw new Error(`E-Logbook menjawab ${jawab.status} untuk /internal/notif/kirim`);
@@ -5368,6 +5383,72 @@ async function periksaPengingatBerkala() {
     console.error('[pengingat berkala]', err?.message || err);
   } finally {
     pengingatBerkalaBerjalan = false;
+  }
+}
+
+/* =====================================================================
+   KABAR PERUBAHAN — daftar dinas dan riwayat peralatan baru disimpan
+
+   Permintaan Bagus 12 Oktober 2026: tiap kali daftar dinas berganti, dan tiap
+   kali riwayat peralatan diperbarui, orang-orang unitnya dikabari lewat
+   notifikasi HP — supaya tukar dinas tidak baru ketahuan waktu orangnya tidak
+   datang.
+
+   Dipanggil rute simpannya SESUDAH jawaban terkirim, tidak ditunggu, dan tidak
+   pernah melempar: simpanannya sudah sah, kabar yang gagal tidak membatalkan
+   apa pun. Hitungan selisih dan penerimanya di kabar-perubahan.js (murni,
+   teruji: tools/uji-kabar-perubahan.mjs).
+
+   Tidak ada penanda "sudah dikirim" seperti pengingat: ini kabar tentang satu
+   kali simpan, bukan sesuatu yang diperiksa ulang tiap lima menit. Simpan yang
+   tidak mengubah apa-apa tidak mengirim apa-apa.
+
+   Bulan yang sudah lewat tidak dikabarkan: membetulkan lembar bulan lalu itu
+   pembukuan, bukan perubahan dinas yang masih akan dijalani siapa pun.
+   ===================================================================== */
+async function kabariDafdin({ bulan, unit, lama, baru, user }) {
+  if (!TERUS) return;
+  try {
+    if (bulan < new Date().toISOString().slice(0, 7)) return;
+    const selisih = selisihJadwal(lama, baru);
+    if (!selisih.length) return;
+    const d = await daftarELogbook(unit);
+    const penerima = penerimaDafdin({
+      lama, baru, selisih, akun: d.akun, anggota: d.anggota, kecuali: user.username
+    });
+    const namaUnit = (d.unit.find((u) => u.kode === unit) || {}).nama || unit;
+    const berubah = selisih.map((s) => s.nama);
+    for (const { username, milik } of penerima) {
+      const hasil = await kirimNotifKeAkun(username, pesanDafdinBerubah({
+        unit: namaUnit, bulan: namaBulan(bulan), oleh: user.nama || user.username, milik, lain: berubah
+      }));
+      if (!hasil.aktif) return;            // notifikasi HP mati di server: percuma lanjut
+    }
+  } catch (err) {
+    console.warn('[kabar dafdin]', err?.message || err);
+  }
+}
+
+/** `kecuali`: username yang sudah dikabari lewat jalur lain untuk simpanan ini. */
+async function kabariSejarah({ unit, alat, sebelum, sesudah, user, kecuali = [] }) {
+  if (!TERUS) return;
+  try {
+    const selisih = selisihSejarah(sebelum, sesudah);
+    if (!(selisih.tambah.length + selisih.ubah.length + selisih.hapus.length)) return;
+    const d = await daftarELogbook(unit);
+    const lewati = new Set([user.username, ...kecuali].map((x) => String(x || '').toLowerCase()));
+    const teks = pesanSejarahBerubah({
+      unit: (d.unit.find((u) => u.kode === unit) || {}).nama || unit,
+      alat: namaAlatLengkap(await cariAlat(unit, alat).catch(() => null), alat),
+      oleh: user.nama || user.username, selisih
+    });
+    for (const a of d.anggota) {
+      if (lewati.has(String(a?.username || '').toLowerCase())) continue;
+      const hasil = await kirimNotifKeAkun(a.username, teks);
+      if (!hasil.aktif) return;
+    }
+  } catch (err) {
+    console.warn('[kabar sejarah]', err?.message || err);
   }
 }
 

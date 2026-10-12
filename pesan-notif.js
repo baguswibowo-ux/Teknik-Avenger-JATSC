@@ -93,3 +93,51 @@ export function pesanBerkalaDinas({ nama, unit, namaShift, kode, tanggal, jam, d
   baris.push('', 'Mohon dikerjakan selama dinas ini.');
   return baris.join('\n');
 }
+
+const potong = (xs, maks) => (xs.length <= maks ? xs : xs.slice(0, maks));
+
+/** Kabar ke orang-orang satu unit (dashboard): daftar dinasnya baru disimpan
+    dengan perubahan. `milik` baris selisih penerimanya sendiri (lihat
+    selisihJadwal di kabar-perubahan.js) atau null; `lain` nama orang lain yang
+    jadwalnya ikut berubah. Tanggalnya tanggal lembar (UTC), sama seperti yang
+    tertulis di tabel Jadwal Dinas. */
+export function pesanDafdinBerubah({ unit, bulan, oleh, milik, lain }) {
+  const baris = ['📅 <b>Daftar dinas diperbarui</b>', ''];
+  baris.push(`Unit ${esc(unit)} · ${esc(bulan)}`);
+  if (oleh) baris.push(`Diubah oleh: ${esc(oleh)}`);
+  if (milik && milik.jenis === 'hapus') {
+    baris.push('<b>Nama Anda tidak lagi ada di daftar bulan ini.</b>');
+  } else if (milik) {
+    baris.push(milik.jenis === 'tambah' ? '<b>Anda masuk daftar dinas:</b>' : '<b>Jadwal Anda berubah:</b>');
+    const terisi = milik.jenis === 'tambah' ? milik.hari.filter((h) => h.ke) : milik.hari;
+    for (const h of potong(terisi, 8)) {
+      baris.push(milik.jenis === 'tambah'
+        ? `Tgl ${h.tgl}: ${esc(h.ke)}`
+        : `Tgl ${h.tgl}: ${esc(h.dari || 'kosong')} → ${esc(h.ke || 'kosong')}`);
+    }
+    if (terisi.length > 8) baris.push(`+${terisi.length - 8} tanggal lagi`);
+  } else {
+    const nama = (lain || []).filter(Boolean);
+    if (nama.length) {
+      baris.push(`Berubah: ${potong(nama, 4).map(esc).join(', ')}${nama.length > 4 ? ` +${nama.length - 4} lagi` : ''}`);
+    }
+    baris.push('Jadwal Anda sendiri tidak berubah.');
+  }
+  return baris.join('\n');
+}
+
+/** Kabar ke anggota unit (dashboard): riwayat satu peralatan ditambah, diubah,
+    atau dihapus. `selisih` keluaran selisihSejarah() di kabar-perubahan.js. */
+export function pesanSejarahBerubah({ unit, alat, oleh, selisih }) {
+  const baris = ['🛠️ <b>Riwayat peralatan diperbarui</b>', ''];
+  baris.push(`<b>${esc(alat)}</b>${unit ? ' · Unit ' + esc(unit) : ''}`);
+  const tulis = (label, daftar) => {
+    for (const k of potong(daftar, 3)) baris.push(`${label}: ${k.tgl ? esc(k.tgl) + ' — ' : ''}${esc(k.judul)}`);
+    if (daftar.length > 3) baris.push(`+${daftar.length - 3} ${label.toLowerCase()} lagi`);
+  };
+  tulis('Baru', selisih.tambah || []);
+  tulis('Diubah', selisih.ubah || []);
+  tulis('Dihapus', selisih.hapus || []);
+  if (oleh) baris.push(`Oleh: ${esc(oleh)}`);
+  return baris.join('\n');
+}
