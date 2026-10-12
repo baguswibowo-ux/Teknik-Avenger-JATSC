@@ -119,6 +119,21 @@ test('kalimat dafdin: milik sendiri, tidak berubah, dan dikeluarkan', () => {
   const tetap = pesanUntukPush(pesanDafdinBerubah({ ...dasar, milik: null, lain: ['A', 'B', 'C', 'D', 'E', 'F'] }));
   assert.match(tetap.isi, /Berubah: A, B, C, D \+2 lagi\nJadwal Anda sendiri tidak berubah\./);
 
+  // Tanggal yang berubah dan siapa saja orangnya ikut tertulis.
+  const aku = { nama: 'Andi', jenis: 'ubah', hari: [{ tgl: 14, dari: 'PSJ', ke: 'MJ' }, { tgl: 15, dari: 'MJ', ke: 'PSJ' }] };
+  const semua = [
+    aku,
+    { nama: 'Budi', jenis: 'ubah', hari: [{ tgl: 14, dari: 'MJ', ke: 'PSJ' }, { tgl: 20, dari: '', ke: 'MJ' }] },
+    { nama: 'Cici', jenis: 'tambah', hari: [{ tgl: 1, dari: '', ke: 'PSJ' }] },
+    { nama: 'Dedi', jenis: 'hapus', hari: [] }
+  ];
+  const rinci = pesanUntukPush(pesanDafdinBerubah({ ...dasar, milik: null, semua }));
+  assert.match(rinci.isi, /Tanggal diubah: 14–20\n/);
+  assert.match(rinci.isi, /Berubah: Andi \(tgl 14–15\), Budi \(tgl 14, 20\), Cici \(baru masuk\), Dedi \(dikeluarkan\)/);
+  const rinciAku = pesanUntukPush(pesanDafdinBerubah({ ...dasar, milik: aku, semua }));
+  assert.match(rinciAku.isi, /Tgl 15: MJ → PSJ\nJuga berubah: Budi \(tgl 14, 20\), Cici/);
+  assert.doesNotMatch(rinciAku.isi, /Juga berubah: Andi/);
+
   const keluar = pesanUntukPush(pesanDafdinBerubah({ ...dasar, milik: { jenis: 'hapus', hari: [] } }));
   assert.match(keluar.isi, /tidak lagi ada di daftar/);
 
