@@ -318,6 +318,7 @@ const KAMUS = {
     pertamaDialami:'pertama dialami', pertamaMuncul:'pertama kali muncul di rentang ini',
     orangKecil:'orang', catatanKecil:'catatan', jenisKecil:'jenis', dariKecil:'dari',
     belumPernahPada:'belum pernah pada', belumPernah:'belum pernah',
+    tanpaAkunKet:'Tidak ditampilkan karena tidak cocok dengan akun aktif mana pun:',
     /* catatan di balik angkanya */
     catatanMendasari:'Catatan yang mendasarinya',
     terbaruDiAtas:'terbaru di atas.', tekanSelUntukSaring:'Tekan salah satu sel di matriks atas untuk mempersempit.',
@@ -711,6 +712,7 @@ const KAMUS = {
     pertamaDialami:'first seen', pertamaMuncul:'first appearance in this range',
     orangKecil:'people', catatanKecil:'records', jenisKecil:'kinds', dariKecil:'of',
     belumPernahPada:'never yet on', belumPernah:'never yet',
+    tanpaAkunKet:'Not shown because they match no active account:',
     catatanMendasari:'The records behind these numbers',
     terbaruDiAtas:'newest first.', tekanSelUntukSaring:'Press a cell in the matrix above to narrow this down.',
     yangMengisiSel:'these are the events that filled that cell.',
@@ -1066,6 +1068,7 @@ const KAMUS = {
     pertamaDialami:'visto por primera vez', pertamaMuncul:'primera aparición en este rango',
     orangKecil:'personas', catatanKecil:'registros', jenisKecil:'tipos', dariKecil:'de',
     belumPernahPada:'nunca todavía el', belumPernah:'nunca todavía',
+    tanpaAkunKet:'No se muestran porque no coinciden con ninguna cuenta activa:',
     catatanMendasari:'Los registros detrás de estas cifras',
     terbaruDiAtas:'los más recientes primero.', tekanSelUntukSaring:'Pulse una celda de la matriz de arriba para acotar esto.',
     yangMengisiSel:'estos son los sucesos que llenaron esa celda.',

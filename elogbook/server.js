@@ -1085,7 +1085,19 @@ function barisKejadian(mentah) {
   return hasil.sort((a, b) => (a.tanggal < b.tanggal ? 1 : a.tanggal > b.tanggal ? -1 : 0));
 }
 
-function susunRekap(mentah, mode) {
+/**
+ * Matriks orang hanya memuat pemilik akun aktif. Nama pelaksana di catatan
+ * adalah teks bebas, dan catatan lama memuat nama panggilan ("Yoga", "Berry
+ * PL") — dibiarkan, satu orang terpecah jadi beberapa baris. Yang cocok akun
+ * (huruf besar-kecil dan spasi berlebih dimaafkan) ditulis dengan ejaan
+ * akunnya; yang tidak cocok tetap tercantum pada catatannya dan tetap dihitung
+ * pada jenis kejadiannya, hanya tidak mendapat baris sendiri.
+ */
+const kunciNama = (s) => String(s || '').trim().replace(/\s+/g, ' ').toLowerCase();
+
+function susunRekap(mentah, mode, akun) {
+  const namaAkun = new Map((akun || []).map((a) => [kunciNama(a.nama), String(a.nama).trim()]));
+  const tanpaAkun = new Set();
   const baris = barisKejadian(mentah);
   const periode = new Set();
   const petaJenis = new Map();   // jenis -> { total, perPeriode, pertama, orang:Set }
@@ -1104,7 +1116,9 @@ function susunRekap(mentah, mode) {
     j.perPeriode[k] = (j.perPeriode[k] || 0) + 1;
     if (b.tanggal < j.pertama) j.pertama = b.tanggal;
 
+    b.orang = [...new Set(b.orang.map((n) => namaAkun.get(kunciNama(n)) || n))];
     for (const nama of b.orang) {
+      if (!namaAkun.has(kunciNama(nama))) { tanpaAkun.add(nama); continue; }
       j.orang.add(nama);
       if (!petaOrang.has(nama)) petaOrang.set(nama, { total: 0, perJenis: {}, pertama: b.tanggal });
       const o = petaOrang.get(nama);
@@ -1132,6 +1146,7 @@ function susunRekap(mentah, mode) {
     periode: [...periode].sort(),
     jenis,
     orang,
+    tanpaAkun: [...tanpaAkun].sort((a, b) => a.localeCompare(b)),
     totalSemua: baris.length,
     belumTergolong: petaJenis.get(BELUM_TERGOLONG)?.total || 0,
     // Aturannya ikut dikirim supaya layar tidak menyalin ulang daftar kata
@@ -1154,7 +1169,7 @@ const API = {
     const mode = o.mode === 'bulan' ? 'bulan' : 'pekan';
     const dari = String(o.dari || '').slice(0, 10);
     const sampai = String(o.sampai || '').slice(0, 10);
-    const hasil = susunRekap(await rekapMentah(unit, dari, sampai), mode);
+    const hasil = susunRekap(await rekapMentah(unit, dari, sampai), mode, await listAkunAktif());
     return { ...hasil, unit, dari, sampai };
   },
 

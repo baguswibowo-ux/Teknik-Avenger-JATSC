@@ -231,6 +231,7 @@ function matriksOrangHtml(r){
       <span><i class="p3"></i>4–6×</span>
       <span><i class="p4"></i>7×+</span>
     </div>
+    ${(r.tanpaAkun || []).length ? `<p class="rekap-ket">${T('tanpaAkunKet')} ${escapeHtml(r.tanpaAkun.join(', '))}.</p>` : ''}
   </div>`;
 }
 
