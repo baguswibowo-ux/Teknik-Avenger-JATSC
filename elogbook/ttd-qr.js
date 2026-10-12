@@ -107,10 +107,11 @@ function lambangAvengers() {
 /**
  * Gambar QR-nya, dengan lambang Avengers di tengah.
  *
- * Tingkat koreksi H: lambang menutupi sebagian kotak di tengah, dan H masih
- * terbaca walau ±30% kodenya hilang. Lambang berikut alas putihnya memakan
- * 26% lebar (±7% luas) — jauh di bawah batas itu, supaya goresan atau lipatan
- * di kertas masih punya cadangan.
+ * Tingkat koreksi Q: lambang menutupi sebagian kotak di tengah, dan Q masih
+ * terbaca walau ±25% kodenya hilang. Lambang berikut alas putihnya memakan
+ * 22% lebar (±5% luas) — jauh di bawah batas itu. Bukan H: untuk teks yang
+ * sama H butuh kotak jauh lebih banyak dan lebih kecil, dan justru ukuran
+ * kotak itulah yang menentukan terbaca-tidaknya dari kertas atau layar.
  *
  * Lebar dan tinggi ditulis terang: lembar cetak menggambar TTD ke kanvas
  * untuk menghitamkan goresan (ttdToBlack), dan SVG tanpa ukuran digambar
@@ -118,14 +119,14 @@ function lambangAvengers() {
  * dikira goresan dan dihitamkan seluruhnya.
  */
 export function svgTtdQr(identitas) {
-  const m = matriksQr(teksTtdQr(identitas), 'H');
+  const m = matriksQr(teksTtdQr(identitas), 'Q');
   const n = m.length, tepi = 4, sisi = n + tepi * 2;
   let d = '';
   m.forEach((baris, r) => baris.forEach((hitam, c) => {
     if (hitam) d += `M${c + tepi} ${r + tepi}h1v1h-1z`;
   }));
   const logo = lambangAvengers();
-  const alas = Math.round(sisi * 0.26), gambar = alas - 2;
+  const alas = Math.round(sisi * 0.22), gambar = alas - 2;
   const a0 = (sisi - alas) / 2, g0 = (sisi - gambar) / 2;
   const tengah = !logo ? '' :
     `<rect x="${a0}" y="${a0}" width="${alas}" height="${alas}" rx="${alas * 0.2}" fill="#fff"/>`
