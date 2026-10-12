@@ -76,11 +76,11 @@ function ttdToBlack(dataUrl){
 function ttdImg(url, h, align){
   if(!url) return '';
   const margin = align === 'left' ? '0' : 'auto';
-  // QR butuh ruang lebih dari goresan: di bawah ~17 mm kotak-kotaknya terlalu
+  // QR butuh ruang lebih dari goresan: di bawah ~19 mm kotak-kotaknya terlalu
   // rapat untuk kamera HP. Petak pembungkusnya ikut meninggi lewat CSS
   // (img.ttd-qr di 03-tombol-formulir.css).
   if(String(url).includes('/qr-ttd/')){
-    return `<img class="ttd-print ttd-qr" src="${url}" style="height:${Math.max((h || 34) + 26, 64)}px;display:block;margin:${margin};">`;
+    return `<img class="ttd-print ttd-qr" src="${url}" style="height:${Math.max((h || 34) + 32, 72)}px;display:block;margin:${margin};">`;
   }
   return `<img class="ttd-print" src="${url}" style="height:${h || 34}px;display:block;margin:${margin};">`;
 }

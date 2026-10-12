@@ -43,10 +43,11 @@ test('alamat QR: bolak-balik, dan yang bukan buatan server ditolak', () => {
   assert.equal(bacaUrlTtdQr('/uploads/logbook_pj_1.png', DATA), null);
 });
 
-test('yang terbaca saat dipindai: unit, nama, NIK — NIK hilang kalau tidak ada', () => {
+test('yang terbaca saat dipindai: kop, unit, nama, NIK — NIK hilang kalau tidak ada', () => {
   assert.equal(teksTtdQr({ unit: 'Radtel', nama: 'Bagus Wibowo', nik: '10012550' }),
-    'Unit: Radtel\nNama: Bagus Wibowo\nNIK: 10012550');
-  assert.equal(teksTtdQr({ unit: 'Radkom', nama: 'Personil Ops', nik: '' }), 'Unit: Radkom\nNama: Personil Ops');
+    'Perum LPPNPI Cabang JATSC\nUnit: Radtel\nNama: Bagus Wibowo\nNIK: 10012550');
+  assert.equal(teksTtdQr({ unit: 'Radkom', nama: 'Personil Ops', nik: '' }),
+    'Perum LPPNPI Cabang JATSC\nUnit: Radkom\nNama: Personil Ops');
   const svg = svgTtdQr({ unit: 'Radtel', nama: 'Bagus Wibowo', nik: '10012550' });
   assert.match(svg, /^<svg xmlns="http:\/\/www.w3.org\/2000\/svg" width="480" height="480" /);
   assert.match(svg, /<image href="data:image\/png;base64,/);   // lambang di tengah

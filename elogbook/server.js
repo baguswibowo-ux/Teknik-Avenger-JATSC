@@ -2665,7 +2665,9 @@ app.post('/api/:fn', requireAuth, async (req, res) => {
 app.get('/uploads/qr-ttd/:berkas', requireAuth, (req, res) => {
   const identitas = bacaUrlTtdQr('/uploads/qr-ttd/' + req.params.berkas, DIR_DATA);
   if (!identitas) return res.status(404).end();
-  res.setHeader('Cache-Control', 'private, max-age=604800');
+  // Sejam saja: gambarnya dibuat dari alamatnya, jadi kalau bentuk QR-nya
+  // disempurnakan, alamat yang sama harus segera menampilkan yang baru.
+  res.setHeader('Cache-Control', 'private, max-age=3600');
   res.type('image/svg+xml').send(svgTtdQr(identitas));
 });
 
