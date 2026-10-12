@@ -45,6 +45,7 @@ import fs from 'node:fs';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { pesanPerluTtd, pesanSudahTtd, pesanBelumTtd, pesanTtdDiganti } from '../pesan-notif.js';
+import { pemanggil, bacaUrlTtdQr, svgTtdQr } from './ttd-qr.js';
 import {
   buatKunciVapid, kunciVapidSah, kirimPush, endpointSah, kunciLanggananSah, pesanUntukPush
 } from '../webpush.js';
@@ -2644,7 +2645,11 @@ app.post('/api/:fn', requireAuth, async (req, res) => {
   }
   try {
     // Argumen terakhir selalu identitas pemanggil; handler boleh mengabaikannya.
-    const result = await handler(...args, req.user);
+    // Identitas pemanggil juga dititipkan ke saveSignature (ttd-qr.js): tanda
+    // tangan dibubuhkan atas nama akun sesi ini, bukan atas kiriman layar.
+    const result = await pemanggil.run(
+      { username: req.user?.username || '', nama: req.user?.nama || '' },
+      () => handler(...args, req.user));
     if (pencatat) await tulisAktivitas(pencatat, args, result, sebelum, req.user);
     res.json({ result: result === undefined ? null : result });
   } catch (err) {
@@ -2654,6 +2659,15 @@ app.post('/api/:fn', requireAuth, async (req, res) => {
 });
 
 /* ============== BERKAS STATIS ============== */
+
+// TTD QR: gambarnya dibuat dari alamatnya sendiri (ttd-qr.js), tidak ada
+// berkasnya. Didaftarkan sebelum express.static supaya tidak dicari di disk.
+app.get('/uploads/qr-ttd/:berkas', requireAuth, (req, res) => {
+  const identitas = bacaUrlTtdQr('/uploads/qr-ttd/' + req.params.berkas, DIR_DATA);
+  if (!identitas) return res.status(404).end();
+  res.setHeader('Cache-Control', 'private, max-age=604800');
+  res.type('image/svg+xml').send(svgTtdQr(identitas));
+});
 
 // Tanda tangan dan lampiran hanya boleh dilihat setelah login.
 app.use('/uploads', requireAuth, express.static(UPLOAD_DIR, {

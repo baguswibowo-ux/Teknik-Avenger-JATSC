@@ -409,9 +409,8 @@ const TTD_BUKA_ULANG = {
 
 async function simpanTtdPejabat(){
   if(!ttdTarget) return;
-  const data = getSigDataUrl('sigTtdPejabat');
-  if(!data){ toast(T('ttdKosong')); return; }
-  await kirimTtdPejabat(data, 'ttdSaveBtn');
+  // Tombol simpan jendela inilah tanda tangannya — tidak ada papan untuk diisi.
+  await kirimTtdPejabat(PENANDA_QR, 'ttdSaveBtn');
 }
 
 /** Jalur simpan yang sama untuk goresan tangan maupun tanda tangan tersimpan

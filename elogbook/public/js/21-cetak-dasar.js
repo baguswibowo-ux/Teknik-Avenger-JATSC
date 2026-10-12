@@ -44,6 +44,8 @@ function setPageOrientation(mode){
 function ttdToBlack(dataUrl){
   return new Promise(resolve=>{
     if(!dataUrl){ resolve(''); return; }
+    // TTD QR sudah hitam di atas putih, dan harus tetap SVG supaya tajam.
+    if(String(dataUrl).includes('/qr-ttd/')){ resolve(dataUrl); return; }
     const img = new Image();
     img.onload = ()=>{
       const c = document.createElement('canvas');
@@ -74,6 +76,12 @@ function ttdToBlack(dataUrl){
 function ttdImg(url, h, align){
   if(!url) return '';
   const margin = align === 'left' ? '0' : 'auto';
+  // QR butuh ruang lebih dari goresan: di bawah ~13 mm kotak-kotaknya terlalu
+  // rapat untuk kamera HP. Petak pembungkusnya ikut meninggi lewat CSS
+  // (img.ttd-qr di 03-tombol-formulir.css).
+  if(String(url).includes('/qr-ttd/')){
+    return `<img class="ttd-print ttd-qr" src="${url}" style="height:${Math.max((h || 34) + 18, 52)}px;display:block;margin:${margin};">`;
+  }
   return `<img class="ttd-print" src="${url}" style="height:${h || 34}px;display:block;margin:${margin};">`;
 }
 

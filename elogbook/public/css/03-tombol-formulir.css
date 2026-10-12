@@ -122,3 +122,25 @@ input[type=datetime-local]:disabled, input[type=month]:disabled{
 input[type=date], input[type=time], input[type=datetime-local], input[type=month]{color-scheme:dark;}
 html[data-tema="terang"] input[type=date], html[data-tema="terang"] input[type=time],
 html[data-tema="terang"] input[type=datetime-local], html[data-tema="terang"] input[type=month]{color-scheme:light;}
+
+/* ============== TTD SEBAGAI QR ==============
+   Papan goresan diganti satu tombol (08-tanda-tangan.js). QR selalu hitam di
+   atas putih, di tema apa pun — kamera tidak bisa membaca QR yang dibalik.
+   Warna tulisan tombolnya tetap terang: latar papan (--tinta-bg) gelap di
+   tema terang maupun gelap. */
+.sig-qr-tombol{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
+  width:100%; min-height:84px; padding:12px; border:none; background:transparent; color:#e8eef5;
+  cursor:pointer; font-family:inherit; text-align:center;}
+.sig-qr-tombol b{font-size:13px;}
+.sig-qr-tombol span{font-size:11px; color:#9aa7b4; font-family:var(--font-mono);}
+.sig-qr-tombol:hover{background:rgba(255,255,255,.06);}
+.sig-qr-tombol.sudah b{color:#6fdc9a;}
+.sig-qr-tombol img{height:72px; background:#fff; border-radius:3px; display:block;}
+.sig-thumb.sig-qr{background:#fff; padding:3px;}
+.sig-thumb.sig-qr img{height:84px;}
+/* "TTD Saya" (coretan tersimpan) tidak dipakai lagi sejak TTD menjadi QR. */
+button[onclick="openTtdSayaModal()"], #ttdTersimpanJalur{display:none !important;}
+/* Lembar cetak: petak TTD setinggi goresan (40-48 px) dibiarkan meninggi
+   mengikuti QR-nya, supaya tidak menimpa nama di bawahnya. */
+div:has(> img.ttd-qr){height:auto !important;}
+

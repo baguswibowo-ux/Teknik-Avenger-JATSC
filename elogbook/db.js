@@ -9,6 +9,7 @@
 
 import { KOLOM_RINGKAS } from './ringkas-dokumen.js';
 import { hakTtd, namaCetakPh, diwakiliUntukTanggal } from './ttd-hak.js';
+import { PENANDA_QR, AWALAN_QR, pemanggil, urlTtdQr, bacaUrlTtdQr, nikDariUsername } from './ttd-qr.js';
 import { DatabaseSync } from 'node:sqlite';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
@@ -449,6 +450,10 @@ tambahKolom('users', 'superadmin', "INTEGER NOT NULL DEFAULT 0");
    kolom ini ada. */
 tambahKolom('users', 'terakhir_aktif', "TEXT NOT NULL DEFAULT ''");
 tambahKolom('users', 'ph_username', "TEXT NOT NULL DEFAULT ''");
+/* NIK untuk akun yang username-nya bukan nomor pegawai (Manager Teknik:
+   "arya", "uus"). Dicantumkan di TTD QR; yang username-nya sudah NIK tidak
+   perlu mengisinya. Diisi lewat: npm run user -- nik <username> <nik> */
+tambahKolom('users', 'nik', "TEXT NOT NULL DEFAULT ''");
 tambahKolom('users', 'ph_sampai', "TEXT NOT NULL DEFAULT ''");
 /* Tanggal mulai tugas PH. Kosong pada penunjukan yang dibuat sebelum kolom ini
    ada — dibaca tanpa batas bawah, bukan ditebak (lihat dalamPeriodePh). */
@@ -1080,7 +1085,70 @@ export const purgeExpiredSessions = () =>
  * kembalikan path web-nya. Kalau nilainya sudah berupa path/URL (data lama
  * hasil impor), kembalikan apa adanya.
  */
-export function saveSignature(dataUrl, prefix) {
+/**
+ * TTD sebuah catatan -> nilai kolom *_ttd-nya. Sejak 12 Oktober 2026 hasilnya
+ * alamat gambar QR (lihat ttd-qr.js), bukan berkas goresan:
+ *   - penanda dari layar baru, atau goresan dari layar lama yang masih
+ *     tersimpan di peramban, sama-sama menjadi QR;
+ *   - `nama` diisi untuk petak yang penandatangannya tidak punya akun
+ *     (Personil Operasi, Manager Pemakai): QR-nya unit + nama itu, tanpa NIK;
+ *   - selain itu identitasnya akun yang sedang memanggil API.
+ * Alamat yang sudah tersimpan dikembalikan apa adanya, supaya menyimpan ulang
+ * sebuah catatan tidak mengganti tanda tangan yang sudah ada.
+ */
+export function saveSignature(dataUrl, prefix, { unit = '', nama = '' } = {}) {
+  if (!dataUrl) return '';
+  const s = String(dataUrl);
+  if (prefix === 'ttd_akun') return simpanGambarTtd(s, prefix);
+  if (s.startsWith(AWALAN_QR)) {
+    if (!bacaUrlTtdQr(s, DATA_DIR)) throw new Error('Tanda tangan tidak sah.');
+    return s;
+  }
+  if (s.startsWith('/uploads/')) return s;
+  if (!ttdBaru(s)) return '';
+  const namaUnit = (UNIT.find((u) => u.kode === unit) || {}).nama || String(unit || '');
+  const tanpaAkun = String(nama || '').trim();
+  if (tanpaAkun) return urlTtdQr({ unit: namaUnit, nama: tanpaAkun }, DATA_DIR);
+  const p = pemanggil.getStore();
+  if (!p || !p.username) throw new Error('Tanda tangan hanya bisa dibubuhkan oleh akun yang sedang login.');
+  return urlTtdQr({ unit: namaUnit, nama: p.nama || p.username, nik: nikAkun(p.username) }, DATA_DIR);
+}
+
+/** NIK sebuah akun untuk TTD QR: kolom nik-nya, kalau kosong username-nya
+    (asal memang berbentuk nomor pegawai). */
+export function nikAkun(username) {
+  const r = db.prepare('SELECT nik FROM users WHERE username = ?').get(String(username || ''));
+  return String((r && r.nik) || '').trim() || nikDariUsername(username);
+}
+
+/** Isi NIK sebuah akun. false kalau username-nya tidak ada. */
+export function setNikAkun(username, nik) {
+  return db.prepare('UPDATE users SET nik = ? WHERE username = ?')
+    .run(String(nik || '').trim(), String(username || '')).changes > 0;
+}
+
+/** Kiriman yang berarti "bubuhkan tanda tangan sekarang". */
+const ttdBaru = (v) => typeof v === 'string' && (v === PENANDA_QR || v.startsWith('data:'));
+
+/**
+ * TTD per dinas di lembar AMHS tinggal di dalam state, bukan di kolom sendiri.
+ * Petak yang sudah terisi tidak pernah ditimpa: dinas berikutnya mengirim balik
+ * seluruh state, dan tanpa ini petak dinas pagi ikut ditandatangani ulang atas
+ * nama orang dinas malam.
+ */
+function stateDenganTtdQr(state, lama, unit) {
+  const t = state && state.dinasTtd;
+  if (!t || typeof t !== 'object') return state;
+  const dulu = (lama && lama.dinasTtd) || {};
+  const baru = {};
+  for (const [k, v] of Object.entries(t)) {
+    baru[k] = dulu[k] ? dulu[k] : (v ? saveSignature(v, 'dailycheck_dinas', { unit }) : v);
+  }
+  return { ...state, dinasTtd: baru };
+}
+
+/** Simpan goresan sebagai berkas PNG — kini hanya untuk "TTD Saya". */
+function simpanGambarTtd(dataUrl, prefix) {
   if (!dataUrl) return '';
   if (!String(dataUrl).startsWith('data:')) return String(dataUrl);
   const idx = dataUrl.indexOf('base64,');
@@ -1704,9 +1772,9 @@ export function insertEntry(entry, olehUsername = '', olehNama = '') {
     lokasi: lokasiSah(entry.lokasi) ? entry.lokasi : '',
     uraian: entry.uraian || '',
     teknisi_nama: entry.teknisiNama || '',
-    teknisi_ttd: saveSignature(entry.teknisiTtd, 'logbook_teknisi'),
+    teknisi_ttd: saveSignature(entry.teknisiTtd, 'logbook_teknisi', { unit }),
     pj_nama: entry.pjNama || '',
-    pj_ttd: saveSignature(entry.pjTtd, 'logbook_pj'),
+    pj_ttd: saveSignature(entry.pjTtd, 'logbook_pj', { unit, nama: entry.pjNama }),
     ttd_untuk: entry.ttdUntuk || '',
     teknisi_nama_list: JSON.stringify(namaList),
     tautan_json: JSON.stringify(siapkanTautan(entry.tautan))
@@ -1777,7 +1845,7 @@ function periksaTtdSusulan(row, ttdBaru, actor = {}) {
      berkas TTD tersimpan milik akun. Menghapus catatannya kelak ikut
      melenyapkan tanda tangan orang itu dari seluruh catatan lain. */
   const teks = String(ttdBaru);
-  if (!teks.startsWith('data:image/')) throw new Error('Tanda tangannya tidak berbentuk gambar.');
+  if (teks !== PENANDA_QR && !teks.startsWith('data:image/')) throw new Error('Tanda tangannya tidak berbentuk gambar.');
   return teks;
 }
 
@@ -1824,7 +1892,7 @@ export function updateEntry(id, patch = {}, actor = {}) {
 
   // Berkas TTD ditulis paling akhir sebelum barisnya disimpan: kalau lampiran
   // di atas ditolak, tidak ada berkas tanda tangan yatim yang tertinggal.
-  next.teknisi_ttd = bubuhTtd ? saveSignature(bubuhTtd, 'logbook_teknisi') : row.teknisi_ttd;
+  next.teknisi_ttd = bubuhTtd ? saveSignature(bubuhTtd, 'logbook_teknisi', { unit: row.unit }) : row.teknisi_ttd;
 
   db.prepare(`UPDATE entries SET tanggal = ?, jam = ?, jam_selesai = ?, frek = ?, dinas = ?, lokasi = ?, uraian = ?,
                                  tautan_json = ?, teknisi_ttd = ?, pj_nama = ?, ttd_untuk = ?
@@ -1923,11 +1991,11 @@ export function insertDailyCheck(rec, olehUsername = '', olehNama = '') {
     suhu: rec.suhu || '',
     remark: rec.remark || '',
     teknisi_nama: rec.teknisiNama || '',
-    teknisi_ttd: saveSignature(rec.teknisiTtd, 'dailycheck_teknisi'),
+    teknisi_ttd: saveSignature(rec.teknisiTtd, 'dailycheck_teknisi', { unit: rec.unit }),
     manager_nama: rec.managerNama || '',
-    manager_ttd: saveSignature(rec.managerTtd, 'dailycheck_manager'),
+    manager_ttd: saveSignature(rec.managerTtd, 'dailycheck_manager', { unit: rec.unit, nama: rec.managerNama }),
     ttd_untuk: rec.ttdUntuk || '',
-    state_json: JSON.stringify(rec.state || {}),
+    state_json: JSON.stringify(stateDenganTtdQr(rec.state || {}, null, rec.unit)),
     fails_json: JSON.stringify(rec.fails || []),
     warns_json: JSON.stringify(rec.warns || []),
     teknisi_nama_list: JSON.stringify(namaList)
@@ -2006,12 +2074,14 @@ export function updateDailyCheck(id, patch = {}, actor = {}) {
   // yang lama dihapus. Kalau kosong / null / undefined, TTD tidak diubah —
   // supaya "tidak menyunting TTD" bukan berarti "menghapus TTD".
   let teknisi_ttd = row.teknisi_ttd;
-  if (patch.teknisiTtd !== undefined && patch.teknisiTtd !== null && String(patch.teknisiTtd).startsWith('data:')) {
+  if (ttdBaru(patch.teknisiTtd)) {
     if (row.teknisi_ttd) removeSignatureFile(row.teknisi_ttd);
-    teknisi_ttd = saveSignature(patch.teknisiTtd, 'dailycheck_teknisi');
+    teknisi_ttd = saveSignature(patch.teknisiTtd, 'dailycheck_teknisi', { unit: row.unit });
   }
 
-  const state_json = patch.state !== undefined ? JSON.stringify(patch.state || {}) : row.state_json;
+  const state_json = patch.state !== undefined
+    ? JSON.stringify(stateDenganTtdQr(patch.state || {}, parseJson(row.state_json, {}), row.unit))
+    : row.state_json;
   const fails_json = Array.isArray(patch.fails) ? JSON.stringify(patch.fails) : row.fails_json;
   const warns_json = Array.isArray(patch.warns) ? JSON.stringify(patch.warns) : row.warns_json;
   // Akun tujuan TTD susulan (kotak masuk Manager). Untuk AMHS ini baru diisi
@@ -2318,8 +2388,8 @@ export function insertMonitoring(rec = {}, olehUsername = '', olehNama = '') {
     baris_json: JSON.stringify(baris),
     personil_ops: String(rec.personilOps || '').trim(),
     personil_teknik: String(rec.personilTeknik || '').trim(),
-    personil_ops_ttd: saveSignature(rec.personilOpsTtd, 'monitoring_ops'),
-    teknisi_ttd: saveSignature(rec.teknisiTtd, 'monitoring_teknisi'),
+    personil_ops_ttd: saveSignature(rec.personilOpsTtd, 'monitoring_ops', { unit: rec.unit, nama: rec.personilOps }),
+    teknisi_ttd: saveSignature(rec.teknisiTtd, 'monitoring_teknisi', { unit: rec.unit }),
     ttd_untuk: rec.ttdUntuk || '',
     teknisi_nama_list: JSON.stringify(namaList),
     dibuat_pada: nowIso()
@@ -2404,13 +2474,13 @@ export function insertDsTest(rec = {}, olehUsername = '', olehNama = '') {
     unit: unitSah(rec.unit) ? rec.unit : 'radtel',
     kategori,
     tanggal: String(rec.tanggal || '').trim() || today(),
-    state_json: JSON.stringify(rec.state || {}),
+    state_json: JSON.stringify(stateDenganTtdQr(rec.state || {}, null, rec.unit)),
     manager_nama: String(rec.managerNama || '').trim(),
-    manager_ttd: saveSignature(rec.managerTtd, 'dstest_manager'),
+    manager_ttd: saveSignature(rec.managerTtd, 'dstest_manager', { unit: rec.unit, nama: rec.managerNama }),
     ttd_untuk: rec.ttdUntuk || '',
     teknisi_nama: namaList.join(', '),
     teknisi_nama_list: JSON.stringify(namaList),
-    teknisi_ttd: saveSignature(rec.teknisiTtd, 'dstest_teknisi'),
+    teknisi_ttd: saveSignature(rec.teknisiTtd, 'dstest_teknisi', { unit: rec.unit }),
     dibuat_pada: nowIso()
   };
   db.prepare(`INSERT INTO dstest (id, unit, kategori, tanggal, state_json, teknisi_nama, teknisi_nama_list,
@@ -2449,11 +2519,13 @@ export function updateDsTest(id, patch = {}, actor = {}) {
   const teknisi_nama_list = teknisiNamaList ? JSON.stringify(teknisiNamaList) : row.teknisi_nama_list;
 
   let teknisi_ttd = row.teknisi_ttd;
-  if (patch.teknisiTtd !== undefined && patch.teknisiTtd !== null && String(patch.teknisiTtd).startsWith('data:')) {
+  if (ttdBaru(patch.teknisiTtd)) {
     if (row.teknisi_ttd) removeSignatureFile(row.teknisi_ttd);
-    teknisi_ttd = saveSignature(patch.teknisiTtd, 'dstest_teknisi');
+    teknisi_ttd = saveSignature(patch.teknisiTtd, 'dstest_teknisi', { unit: row.unit });
   }
-  const state_json = patch.state !== undefined ? JSON.stringify(patch.state || {}) : row.state_json;
+  const state_json = patch.state !== undefined
+    ? JSON.stringify(stateDenganTtdQr(patch.state || {}, parseJson(row.state_json, {}), row.unit))
+    : row.state_json;
   const ttd_untuk = patch.ttdUntuk !== undefined ? String(patch.ttdUntuk || '') : row.ttd_untuk;
 
   db.prepare(`UPDATE dstest SET tanggal = ?, state_json = ?, teknisi_nama = ?, teknisi_nama_list = ?,
@@ -2530,14 +2602,14 @@ export function insertBerkala(rec = {}, olehUsername = '', olehNama = '') {
     unit: unitSah(rec.unit) ? rec.unit : 'radtel',
     jenis,
     tanggal: String(rec.tanggal || '').trim() || today(),
-    state_json: JSON.stringify(rec.state || {}),
+    state_json: JSON.stringify(stateDenganTtdQr(rec.state || {}, null, rec.unit)),
     catatan: String(rec.catatan || '').trim(),
     manager_nama: String(rec.managerNama || '').trim(),
-    manager_ttd: saveSignature(rec.managerTtd, 'berkala_manager'),
+    manager_ttd: saveSignature(rec.managerTtd, 'berkala_manager', { unit: rec.unit, nama: rec.managerNama }),
     ttd_untuk: rec.ttdUntuk || '',
     teknisi_nama: namaList.join(', '),
     teknisi_nama_list: JSON.stringify(namaList),
-    teknisi_ttd: saveSignature(rec.teknisiTtd, 'berkala_teknisi'),
+    teknisi_ttd: saveSignature(rec.teknisiTtd, 'berkala_teknisi', { unit: rec.unit }),
     dibuat_pada: nowIso()
   };
   db.prepare(`INSERT INTO berkala (id, unit, jenis, tanggal, state_json, catatan, teknisi_nama,
@@ -2658,10 +2730,10 @@ export function insertLtk(rec = {}, olehUsername = '', olehNama = '') {
     jam_terputus: teks(rec.jamTerputus),
     kota: teks(rec.kota) || 'Tangerang',
     manager_nama: teks(rec.managerNama),
-    manager_ttd: saveSignature(rec.managerTtd, 'ltk_manager'),
+    manager_ttd: saveSignature(rec.managerTtd, 'ltk_manager', { unit: rec.unit, nama: rec.managerNama }),
     ttd_untuk: teks(rec.ttdUntuk),
     teknisi_nama: teks(rec.teknisiNama),
-    teknisi_ttd: saveSignature(rec.teknisiTtd, 'ltk_teknisi'),
+    teknisi_ttd: saveSignature(rec.teknisiTtd, 'ltk_teknisi', { unit: rec.unit }),
     dibuat_pada: nowIso()
   };
   db.prepare(`INSERT INTO ltk (id, unit, tanggal_lapor, penyelenggara, kelompok, peralatan, modul,
@@ -2776,7 +2848,7 @@ export function insertBapb(rec = {}, olehUsername = '', olehNama = '') {
     lokasi: teks(rec.lokasi),
     items_json: JSON.stringify(items),
     pemakai_nama: teks(rec.pemakaiNama),
-    pemakai_ttd: saveSignature(rec.pemakaiTtd, 'bapb_pemakai'),
+    pemakai_ttd: saveSignature(rec.pemakaiTtd, 'bapb_pemakai', { unit: rec.unit, nama: rec.pemakaiNama }),
     // Manager Teknik tidak lagi dibubuhkan di form: namanya boleh diisi (sebagai
     // tujuan), tanda tangannya dibubuhkan susulan lewat kotak masuk. ttd_untuk
     // menunjuk akun mantek supaya lembarnya muncul di kotak masuknya.
@@ -2785,7 +2857,7 @@ export function insertBapb(rec = {}, olehUsername = '', olehNama = '') {
     ttd_untuk: teks(rec.ttdUntuk),
     petugas_nama: petugasRingkas,
     petugas_nama_list: JSON.stringify(petugasList),
-    petugas_ttd: saveSignature(rec.petugasTtd, 'bapb_petugas'),
+    petugas_ttd: saveSignature(rec.petugasTtd, 'bapb_petugas', { unit: rec.unit }),
     dibuat_pada: nowIso()
   };
   db.prepare(`INSERT INTO bapb (id, unit, nomor, tanggal, untuk_pekerjaan, lokasi, items_json,
@@ -2810,7 +2882,7 @@ export function insertBapb(rec = {}, olehUsername = '', olehNama = '') {
  * sudah disahkan mantek sama saja memalsu arsip.
  */
 export function updateBapb(id, patch = {}, { username = '', admin = false } = {}) {
-  const r = db.prepare('SELECT dibuat_oleh, teknik_ttd, pemakai_ttd FROM bapb WHERE id = ?').get(String(id));
+  const r = db.prepare('SELECT unit, dibuat_oleh, teknik_ttd, pemakai_ttd, pemakai_nama FROM bapb WHERE id = ?').get(String(id));
   if (!r) throw new Error('BAPB tidak ditemukan — mungkin sudah dihapus.');
   if (!admin && String(r.dibuat_oleh || '') !== String(username || '')) {
     throw new Error('Hanya pembuat lembar ini atau administrator yang boleh menyuntingnya.');
@@ -2822,7 +2894,7 @@ export function updateBapb(id, patch = {}, { username = '', admin = false } = {}
   if (patch.pemakaiNama !== undefined) setBaru.pemakai_nama = String(patch.pemakaiNama || '').trim();
   if (patch.pemakaiTtd !== undefined) {
     // TTD baru: string dataURL → simpan; string kosong → hapus paraf.
-    const path = patch.pemakaiTtd ? saveSignature(patch.pemakaiTtd, 'bapb_pemakai') : '';
+    const path = patch.pemakaiTtd ? saveSignature(patch.pemakaiTtd, 'bapb_pemakai', { unit: r.unit, nama: setBaru.pemakai_nama ?? r.pemakai_nama }) : '';
     if (r.pemakai_ttd && r.pemakai_ttd !== path) removeSignatureFile(r.pemakai_ttd);
     setBaru.pemakai_ttd = path;
   }
@@ -2916,7 +2988,7 @@ export function unitCatatan(jenis, id) {
 export function tandaTanganiCatatan(jenis, id, { nama, username, role, ttd, wakilDari, diwakili }) {
   if (!jenisTtdSah(jenis)) throw new Error('Jenis catatan tidak dikenal: ' + jenis);
   const t = JENIS_TTD[jenis];
-  const row = db.prepare(`SELECT ${t.nama} AS nama, ${t.ttd} AS ttd, ttd_untuk,
+  const row = db.prepare(`SELECT ${t.nama} AS nama, ${t.ttd} AS ttd, ttd_untuk, unit,
                                  dibuat_oleh, ${t.tglKolom} AS tanggal
                             FROM ${t.tabel} WHERE id = ?`)
     .get(String(id));
@@ -2935,7 +3007,7 @@ export function tandaTanganiCatatan(jenis, id, { nama, username, role, ttd, waki
     role, username, ttdUntuk: row.ttd_untuk, dibuatOleh: row.dibuat_oleh, wakilDari: wakilSah
   });
 
-  const path = saveSignature(ttd, t.prefix);
+  const path = saveSignature(ttd, t.prefix, { unit: row.unit });
   if (!path) throw new Error('Tanda tangannya kosong.');
 
   // Lewat PH, yang tercetak nama PH sendiri berikut kedudukan dan nama pejabat
@@ -2991,7 +3063,7 @@ export function tandaTanganiCatatan(jenis, id, { nama, username, role, ttd, waki
 export function batalkanTtdCatatan(jenis, id) {
   if (!jenisTtdSah(jenis)) throw new Error('Jenis catatan tidak dikenal: ' + jenis);
   const t = JENIS_TTD[jenis];
-  const row = db.prepare(`SELECT ${t.nama} AS nama, ${t.ttd} AS ttd, ttd_untuk, ttd_oleh, unit,
+  const row = db.prepare(`SELECT ${t.nama} AS nama, ${t.ttd} AS ttd, ttd_untuk, unit, ttd_oleh, unit,
                                  ${t.tglKolom} AS tanggal
                             FROM ${t.tabel} WHERE id = ?`).get(String(id));
   if (!row) throw new Error('Catatan tidak ditemukan — mungkin sudah dihapus.');
