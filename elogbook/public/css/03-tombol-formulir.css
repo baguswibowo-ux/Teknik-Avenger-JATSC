@@ -98,3 +98,22 @@
 
 .ttd-slot-petunjuk{font-family:var(--font-mono); font-size:10.5px; letter-spacing:.06em;
                    text-transform:uppercase; color:var(--muted); margin:4px 0 6px;}
+
+/* ---------- Isian tanggal & jam: terbaca di HP, di kedua tema ----------
+   Tiga hal yang membuat isian tanggal/jam tampak "terang" dan tak terbaca di HP:
+   1. Isian yang lahir dari kode tanpa kelas .field tidak membawa latar dan warna
+      tema — peramban HP memberinya kotak putih bawaan. :where() membuat aturan
+      ini paling lemah, jadi gaya yang sudah ada di tempat lain tetap menang.
+   2. Isian yang DIKUNCI (disabled, mis. Tgl Report/Tgl Closed isu bagi yang tidak
+      berhak mengubah): peramban HP memudarkan tulisannya sampai nyaris hilang.
+      Tulisannya dipaksa memakai warna teks tema, tanpa pemudaran.
+   3. Di tema gelap, ikon kalender/jam bawaannya hitam di atas kotak gelap. */
+:where(input[type=date], input[type=time], input[type=datetime-local], input[type=month]){
+  background:var(--panel-2); color:var(--text); border:1px solid var(--line); border-radius:6px;}
+input[type=date]:disabled, input[type=time]:disabled,
+input[type=datetime-local]:disabled, input[type=month]:disabled{
+  opacity:1; color:var(--text); -webkit-text-fill-color:var(--text);}
+html:not([data-tema="terang"]) input[type=date]::-webkit-calendar-picker-indicator,
+html:not([data-tema="terang"]) input[type=time]::-webkit-calendar-picker-indicator,
+html:not([data-tema="terang"]) input[type=datetime-local]::-webkit-calendar-picker-indicator,
+html:not([data-tema="terang"]) input[type=month]::-webkit-calendar-picker-indicator{filter:invert(.8);}
