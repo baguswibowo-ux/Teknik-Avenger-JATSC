@@ -72,7 +72,8 @@ export function selisihJadwal(lama, baru) {
  * Penerimanya: semua orang di lembar itu (lama maupun baru — yang dikeluarkan
  * dari daftar justru paling perlu tahu) ditambah anggota unit di E-Logbook
  * yang tidak tercantum (admin unit, PIC, manajer yang mencentang unit itu).
- * Yang menyimpan tidak dikabari tentang simpanannya sendiri.
+ * `kecuali` (opsional) satu username yang dilewati; server.js tidak memakainya
+ * — penyimpannya sengaja ikut dikabari.
  *
  * Orang → akun memakai aturan pengingat dinas: NIK dulu, nama hanya kalau
  * kenanya tepat satu akun.

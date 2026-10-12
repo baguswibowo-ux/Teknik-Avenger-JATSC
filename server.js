@@ -5417,9 +5417,11 @@ async function kabariDafdin({ bulan, unit, lama, baru, user }) {
     if (!selisih.length) return;
     const d = await daftarELogbook(unit);
     const penerima = penerimaDafdin({
-      lama, baru, selisih, akun: d.akun, kecuali: user.username,
+      lama, baru, selisih, akun: d.akun,
       // Administrator dan Manager Teknik memantau daftar dinas semua unit.
-      anggota: [...d.anggota, ...d.pemantau]
+      // Penyimpannya ikut dikabari (permintaan Bagus): notif di HP-nya sendiri
+      // jadi tanda kabarnya memang sudah berangkat ke yang lain.
+      anggota: [...d.anggota, ...d.pemantau, { username: user.username }]
     });
     const namaUnit = (d.unit.find((u) => u.kode === unit) || {}).nama || unit;
     const berubah = selisih.map((s) => s.nama);
@@ -5441,15 +5443,18 @@ async function kabariSejarah({ unit, alat, sebelum, sesudah, user, kecuali = [] 
     const selisih = selisihSejarah(sebelum, sesudah);
     if (!(selisih.tambah.length + selisih.ubah.length + selisih.hapus.length)) return;
     const d = await daftarELogbook(unit);
-    const lewati = new Set([user.username, ...kecuali].map((x) => String(x || '').toLowerCase()));
+    const lewati = new Set(kecuali.map((x) => String(x || '').toLowerCase()));
+    // Penyimpannya ikut dikabari, walau bukan anggota unit itu.
+    const penerima = new Map([...d.anggota, { username: user.username }]
+      .map((a) => [String(a?.username || '').toLowerCase(), a?.username]));
     const teks = pesanSejarahBerubah({
       unit: (d.unit.find((u) => u.kode === unit) || {}).nama || unit,
       alat: namaAlatLengkap(await cariAlat(unit, alat).catch(() => null), alat),
       oleh: user.nama || user.username, selisih
     });
-    for (const a of d.anggota) {
-      if (lewati.has(String(a?.username || '').toLowerCase())) continue;
-      const hasil = await kirimNotifKeAkun(a.username, teks);
+    for (const [kunci, username] of penerima) {
+      if (!kunci || lewati.has(kunci)) continue;
+      const hasil = await kirimNotifKeAkun(username, teks);
       if (!hasil.aktif) return;
     }
   } catch (err) {
