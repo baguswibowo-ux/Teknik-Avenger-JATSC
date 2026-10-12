@@ -3080,6 +3080,17 @@ export function listAkunAktif() {
 }
 
 /**
+ * Yang memantau daftar dinas SEMUA unit: administrator dan Manager Teknik
+ * (peran pejabat) yang aktif. Mereka dikabari tiap daftar dinas unit mana pun
+ * berganti, walaupun tidak tercantum di lembarnya dan tidak mencentang unitnya.
+ */
+export function listPemantauDinas() {
+  return db.prepare(`SELECT username, nama FROM users
+                      WHERE aktif = 1 AND role IN ('admin', 'pejabat')
+                      ORDER BY nama COLLATE NOCASE`).all();
+}
+
+/**
  * Pejabat aktif yang sudah opt-in ke satu unit (mencentangnya di Kelola Akun).
  * Dipakai kartu cetak dashboard untuk menaruh nama Manajer Teknik bidang itu
  * pada kolom tanda tangan kanan. Kalau tidak ada satu pun yang opt-in, kartu

@@ -73,7 +73,7 @@ const {
   listBapb, insertBapb, updateBapb, removeBapb, suntingLampiranBapb,
   listLampiranCatatan, suntingLampiranCatatan, JENIS_LAMPIRAN_CATATAN,
   getUserByUsername, verifyPassword, createUser, countUsers, hapusUser,
-  jenisTtdSah, unitCatatan, unitHapus, pemilikLembarForm, tandaTanganiCatatan, batalkanTtdCatatan, listPejabatAktif, listPejabatUnit, listTeknisiUnit, listAkunAktif, getInboxTtd,
+  jenisTtdSah, unitCatatan, unitHapus, pemilikLembarForm, tandaTanganiCatatan, batalkanTtdCatatan, listPejabatAktif, listPejabatUnit, listTeknisiUnit, listAkunAktif, listPemantauDinas, getInboxTtd,
   getTtdTersimpan, simpanTtdTersimpan, hapusTtdTersimpan, pilihTtdTersimpanAktif, rekapMentah,
   listUsers, setPassword, setAktif, setRole, setNama, setUsername, ROLE_VALID, SEMUA_UNIT, jumlahAdminAktif,
   UNIT, KODE_UNIT, unitSah, unitUntukUser, setUnitUser,
@@ -2493,14 +2493,17 @@ app.put('/internal/nama-alat', hanyaInternal, (req, res) => {
 /** Akun aktif [{username, nama}] untuk mencocokkan nama/NIK di jadwal, dan
     daftar unit [{kode, nama}] untuk menulis nama unit di pesan. Dengan ?unit=
     ikut pulang `anggota`: akun aktif yang memegang unit itu — penerima kabar
-    perubahan (daftar dinas, riwayat peralatan) dari dashboard. */
+    perubahan (daftar dinas, riwayat peralatan) dari dashboard — dan
+    `pemantau`: administrator + Manager Teknik, penerima kabar daftar dinas
+    unit mana pun. */
 app.get('/internal/daftar', hanyaInternal, async (req, res) => {
   try {
     const unit = String(req.query?.unit || '').toLowerCase();
     res.json({
       akun: await listAkunAktif(),
       unit: (UNIT || []).map((u) => ({ kode: u.kode, nama: u.nama })),
-      ...(UNIT.some((u) => u.kode === unit) ? { anggota: await listTeknisiUnit(unit) } : {})
+      ...(UNIT.some((u) => u.kode === unit)
+        ? { anggota: await listTeknisiUnit(unit), pemantau: await listPemantauDinas() } : {})
     });
   } catch (err) {
     res.status(500).json({ error: err?.message || String(err) });

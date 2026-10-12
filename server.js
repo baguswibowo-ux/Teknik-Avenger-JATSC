@@ -5207,7 +5207,8 @@ const PENGINGAT_SIMPAN_MS = 7 * 86400000;
 
 /** Akun aktif [{username, nama}] dan unit [{kode, nama}] dari E-Logbook.
     Dengan `anggotaUnit`, ikut pulang `anggota`: akun aktif yang memegang unit
-    itu — kosong kalau E-Logbook di sebelah masih salinan lama. */
+    itu, dan `pemantau`: administrator + Manager Teknik — dua-duanya kosong
+    kalau E-Logbook di sebelah masih salinan lama. */
 async function daftarELogbook(anggotaUnit = '') {
   const jawab = await fetch(ASAL + '/internal/daftar'
     + (anggotaUnit ? '?unit=' + encodeURIComponent(anggotaUnit) : ''), { signal: AbortSignal.timeout(8000) });
@@ -5216,7 +5217,8 @@ async function daftarELogbook(anggotaUnit = '') {
   return {
     akun: Array.isArray(j?.akun) ? j.akun : [],
     unit: Array.isArray(j?.unit) ? j.unit : [],
-    anggota: Array.isArray(j?.anggota) ? j.anggota : []
+    anggota: Array.isArray(j?.anggota) ? j.anggota : [],
+    pemantau: Array.isArray(j?.pemantau) ? j.pemantau : []
   };
 }
 
@@ -5392,7 +5394,8 @@ async function periksaPengingatBerkala() {
    Permintaan Bagus 12 Oktober 2026: tiap kali daftar dinas berganti, dan tiap
    kali riwayat peralatan diperbarui, orang-orang unitnya dikabari lewat
    notifikasi HP — supaya tukar dinas tidak baru ketahuan waktu orangnya tidak
-   datang.
+   datang. Administrator dan Manager Teknik dikabari daftar dinas SEMUA unit;
+   riwayat peralatan tetap hanya ke anggota unitnya.
 
    Dipanggil rute simpannya SESUDAH jawaban terkirim, tidak ditunggu, dan tidak
    pernah melempar: simpanannya sudah sah, kabar yang gagal tidak membatalkan
@@ -5414,7 +5417,9 @@ async function kabariDafdin({ bulan, unit, lama, baru, user }) {
     if (!selisih.length) return;
     const d = await daftarELogbook(unit);
     const penerima = penerimaDafdin({
-      lama, baru, selisih, akun: d.akun, anggota: d.anggota, kecuali: user.username
+      lama, baru, selisih, akun: d.akun, kecuali: user.username,
+      // Administrator dan Manager Teknik memantau daftar dinas semua unit.
+      anggota: [...d.anggota, ...d.pemantau]
     });
     const namaUnit = (d.unit.find((u) => u.kode === unit) || {}).nama || unit;
     const berubah = selisih.map((s) => s.nama);
