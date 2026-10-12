@@ -178,7 +178,6 @@
   border-radius:8px;padding:8px 10px;font-family:var(--font-body);font-size:12.5px;}
 .brk-atur select:focus,.brk-atur input:focus{outline:none;border-color:var(--accent);}
 /* Ikon pemilih tanggal bawaan peramban hitam pekat — tak terbaca di tema gelap. */
-html[data-tema="gelap"] .brk-atur input[type=date]::-webkit-calendar-picker-indicator{filter:invert(.7);}
 
 /* Kotak tautan. Lebih pelan daripada kotak jatuh di atasnya — berbingkai
    utuh, bukan putus-putus — supaya jelas ia jalan kedua, bukan pilihan yang
@@ -520,7 +519,6 @@ tr.jdw-berkala .jdw-nama{font-family:var(--font-mono);font-size:9.5px;letter-spa
 .sert-sunting{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;padding:11px 0;
   border-bottom:1px solid var(--line);}
 .sert-sunting:last-of-type{border-bottom:none;}
-html[data-tema="gelap"] .sert-sunting input[type=date]::-webkit-calendar-picker-indicator{filter:invert(.7);}
 
 /* Bukti sertifikat. Garis pemisahnya pindah ke pembungkus: berkas yang
    menempel pada satu baris harus terlihat berada DI DALAM baris itu, bukan

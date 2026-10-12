@@ -59,3 +59,11 @@ h1,h2,h3,h4{font-family:var(--font-display);margin:0;font-weight:600;letter-spac
 ::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px;}
 button{font:inherit;}
 
+/* Ikon kalender/jam di isian tanggal: peramban menggambarnya menurut
+   color-scheme, dan halaman ini mengaku "light dark" — warnanya jadi ikut mode
+   HP, bukan tema aplikasi (HP gelap + tema terang = ikon putih di kotak
+   terang). Dipaku per tema; menggantikan filter:invert yang dulu dipasang per
+   panel dan hanya benar kalau HP-nya mode terang. */
+input[type=date], input[type=time], input[type=datetime-local], input[type=month]{color-scheme:dark;}
+html[data-tema="terang"] input[type=date], html[data-tema="terang"] input[type=time],
+html[data-tema="terang"] input[type=datetime-local], html[data-tema="terang"] input[type=month]{color-scheme:light;}
