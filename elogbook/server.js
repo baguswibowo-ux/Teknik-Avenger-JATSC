@@ -45,7 +45,7 @@ import fs from 'node:fs';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { pesanPerluTtd, pesanSudahTtd, pesanBelumTtd, pesanTtdDiganti } from '../pesan-notif.js';
-import { pemanggil, bacaUrlTtdQr, svgTtdQr } from './ttd-qr.js';
+import { pemanggil, bacaUrlTtdQr, svgTtdQr, urlTtdQr } from './ttd-qr.js';
 import {
   buatKunciVapid, kunciVapidSah, kirimPush, endpointSah, kunciLanggananSah, pesanUntukPush
 } from '../webpush.js';
@@ -76,7 +76,7 @@ const {
   getUserByUsername, verifyPassword, createUser, countUsers, hapusUser,
   jenisTtdSah, unitCatatan, unitHapus, pemilikLembarForm, tandaTanganiCatatan, batalkanTtdCatatan, listPejabatAktif, listPejabatUnit, listTeknisiUnit, listAkunAktif, listPemantauDinas, getInboxTtd,
   getTtdTersimpan, simpanTtdTersimpan, hapusTtdTersimpan, pilihTtdTersimpanAktif, rekapMentah,
-  listUsers, setPassword, setAktif, setRole, setNama, setUsername, setIdentitasTtdAkun, ROLE_VALID, SEMUA_UNIT, jumlahAdminAktif,
+  listUsers, setPassword, setAktif, setRole, setNama, setUsername, setIdentitasTtdAkun, identitasTtdAkun, ROLE_VALID, SEMUA_UNIT, jumlahAdminAktif,
   UNIT, KODE_UNIT, unitSah, unitUntukUser, setUnitUser,
   createSession, getSessionUser, deleteSession, purgeExpiredSessions,
   ambilBerkas,
@@ -1730,15 +1730,24 @@ const API = {
     if (!u) return { ada: false, nama: '', role: '', path: '', dibuatPada: '' };
     const target = await getUserByUsername(u);
     if (!target) return { ada: false, nama: '', role: '', path: '', dibuatPada: '' };
-    const rek = await getTtdTersimpan(target.username);
-    const idx = rek.aktif | 0;
-    const slot = rek.slots[idx] || { path: '', dibuatPada: '' };
+    /* Sejak TTD menjadi QR (ttd-qr.js) tiap akun selalu "punya" tanda tangan:
+       QR berisi jabatan atau unit, nama, dan NIK-nya. Yang dulu dijawab dengan
+       coretan tersimpan kini dijawab dengan alamat QR itu — dashboard
+       menyalin dan menempelkannya persis seperti gambar TTD lama.
+       dibuatPada diisi sidik alamatnya: begitu NIK atau jabatan akun diubah,
+       sidiknya ikut berganti dan salinan di dashboard disegarkan. */
+    const identitas = await identitasTtdAkun(target.username);
+    const unitnya = identitas.jabatan || SEMUA_UNIT.includes(target.role) ? [] : await unitUntukUser(target);
+    const jalur = urlTtdQr({
+      unit: unitnya.length ? namaUnit(unitnya[0]) : '',
+      nama: target.nama || target.username, ...identitas
+    }, DIR_DATA);
     return {
-      ada: !!slot.path,
+      ada: true,
       nama: target.nama || target.username,
       role: target.role,
-      path: slot.path || '',
-      dibuatPada: slot.dibuatPada || ''
+      path: jalur,
+      dibuatPada: 'qr-' + jalur.slice(-24, -4)
     };
   },
 

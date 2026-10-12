@@ -398,6 +398,11 @@ async function tanyaMetaTtd(username, kepala) {
   }
 }
 
+/** Jenis isi salinan TTD. Berkasnya selalu bernama <akun>.png, tetapi sejak TTD
+    menjadi QR isinya SVG — jenisnya dibaca dari isinya, bukan dari namanya. */
+const mimeTtd = (gbr) =>
+  (gbr?.buf?.subarray(0, 5).toString('utf8') === '<svg ' ? 'image/svg+xml' : String(gbr?.mime || 'image/png').split(';')[0]);
+
 /** Ambil bytes gambar TTD dari E-Logbook — path aslinya "/uploads/xxx.png". */
 async function tarikGambarTtd(pathELogbook, kepala) {
   const henti = AbortSignal.timeout(15_000);
@@ -507,6 +512,10 @@ app.get('/ttd-akun/:user/gambar', async (req, res) => {
   if (!usernameSah(u)) return res.status(400).send('username tidak sah');
 
   let lokalGbr = await bacaBiner(path.join(DIR_TTD_AKUN, u + '.png'));
+  /* Salinan dari masa TTD masih coretan tidak disajikan lagi: TTD kini QR
+     (elogbook/ttd-qr.js), dan lembar lama yang menunjuk alamat ini harus
+     ikut menampilkan QR-nya. */
+  if (lokalGbr && !String((await bacaMetaLokal(u))?.path || '').startsWith('/uploads/qr-ttd/')) lokalGbr = null;
   if (!lokalGbr) {
     /* Belum tersalin — tanyakan dan ambil dulu. */
     const kepala = kepalaKeELogbook(req);
@@ -516,7 +525,7 @@ app.get('/ttd-akun/:user/gambar', async (req, res) => {
     lokalGbr = await bacaBiner(path.join(DIR_TTD_AKUN, u + '.png'));
     if (!lokalGbr) return res.status(502).send('gagal menyalin dari E-Logbook');
   }
-  res.setHeader('Content-Type', lokalGbr.mime || 'image/png');
+  res.setHeader('Content-Type', mimeTtd(lokalGbr));
   res.setHeader('Cache-Control', 'private, max-age=300');
   return res.end(lokalGbr.buf);
 });
@@ -3298,7 +3307,7 @@ async function ttdSebagaiDataUrl(url) {
   const nama = decodeURIComponent(m[1]);
   if (!usernameSah(nama)) return '';
   const gbr = await bacaBiner(path.join(DIR_TTD_AKUN, nama + '.png'));
-  return gbr?.buf ? `data:${gbr.mime || 'image/png'};base64,` + gbr.buf.toString('base64') : '';
+  return gbr?.buf ? `data:${mimeTtd(gbr)};base64,` + gbr.buf.toString('base64') : '';
 }
 
 const escHtml = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
