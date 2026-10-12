@@ -61,9 +61,12 @@ function cekTtdLengkap(rec, kind){
 /**
  * Guard sebelum memanggil doPrint: kalau catatan belum lengkap TTD-nya, tolak
  * dengan toast yang menyebut siapa yang belum. Kembali true kalau boleh
- * dicetak. Berlaku untuk semua peran — dokumen tanpa TTD tidak boleh keluar.
+ * dicetak. Berlaku untuk semua peran KECUALI administrator (permintaan Bagus,
+ * 12 Okt 2026): ia perlu mencetak untuk memeriksa lembar sebelum Manager
+ * Teknik menandatangani. Kolom TTD yang belum terisi keluar kosong.
  */
 function tolakCetakBilaBelumTtd(rec, kind){
+  if(adminAktif()) return true;
   const c = cekTtdLengkap(rec, kind);
   if(c.ok) return true;
   toast(`Belum ditandatangani oleh ${c.alasan} — cetak ditolak.`);

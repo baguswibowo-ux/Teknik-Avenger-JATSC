@@ -161,8 +161,9 @@ function printLogbook(){
 
   // Guard TTD lengkap — HANYA saat benar-benar cetak. Pratinjau lewat "Lihat
   // Saja" menyalakan modePratinjau lebih dulu, jadi tetap boleh menampilkan
-  // lembar yang belum ditandatangani (untuk pemeriksaan isi).
-  if(!modePratinjau){
+  // lembar yang belum ditandatangani (untuk pemeriksaan isi). Administrator
+  // juga dilewatkan — sama seperti tolakCetakBilaBelumTtd di 20-ttd-pejabat.js.
+  if(!modePratinjau && !adminAktif()){
     const belum = list.filter(e => !cekTtdLengkap(e, 'entry').ok);
     if(belum.length){
       const contoh = belum.slice(0, 3).map(e=>{
