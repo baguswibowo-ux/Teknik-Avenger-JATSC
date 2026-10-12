@@ -813,11 +813,13 @@ export const unitSah = (kode) => KODE_UNIT.includes(kode);
 export function unitUntukUser(user) {
   if (!user) return [];
   if (SEMUA_UNIT.includes(user.role)) return KODE_UNIT.slice();
-  // Yang sedang ditunjuk jadi PH (Pelaksana Harian) memegang semua unit selama
-  // masa penunjukannya: ia menggantikan pejabat yang memeriksa pekerjaan
-  // seluruh unit. Begitu masanya lewat, aksesnya kembali ke unitnya sendiri
-  // tanpa ada yang perlu dicabut.
-  if (sedangJadiPhAkun(user.username)) return KODE_UNIT.slice();
+  // Yang sedang ditunjuk jadi PH (Pelaksana Harian) bisa MELIHAT semua unit
+  // selama masa penunjukannya: ia menggantikan pejabat yang memeriksa pekerjaan
+  // seluruh unit. Hanya melihat (dan menandatangani yang dititipkan) — menambah
+  // atau mengubah catatan tetap di unitnya sendiri: dispatcher server.js
+  // menandai permintaan tulis dengan tanpaPerluasanPh. Begitu masanya lewat,
+  // aksesnya kembali ke unitnya sendiri tanpa ada yang perlu dicabut.
+  if (!user.tanpaPerluasanPh && sedangJadiPhAkun(user.username)) return KODE_UNIT.slice();
   const rows = db.prepare('SELECT unit FROM user_unit WHERE user_id = ?').all(user.id);
   const punya = new Set(rows.map((r) => r.unit));
   // Urutkan mengikuti urutan baku UNIT, bukan urutan baris di database. Tanpa ini

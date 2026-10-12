@@ -130,6 +130,8 @@ test('yang sedang jadi PH memegang semua unit; sesudah masanya kembali ke unitny
   assert.ok(db.unitUntukUser(bagus).length > 1);
   assert.deepEqual(db.unitUntukUser(bagus), db.unitUntukUser(db.getUserByUsername('arya')));
   assert.deepEqual(db.unitMilikUser(bagus), ['radtel']);   // unit miliknya sendiri tidak berubah
+  // Untuk permintaan tulis, perluasannya dimatikan: unit lain hanya bisa dilihat.
+  assert.deepEqual(db.unitUntukUser({ ...bagus, tanpaPerluasanPh: true }), ['radtel']);
 
   db.setPh('arya', '10012550', '2020-01-01', '');          // masa PH sudah lewat
   assert.equal(db.sedangJadiPhAkun('10012550'), false);

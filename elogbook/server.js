@@ -272,6 +272,9 @@ async function pastikanUnit(user, unit) {
   const kode = String(unit || '').trim();
   if (!unitSah(kode)) throw new Error('Unit logbook tidak dikenal: ' + kode);
   if (!(await unitUntukUser(user)).includes(kode)) {
+    if (user?.tanpaPerluasanPh && await sedangJadiPh(user)) {
+      throw new Error('Selama menjadi PH, unit lain hanya bisa dilihat. Menambah atau mengubah catatan hanya di unit Anda sendiri.');
+    }
     throw new Error('Akun Anda tidak diberi akses ke logbook ' + kode + '.');
   }
   return kode;
@@ -1838,8 +1841,10 @@ const API = {
    * catatan penutupan, tanggal, penutup) — jenis/keterangan/pelapor
    * tidak bisa ikut disunting lewat sini.
    */
-  tutupIsu: async (id, keteranganClosed, user) =>
-    tutupIsu(String(id || ''), String(keteranganClosed || ''), user?.username || ''),
+  tutupIsu: async (id, keteranganClosed, user) => {
+    await pastikanUnitIsu(user, id);
+    return tutupIsu(String(id || ''), String(keteranganClosed || ''), user?.username || '');
+  },
 
   /**
    * Menempel bukti fase "closed" pada isu. Terpisah dari addIssueLampiran
@@ -1847,9 +1852,19 @@ const API = {
    * foto hasil pekerjaannya — tapi tidak boleh menambah bukti "saat
    * kejadian" (fase open) yang aturannya berbeda.
    */
-  addBuktiTutupIsu: async (id, daftar) =>
-    tambahBuktiTutupIsu(String(id || ''), daftar || [])
+  addBuktiTutupIsu: async (id, daftar, user) => {
+    await pastikanUnitIsu(user, id);
+    return tambahBuktiTutupIsu(String(id || ''), daftar || []);
+  }
 };
+
+/** Isu hanya boleh ditutup oleh yang memegang unitnya. Dulu tidak diperiksa
+    karena tiap orang hanya melihat isu unitnya; sejak PH bisa melihat semua
+    unit, tombol tutup di unit lain harus benar-benar ditolak di sini. */
+async function pastikanUnitIsu(user, id) {
+  const info = await infoCatatan('isu', String(id || ''));
+  if (info && info.unit) await pastikanUnit(user, info.unit);
+}
 
 const sameUser = (a, b) => String(a).toLowerCase() === String(b).toLowerCase();
 
@@ -2618,6 +2633,11 @@ app.post('/api/:fn', requireAuth, async (req, res) => {
                 : Object.prototype.hasOwnProperty.call(API, fn) ? API[fn]
                 : null;
   if (!handler) return res.status(404).json({ error: 'Fungsi tidak dikenal: ' + fn });
+  // PH melihat semua unit, tetapi menulis hanya di unitnya sendiri: untuk
+  // permintaan tulis dan fungsi pengelolaan, perluasan unit karena PH dimatikan
+  // (lihat unitUntukUser di db.js). tandaTangani tidak termasuk — menandatangani
+  // dokumen titipan di unit mana pun justru tugas seorang PH.
+  if (API_TULIS.has(fn) || adminOnly) req.user.tanpaPerluasanPh = true;
 
   if (adminOnly && !isAdmin(req.user)) {
     const peran = String(req.user?.role || '').toLowerCase();
