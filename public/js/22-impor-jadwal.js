@@ -378,7 +378,9 @@ const IMPOR_LIBUR = new Set(['', '-', '—', '.', 'L', 'LIBUR', 'OFF', 'X', 'O']
    menyebut gedung. Cuti/sakit/ijin ditulis panjang di lembar aslinya dan
    dipetakan ke kodenya yang pendek. */
 const IMPOR_ALIAS = {
-  'PAGI':'P', 'SIANG':'S',
+  /* 'PAGI' dan 'SIANG' dulu dipetakan ke P dan S polos. Keduanya sudah tidak
+     ditawarkan, jadi tulisan itu kini disimpan apa adanya dan dilaporkan —
+     SHIFT tetap mengenalnya sebagai nama lama, jamnya tetap benar. */
   'CUTI TAHUNAN':'CUTI', 'CT':'CUTI',
   'CUTI ALASAN PENTING':'CAP',
   'SAKIT':'SAKIT', 'SKT':'SAKIT',

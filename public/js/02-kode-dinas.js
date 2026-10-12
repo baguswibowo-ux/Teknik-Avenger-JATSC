@@ -43,6 +43,11 @@ const SHIFT = {
      `cetak` = tulisan di lembar cetak PUM: P1 / S1 / M1 tanpa huruf gedung,
      supaya di lembar itu pecahan tiga tetap terbedakan dari PS dan M biasa
      (tanpa `cetak`, yang tercetak pitanya: PS, M, P, S). */
+  /* Tanpa huruf gedung — untuk unit yang dinasnya P / S / M dan tidak
+     membedakan JATSC / New JATSC. Jam dan sifatnya sama dengan yang bergedung. */
+  'P1':   { mulai:0,  sampai:7,  warna:'var(--accent)', nama:'Pagi 1',            pita:'P', cetak:'P1' },
+  'S1':   { mulai:7,  sampai:13, warna:'var(--warn)',   nama:'Siang 1',           pita:'S', cetak:'S1' },
+  'M1':   { mulai:13, sampai:24, warna:'var(--muted)',  nama:'Malam 1',           pita:'M', cetak:'M1', malam:true },
   'P1J':  { mulai:0,  sampai:7,  warna:'var(--accent)', nama:'Pagi 1 JATSC',      pita:'P', cetak:'P1' },
   'P1NJ':  { mulai:0,  sampai:7,  warna:'var(--accent)', nama:'Pagi 1 New JATSC',  pita:'P', cetak:'P1' },
   'S1J':  { mulai:7,  sampai:13, warna:'var(--warn)',   nama:'Siang 1 JATSC',     pita:'S', cetak:'S1' },
@@ -53,7 +58,7 @@ const SHIFT = {
      yang menulis 'PS' saja belum menyebut JATSC atau New JATSC, dan impor
      memang harus melaporkannya sebagai kode asing supaya dilengkapi. Tetap
      dikenal di sini supaya jamnya dan warnanya betul kalau terlanjur terisi.
-     'M' DITAWARKAN (lihat KODE_DINAS): ia malamnya pola P / S / M polos. */
+     'M' DITAWARKAN (lihat KODE_DINAS): malam untuk unit tanpa pembagian gedung. */
   'PS':   { mulai:0,  sampai:12, warna:'var(--ok)',     nama:'Pagi–Siang',      pita:'PS' },
   'M':    { mulai:12, sampai:24, warna:'var(--muted)',  nama:'Malam',           pita:'M', malam:true },
   /* Nama lama, dari sebelum kode JATSC/New dipakai. Masih ada di jadwal yang

@@ -39,15 +39,17 @@
    daftarnya. */
 const KODE_DINAS = [
   /* Bentuk penuh sehari: PSJ/PSN (PS per gedung), MJ/MN (Malam per gedung).
-     P/S polos ada untuk pecahan hari yang belum menyebut gedung; PJ/PNJ/SJ/SNJ
-     memberi bentuk pecahannya per gedung, sama seperti PS diberi PSJ/PSN.
-     M polos pasangan P dan S polos: unit yang dinasnya P / S / M tanpa
-     menyebut gedung (Navigasi, Pengamatan) butuh ketiganya — tanpa M di sini
-     tombolnya tidak ada dan M yang diketik atau ditempel dari Excel dibuang. */
-  'PSJ','PSN','MJ','MN','P','S','M','PJ','PNJ','SJ','SNJ',
-  /* Pecahan tiga untuk pola campuran (hybrid): dipakai berdampingan dengan
-     PS + M di hari yang sama, tanpa memundurkan M biasa — lihat SHIFT. */
-  'P1J','S1J','M1J','P1NJ','S1NJ','M1NJ',
+     PJ/PNJ/SJ/SNJ pecahan pagi dan siang per gedung, sama seperti PS diberi
+     PSJ/PSN. P dan S polos TIDAK lagi ditawarkan (permintaan Bagus, 12 Okt
+     2026): pola tiga tanpa gedung memakai P1 / S1 / M1 di bawah. Keduanya
+     tetap dikenal SHIFT, jadi jadwal lama yang berisi P dan S tetap terbaca.
+     M polos: malam tanpa gedung, untuk unit yang tidak membedakan gedung. */
+  'PSJ','PSN','MJ','MN','M','PJ','PNJ','SJ','SNJ',
+  /* Pecahan tiga: P1 / S1 / M1 polos untuk unit yang dinasnya memang P / S / M
+     tanpa menyebut gedung (Navigasi, Pengamatan), lalu bentuk per gedungnya
+     untuk pola campuran (hybrid) yang dipakai berdampingan dengan PS + M di
+     hari yang sama, tanpa memundurkan M biasa — lihat SHIFT. */
+  'P1','S1','M1','P1J','S1J','M1J','P1NJ','S1NJ','M1NJ',
   /* SPKL — Surat Perintah Kerja Lembur; satu varian untuk tiap bentuk dinas
      dasarnya, supaya kartu SPKL berdiri sejajar dengan petak dinas biasa di
      jadwal harian. Jam dan pita cakupan mengikuti varian dasarnya (lihat
