@@ -97,6 +97,47 @@ async function jdwMuatAwal(){
   }
 }
 
+/* ---------- NIK → nama ----------
+   Username akun E-Logbook adalah NIK-nya, dan NIK itulah kunci orang di
+   seluruh aplikasi (pengingat dinas, notif perubahan). Jadi begitu NIK yang
+   diketik di mode sunting cocok dengan satu akun aktif, namanya diisikan dari
+   akun itu — tidak perlu diketik, dan ejaannya sama dengan akunnya.
+
+   Daftarnya (username + nama saja) diambil sekali per halaman, saat mode
+   sunting pertama dibuka. Gagal mengambilnya tidak mengganggu apa pun: nama
+   tetap bisa diketik tangan seperti sebelumnya. */
+let jdwAkun = null;   // Promise<Map<nik huruf kecil, nama>>
+
+function jdwMuatAkun(){
+  if(!jdwAkun){
+    jdwAkun = srvApi('listAkunAktif')
+      .then(d=>new Map((Array.isArray(d) ? d : [])
+        .filter(a=>a && a.username && a.nama)
+        .map(a=>[String(a.username).trim().toLowerCase(), String(a.nama).trim()])))
+      .catch(e=>{
+        console.warn('Daftar akun untuk NIK → nama tidak bisa diambil:', e && e.message || e);
+        jdwAkun = null;           // dicoba lagi saat mode sunting dibuka berikutnya
+        return new Map();
+      });
+  }
+  return jdwAkun;
+}
+
+/** Isi kolom Nama baris itu kalau NIK yang baru diketik cocok dengan satu akun. */
+async function jdwNamaDariNik(kotak, isianNik){
+  const baris = isianNik.dataset.baris;
+  const nik = String(isianNik.value || '').trim().toLowerCase();
+  if(!nik) return;
+  const nama = (await jdwMuatAkun()).get(nik);
+  // Selama menunggu, isiannya bisa sudah berubah atau mode sunting sudah ditutup.
+  if(!nama || !JDW.draf || String(isianNik.value || '').trim().toLowerCase() !== nik) return;
+  const b = JDW.draf[Number(baris)];
+  if(!b) return;
+  b.nama = nama;
+  const isianNama = kotak.querySelector(`.jdw input[data-kolom="nama"][data-baris="${baris}"]`);
+  if(isianNama) isianNama.value = nama;
+}
+
 async function jdwSimpanUnit(bulan, unit, orang){
   const r = await srvFetch('/dinas/bulan/' + bulan + '/' + unit, {
     method:'PUT', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ orang })
@@ -755,10 +796,13 @@ function jdwPasang(unit){
   // menggambar ulang: mengetik satu huruf lalu kehilangan kursor membuat
   // tabel selebar 31 kolom ini tidak mungkin diisi.
   jdwPasangExcel(kotak, unit);
+  jdwMuatAkun();   // disiapkan sekarang supaya sudah ada waktu NIK pertama diketik
   kotak.querySelectorAll('.jdw input[data-kolom]').forEach(i=>{
     i.addEventListener('input', ()=>{
       const b = JDW.draf[Number(i.dataset.baris)];
-      if(b) b[i.dataset.kolom] = i.value;
+      if(!b) return;
+      b[i.dataset.kolom] = i.value;
+      if(i.dataset.kolom === 'nik') jdwNamaDariNik(kotak, i);
     });
   });
   kotak.querySelectorAll('.jdw button[data-jdw-buang]').forEach(b=>{
