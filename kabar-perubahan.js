@@ -16,6 +16,17 @@ import { usernameUntukPetak } from './pengingat-dinas.js';
 
 const kunciNama = (o) => String(o?.nama || '').trim().toLowerCase().replace(/\s+/g, ' ');
 const kodeHari = (o, i) => String((Array.isArray(o?.hari) ? o.hari[i] : '') || '').trim();
+const nikBaris = (o) => String(o?.nik || '').trim();
+
+/** Baris jadwal tidak selalu orang: "GROUP 1", "MANTEK 2" adalah judul di atas
+    nama-nama grupnya. Yang ditandai tanpa nomor (lihat jdwTanpaNomor di
+    02-kode-dinas.js) bukan orang; begitu juga baris tanpa NIK yang petaknya
+    kosong semua — tidak ada dinas yang bisa dikabarkan darinya. */
+function barisOrang(o) {
+  if (typeof o?.tanpaNo === 'boolean') return !o.tanpaNo;
+  if (nikBaris(o)) return true;
+  return (Array.isArray(o?.hari) ? o.hari : []).some((h) => String(h || '').trim());
+}
 
 /**
  * Selisih jadwal satu unit satu bulan, per orang:
@@ -28,11 +39,17 @@ const kodeHari = (o, i) => String((Array.isArray(o?.hari) ? o.hari[i] : '') || '
  * dihitung: namanya muncul atau hilang dari lembar.
  */
 export function selisihJadwal(lama, baru) {
+  lama = (Array.isArray(lama) ? lama : []).filter(barisOrang);
+  baru = (Array.isArray(baru) ? baru : []).filter(barisOrang);
   const petaLama = new Map();
-  for (const o of Array.isArray(lama) ? lama : []) {
+  const lamaPerNik = new Map();
+  for (const o of lama) {
     const k = kunciNama(o);
-    if (k) petaLama.set(k, o);
+    if (!k) continue;
+    petaLama.set(k, o);
+    if (nikBaris(o)) lamaPerNik.set(nikBaris(o), k);
   }
+  const namaBaru = new Set(baru.map(kunciNama));
   const keluar = [];
   const dilihat = new Set();
   const petakBeda = (a, b) => {
@@ -48,7 +65,14 @@ export function selisihJadwal(lama, baru) {
     const k = kunciNama(o);
     if (!k || dilihat.has(k)) continue;
     dilihat.add(k);
-    const l = petaLama.get(k);
+    let l = petaLama.get(k);
+    // Nama dieja ulang ("Sumindak Roy Rafael Gultom" jadi "Sumindak Gultom"):
+    // NIK-nya sama, jadi itu orang yang sama — bukan satu keluar dan satu masuk.
+    const kLama = l ? '' : lamaPerNik.get(nikBaris(o));
+    if (kLama && !namaBaru.has(kLama) && !dilihat.has(kLama)) {
+      l = petaLama.get(kLama);
+      dilihat.add(kLama);
+    }
     const hari = petakBeda(l, o);
     const dasar = { nama: String(o.nama || '').trim(), nik: String(o.nik || (l && l.nik) || '').trim() };
     if (!l) keluar.push({ ...dasar, jenis: 'tambah', hari });
