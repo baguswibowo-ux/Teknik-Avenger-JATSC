@@ -39,6 +39,17 @@ test('simpan tanpa perubahan, atau hanya peran/NIK, tidak menghasilkan selisih',
   assert.deepEqual(selisihJadwal(LAMA, baru), []);
 });
 
+test('judul grup bukan orang, dan nama yang dieja ulang tetap orang yang sama', () => {
+  const lama = [orang('MANTEK 1', '', ['', '', '', '']), ...structuredClone(LAMA)];
+  const baru = [{ ...orang('GROUP 1', '', ['', '', '', '']), tanpaNo: true }, ...structuredClone(LAMA)];
+  assert.deepEqual(selisihJadwal(lama, baru), []);          // judul diganti: tak ada yang dikabari
+  baru[1].nama = 'Andi S.';                                 // NIK 1001 tetap
+  assert.deepEqual(selisihJadwal(lama, baru), []);
+  baru[1].hari[2] = 'MJ';
+  assert.deepEqual(selisihJadwal(lama, baru),
+    [{ nama: 'Andi S.', nik: '1001', jenis: 'ubah', hari: [{ tgl: 3, dari: '', ke: 'MJ' }] }]);
+});
+
 test('tukar dinas dua orang: dua baris ubah, petaknya tepat', () => {
   const baru = structuredClone(LAMA);
   baru[0].hari[1] = '';      // Andi tgl 2: MJ → kosong
