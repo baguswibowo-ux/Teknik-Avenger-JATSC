@@ -3030,7 +3030,9 @@ export function tandaTanganiCatatan(jenis, id, { nama, username, role, ttd, waki
 
   const path = saveSignature(ttd, t.prefix, {
     unit: row.unit,
-    jabatan: sebagaiPh ? 'PH ' + String(t.label || '').replace(/s*([^)]*)s*$/, '') : ''
+    // "Manager Teknik (BAPB)" -> "PH Manager Teknik": keterangan dalam kurung
+    // itu penanda petak di formulir, bukan bagian dari jabatannya.
+    jabatan: sebagaiPh ? 'PH ' + String(t.label || '').replace(/\s*\([^)]*\)\s*$/, '') : ''
   });
   if (!path) throw new Error('Tanda tangannya kosong.');
 
