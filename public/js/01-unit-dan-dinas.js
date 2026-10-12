@@ -40,11 +40,10 @@
 const KODE_DINAS = [
   /* Bentuk penuh sehari: PSJ/PSN (PS per gedung), MJ/MN (Malam per gedung).
      PJ/PNJ/SJ/SNJ pecahan pagi dan siang per gedung, sama seperti PS diberi
-     PSJ/PSN. P dan S polos TIDAK lagi ditawarkan (permintaan Bagus, 12 Okt
-     2026): pola tiga tanpa gedung memakai P1 / S1 / M1 di bawah. Keduanya
-     tetap dikenal SHIFT, jadi jadwal lama yang berisi P dan S tetap terbaca.
-     M polos: malam tanpa gedung, untuk unit yang tidak membedakan gedung. */
-  'PSJ','PSN','MJ','MN','M','PJ','PNJ','SJ','SNJ',
+     PSJ/PSN. P, S, dan M polos TIDAK ditawarkan (permintaan Bagus, 12 Okt
+     2026): pola tiga tanpa gedung memakai P1 / S1 / M1 di bawah. Ketiganya
+     tetap dikenal SHIFT, jadi jadwal lama yang berisi P / S / M tetap terbaca. */
+  'PSJ','PSN','MJ','MN','PJ','PNJ','SJ','SNJ',
   /* Pecahan tiga: P1 / S1 / M1 polos untuk unit yang dinasnya memang P / S / M
      tanpa menyebut gedung (Navigasi, Pengamatan), lalu bentuk per gedungnya
      untuk pola campuran (hybrid) yang dipakai berdampingan dengan PS + M di

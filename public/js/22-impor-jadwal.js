@@ -363,10 +363,9 @@ async function pdfBaca(berkas){
    dikenali TIDAK dibuang — ia disimpan apa adanya dan dilaporkan, supaya salah
    ketik di lembar aslinya kelihatan alih-alih hilang diam-diam.
 
-   'PS' polos ikut dilaporkan, bukan ditebak: ia belum menyebut JATSC atau New
-   JATSC, dan menebak gedung tempat orang berdinas adalah hal terakhir yang
-   boleh dilakukan diam-diam oleh pengimpor. 'M' polos sekarang kode sah
-   (pasangan P dan S polos), jadi diterima apa adanya — tetap tanpa gedung. */
+   'PS' dan 'M' polos ikut dilaporkan, bukan ditebak: keduanya belum menyebut
+   JATSC atau New JATSC, dan menebak gedung tempat orang berdinas adalah hal
+   terakhir yang boleh dilakukan diam-diam oleh pengimpor. */
 /* 'CUTI' pergi dari daftar ini: sekarang ia kode dinas tersendiri (lihat
    KODE_DINAS di 01-unit-dan-dinas.js), bukan sinonim libur. Sel kosong betulan
    dan tanda pemisah '-'/'.' tetap dibaca sebagai libur — cuti berbeda dari
