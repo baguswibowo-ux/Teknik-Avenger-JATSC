@@ -61,9 +61,13 @@ const segel = (isi, dataDir) =>
 const rapi = (s) => String(s || '').trim().replace(/\s+/g, ' ');
 
 /** Alamat gambar QR untuk satu identitas. NIK boleh kosong (penanda tangan
-    tanpa akun): QR-nya lalu hanya memuat unit dan nama. */
-export function urlTtdQr({ unit, nama, nik }, dataDir) {
-  const isi = Buffer.from(JSON.stringify([rapi(unit), rapi(nama), rapi(nik)])).toString('base64url');
+    tanpa akun): QR-nya lalu hanya memuat unit dan nama. Jabatan, kalau ada,
+    menggantikan baris unit — Manager Teknik menandatangani dokumen banyak
+    unit, dan yang menerangkan dirinya adalah jabatannya. */
+export function urlTtdQr({ unit, nama, nik, jabatan }, dataDir) {
+  const bagian = [rapi(unit), rapi(nama), rapi(nik)];
+  if (rapi(jabatan)) bagian.push(rapi(jabatan));
+  const isi = Buffer.from(JSON.stringify(bagian)).toString('base64url');
   return `${AWALAN_QR}${isi}.${segel(isi, dataDir)}.svg`;
 }
 
@@ -77,8 +81,8 @@ export function bacaUrlTtdQr(url, dataDir) {
   const benar = segel(m[1], dataDir);
   if (!crypto.timingSafeEqual(Buffer.from(m[2]), Buffer.from(benar))) return null;
   try {
-    const [unit, nama, nik] = JSON.parse(Buffer.from(m[1], 'base64url').toString('utf8'));
-    return { unit: rapi(unit), nama: rapi(nama), nik: rapi(nik) };
+    const [unit, nama, nik, jabatan] = JSON.parse(Buffer.from(m[1], 'base64url').toString('utf8'));
+    return { unit: rapi(unit), nama: rapi(nama), nik: rapi(nik), jabatan: rapi(jabatan) };
   } catch { return null; }
 }
 
@@ -86,9 +90,10 @@ export function bacaUrlTtdQr(url, dataDir) {
 export const KOP_QR = 'Perum LPPNPI Cabang JATSC';
 
 /** Yang terbaca saat QR-nya dipindai. */
-export function teksTtdQr({ unit, nama, nik }) {
+export function teksTtdQr({ unit, nama, nik, jabatan }) {
   const baris = [KOP_QR];
-  if (unit) baris.push('Unit: ' + unit);
+  if (jabatan) baris.push('Jabatan: ' + jabatan);
+  else if (unit) baris.push('Unit: ' + unit);
   baris.push('Nama: ' + nama);
   if (nik) baris.push('NIK: ' + nik);
   return baris.join('\n');
@@ -143,4 +148,11 @@ export function svgTtdQr(identitas) {
 
 /** NIK sebuah akun: username-nya, kalau memang berbentuk nomor pegawai. Akun
     uji dan akun bersama ("uji.teknisi") tidak punya NIK untuk dicantumkan. */
+/** Jabatan sebuah akun untuk TTD QR: yang diisi di Kelola Akun; kalau kosong,
+    akun berperan pejabat adalah Manager Teknik. Peran lain tidak punya
+    bawaan — teknisi memang tanpa jabatan, dan pejabat non-operasional
+    (Deputi, General Manager) berbeda-beda sehingga harus diisi. */
+export const jabatanAkun = (jabatan, role) =>
+  String(jabatan || '').trim() || (String(role || '') === 'pejabat' ? 'Manager Teknik' : '');
+
 export const nikDariUsername = (username) => (/^\d{5,}$/.test(String(username || '').trim()) ? String(username).trim() : '');

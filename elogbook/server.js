@@ -76,7 +76,7 @@ const {
   getUserByUsername, verifyPassword, createUser, countUsers, hapusUser,
   jenisTtdSah, unitCatatan, unitHapus, pemilikLembarForm, tandaTanganiCatatan, batalkanTtdCatatan, listPejabatAktif, listPejabatUnit, listTeknisiUnit, listAkunAktif, listPemantauDinas, getInboxTtd,
   getTtdTersimpan, simpanTtdTersimpan, hapusTtdTersimpan, pilihTtdTersimpanAktif, rekapMentah,
-  listUsers, setPassword, setAktif, setRole, setNama, setUsername, ROLE_VALID, SEMUA_UNIT, jumlahAdminAktif,
+  listUsers, setPassword, setAktif, setRole, setNama, setUsername, setIdentitasTtdAkun, ROLE_VALID, SEMUA_UNIT, jumlahAdminAktif,
   UNIT, KODE_UNIT, unitSah, unitUntukUser, setUnitUser,
   createSession, getSessionUser, deleteSession, purgeExpiredSessions,
   ambilBerkas,
@@ -2022,6 +2022,20 @@ const API_ADMIN = {
     }
 
     const dibuat = await createUser({ username, password, nama, role, unit });
+    return listUsers();
+  },
+
+  /** NIK dan jabatan sebuah akun — yang tertulis di TTD QR-nya (ttd-qr.js).
+      TTD yang sudah dibubuhkan tidak ikut berubah: QR memuat identitas saat
+      ditandatangani. */
+  setUserIdentitas: async (username, isi, user) => {
+    const target = await getUserByUsername(String(username || '').trim());
+    if (!target) throw new Error(`Pengguna "${username}" tidak ditemukan.`);
+    pastikanBolehUbahTarget(target, user);
+    const p = (isi && typeof isi === 'object') ? isi : {};
+    const nik = p.nik === undefined ? undefined : String(p.nik || '').trim();
+    if (nik && !/^[0-9A-Za-z.\/-]{3,30}$/.test(nik)) throw new Error('NIK hanya angka/huruf, 3–30 karakter.');
+    await setIdentitasTtdAkun(target.username, { nik, jabatan: p.jabatan });
     return listUsers();
   },
 

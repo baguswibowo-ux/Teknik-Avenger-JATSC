@@ -29,7 +29,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { DATA_DIR, UNIT } from '../db.js';
-import { AWALAN_QR, urlTtdQr, nikDariUsername } from '../ttd-qr.js';
+import { AWALAN_QR, urlTtdQr, nikDariUsername, jabatanAkun } from '../ttd-qr.js';
 
 const arg = process.argv.slice(2);
 const terapkan = arg.includes('--terapkan');
@@ -59,7 +59,7 @@ if (berkasKembali) {
 }
 
 /* --- Akun --- */
-const akun = db.prepare('SELECT username, nama, aktif, nik FROM users').all();
+const akun = db.prepare('SELECT username, nama, aktif, nik, jabatan, role FROM users').all();
 const akunPerUsername = new Map(akun.map((a) => [String(a.username).toLowerCase(), a]));
 const akunPerNama = new Map();   // nama -> akun, atau 'ganda'
 for (const a of akun) {
@@ -74,7 +74,8 @@ const akunDariNama = (nama) => {
 const namaUnit = (kode) => (UNIT.find((u) => u.kode === kode) || {}).nama || String(kode || '');
 const dariAkun = (a) => ({
   nama: String(a.nama || a.username).trim(),
-  nik: String(a.nik || '').trim() || nikDariUsername(a.username)
+  nik: String(a.nik || '').trim() || nikDariUsername(a.username),
+  jabatan: jabatanAkun(a.jabatan, a.role)
 });
 
 /**

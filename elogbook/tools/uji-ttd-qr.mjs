@@ -36,7 +36,7 @@ const logbook = (ttd, lain = {}) => ({
 test('alamat QR: bolak-balik, dan yang bukan buatan server ditolak', () => {
   const url = urlTtdQr({ unit: 'Radtel', nama: 'Bagus  Wibowo ', nik: '10012550' }, DATA);
   assert.ok(url.startsWith(AWALAN_QR) && url.endsWith('.svg'));
-  assert.deepEqual(bacaUrlTtdQr(url, DATA), { unit: 'Radtel', nama: 'Bagus Wibowo', nik: '10012550' });
+  assert.deepEqual(bacaUrlTtdQr(url, DATA), { unit: 'Radtel', nama: 'Bagus Wibowo', nik: '10012550', jabatan: '' });
   // Isi diganti, segel lama: ditolak.
   const palsu = Buffer.from(JSON.stringify(['Radtel', 'Orang Lain', '1'])).toString('base64url');
   assert.equal(bacaUrlTtdQr(AWALAN_QR + palsu + '.' + url.split('.')[1] + '.svg', DATA), null);
@@ -56,7 +56,7 @@ test('yang terbaca saat dipindai: kop, unit, nama, NIK — NIK hilang kalau tida
 test('teknisi: penanda maupun goresan lama jadi QR akun yang sedang login', () => {
   for (const kiriman of [PENANDA_QR, GORESAN]) {
     const e = pemanggil.run(BAGUS, () => db.insertEntry(logbook(kiriman), BAGUS.username, BAGUS.nama));
-    assert.deepEqual(bacaUrlTtdQr(e.TeknisiTTD, DATA), { unit: 'Radtel', nama: 'Bagus Wibowo', nik: '10012550' });
+    assert.deepEqual(bacaUrlTtdQr(e.TeknisiTTD, DATA), { unit: 'Radtel', nama: 'Bagus Wibowo', nik: '10012550', jabatan: '' });
     assert.equal(e.PJTTD, '');
   }
   // Nama di badan kiriman tidak menentukan siapa penanda tangannya.
@@ -77,14 +77,18 @@ test('pejabat menandatangani: QR akunnya; NIK dari kolom nik kalau username buka
   const tanda = () => pemanggil.run(ARYA, () => db.tandaTanganiCatatan('logbook', e.ID,
     { nama: ARYA.nama, username: ARYA.username, role: 'pejabat', ttd: PENANDA_QR, wakilDari: [], diwakili: [] }));
   const h = tanda();
-  assert.deepEqual(bacaUrlTtdQr(h.ttd, DATA), { unit: 'Radtel', nama: 'Arya Gunanawan', nik: '' });
+  // Akun pejabat adalah Manager Teknik walau jabatannya tidak diisi.
+  assert.deepEqual(bacaUrlTtdQr(h.ttd, DATA), { unit: 'Radtel', nama: 'Arya Gunanawan', nik: '', jabatan: 'Manager Teknik' });
   assert.throws(tanda, /sudah ditandatangani/);
 
-  assert.equal(db.setNikAkun('arya', '10010001'), true);
+  assert.equal(db.setIdentitasTtdAkun('arya', { nik: '10010001' }), true);
   const e2 = pemanggil.run(BAGUS, () => db.insertEntry(logbook(PENANDA_QR), BAGUS.username, BAGUS.nama));
   const h2 = pemanggil.run(ARYA, () => db.tandaTanganiCatatan('logbook', e2.ID,
     { nama: ARYA.nama, username: ARYA.username, role: 'pejabat', ttd: PENANDA_QR, wakilDari: [], diwakili: [] }));
-  assert.equal(bacaUrlTtdQr(h2.ttd, DATA).nik, '10010001');
+  const arya = bacaUrlTtdQr(h2.ttd, DATA);
+  assert.deepEqual({ nik: arya.nik, jabatan: arya.jabatan }, { nik: '10010001', jabatan: 'Manager Teknik' });
+  // Jabatan menggantikan baris unit pada yang terbaca.
+  assert.equal(teksTtdQr(arya), 'Perum LPPNPI Cabang JATSC\nJabatan: Manager Teknik\nNama: Arya Gunanawan\nNIK: 10010001');
 });
 
 test('penanda tangan tanpa akun (Personil Operasi): QR unit + nama, tanpa NIK', () => {

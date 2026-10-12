@@ -9,7 +9,7 @@
 
 import { KOLOM_RINGKAS } from './ringkas-dokumen.js';
 import { hakTtd, namaCetakPh, diwakiliUntukTanggal } from './ttd-hak.js';
-import { PENANDA_QR, AWALAN_QR, pemanggil, urlTtdQr, bacaUrlTtdQr, nikDariUsername } from './ttd-qr.js';
+import { PENANDA_QR, AWALAN_QR, pemanggil, urlTtdQr, bacaUrlTtdQr, nikDariUsername, jabatanAkun } from './ttd-qr.js';
 import { DatabaseSync } from 'node:sqlite';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
@@ -454,6 +454,9 @@ tambahKolom('users', 'ph_username', "TEXT NOT NULL DEFAULT ''");
    "arya", "uus"). Dicantumkan di TTD QR; yang username-nya sudah NIK tidak
    perlu mengisinya. Diisi lewat: npm run user -- nik <username> <nik> */
 tambahKolom('users', 'nik', "TEXT NOT NULL DEFAULT ''");
+/* Jabatan untuk TTD QR ("Manager Teknik", "General Manager Teknik"). Kosong
+   untuk teknisi: QR mereka memuat unitnya. Diisi di Kelola Akun. */
+tambahKolom('users', 'jabatan', "TEXT NOT NULL DEFAULT ''");
 tambahKolom('users', 'ph_sampai', "TEXT NOT NULL DEFAULT ''");
 /* Tanggal mulai tugas PH. Kosong pada penunjukan yang dibuat sebelum kolom ini
    ada — dibaca tanpa batas bawah, bukan ditebak (lihat dalamPeriodePh). */
@@ -1007,7 +1010,7 @@ export const getUserByUsername = (username) =>
    kosong — belum terlihat sejak kolomnya ada — memakai waktu masuk terakhir
    dari sesinya, kalau ada. */
 export const listUsers = () =>
-  db.prepare(`SELECT u.id, u.username, u.nama, u.role, u.aktif, u.superadmin, u.dibuat_pada, u.terakhir_aktif,
+  db.prepare(`SELECT u.id, u.username, u.nama, u.role, u.aktif, u.superadmin, u.dibuat_pada, u.terakhir_aktif, u.nik, u.jabatan,
                      (SELECT COUNT(*) FROM sessions s WHERE s.user_id = u.id AND s.kadaluarsa > ?) AS sesi_hidup,
                      (SELECT MAX(s.dibuat_pada) FROM sessions s WHERE s.user_id = u.id) AS masuk_terakhir
                 FROM users u ORDER BY u.username`)
@@ -1111,14 +1114,29 @@ export function saveSignature(dataUrl, prefix, { unit = '', nama = '' } = {}) {
   if (tanpaAkun) return urlTtdQr({ unit: namaUnit, nama: tanpaAkun }, DATA_DIR);
   const p = pemanggil.getStore();
   if (!p || !p.username) throw new Error('Tanda tangan hanya bisa dibubuhkan oleh akun yang sedang login.');
-  return urlTtdQr({ unit: namaUnit, nama: p.nama || p.username, nik: nikAkun(p.username) }, DATA_DIR);
+  return urlTtdQr({ unit: namaUnit, nama: p.nama || p.username, ...identitasTtdAkun(p.username) }, DATA_DIR);
 }
 
-/** NIK sebuah akun untuk TTD QR: kolom nik-nya, kalau kosong username-nya
-    (asal memang berbentuk nomor pegawai). */
-export function nikAkun(username) {
-  const r = db.prepare('SELECT nik FROM users WHERE username = ?').get(String(username || ''));
-  return String((r && r.nik) || '').trim() || nikDariUsername(username);
+/** NIK dan jabatan sebuah akun untuk TTD QR. NIK: kolom nik-nya, kalau kosong
+    username-nya (asal memang berbentuk nomor pegawai). */
+export function identitasTtdAkun(username) {
+  const r = db.prepare('SELECT nik, jabatan, role FROM users WHERE username = ?').get(String(username || '')) || {};
+  return {
+    nik: String(r.nik || '').trim() || nikDariUsername(username),
+    jabatan: jabatanAkun(r.jabatan, r.role)
+  };
+}
+
+/** Isi NIK dan jabatan sebuah akun (yang tidak disebut tidak diubah). */
+export function setIdentitasTtdAkun(username, { nik, jabatan } = {}) {
+  const u = String(username || '').trim();
+  let berubah = false;
+  if (nik !== undefined) berubah = setNikAkun(u, String(nik || '').trim().slice(0, 30)) || berubah;
+  if (jabatan !== undefined) {
+    berubah = db.prepare('UPDATE users SET jabatan = ? WHERE username = ?')
+      .run(String(jabatan || '').trim().slice(0, 60), u).changes > 0 || berubah;
+  }
+  return berubah;
 }
 
 /** Isi NIK sebuah akun. false kalau username-nya tidak ada. */
