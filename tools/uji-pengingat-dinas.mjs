@@ -57,7 +57,7 @@ test('kodeBaku sama dengan milik dashboard untuk tulisan bersih dan kotor', () =
   const dash = muatKodeDinasDashboard();
   const contoh = [
     ...Object.keys(SHIFT_MULAI), 'psj', ' MN ', 'MJ (SPKL)', 'PSJ (SPKL)', 'C  U  T  I',
-    'pagi', 'SIANG', 'Malam', 'ct', 'Cuti Tahunan', 'Izin', 'Dinas Luar', 'SAKIT',
+    'pagi', 'SIANG', 'Malam', 'ct', 'Cuti Tahunan', 'Izin', 'Dinas Luar', 'SAKIT', 'sakit', 'skt', 'S A K I T',
     'PAGI (SPKL)', 'SPKL', 'XYZ', '', null, undefined, '  ', 'P (SPKL)', 'S(SPKL)',
     'm1j', ' P1 NJ ', 'M1', 'P2J', 'M1J (SPKL)'
   ];

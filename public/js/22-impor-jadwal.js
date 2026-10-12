@@ -379,7 +379,8 @@ const IMPOR_LIBUR = new Set(['', '-', '—', '.', 'L', 'LIBUR', 'OFF', 'X', 'O']
 const IMPOR_ALIAS = {
   'PAGI':'P', 'SIANG':'S',
   'CUTI TAHUNAN':'CUTI', 'CT':'CUTI',
-  'CUTI ALASAN PENTING':'CAP', 'SAKIT':'CAP',
+  'CUTI ALASAN PENTING':'CAP',
+  'SAKIT':'SAKIT', 'SKT':'SAKIT',
   'IZIN':'IJIN',
   'DINAS LUAR':'DL', 'DL':'DL'
 };

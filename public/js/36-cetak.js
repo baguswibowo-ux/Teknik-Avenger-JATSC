@@ -2151,12 +2151,13 @@ function tanggalPanjangID(iso){
  *   CAP  → "Cuti Alasan Penting" (sama dengan legenda kode dinas; dulu
  *                              tertulis "SAP" dan terbaca sebagai hal lain)
  *   IJIN → "Ijin"
+ *   SAKIT → "Sakit"
  *   DL   → "Dinas Luar"       (bertugas di luar stasiun)
  * Kode lain tidak masuk daftar ini — mereka bagian dari giliran jaga.
  */
 function dinasBarisCuti(orang, bulan){
   if(!Array.isArray(orang) || !orang.length) return [];
-  const KODE_CUTI = { CUTI: 'Cuti Tahunan', CAP: 'Cuti Alasan Penting', IJIN: 'Ijin', DL: 'Dinas Luar' };
+  const KODE_CUTI = { CUTI: 'Cuti Tahunan', CAP: 'Cuti Alasan Penting', IJIN: 'Ijin', SAKIT: 'Sakit', DL: 'Dinas Luar' };
   const hariN = jumlahHari(bulan);
   const bulanIdx = Number(bulan.slice(5, 7));
   const bulanNama = BULAN_ID[bulanIdx - 1] || '';

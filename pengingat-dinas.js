@@ -77,6 +77,7 @@ export const SHIFT_MULAI = {
   CUTI: { mulai: 0, nama: 'Cuti Tahunan', libur: true },
   CAP:  { mulai: 0, nama: 'Cuti Alasan Penting', libur: true },
   IJIN: { mulai: 0, nama: 'Ijin', libur: true },
+  SAKIT: { mulai: 0, nama: 'Sakit', libur: true },
   DL:   { mulai: 0, nama: 'Dinas Luar', libur: true }
 };
 
@@ -84,7 +85,7 @@ export const SHIFT_MULAI = {
 const ALIAS = {
   PAGI: 'Pagi', SIANG: 'Siang', MALAM: 'Malam',
   CT: 'CUTI', CUTITAHUNAN: 'CUTI',
-  CUTIALASANPENTING: 'CAP', SAKIT: 'CAP',
+  CUTIALASANPENTING: 'CAP', SKT: 'SAKIT',
   IZIN: 'IJIN', DINASLUAR: 'DL'
 };
 

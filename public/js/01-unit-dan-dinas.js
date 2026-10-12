@@ -57,7 +57,7 @@ const KODE_DINAS = [
      'CUTI' di lembar aslinya tidak lagi jatuh ke "libur" begitu saja.
      DL (Dinas Luar) ikut di sini: orangnya bertugas tetapi di luar stasiun,
      jadi tampil di petaknya tanpa jam dan tanpa cakupan — sama seperti CUTI. */
-  'CUTI','CAP','IJIN','DL'
+  'CUTI','CAP','IJIN','SAKIT','DL'
 ];
 
 /* Yang dipasang sebagai petak sebelum ada jadwal yang bisa dibaca. P dan S

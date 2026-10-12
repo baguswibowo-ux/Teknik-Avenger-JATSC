@@ -89,6 +89,12 @@ const SHIFT = {
   'CUTI': { mulai:0, sampai:0, warna:'var(--muted)', nama:'Cuti Tahunan',       libur:true },
   'CAP':  { mulai:0, sampai:0, warna:'var(--fail)',  nama:'Cuti Alasan Penting', libur:true },
   'IJIN': { mulai:0, sampai:0, warna:'var(--warn)',  nama:'Ijin',               libur:true },
+  /* Sakit — dulu ditampung CAP lewat alias. Diberi kode sendiri (permintaan
+     Bagus, 12 Okt 2026) supaya di jadwal dan di keterangan lembar cetak
+     tertulis "Sakit", bukan "Cuti Alasan Penting". Sifatnya sama dengan cuti:
+     tampil di petaknya, tanpa jam dan tanpa cakupan. Warnanya merah muda
+     supaya beda dari CAP (merah) dan IJIN (kuning), terbaca di kedua tema. */
+  'SAKIT': { mulai:0, sampai:0, warna:'#ec4899',     nama:'Sakit',              libur:true },
   /* Dinas Luar — orangnya sedang bertugas, tetapi di luar stasiun (diklat,
      rapat, penugasan lapangan). Untuk papan cakupan ini ia sama seperti cuti:
      tetap tampil di petak hari itu supaya terlihat siapa yang tidak di tempat,
@@ -169,7 +175,7 @@ const gedungCocok = (k, kode) => {
 const ALIAS_SHIFT = {
   PAGI:'Pagi', SIANG:'Siang', MALAM:'Malam',
   CT:'CUTI', CUTITAHUNAN:'CUTI',
-  CUTIALASANPENTING:'CAP', SAKIT:'CAP',
+  CUTIALASANPENTING:'CAP', SKT:'SAKIT',
   IZIN:'IJIN', DINASLUAR:'DL'
 };
 
