@@ -96,15 +96,46 @@ export function pesanBerkalaDinas({ nama, unit, namaShift, kode, tanggal, jam, d
 
 const potong = (xs, maks) => (xs.length <= maks ? xs : xs.slice(0, maks));
 
+/** "14–18" kalau tanggalnya berurutan atau banyak, "14, 20" kalau sedikit dan
+    terpisah — rentang 14–20 untuk dua tanggal itu mengesankan seminggu berubah. */
+function rentangTgl(tgl) {
+  const t = [...new Set(tgl)].sort((a, b) => a - b);
+  if (!t.length) return '';
+  const akhir = t[t.length - 1];
+  if (t.length === 1) return String(t[0]);
+  return akhir - t[0] === t.length - 1 || t.length > 3 ? `${t[0]}–${akhir}` : t.join(', ');
+}
+
+/** Satu orang di daftar "siapa saja": namanya dan tanggal yang berubah. */
+function sebutOrang(s) {
+  if (typeof s === 'string') return esc(s);
+  const ket = s.jenis === 'tambah' ? 'baru masuk' : s.jenis === 'hapus' ? 'dikeluarkan'
+    : 'tgl ' + rentangTgl((s.hari || []).map((h) => h.tgl));
+  return `${esc(s.nama)} (${ket})`;
+}
+
 /** Kabar ke orang-orang satu unit (dashboard): daftar dinasnya baru disimpan
     dengan perubahan. `milik` baris selisih penerimanya sendiri (lihat
-    selisihJadwal di kabar-perubahan.js) atau null; `lain` nama orang lain yang
-    jadwalnya ikut berubah. Tanggalnya tanggal lembar (UTC), sama seperti yang
-    tertulis di tabel Jadwal Dinas. */
-export function pesanDafdinBerubah({ unit, bulan, oleh, milik, lain }) {
+    selisihJadwal di kabar-perubahan.js) atau null; `semua` seluruh baris
+    selisihnya — dari situ tanggal yang berubah dan siapa saja orangnya.
+    Tanggalnya tanggal lembar (UTC), sama seperti yang tertulis di tabel
+    Jadwal Dinas. */
+export function pesanDafdinBerubah({ unit, bulan, oleh, milik, semua, lain }) {
   const baris = ['📅 <b>Daftar dinas diperbarui</b>', ''];
   baris.push(`Unit ${esc(unit)} · ${esc(bulan)}`);
+  // Orang yang baru masuk atau dikeluarkan tidak ikut menentukan rentangnya:
+  // seluruh bulannya "berubah", dan itu menenggelamkan tukar dinas dua hari.
+  const tglUbah = [...(semua || []), ...(milik ? [milik] : [])]
+    .filter((s) => s.jenis === 'ubah').flatMap((s) => (s.hari || []).map((h) => h.tgl));
+  if (tglUbah.length) {
+    const awal = Math.min(...tglUbah), akhir = Math.max(...tglUbah);
+    baris.push(`Tanggal diubah: <b>${awal === akhir ? awal : `${awal}–${akhir}`}</b>`);
+  }
   if (oleh) baris.push(`Diubah oleh: ${esc(oleh)}`);
+  const orangLain = (lain || (semua || []).filter((s) => s !== milik)).filter(Boolean);
+  const daftarLain = orangLain.length
+    ? `${potong(orangLain, 4).map(sebutOrang).join(', ')}${orangLain.length > 4 ? ` +${orangLain.length - 4} lagi` : ''}`
+    : '';
   if (milik && milik.jenis === 'hapus') {
     baris.push('<b>Nama Anda tidak lagi ada di daftar bulan ini.</b>');
   } else if (milik) {
@@ -117,12 +148,10 @@ export function pesanDafdinBerubah({ unit, bulan, oleh, milik, lain }) {
     }
     if (terisi.length > 8) baris.push(`+${terisi.length - 8} tanggal lagi`);
   } else {
-    const nama = (lain || []).filter(Boolean);
-    if (nama.length) {
-      baris.push(`Berubah: ${potong(nama, 4).map(esc).join(', ')}${nama.length > 4 ? ` +${nama.length - 4} lagi` : ''}`);
-    }
+    if (daftarLain) baris.push(`Berubah: ${daftarLain}`);
     baris.push('Jadwal Anda sendiri tidak berubah.');
   }
+  if (milik && daftarLain) baris.push(`Juga berubah: ${daftarLain}`);
   return baris.join('\n');
 }
 

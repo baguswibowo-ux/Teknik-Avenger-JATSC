@@ -5427,10 +5427,9 @@ async function kabariDafdin({ bulan, unit, lama, baru, user }) {
       anggota: [...d.anggota, ...d.pemantau, { username: user.username }]
     });
     const namaUnit = (d.unit.find((u) => u.kode === unit) || {}).nama || unit;
-    const berubah = selisih.map((s) => s.nama);
     for (const { username, milik } of penerima) {
       const hasil = await kirimNotifKeAkun(username, pesanDafdinBerubah({
-        unit: namaUnit, bulan: namaBulan(bulan), oleh: user.nama || user.username, milik, lain: berubah
+        unit: namaUnit, bulan: namaBulan(bulan), oleh: user.nama || user.username, milik, semua: selisih
       }));
       if (!hasil.aktif) return;            // notifikasi HP mati di server: percuma lanjut
     }
