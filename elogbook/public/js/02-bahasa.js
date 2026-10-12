@@ -321,6 +321,7 @@ const KAMUS = {
     ttdQrTekan:'Tekan untuk tanda tangan', ttdQrKet:'jadi kode QR: unit, nama, dan NIK akun Anda',
     ttdQrKetNama:'jadi kode QR: unit dan nama yang tertulis di atas',
     ttdQrSudah:'Ditandatangani', ttdQrBatal:'tekan lagi untuk membatalkan', ttdQrSudahAda:'sudah ditandatangani',
+    ttdQrPerbesar:'Ketuk untuk memperbesar, lalu pindai', ttdQrTutup:'pindai dengan kamera HP · ketuk untuk menutup',
     tanpaAkunKet:'Tidak ditampilkan karena tidak cocok dengan akun aktif mana pun:',
     /* catatan di balik angkanya */
     catatanMendasari:'Catatan yang mendasarinya',
@@ -718,6 +719,7 @@ const KAMUS = {
     ttdQrTekan:'Press to sign', ttdQrKet:'becomes a QR code: your unit, name and employee number',
     ttdQrKetNama:'becomes a QR code: the unit and the name written above',
     ttdQrSudah:'Signed', ttdQrBatal:'press again to undo', ttdQrSudahAda:'already signed',
+    ttdQrPerbesar:'Tap to enlarge, then scan', ttdQrTutup:'scan with a phone camera · tap to close',
     tanpaAkunKet:'Not shown because they match no active account:',
     catatanMendasari:'The records behind these numbers',
     terbaruDiAtas:'newest first.', tekanSelUntukSaring:'Press a cell in the matrix above to narrow this down.',
@@ -1077,6 +1079,7 @@ const KAMUS = {
     ttdQrTekan:'Pulse para firmar', ttdQrKet:'se convierte en un código QR: su unidad, nombre y número de empleado',
     ttdQrKetNama:'se convierte en un código QR: la unidad y el nombre escrito arriba',
     ttdQrSudah:'Firmado', ttdQrBatal:'pulse otra vez para deshacer', ttdQrSudahAda:'ya firmado',
+    ttdQrPerbesar:'Toque para ampliar y luego escanee', ttdQrTutup:'escanee con la cámara del móvil · toque para cerrar',
     tanpaAkunKet:'No se muestran porque no coinciden con ninguna cuenta activa:',
     catatanMendasari:'Los registros detrás de estas cifras',
     terbaruDiAtas:'los más recientes primero.', tekanSelUntukSaring:'Pulse una celda de la matriz de arriba para acotar esto.',

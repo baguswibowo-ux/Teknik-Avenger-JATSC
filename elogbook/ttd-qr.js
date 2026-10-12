@@ -26,7 +26,8 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { svgQr } from '../qr-kode/svg.js';
+import { fileURLToPath } from 'node:url';
+import { matriksQr } from '../qr-kode/svg.js';
 
 /** Yang dikirim layar sebagai pengganti goresan: "bubuhkan TTD akun ini". */
 export const PENANDA_QR = 'qr:akun';
@@ -90,14 +91,49 @@ export function teksTtdQr({ unit, nama, nik }) {
   return baris.join('\n');
 }
 
+/* Lambang Avengers di tengah QR — ikon aplikasinya sendiri. Ditanam sebagai
+   data URI: SVG yang ditampilkan lewat <img> tidak boleh memuat berkas lain.
+   Kalau berkasnya tidak ada, QR-nya tetap jadi, hanya tanpa lambang. */
+let lambang = null;
+function lambangAvengers() {
+  if (lambang !== null) return lambang;
+  try {
+    const berkas = fileURLToPath(new URL('../public/images/pwa/ikon-192.png', import.meta.url));
+    lambang = 'data:image/png;base64,' + fs.readFileSync(berkas).toString('base64');
+  } catch { lambang = ''; }
+  return lambang;
+}
+
 /**
- * Gambar QR-nya. Lebar dan tinggi ditulis terang: lembar cetak menggambar TTD
- * ke kanvas untuk menghitamkan goresan (ttdToBlack), dan SVG tanpa ukuran
- * digambar peramban ke kotak 300x150 yang sebagiannya tembus pandang — QR-nya
- * lalu dikira goresan dan dihitamkan seluruhnya.
+ * Gambar QR-nya, dengan lambang Avengers di tengah.
+ *
+ * Tingkat koreksi H: lambang menutupi sebagian kotak di tengah, dan H masih
+ * terbaca walau ±30% kodenya hilang. Lambang berikut alas putihnya memakan
+ * 26% lebar (±7% luas) — jauh di bawah batas itu, supaya goresan atau lipatan
+ * di kertas masih punya cadangan.
+ *
+ * Lebar dan tinggi ditulis terang: lembar cetak menggambar TTD ke kanvas
+ * untuk menghitamkan goresan (ttdToBlack), dan SVG tanpa ukuran digambar
+ * peramban ke kotak 300x150 yang sebagiannya tembus pandang — QR-nya lalu
+ * dikira goresan dan dihitamkan seluruhnya.
  */
 export function svgTtdQr(identitas) {
-  return svgQr(teksTtdQr(identitas), 'M').replace('<svg ', '<svg width="240" height="240" ');
+  const m = matriksQr(teksTtdQr(identitas), 'H');
+  const n = m.length, tepi = 4, sisi = n + tepi * 2;
+  let d = '';
+  m.forEach((baris, r) => baris.forEach((hitam, c) => {
+    if (hitam) d += `M${c + tepi} ${r + tepi}h1v1h-1z`;
+  }));
+  const logo = lambangAvengers();
+  const alas = Math.round(sisi * 0.26), gambar = alas - 2;
+  const a0 = (sisi - alas) / 2, g0 = (sisi - gambar) / 2;
+  const tengah = !logo ? '' :
+    `<rect x="${a0}" y="${a0}" width="${alas}" height="${alas}" rx="${alas * 0.2}" fill="#fff"/>`
+    + `<clipPath id="k"><rect x="${g0}" y="${g0}" width="${gambar}" height="${gambar}" rx="${gambar * 0.2}"/></clipPath>`
+    + `<image href="${logo}" x="${g0}" y="${g0}" width="${gambar}" height="${gambar}" clip-path="url(#k)"/>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="480" height="480" viewBox="0 0 ${sisi} ${sisi}">`
+    + `<rect width="${sisi}" height="${sisi}" fill="#fff"/>`
+    + `<path d="${d}" fill="#000" shape-rendering="crispEdges"/>${tengah}</svg>`;
 }
 
 /** NIK sebuah akun: username-nya, kalau memang berbentuk nomor pegawai. Akun

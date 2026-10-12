@@ -48,7 +48,8 @@ test('yang terbaca saat dipindai: unit, nama, NIK — NIK hilang kalau tidak ada
     'Unit: Radtel\nNama: Bagus Wibowo\nNIK: 10012550');
   assert.equal(teksTtdQr({ unit: 'Radkom', nama: 'Personil Ops', nik: '' }), 'Unit: Radkom\nNama: Personil Ops');
   const svg = svgTtdQr({ unit: 'Radtel', nama: 'Bagus Wibowo', nik: '10012550' });
-  assert.match(svg, /^<svg width="240" height="240" /);
+  assert.match(svg, /^<svg xmlns="http:\/\/www.w3.org\/2000\/svg" width="480" height="480" /);
+  assert.match(svg, /<image href="data:image\/png;base64,/);   // lambang di tengah
 });
 
 test('teknisi: penanda maupun goresan lama jadi QR akun yang sedang login', () => {

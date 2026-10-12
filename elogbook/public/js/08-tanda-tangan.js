@@ -155,5 +155,22 @@ window.addEventListener('resize', resizeAllVisibleSigPads);
 window.addEventListener('orientationchange', ()=>setTimeout(resizeAllVisibleSigPads, 250));
 function sigThumbHtml(url){
   if(!url) return '<span class="sig-empty-thumb">— belum TTD —</span>';
-  return `<div class="sig-thumb${String(url).includes('/qr-ttd/') ? ' sig-qr' : ''}"><img src="${url}" alt="TTD"></div>`;
+  if(String(url).includes('/qr-ttd/')){
+    return `<div class="sig-thumb sig-qr"><img src="${url}" alt="TTD QR" title="${escapeHtml(T('ttdQrPerbesar'))}" onclick="bukaQrBesar(event, this.src)"></div>`;
+  }
+  return `<div class="sig-thumb"><img src="${url}" alt="TTD"></div>`;
+}
+
+/** QR sebesar layar. Di daftar, QR-nya hanya sebesar ibu jari — cukup untuk
+    dikenali, terlalu rapat untuk kamera. Diketuk, ia tampil besar di atas latar
+    putih supaya bisa dipindai dari HP lain. */
+function bukaQrBesar(ev, src){
+  if(ev){ ev.stopPropagation(); ev.preventDefault(); }
+  document.getElementById('qrBesar')?.remove();
+  const d = document.createElement('div');
+  d.id = 'qrBesar';
+  d.className = 'qr-besar';
+  d.innerHTML = `<img src="${src}" alt="TTD QR"><span>${escapeHtml(T('ttdQrTutup'))}</span>`;
+  d.onclick = ()=> d.remove();
+  document.body.appendChild(d);
 }
