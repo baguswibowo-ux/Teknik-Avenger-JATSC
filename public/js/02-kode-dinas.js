@@ -85,6 +85,17 @@ const SHIFT = {
   'SPKLPNJ': { mulai:0,  sampai:7,  warna:'#a855f7', nama:'SPKL Pagi New JATSC',  pita:'P', geser:true },
   'SPKLSJ':  { mulai:7,  sampai:13, warna:'#a855f7', nama:'SPKL Siang JATSC',     pita:'S', geser:true },
   'SPKLSNJ': { mulai:7,  sampai:13, warna:'#a855f7', nama:'SPKL Siang New JATSC', pita:'S', geser:true },
+  /* SPKL untuk pecahan tiga P1 / S1 / M1, polos dan per gedung. Jam dan sifat
+     sama dengan dasarnya: tanpa `geser`, dan M1 memang mulai 13:00. */
+  'SPKLP1':   { mulai:0,  sampai:7,  warna:'#a855f7', nama:'SPKL Pagi 1',            pita:'P' },
+  'SPKLS1':   { mulai:7,  sampai:13, warna:'#a855f7', nama:'SPKL Siang 1',           pita:'S' },
+  'SPKLM1':   { mulai:13, sampai:24, warna:'#a855f7', nama:'SPKL Malam 1',           pita:'M', malam:true },
+  'SPKLP1J':  { mulai:0,  sampai:7,  warna:'#a855f7', nama:'SPKL Pagi 1 JATSC',      pita:'P' },
+  'SPKLS1J':  { mulai:7,  sampai:13, warna:'#a855f7', nama:'SPKL Siang 1 JATSC',     pita:'S' },
+  'SPKLM1J':  { mulai:13, sampai:24, warna:'#a855f7', nama:'SPKL Malam 1 JATSC',     pita:'M', malam:true },
+  'SPKLP1NJ': { mulai:0,  sampai:7,  warna:'#a855f7', nama:'SPKL Pagi 1 New JATSC',  pita:'P' },
+  'SPKLS1NJ': { mulai:7,  sampai:13, warna:'#a855f7', nama:'SPKL Siang 1 New JATSC', pita:'S' },
+  'SPKLM1NJ': { mulai:13, sampai:24, warna:'#a855f7', nama:'SPKL Malam 1 New JATSC', pita:'M', malam:true },
 
   /* Tidak berdinas — kartu tetap tampil supaya manajer melihat siapa saja yang
      tidak masuk hari itu, tetapi tanpa jam dan tanpa pita cakupan. `libur:true`
@@ -189,7 +200,13 @@ function kodeBaku(kode){
   /* Kode berangka (P1J, M1NJ) dicocokkan dulu selagi angkanya masih ada —
      kalau angkanya ikut dibuang, 'M1J' terbaca 'MJ' dan jamnya salah. */
   const rapat = String(kode == null ? '' : kode).toUpperCase().replace(/[^A-Z0-9]/g, '');
-  if(/\d/.test(rapat) && SHIFT[rapat]) return rapat;
+  if(/\d/.test(rapat)){
+    if(SHIFT[rapat]) return rapat;
+    /* SPKL di belakang kode berangka: 'M1J (SPKL)' → 'SPKLM1J'. Tanpa ini
+       angkanya terbuang di bawah dan ia terbaca 'SPKLMJ' — malam yang salah jam. */
+    const dasar = rapat.replace('SPKL', '');
+    if(dasar !== rapat && SHIFT['SPKL' + dasar]) return 'SPKL' + dasar;
+  }
   const huruf = rapat.replace(/[^A-Z]/g, '');
   if(!huruf) return '';
   if(SHIFT[huruf]) return huruf;

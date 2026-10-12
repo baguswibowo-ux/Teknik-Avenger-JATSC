@@ -77,6 +77,15 @@ export const SHIFT_MULAI = {
   SPKLPNJ: { mulai: 0, nama: 'SPKL Pagi New JATSC', geser: true },
   SPKLSJ:  { mulai: 7, nama: 'SPKL Siang JATSC', geser: true },
   SPKLSNJ: { mulai: 7, nama: 'SPKL Siang New JATSC', geser: true },
+  SPKLP1:   { mulai: 0, nama: 'SPKL Pagi 1' },
+  SPKLS1:   { mulai: 7, nama: 'SPKL Siang 1' },
+  SPKLM1:   { mulai: 13, nama: 'SPKL Malam 1', malam: true },
+  SPKLP1J:  { mulai: 0, nama: 'SPKL Pagi 1 JATSC' },
+  SPKLS1J:  { mulai: 7, nama: 'SPKL Siang 1 JATSC' },
+  SPKLM1J:  { mulai: 13, nama: 'SPKL Malam 1 JATSC', malam: true },
+  SPKLP1NJ: { mulai: 0, nama: 'SPKL Pagi 1 New JATSC' },
+  SPKLS1NJ: { mulai: 7, nama: 'SPKL Siang 1 New JATSC' },
+  SPKLM1NJ: { mulai: 13, nama: 'SPKL Malam 1 New JATSC', malam: true },
   CUTI: { mulai: 0, nama: 'Cuti Tahunan', libur: true },
   CAP:  { mulai: 0, nama: 'Cuti Alasan Penting', libur: true },
   IJIN: { mulai: 0, nama: 'Ijin', libur: true },
@@ -100,7 +109,11 @@ const KUNCI_BESAR = Object.fromEntries(Object.keys(SHIFT_MULAI).map((k) => [k.to
     Aturannya sama persis dengan kodeBaku() dashboard. */
 export function kodeBaku(kode) {
   const rapat = String(kode == null ? '' : kode).toUpperCase().replace(/[^A-Z0-9]/g, '');
-  if (/\d/.test(rapat) && KUNCI_BESAR[rapat]) return KUNCI_BESAR[rapat];
+  if (/\d/.test(rapat)) {
+    if (KUNCI_BESAR[rapat]) return KUNCI_BESAR[rapat];
+    const dasar = rapat.replace('SPKL', '');
+    if (dasar !== rapat && KUNCI_BESAR['SPKL' + dasar]) return KUNCI_BESAR['SPKL' + dasar];
+  }
   const huruf = rapat.replace(/[^A-Z]/g, '');
   if (!huruf) return '';
   if (KUNCI_BESAR[huruf]) return KUNCI_BESAR[huruf];

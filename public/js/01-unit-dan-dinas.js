@@ -54,7 +54,12 @@ const KODE_DINAS = [
      jadwal harian. Jam dan pita cakupan mengikuti varian dasarnya (lihat
      SHIFT), warnanya sengaja beda supaya kartu SPKL tidak salah dibaca sebagai
      jaga rutin. */
-  'SPKLPSJ','SPKLPSN','SPKLMJ','SPKLMN','SPKLP','SPKLS','SPKLPJ','SPKLPNJ','SPKLSJ','SPKLSNJ',
+  /* Daftarnya cermin kode dinas di atas, satu per satu: tinggal 'SPKL' di
+     depannya (permintaan Bagus, 12 Okt 2026). Varian lama SPKLP / SPKLS /
+     SPKLPJ / SPKLPNJ / SPKLSJ / SPKLSNJ ikut tidak ditawarkan bersama dasarnya,
+     tetapi tetap dikenal SHIFT. */
+  'SPKLPSJ','SPKLPSN','SPKLMJ','SPKLMN',
+  'SPKLP1','SPKLS1','SPKLM1','SPKLP1J','SPKLS1J','SPKLM1J','SPKLP1NJ','SPKLS1NJ','SPKLM1NJ',
   /* Tidak berdinas — orangnya tetap muncul di petak hari itu supaya siapa yang
      absen kelihatan, tetapi tanpa jam dan tanpa hitungan cakupan (lihat entri
      `libur:true` di SHIFT). Pengimpor membedakannya dari sel kosong, jadi
