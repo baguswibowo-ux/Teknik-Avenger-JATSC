@@ -1099,7 +1099,7 @@ export const purgeExpiredSessions = () =>
  * Alamat yang sudah tersimpan dikembalikan apa adanya, supaya menyimpan ulang
  * sebuah catatan tidak mengganti tanda tangan yang sudah ada.
  */
-export function saveSignature(dataUrl, prefix, { unit = '', nama = '' } = {}) {
+export function saveSignature(dataUrl, prefix, { unit = '', nama = '', jabatan = '' } = {}) {
   if (!dataUrl) return '';
   const s = String(dataUrl);
   if (prefix === 'ttd_akun') return simpanGambarTtd(s, prefix);
@@ -1114,7 +1114,10 @@ export function saveSignature(dataUrl, prefix, { unit = '', nama = '' } = {}) {
   if (tanpaAkun) return urlTtdQr({ unit: namaUnit, nama: tanpaAkun }, DATA_DIR);
   const p = pemanggil.getStore();
   if (!p || !p.username) throw new Error('Tanda tangan hanya bisa dibubuhkan oleh akun yang sedang login.');
-  return urlTtdQr({ unit: namaUnit, nama: p.nama || p.username, ...identitasTtdAkun(p.username) }, DATA_DIR);
+  // jabatan dari pemanggil ("PH Manager Teknik") mengalahkan jabatan akunnya:
+  // seorang PH menandatangani dalam kedudukan itu, bukan sebagai teknisi unitnya.
+  const akun = identitasTtdAkun(p.username);
+  return urlTtdQr({ unit: namaUnit, nama: p.nama || p.username, ...akun, jabatan: String(jabatan || '').trim() || akun.jabatan }, DATA_DIR);
 }
 
 /** NIK dan jabatan sebuah akun untuk TTD QR. NIK: kolom nik-nya, kalau kosong
@@ -3025,7 +3028,10 @@ export function tandaTanganiCatatan(jenis, id, { nama, username, role, ttd, waki
     role, username, ttdUntuk: row.ttd_untuk, dibuatOleh: row.dibuat_oleh, wakilDari: wakilSah
   });
 
-  const path = saveSignature(ttd, t.prefix, { unit: row.unit });
+  const path = saveSignature(ttd, t.prefix, {
+    unit: row.unit,
+    jabatan: sebagaiPh ? 'PH ' + String(t.label || '').replace(/s*([^)]*)s*$/, '') : ''
+  });
   if (!path) throw new Error('Tanda tangannya kosong.');
 
   // Lewat PH, yang tercetak nama PH sendiri berikut kedudukan dan nama pejabat
