@@ -148,6 +148,27 @@ function tanggalMerah(bulan, h){
   return new Date(Number(m[1]), Number(m[2]) - 1, Number(h)).getDay() === 0 ? 'Minggu' : '';
 }
 
+/* =======================================================================
+   BARIS TANPA NOMOR — judul grup di tabel jadwal
+
+   Baris jadwal tidak selalu orang: "GRUP 1", "GROUP 2" adalah judul yang
+   ditaruh di atas nama-nama grupnya. Baris seperti itu tidak bernomor, dan
+   nomor urut baris di bawahnya meneruskan hitungan seolah judulnya tidak ada.
+
+   `tanpaNo` di barisnya yang menentukan — diatur lewat klik nomor di mode
+   sunting. Baris yang belum pernah diatur (jadwal lama) ditebak: bernama
+   GRUP/GROUP dan tanpa NIK = judul. Dipakai tabel di layar dan lembar cetak.
+   ======================================================================= */
+function jdwTanpaNomor(o){
+  if(o && typeof o.tanpaNo === 'boolean') return o.tanpaNo;
+  return /^(grup|group)\b/i.test(String((o && o.nama) || '').trim()) && !String((o && o.nik) || '').trim();
+}
+/** Nomor urut tiap baris — '' untuk baris tanpa nomor: [1, 2, '', 3, …]. */
+function jdwNomorUrut(baris){
+  let n = 0;
+  return (Array.isArray(baris) ? baris : []).map(o=>jdwTanpaNomor(o) ? '' : ++n);
+}
+
 /* Urutan pita di panel Cakupan 24 Jam, dari yang paling lebar. */
 const URUT_PITA = ['PS','M','P','S'];
 

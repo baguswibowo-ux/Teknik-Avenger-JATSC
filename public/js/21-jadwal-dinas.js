@@ -369,7 +369,7 @@ function polaDraf(bulan, lalu, sebelumLalu){
     ];
     const t = polaLanjut(riwayat, hariN);
     hasil[!t ? 'kosong' : t.ragu ? 'ragu' : 'lanjut'].push(o.nama);
-    hasil.orang.push({ nama:o.nama, peran:o.peran || '', nik:o.nik || '',
+    hasil.orang.push({ nama:o.nama, peran:o.peran || '', nik:o.nik || '', ...(typeof o.tanpaNo === 'boolean' ? { tanpaNo:o.tanpaNo } : {}),
                        hari: t ? t.hari : Array(hariN).fill('') });
   });
   return hasil;
@@ -487,6 +487,7 @@ function jdwTabel(unit){
     : JDW.pola.ragu.includes(nama) ? `<span title="${esc(T('Polanya kurang rapi — periksa hasilnya.',
         'Irregular pattern — check the result.'))}" style="color:var(--warn)"> ●</span>` : '';
 
+  const nomor = jdwNomorUrut(baris);
   const isi = baris.map((o,i)=>{
     const sel = (h)=>{
       const nilai = (o.hari || [])[h] || '';
@@ -499,8 +500,17 @@ function jdwTabel(unit){
       return `<td class="jdw-sel ${kelasHari(h)}" data-baris="${i}" data-hari="${h}"${nilai
         ? ` style="color:${warnaShift(nilai, 'var(--text)')}"` : ''}>${esc(nilai)}</td>`;
     };
-    return `<tr>
-      <td class="jdw-no">${i+1}${tandaPola(o.nama)}</td>
+    /* Mode sunting: ⠿ diseret untuk memindah urutan baris; nomornya diklik
+       untuk dihapus (baris judul grup) atau dikembalikan — nomor baris di
+       bawahnya menyesuaikan sendiri. */
+    return `<tr data-jdw-tr="${i}"${nomor[i] === '' ? ' class="jdw-judul"' : ''}>
+      <td class="jdw-no">${JDW.sunting
+        ? `<span class="jdw-seret" data-jdw-seret="${i}" title="${esc(T('Seret ke atas atau ke bawah untuk memindah urutan',
+            'Drag up or down to reorder'))}">⠿</span><button type="button" class="jdw-nomor" data-jdw-nomor="${i}" title="${
+            esc(nomor[i] === '' ? T('Tanpa nomor (judul grup). Klik untuk memberi nomor lagi.','No number (group title). Click to number it again.')
+              : T('Klik untuk menghapus nomor baris ini (judul grup). Nomor di bawahnya meneruskan.',
+                  'Click to remove this row’s number (group title). Numbers below continue.'))}">${nomor[i] === '' ? '—' : nomor[i]}</button>`
+        : nomor[i]}${tandaPola(o.nama)}</td>
       <td class="jdw-nama">${JDW.sunting
         ? `<input type="text" data-baris="${i}" data-kolom="nama" value="${esc(o.nama || '')}">`
         : esc(o.nama || '')}</td>
@@ -737,7 +747,8 @@ function jdwPasang(unit){
   if(btnSunting) btnSunting.addEventListener('click', ()=>{
     // Salinan dalam, bukan rujukan: Batal harus benar-benar mengembalikan
     // keadaan sebelum disunting, termasuk kalau sudah puluhan sel diubah.
-    JDW.draf = jdwBaris(unit).map(o=>({ nama:o.nama, peran:o.peran, nik:o.nik || '', hari:[...(o.hari||[])] }));
+    JDW.draf = jdwBaris(unit).map(o=>({ nama:o.nama, peran:o.peran, nik:o.nik || '', ...(typeof o.tanpaNo === 'boolean' ? { tanpaNo:o.tanpaNo } : {}),
+      hari:[...(o.hari||[])] }));
     if(!JDW.draf.length) JDW.draf.push({ nama:'', peran:'', nik:'', hari:[] });
     JDW.sunting = true; JDW.pola = null; JDW.pilih = null;
     jdwGambar();
@@ -776,6 +787,7 @@ function jdwPasang(unit){
         nama:  String(o.nama || '').trim(),
         peran: String(o.peran || '').trim(),
         nik:   String(o.nik || '').trim(),
+        ...(typeof o.tanpaNo === 'boolean' ? { tanpaNo:o.tanpaNo } : {}),
         hari:  Array.from({length:hariN}, (_,i)=>String((o.hari || [])[i] || ''))
       }))
       .filter(o=>o.nama);
@@ -802,6 +814,15 @@ function jdwPasang(unit){
   // menggambar ulang: mengetik satu huruf lalu kehilangan kursor membuat
   // tabel selebar 31 kolom ini tidak mungkin diisi.
   jdwPasangExcel(kotak, unit);
+  jdwPasangSeret(kotak);
+  kotak.querySelectorAll('.jdw button[data-jdw-nomor]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const o = JDW.draf[Number(b.dataset.jdwNomor)];
+      if(!o) return;
+      o.tanpaNo = !jdwTanpaNomor(o);
+      jdwGambar();
+    });
+  });
   jdwMuatAkun();   // disiapkan sekarang supaya sudah ada waktu NIK pertama diketik
   kotak.querySelectorAll('.jdw input[data-kolom]').forEach(i=>{
     i.addEventListener('input', ()=>{
@@ -947,6 +968,62 @@ function jdwTerapkanIsi(kotak, asal, target){
   }
   JDW.pilih = { r0:target.r0, h0:target.h0, r1:target.r1, h1:target.h1 };
   jdwTandai(kotak);
+}
+
+/* ---------- Seret baris untuk mengubah urutan ----------
+   Pegangan ⠿ di kolom No. Memakai pointer events supaya jalan dengan mouse dan
+   jari; pegangannya touch-action:none, jadi menyeretnya tidak menggulir layar —
+   sebagai gantinya layar digulir sendiri kalau jari mendekati tepi atas/bawah.
+   Garis biru menandai tempat barisnya akan jatuh. */
+function jdwPasangSeret(kotak){
+  const tabel = kotak.querySelector('table.jdw.sunting');
+  if(!tabel) return;
+  let dari = -1, ke = -1, x = 0;
+  const bersih = ()=> tabel.querySelectorAll('.jdw-sisip-atas,.jdw-sisip-bawah,.jdw-diseret')
+    .forEach(tr=>tr.classList.remove('jdw-sisip-atas', 'jdw-sisip-bawah', 'jdw-diseret'));
+
+  tabel.addEventListener('pointerdown', (e)=>{
+    const g = e.target.closest && e.target.closest('[data-jdw-seret]');
+    if(!g) return;
+    e.preventDefault();
+    dari = Number(g.dataset.jdwSeret); ke = -1;
+    // Baris dicari di bawah pegangannya sendiri, bukan di bawah jari: jari
+    // yang melenceng ke samping tidak boleh membuat tempat jatuhnya hilang.
+    const k = g.getBoundingClientRect();
+    x = k.left + k.width / 2;
+    try{ g.setPointerCapture(e.pointerId); }catch(err){ /* peramban lama: tetap jalan tanpa tangkapan */ }
+    const tr = g.closest('tr'); if(tr) tr.classList.add('jdw-diseret');
+  });
+  tabel.addEventListener('pointermove', (e)=>{
+    if(dari < 0) return;
+    e.preventDefault();
+    if(e.clientY < 110) window.scrollBy(0, -16);
+    else if(e.clientY > window.innerHeight - 70) window.scrollBy(0, 16);
+    const t = document.elementFromPoint(x, e.clientY);
+    const tr = t && t.closest && t.closest('tr[data-jdw-tr]');
+    tabel.querySelectorAll('.jdw-sisip-atas,.jdw-sisip-bawah')
+      .forEach(r=>r.classList.remove('jdw-sisip-atas', 'jdw-sisip-bawah'));
+    if(!tr || !tabel.contains(tr)){ ke = -1; return; }
+    const k = tr.getBoundingClientRect();
+    const bawah = e.clientY > k.top + k.height / 2;
+    ke = Number(tr.dataset.jdwTr) + (bawah ? 1 : 0);
+    tr.classList.add(bawah ? 'jdw-sisip-bawah' : 'jdw-sisip-atas');
+  });
+  const selesai = (e)=>{
+    if(dari < 0) return;
+    const a = dari, b = ke;
+    dari = -1; ke = -1;
+    bersih();
+    if(e.type !== 'pointerup' || b < 0 || b === a || b === a + 1) return;
+    const [baris] = JDW.draf.splice(a, 1);
+    JDW.draf.splice(b > a ? b - 1 : b, 0, baris);
+    // Urungkan dan blok sel merujuk baris lewat urutannya — keduanya tidak
+    // berlaku lagi begitu urutannya berubah.
+    JDW.riwayat = []; JDW.pilih = null;
+    jdwGambar();
+  };
+  tabel.addEventListener('pointerup', selesai);
+  tabel.addEventListener('pointercancel', selesai);
 }
 
 /** Kode unit yang cocok dengan teks bebas (huruf besar-kecil dimaafkan). */

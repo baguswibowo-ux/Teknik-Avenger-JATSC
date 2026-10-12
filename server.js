@@ -1830,6 +1830,9 @@ app.put('/dinas/bulan/:bulan/:unit', badanDinas, async (req, res) => {
     // NIK — pegawai. Dibatasi 30 karakter supaya format lokal (7–10 digit) dan
     // format berkas yang lebih panjang (16 digit KTP) sama-sama muat.
     nik:   String(o?.nik   || '').trim().slice(0, 30),
+    // Baris judul grup: tanpa nomor urut. Hanya disimpan kalau memang diatur
+    // (klik nomor di mode sunting); baris lama tanpa tanda ini ditebak layar.
+    ...(typeof o?.tanpaNo === 'boolean' ? { tanpaNo: o.tanpaNo } : {}),
     hari:  Array.from({ length: hariMax }, (_, i) =>
              String((Array.isArray(o?.hari) ? o.hari[i] : '') || '').trim().slice(0, 12))
   })).filter((o) => o.nama);

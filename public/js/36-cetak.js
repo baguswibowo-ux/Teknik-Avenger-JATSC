@@ -1923,10 +1923,11 @@ function cetakIsiSnapshotHtml(p, snap, ttd = ''){
        (yang sudah kosong sekali kotak masuk ditutup). Kalau tidak ada,
        jatuh ke 'teknik' (kode apa adanya) — itu perilaku lama. */
     const pum = snap.format === 'pum';
+    const nomorUrut = jdwNomorUrut(orang);
     const barisOrang = orang.length ? orang.map((o,idx)=>`
       <tr>
-        <td class="no">${idx + 1}</td>
-        <td class="nama">${esc(o.nama || '')}</td>
+        <td class="no">${nomorUrut[idx]}</td>
+        <td class="nama"${nomorUrut[idx] === '' ? ' style="font-weight:700"' : ''}>${esc(o.nama || '')}</td>
         <td class="nik">${esc(o.nik || '—')}</td>
         ${Array.from({length:hariN}, (_,i)=>{
           const asli = (o.hari || [])[i] || '';
@@ -2323,10 +2324,11 @@ function htmlDinas(){
     return `<th class="${libur?'hari-libur':''}">${h}</th>`;
   }).join('');
 
+  const nomorUrut = jdwNomorUrut(orang);
   const barisOrang = orang.length ? orang.map((o,idx)=>`
     <tr>
-      <td class="no">${idx + 1}</td>
-      <td class="nama">${esc(o.nama || '')}</td>
+      <td class="no">${nomorUrut[idx]}</td>
+      <td class="nama"${nomorUrut[idx] === '' ? ' style="font-weight:700"' : ''}>${esc(o.nama || '')}</td>
       <td class="nik">${esc(o.nik || '—')}</td>
       ${Array.from({length:hariN}, (_,i)=>{
         const asli = (o.hari || [])[i] || '';
