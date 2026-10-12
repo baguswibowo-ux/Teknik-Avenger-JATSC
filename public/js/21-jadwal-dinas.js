@@ -440,8 +440,14 @@ function jdwTabel(unit){
       'Shifts this month (excluding SPKL).'))}">${T('Jml','Tot')}</th>` : '');
   const kosongRekap = pitaRekap.length ? `<td colspan="${pitaRekap.length + 1}"></td>` : '';
 
+  /* Tanggal merah (Minggu + libur nasional) diblok sekolom penuh, dari kepala
+     sampai baris terakhir — permintaan Bagus, 12 Okt 2026. */
+  const merah = Array.from({length:hariN}, (_,i)=>tanggalMerah(bulan, i + 1));
+  const kelasHari = (i)=> [merah[i] ? 'jdw-merah' : '', i+1===hariIni ? 'jdw-hari-ini' : ''].filter(Boolean).join(' ');
+
   const kepala = `<tr><th class="jdw-no">${T('No','No')}</th><th class="jdw-nama">${T('Nama','Name')}</th><th class="jdw-nik">NIK</th>` +
-    Array.from({length:hariN}, (_,i)=>`<th class="${i+1===hariIni?'jdw-hari-ini':''}">${i+1}</th>`).join('') +
+    Array.from({length:hariN}, (_,i)=>`<th class="${kelasHari(i)}"${
+      merah[i] ? ` title="${esc(merah[i])}"` : ''}>${i+1}</th>`).join('') +
     kepalaRekap + (JDW.sunting ? '<th></th>' : '') + '</tr>';
 
   /* Baris penanda kegiatan berkala, tepat di bawah tanggalnya. Di sinilah
@@ -454,13 +460,13 @@ function jdwTabel(unit){
     <td class="jdw-nama" colspan="2">${T('Kegiatan berkala','Recurring jobs')}</td>
     ${Array.from({length:hariN}, (_,i)=>{
       const keg = bklPadaHari(unit, bulan, i + 1);
-      if(!keg.length) return `<td class="${i+1===hariIni?'jdw-hari-ini':''}"></td>`;
+      if(!keg.length) return `<td class="${kelasHari(i)}"></td>`;
       // Shift ikut disebut di tooltip, bukan digambar sebagai titik terpisah:
       // barisnya cuma setinggi satu sel per tanggal, dan memecahnya jadi dua
       // titik akan membuat tabel sebulan penuh sulit dibaca sekilas.
       const judul = keg.map(k=>k.nama + (bklShift(k) ? ` (${bklShiftNama(bklShift(k))})` : '')).join(' · ');
       const mingguan = keg.some(k=>k.jenis === 'mingguan');
-      return `<td class="${i+1===hariIni?'jdw-hari-ini':''}" title="${esc(judul)}">
+      return `<td class="${kelasHari(i)}" title="${esc(judul)}">
         <span class="bkl-titik ${mingguan?'mingguan':'bulanan'}">${keg.length > 1 ? keg.length : '●'}</span></td>`;
     }).join('')}
     ${kosongRekap}${JDW.sunting ? '<td></td>' : ''}</tr>` : '';
@@ -485,12 +491,12 @@ function jdwTabel(unit){
     const sel = (h)=>{
       const nilai = (o.hari || [])[h] || '';
       if(!JDW.sunting){
-        return `<td class="${h+1===hariIni?'jdw-hari-ini':''}"${nilai
+        return `<td class="${kelasHari(h)}"${nilai
           ? ` style="color:${warnaShift(nilai, 'var(--text)')}"` : ''}>${esc(nilai) || '·'}</td>`;
       }
       // Sel biasa, bukan dropdown: diblok, ditarik pojoknya, diketik, atau
       // di-paste dari Excel — lihat "SUNTING ALA EXCEL" di bawah.
-      return `<td class="jdw-sel${h+1===hariIni?' jdw-hari-ini':''}" data-baris="${i}" data-hari="${h}"${nilai
+      return `<td class="jdw-sel ${kelasHari(h)}" data-baris="${i}" data-hari="${h}"${nilai
         ? ` style="color:${warnaShift(nilai, 'var(--text)')}"` : ''}>${esc(nilai)}</td>`;
     };
     return `<tr>

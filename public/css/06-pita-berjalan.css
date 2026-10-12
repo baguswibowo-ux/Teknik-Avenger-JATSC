@@ -101,6 +101,12 @@ table.jdw th.jdw-nik,table.jdw td.jdw-nik{position:sticky;left:186px;z-index:3;b
   text-align:left;min-width:110px;color:var(--muted);font-family:var(--font-mono);}
 table.jdw thead th.jdw-nama,table.jdw thead th.jdw-nik{background:var(--panel-2);z-index:4;}
 table.jdw td{font-family:var(--font-mono);color:var(--muted);}
+/* Tanggal merah: kolomnya diblok dari kepala sampai baris terakhir. Kepalanya
+   dicampur dengan warna latarnya sendiri (bukan tembus pandang) karena ia
+   menempel saat digulir dan baris di bawahnya tidak boleh tembus. Ditaruh
+   SEBELUM .jdw-hari-ini dan .jdw-pilih supaya keduanya tetap menang. */
+table.jdw td.jdw-merah{background:color-mix(in srgb,var(--fail) 13%,var(--panel));}
+table.jdw thead th.jdw-merah{background:color-mix(in srgb,var(--fail) 22%,var(--panel-2));color:var(--fail);font-weight:700;}
 table.jdw .jdw-hari-ini{background:var(--kaca);box-shadow:inset 0 0 0 1px var(--accent);}
 table.jdw select{background:var(--panel-2);color:var(--text);border:1px solid var(--line);
   border-radius:6px;padding:3px 2px;font-family:var(--font-mono);font-size:11px;min-width:52px;}

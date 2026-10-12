@@ -120,6 +120,34 @@ const SHIFT = {
   'DL':   { mulai:0, sampai:0, warna:'#14b8a6',      nama:'Dinas Luar',         libur:true }
 };
 
+/* =======================================================================
+   TANGGAL MERAH — Minggu dan hari libur nasional
+
+   Dipakai tabel Jadwal Dinas (kolomnya diblok merah sampai bawah) dan lembar
+   cetaknya (kolom abu-abu), supaya dua-duanya sepakat.
+
+   Yang tanggalnya TETAP tiap tahun dihitung dari aturannya. Yang berpindah
+   tiap tahun (Idul Fitri, Idul Adha, Nyepi, Imlek, Waisak, Wafat & Kenaikan
+   Yesus Kristus, Isra Mikraj, Maulid, 1 Muharram) harus DITULIS per tahun di
+   LIBUR_BERPINDAH menurut SKB tiga menteri tahun itu — sengaja tidak ditebak:
+   kolom merah yang salah lebih menyesatkan daripada yang belum diisi. Cuti
+   bersama bukan tanggal merah dan tidak dicatat di sini.
+   ======================================================================= */
+const LIBUR_TETAP = { '01-01':'Tahun Baru Masehi', '05-01':'Hari Buruh', '06-01':'Hari Lahir Pancasila',
+                      '08-17':'Hari Kemerdekaan RI', '12-25':'Hari Raya Natal' };
+/* 'YYYY-MM-DD': 'nama libur'. Kosong = tahun itu belum diisi. */
+const LIBUR_BERPINDAH = {};
+
+/** Nama tanggal merah untuk tanggal `h` di bulan 'YYYY-MM', atau '' kalau hari biasa. */
+function tanggalMerah(bulan, h){
+  const m = String(bulan || '').match(/^(\d{4})-(\d{2})$/);
+  if(!m) return '';
+  const hh = String(h).padStart(2, '0');
+  const libur = LIBUR_BERPINDAH[`${m[1]}-${m[2]}-${hh}`] || LIBUR_TETAP[`${m[2]}-${hh}`];
+  if(libur) return libur;
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(h)).getDay() === 0 ? 'Minggu' : '';
+}
+
 /* Urutan pita di panel Cakupan 24 Jam, dari yang paling lebar. */
 const URUT_PITA = ['PS','M','P','S'];
 

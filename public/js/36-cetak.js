@@ -1915,7 +1915,7 @@ function cetakIsiSnapshotHtml(p, snap, ttd = ''){
     };
     const kepalaHari = Array.from({length:hariN}, (_,i)=>{
       const h = i + 1;
-      const libur = hariMinggu(h) === 0;
+      const libur = !!tanggalMerah(bulan, h);
       return `<th class="${libur?'hari-libur':''}">${h}</th>`;
     }).join('');
     /* Format dibawa oleh snapshot supaya lembar yang dilihat pejabat sama
@@ -1931,7 +1931,7 @@ function cetakIsiSnapshotHtml(p, snap, ttd = ''){
         ${Array.from({length:hariN}, (_,i)=>{
           const asli = (o.hari || [])[i] || '';
           const nilai = pum ? dinasKodePUM(asli) : asli;
-          const libur = hariMinggu(i+1) === 0;
+          const libur = !!tanggalMerah(bulan, i+1);
           return `<td class="${libur?'hari-libur':''}">${esc(nilai) || '·'}</td>`;
         }).join('')}
       </tr>`).join('') : `
@@ -2319,7 +2319,7 @@ function htmlDinas(){
 
   const kepalaHari = Array.from({length:hariN}, (_,i)=>{
     const h = i + 1;
-    const libur = hariMinggu(h) === 0;
+    const libur = !!tanggalMerah(bulan, h);
     return `<th class="${libur?'hari-libur':''}">${h}</th>`;
   }).join('');
 
@@ -2331,7 +2331,7 @@ function htmlDinas(){
       ${Array.from({length:hariN}, (_,i)=>{
         const asli = (o.hari || [])[i] || '';
         const nilai = pum ? dinasKodePUM(asli) : asli;
-        const libur = hariMinggu(i+1) === 0;
+        const libur = !!tanggalMerah(bulan, i+1);
         return `<td class="${libur?'hari-libur':''}">${esc(nilai) || '·'}</td>`;
       }).join('')}
     </tr>`).join('') : `

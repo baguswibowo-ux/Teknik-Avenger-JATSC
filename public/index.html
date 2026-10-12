@@ -548,6 +548,7 @@ try{ document.documentElement.setAttribute('data-tema',
       <div class="kepala"><h3 data-en="Activate Unit Accounts">Aktivasi Akun Unit</h3>
         <span style="display:flex;gap:8px;align-items:center">
           <span class="ket" id="ketAktivasiUnit"></span>
+          <button class="btn kecil" id="btnAkunBaruUnit" data-en="+ New account">+ Akun baru</button>
           <button class="btn garis kecil" id="btnSandiSaya" data-en="Edit my account">Ubah akun saya</button>
           <button class="btn garis kecil" id="btnSegarAktivasiUnit" data-en="Reload">Muat ulang</button>
         </span>
@@ -704,7 +705,11 @@ try{ document.documentElement.setAttribute('data-tema',
       <div class="isian" id="isianUaPeran"><label for="uaPeran" data-en="Role">Peran</label>
         <select id="uaPeran"></select>
         <div class="bantu" data-en="A unit PIC stays a technician of this unit, with one extra module in this unit only. One role per account.">PIC unit tetap teknisi unit ini, ditambah satu modul di unit ini saja. Satu akun satu peran.</div></div>
-      <div class="isian"><label for="uaPass" data-en="Change password">Ganti password</label>
+      <!-- Hanya tampil saat admin unit membuat akun baru: unitnya, dari unit
+           yang ia pegang. Server memagarinya ulang di addUser. -->
+      <div class="isian" id="isianUaUnit" style="display:none"><label for="uaUnit" data-en="Logbook unit">Unit logbook</label>
+        <select id="uaUnit"></select></div>
+      <div class="isian"><label for="uaPass" id="labelUaPass" data-en="Change password">Ganti password</label>
         <input type="password" id="uaPass" autocomplete="new-password" placeholder="kosongkan bila tidak diganti">
         <div class="bantu" data-en="Leave empty to keep it. At least 6 characters. The old password cannot be read from anywhere.">Kosongkan kalau tidak ingin mengganti. Minimal 6 karakter. Password lama tidak bisa dibaca dari mana pun.</div></div>
     </div>

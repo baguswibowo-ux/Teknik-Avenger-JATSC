@@ -1969,11 +1969,27 @@ const API_ADMIN = {
 
   listUsers: async () => listUsers(),
 
-  addUser: async (data) => {
+  /* Admin unit ikut lewat sini (API_ADMIN_UNTUK_ADMINUNIT), sebatas membuat
+     akun teknisi / PIC unit DI UNIT YANG DIPEGANGNYA — permintaan Bagus, 12 Okt
+     2026. Akunnya lahir aktif, sama seperti buatan administrator. Identitas
+     diambil dari argumen TERAKHIR, supaya argumen lebih dari klien tidak bisa
+     mengisinya. */
+  addUser: async (data, ...sisa) => {
+    const user = sisa[sisa.length - 1];
     const username = String(data?.username || '').trim().toLowerCase();
     const password = String(data?.password || '');
     const nama = String(data?.nama || '').trim();
     const role = ROLE_VALID.includes(data?.role) ? data.role : 'teknisi';
+    if (!isAdmin(user)) {
+      if (!PERAN_KELOLA_ADMINUNIT.has(role)) {
+        throw new Error('Admin unit hanya boleh membuat akun teknisi atau PIC unit.');
+      }
+      const unitSaya = await unitUntukUser(user);
+      const diminta = (Array.isArray(data?.unit) ? data.unit : []).filter(unitSah);
+      if (diminta.length === 0 || !diminta.every((k) => unitSaya.includes(k))) {
+        throw new Error('Admin unit hanya boleh membuat akun di unit yang dipegangnya.');
+      }
+    }
 
     if (!/^[a-z0-9._-]{3,32}$/.test(username)) {
       throw new Error('Username 3–32 karakter, hanya huruf kecil, angka, titik, garis bawah, atau strip.');
@@ -2241,7 +2257,7 @@ const UBAH_ADMINUNIT = {
 };
 
 const API_ADMIN_UNTUK_ADMINUNIT = new Set([
-  'listUsers', 'setUserAktif', 'setUserPassword', 'setUserNama', 'setUserUsername',
+  'listUsers', 'addUser', 'setUserAktif', 'setUserPassword', 'setUserNama', 'setUserUsername',
   'setUserRole', 'getAktivitas'
 ]);
 

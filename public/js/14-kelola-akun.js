@@ -445,7 +445,8 @@ function gambarAktivasiUnit(){
     ? T('diambil pukul ','fetched at ') + USERS_JAM.toLocaleTimeString(LOKAL(),{hour:'2-digit',minute:'2-digit'}) : '';
   el('catatanAktivasiUnit').innerHTML = T(
     '<b>Meloloskan pendaftar baru.</b> Akun teknisi yang dibuat lewat pendaftaran lahir nonaktif — '
-      + 'aktifkan di sini kalau memang orang unit Anda. Yang tampil hanya akun teknisi dan PIC unit di unit yang '
+      + 'aktifkan di sini kalau memang orang unit Anda, atau buat sendiri akunnya lewat <b>+ Akun baru</b> '
+      + '(langsung aktif). Yang tampil hanya akun teknisi dan PIC unit di unit yang '
       + 'Anda pegang. Lewat <b>Ubah</b> Anda bisa menunjuk PIC Jadwal Dinas, PIC Sparepart, atau PIC ISR '
       + 'untuk unit Anda; peran lain, unit, dan penghapusan tetap urusan administrator utama.',
     '<b>Letting new sign-ups through.</b> Technician accounts created via self-registration start '
@@ -528,20 +529,31 @@ function bukaUnitAkun(u){
   // Kartu yang sama dipakai admin unit untuk akunnya sendiri (u.sendiri):
   // nama, username (NIK), dan sandi — dengan sandi lama; perannya tidak.
   const sendiri = !!u.sendiri;
-  el('judulUnitAkun').textContent = sendiri
-    ? T('Ubah akun saya','Edit my account')
+  // ...dan untuk MEMBUAT akun di unitnya (u.baru): username, nama, peran, unit, sandi.
+  const baru = !!u.baru;
+  el('judulUnitAkun').textContent = baru ? T('Akun baru di unit Anda','New account in your unit')
+    : sendiri ? T('Ubah akun saya','Edit my account')
     : T('Ubah teknisi unit','Edit unit technician');
-  el('ketUnitAkun').textContent = u.username;
+  el('ketUnitAkun').textContent = baru ? '' : u.username;
   el('isianUaLama').style.display = sendiri ? '' : 'none';
   el('isianUaPeran').style.display = sendiri ? 'none' : '';
   el('uaPeran').innerHTML = PERAN_UNIT_KELOLA.map(p=>
-    `<option value="${p}"${p === u.role ? ' selected' : ''}>${esc(peranTampil(p))}</option>`).join('');
-  el('uaUser').value = u.username;
+    `<option value="${p}"${p === (u.role || 'teknisi') ? ' selected' : ''}>${esc(peranTampil(p))}</option>`).join('');
+  const lingkup = unitLingkupSaya();
+  el('isianUaUnit').style.display = baru ? '' : 'none';
+  el('uaUnit').innerHTML = (baru && Array.isArray(lingkup) ? lingkup : []).map(k=>
+    `<option value="${esc(k)}">${esc(namaUnit(k))}</option>`).join('');
+  el('labelUaPass').textContent = baru ? 'Password' : T('Ganti password','Change password');
+  el('uaPass').placeholder = baru ? T('minimal 6 karakter','at least 6 characters')
+    : T('kosongkan bila tidak diganti','leave empty to keep it');
+  el('uaUser').placeholder = baru ? T('NIK pegawai','employee ID (NIK)') : 'mis. budi.santoso';
+  el('btnSimpanUnitAkun').textContent = baru ? T('Buat akun','Create account') : T('Simpan perubahan','Save changes');
+  el('uaUser').value = u.username || '';
   el('uaNama').value = u.nama || '';
   el('uaPass').value = '';
   el('uaPassLama').value = '';
   el('lapisUnitAkun').classList.add('buka');
-  el(sendiri ? 'uaPassLama' : 'uaNama').focus();
+  el(baru ? 'uaUser' : sendiri ? 'uaPassLama' : 'uaNama').focus();
 }
 
 /* Akun sendiri: server meminta sandi lama sebagai argumen ketiga di tiap
@@ -590,6 +602,37 @@ function tutupUnitAkun(){
   unitAkunDibuka = null;
 }
 
+/* Admin unit membuat akun teknisi / PIC unit di unit yang dipegangnya. Akunnya
+   lahir aktif. Server memagari ulang peran dan unitnya di addUser. */
+async function buatAkunUnit(){
+  const username = el('uaUser').value.trim().toLowerCase();
+  const nama = el('uaNama').value.trim();
+  const password = el('uaPass').value;
+  const role = el('uaPeran').value || 'teknisi';
+  const unit = el('uaUnit').value;
+  const b = el('btnSimpanUnitAkun');
+  try{
+    if(!/^[a-z0-9._-]{3,32}$/.test(username)){
+      throw new Error(T('Username 3–32 karakter: huruf kecil, angka, titik, garis bawah, atau strip.',
+                        'Username 3–32 characters: lowercase letters, digits, dots, underscores, or hyphens.'));
+    }
+    if(!nama) throw new Error(T('Nama tampilan belum diisi.','Display name is empty.'));
+    if(password.length < 6) throw new Error(T('Password minimal 6 karakter.','Password must be at least 6 characters.'));
+    if(!unit) throw new Error(T('Akun Anda belum memegang unit.','Your account holds no unit yet.'));
+    b.disabled = true;
+    await adminApi('addUser', { username, password, nama, role, unit: [unit] });
+    pesan(T('Akun ' + username + ' dibuat.', 'Account ' + username + ' created.'));
+    tutupUnitAkun();
+    await muatUsers();
+    gambarAktivasiUnit();
+    gambarHak();
+  }catch(e){
+    pesan(T('Gagal membuat akun: ','Could not create the account: ') + (e && e.message || e));
+  }finally{
+    b.disabled = false;
+  }
+}
+
 /* Kirim hanya yang berubah, satu panggilan per perubahan, berhenti pada
    kegagalan pertama. Rename PALING DULU — sama alasannya dengan simpanUbahan:
    langkah setelahnya merujuk akun lewat username yang berlaku saat itu, jadi
@@ -599,6 +642,7 @@ async function simpanUnitAkun(){
   const asal = unitAkunDibuka;
   if(!asal) return;
   if(asal.sendiri) return simpanAkunSaya(asal);
+  if(asal.baru) return buatAkunUnit();
   const usernameBaru = el('uaUser').value.trim().toLowerCase();
   const nama = el('uaNama').value.trim();
   const pass = el('uaPass').value;
@@ -1567,6 +1611,7 @@ el('tblAktivasiUnit').addEventListener('click', e=>{
   const b = e.target.closest('button[data-aktif-toggle]'); if(!b) return;
   ubahAktifUnit(b.dataset.aktifToggle, b.dataset.aktifKe === '1', b);
 });
+el('btnAkunBaruUnit').addEventListener('click', ()=>bukaUnitAkun({ baru: true, role: 'teknisi' }));
 el('btnSandiSaya').addEventListener('click', ()=>{
   if(akun) bukaUnitAkun({ username: akun.user, nama: akun.nama, sendiri: true });
 });
