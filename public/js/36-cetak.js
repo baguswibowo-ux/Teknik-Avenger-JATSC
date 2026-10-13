@@ -775,6 +775,7 @@ function muatkanSatuHalaman(area){
 const LANSKAP_TINGGI_MM = 194;   // sama dengan kurungan di 09-cetak.css
 const LANSKAP_LEBAR_MM  = 281;   // 297 - margin 8mm kiri-kanan
 const LANSKAP_KECIL_MIN = 0.72;  // di bawah ini huruf 7pt jadi < 5pt
+const LANSKAP_AMAN = 0.975;      // ukuran di layar vs di kertas tidak persis sama
 function muatkanLanskap(area){
   const semua = Array.from(area.querySelectorAll('.cetak-lembar'));
   if(!semua.length) return;
@@ -795,8 +796,12 @@ function muatkanLanskap(area){
       - (parseFloat(getComputedStyle(lembar).paddingBottom) || 0));   // di kertas padding bawahnya 0
   area.setAttribute('style', gayaLama);
   semua.forEach((lembar, k)=>{
-    if(tinggi[k] <= batas) return;
-    const z = (batas / tinggi[k]) * 0.975;
+    /* Batasnya dikenai faktor aman yang sama dengan pengecilannya: lembar yang
+       di layar terukur PAS di bawah satu halaman ternyata di kertas sedikit
+       lebih tinggi, dan blok TTD-nya terlempar ke halaman kedua (lembar PUM
+       Grup 4 Oktober 2026: terukur 725px dari batas 733px, tercetak 2 halaman). */
+    if(tinggi[k] <= batas * LANSKAP_AMAN) return;
+    const z = Math.min(1, batas / tinggi[k]) * LANSKAP_AMAN;
     if(z < LANSKAP_KECIL_MIN){ area.classList.add('bersambung'); return; }
     /* zoom ikut mengecilkan kotak lembarnya sendiri, termasuk kurungan 194mm dan
        lebar 275mm-nya — dibesarkan balik supaya sesudah dikecilkan tetap satu
