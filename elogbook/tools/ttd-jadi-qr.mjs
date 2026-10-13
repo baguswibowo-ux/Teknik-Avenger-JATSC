@@ -18,8 +18,16 @@
  *     (ttd_oleh); kalau tidak tercatat, nama di formulir dicocokkan ke akun.
  *   - Teknisi : pembuat catatannya kalau namanya memang tercantum sebagai
  *     pelaksana; kalau tidak, pelaksana pertama yang punya akun.
+ *   - PH (lembar bertuliskan "PH. Nama", dibubuhkan lewat akun Manager Teknik
+ *     semasa PH belum punya jalur sendiri) : QR atas nama si PH, berjabatan
+ *     "PH Manager Teknik", dengan NIK kalau namanya cocok sebuah akun (lihat
+ *     PETA_PH). Tanda tangannya SUDAH ADA sejak dulu — yang berubah hanya
+ *     bentuknya; ttd_oleh (akun yang membubuhkan) tidak disentuh.
  *   - Yang tidak cocok akun mana pun (Personil Operasi, Manager Pemakai, nama
  *     panggilan lama) : QR berisi unit dan nama saja, tanpa NIK.
+ *
+ * Petak yang KOSONG tidak diisi: lembar yang belum ditandatangani tetap harus
+ * ditandatangani orangnya sendiri.
  *
  * Database yang dipakai: milik pohon berkas tempat alat ini berada (atau
  * ELOGBOOK_DATA_DIR) — dijalankan dari folder uji ia mengubah data uji.
@@ -79,12 +87,49 @@ const dariAkun = (a) => ({
 });
 
 /**
+ * nama akun -> ejaan lain nama itu di lembar lama ber-PH. Dicocokkan tanpa
+ * membedakan huruf besar-kecil. Usulan dari pencocokan kata demi kata dengan
+ * daftar akun (13 Okt 2026) — DIPASTIKAN BAGUS sebelum dijalankan di produksi.
+ * Nama PH yang tidak punya akun (Adhayanti, Rika, M Rizka Al Farisi) tidak ada
+ * di sini: QR-nya berisi nama saja, tanpa NIK.
+ */
+const PETA_PH = {
+  'Endar Novitasari S.': ['Endar Novitasari', 'Endar Novitasari S'],
+  'Muhammad Kaukab': ['M. Kaukab', 'M Kaukab'],
+  'Yogi Apriantoro': ['Yogi'],
+  'M Firmansyah D': ['M Firmansyah Djambek', 'M. Firmansyah Djambek'],
+  'Ika Dewi Lestari': ['Ika Dwi Lestari'],
+  'Tony Edi Purnomo': ['Tony Edi P']
+};
+const ejaanPh = new Map();
+for (const [namaAkun, lain] of Object.entries(PETA_PH)) for (const x of lain) ejaanPh.set(kunci(x), namaAkun);
+
+const RE_PH = /^\s*(?:ph|plh|pelaksana harian)\b[\s.:\-]*/i;
+const JABATAN_PH = 'PH Manager Teknik';
+const laporPh = new Map();   // nama di lembar -> { n, jadi }
+
+/** Identitas PH dari nama tercetak "PH. Nama" — null kalau bukan lembar PH. */
+function pihakPh(nama) {
+  const n = String(nama || '').trim();
+  if (!RE_PH.test(n)) return null;
+  const bersih = n.replace(RE_PH, '').replace(/\s*\(.*$/, '').trim();
+  if (!bersih) return null;
+  const a = akunDariNama(bersih) || akunDariNama(ejaanPh.get(kunci(bersih)) || '');
+  const orang = a ? { ...dariAkun(a), jabatan: JABATAN_PH } : { nama: bersih, nik: '', jabatan: JABATAN_PH };
+  const l = laporPh.get(kunci(bersih)) || { tertulis: bersih, n: 0, jadi: orang.nama + (orang.nik ? ' + NIK' : ' (nama saja, tanpa akun)') };
+  l.n++; laporPh.set(kunci(bersih), l);
+  return orang;
+}
+
+/**
  * Identitas pihak kedua: akun pembubuhnya, kalau nama di formulir memang nama
  * akun itu. Lembar lama sering bertuliskan "PH. Endar Novitasari" tetapi
  * dibubuhkan dari akun Manager Teknik — goresannya milik si PH, jadi QR-nya
  * mengikuti nama yang tercetak, bukan pemilik akunnya.
  */
 function pihakKedua(nama, ttdOleh) {
+  const ph = pihakPh(nama);
+  if (ph) return ph;
   const a = akunPerUsername.get(String(ttdOleh || '').toLowerCase());
   if (a && (!kunci(nama) || kunci(nama).startsWith(kunci(a.nama)))) return dariAkun(a);
   const n = String(nama || '').trim();
@@ -195,6 +240,12 @@ for (const [di, h] of Object.entries(hitung)) {
   console.log(di.padEnd(37) + String(h.qr).padStart(9) + String(h.tanpaNik).padStart(12) + String(h.dilewati).padStart(11));
 }
 for (const c of contohDilewati) console.log('  dilewati: ' + c);
+if (laporPh.size) {
+  console.log('\nLembar ber-PH -> yang tertulis di QR (jabatan "' + JABATAN_PH + '"):');
+  for (const l of [...laporPh.values()].sort((x, y) => y.n - x.n)) {
+    console.log('  ' + String(l.n).padStart(4) + 'x  PH ' + l.tertulis.padEnd(28) + '-> ' + l.jadi);
+  }
+}
 console.log(`\nKolom yang berubah: ${rencana.length}.`);
 
 if (!terapkan) {
