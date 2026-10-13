@@ -180,7 +180,7 @@ function terapkanUnit(){
   const pengamatan = u.kode === 'pengamatan';// Radar CKG 3 + Fasilitas Pengamatan
   const fgk = u.kode === 'gedungkeamanan';   // ceklis New JATSC + JATSC
   const lk = u.kode === 'listrikmekanik';    // STS · MDS · Beban Listrik · UPS
-  const rdps = u.kode === 'fdpsrdps';        // NEW-JAATS: Server · Radar · Network · Workstation
+  const rdps = u.kode === 'fdpsrdps';        // NEW-JAATS (New JATSC) + E-JAATS (JATSC)
   const punyaLokasi = u.kode === 'radtel';   // JATSC vs New JATSC
   // Radtel yang sedang menunjuk lembar JATSC (Frequentis 3020X). Dihitung di
   // sini — bukan di bawah bersama wadah-wadahnya — karena kolom Suhu MER pun
@@ -238,6 +238,9 @@ function terapkanUnit(){
   // Sub-tab pemilih LEMBAR Listrik & Mekanik (STS / MDS / Beban Listrik / UPS).
   const dcLkSubtabs = document.getElementById('dcLkSubtabs');
   if(dcLkSubtabs) dcLkSubtabs.style.display = lk ? '' : 'none';
+  // Sub-tab pemilih LOKASI FDPS-RDPS (New JATSC = NEW-JAATS, JATSC = E-JAATS).
+  const dcRdpsLokasi = document.getElementById('dcRdpsLokasi');
+  if(dcRdpsLokasi) dcRdpsLokasi.style.display = rdps ? '' : 'none';
   const dcLegendGarex = document.getElementById('dcLegendGarex');
   const dcJatscWrap = document.getElementById('dcJatscWrap');
   const dcGarexWrap = document.getElementById('dcGarexWrap');
@@ -292,7 +295,10 @@ function terapkanUnit(){
   }
   // State RDPS tidak di-reset di sini — pindah unit bolak-balik tidak boleh
   // menghapus isian yang belum disimpan. Reset lewat resetDcForm().
-  if(rdps && typeof renderDcRdpsTable === 'function') renderDcRdpsTable();
+  if(rdps && typeof renderDcRdpsTable === 'function'){
+    renderDcRdpsTable();
+    if(typeof sinkronSubtabRdps === 'function') sinkronSubtabRdps();
+  }
   if(punyaLokasi && typeof sinkronSubtabDc === 'function') sinkronSubtabDc();
 
   // Judul seksi logbook mengikuti nama form unit itu

@@ -252,6 +252,16 @@ try{ document.documentElement.setAttribute('data-tema',
       <button class="subtab-btn" data-lkform="ups"
               onclick="setDcLkForm('ups')">🔋 UPS</button>
     </nav>
+    <!-- Sub-tab pemilih LOKASI untuk unit FDPS-RDPS: New JATSC = lembar
+         NEW-JAATS, JATSC = lembar E-JAATS (software + hardware). setDcRdpsForm()
+         di js/12h-daily-check-rdps.js menukar isi #dcRdpsWrap. 07-unit.js
+         menampilkan nav ini hanya untuk unit fdpsrdps. -->
+    <nav class="subtabs" id="dcRdpsLokasi" style="display:none;">
+      <button class="subtab-btn active" data-rdpsform="newjaats"
+              onclick="setDcRdpsForm('newjaats')">📍 New JATSC</button>
+      <button class="subtab-btn" data-rdpsform="ejaats"
+              onclick="setDcRdpsForm('ejaats')">📍 JATSC</button>
+    </nav>
     <div class="card" id="dcFormCard">
       <div class="grid3">
         <div class="field" id="dcSuhuWrap"><label data-t="suhuMer">Suhu MER (°C)</label><input type="text" id="dcSuhu" data-t-ph="phSuhu" placeholder="cth. 22°C"></div>
@@ -346,10 +356,10 @@ try{ document.documentElement.setAttribute('data-tema',
         <span id="dcLkInfoHint">&nbsp;·&nbsp; Kolom KONDISI diklik untuk berputar: ON → STBY → OFF</span>
       </div>
       <div id="dcLkWrap" style="display:none;"></div>
-      <!-- Daily Check NEW-JAATS unit FDPS-RDPS: satu lembar berisi empat bagian
-           (Server · Radar Source · Network · Workstation). Sub-tab bagiannya
+      <!-- Daily Check unit FDPS-RDPS: lembar NEW-JAATS (New JATSC) atau E-JAATS
+           (JATSC), dipilih lewat #dcRdpsLokasi di atas. Sub-tab bagiannya
            digambar di dalam wadah ini oleh renderDcRdpsTable() di
-           js/12h-daily-check-rdps.js — keempatnya disimpan & dicetak bersama.
+           js/12h-daily-check-rdps.js — semua bagian disimpan & dicetak bersama.
            07-unit.js menampilkannya hanya untuk unit fdpsrdps. -->
       <div id="dcRdpsWrap" style="display:none;"></div>
       <div id="dcRadkomWrap" style="display:none;"></div>

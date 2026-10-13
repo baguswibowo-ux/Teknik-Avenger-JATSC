@@ -471,7 +471,7 @@ function printCurrentDailyCheck(){
   const state = pgm   ? { ...dcPgmState[dcPgmForm], __format:'pengamatan', __pgmForm:dcPgmForm }
               : fgk   ? { ...dcFgkState[dcFgkForm], __format:'fgk', __fgkForm:dcFgkForm }
               : lk    ? { ...dcLkState[dcLkForm], __format:'listrik', __lkForm:dcLkForm }
-              : rdps  ? { ...dcRdpsState, __format:'rdps' }
+              : rdps  ? { ...dcRdpsState, __format:'rdps', __rdpsForm:dcRdpsForm }
               : nav   ? { ...dcNState, __lokasi:'navigasi' }
               : jatsc ? { ...dcJState, __lokasi:'jatsc' }
                       : dcState;

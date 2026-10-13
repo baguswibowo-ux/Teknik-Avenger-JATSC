@@ -1858,12 +1858,13 @@ function lokasiDariStateJson(stateJson) {
     kolom Lokasi; isi state penuh tidak dikembalikan (masih besar). */
 /** Lembar mana di dalam satu unit yang dipakai baris ini — kunci sub-lembar yang
     ditanam form di state: __pgmForm (Pengamatan), __fgkForm (Gedung & Keamanan),
-    __lkForm (Listrik & Mekanik), __sistem (AMHS). Kosong untuk unit yang lembarnya
+    __lkForm (Listrik & Mekanik), __rdpsForm (FDPS-RDPS: newjaats/ejaats),
+    __sistem (AMHS). Kosong untuk unit yang lembarnya
     tunggal. Dibaca dashboard Avenger untuk menyaring bukti kegiatan berkala per
     lembar, sama perannya dengan kolom Lokasi bagi Radtel. */
 function formDariStateJson(stateJson) {
   const s = parseJson(stateJson, {});
-  const v = s.__pgmForm || s.__fgkForm || s.__lkForm || s.__sistem || '';
+  const v = s.__pgmForm || s.__fgkForm || s.__lkForm || s.__rdpsForm || s.__sistem || '';
   return String(v).toLowerCase().slice(0, 40);
 }
 
