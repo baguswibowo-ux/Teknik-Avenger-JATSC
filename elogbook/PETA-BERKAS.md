@@ -63,7 +63,7 @@ Mencari sesuatu: **warna** → `01`. **Sesuatu yang salah di HP** → `08`.
 | `11-logbook.js` | Logbook Fasilitas: form, daftar, detail catatan |
 | `11b-tautan-dokumen.js` | Rujukan catatan ke lembar lain (BAPB/LTK/berkala): chip, pemilih, tombol "buat catatan logbook" |
 | `12-daily-check-radtel.js` | Daily check Garex 300 — daftar item dan tabelnya |
-| `12h-daily-check-rdps.js` | Daily check NEW-JAATS unit FDPS-RDPS — Server · Radar Source · Network · Workstation dalam satu lembar per dinas, dicetak jadi satu |
+| `12h-daily-check-rdps.js` | Daily check unit FDPS-RDPS, dua lembar per lokasi: NEW-JAATS (New JATSC — Server · Radar Source · Network · Workstation) dan E-JAATS (JATSC — SDDS · ARTAS · MDSI/PRISMA/R2D2 · Network · Hardware); satu catatan per dinas, dicetak jadi satu |
 | `13-daily-check-radkom.js` | Daily check Radkom — VHF A/G, ACC, CWP FIC & ATMCP |
 | `14-daily-check-umum.js` | Daftar teknisi, pemilihan bentuk per unit, simpan, riwayat, detail |
 | `15-isu.js` | Isu / Update Issue, dengan bukti saat dibuka dan saat ditutup; termasuk "Buat Isu" dari catatan logbook (`openIssueDariLogbook`) yang mengisi jenis, keterangan, lokasi, tanggal-jam, dan menyalin lampirannya |

@@ -1,5 +1,16 @@
-/* E-Logbook · js/12h-daily-check-rdps.js — Daily Check NEW-JAATS (unit fdpsrdps)
+/* E-Logbook · js/12h-daily-check-rdps.js — Daily Check unit fdpsrdps:
+   NEW-JAATS (lokasi New JATSC) dan E-JAATS (lokasi JATSC)
    Dimuat dari index.html sesuai nomor berkas; urutannya berpengaruh.
+
+   DUA LEMBAR, SATU MESIN. Unit ini menjaga dua sistem di dua gedung, jadi
+   form-nya punya sub-tab lokasi (#dcRdpsLokasi di index.html): New JATSC →
+   lembar NEW-JAATS, JATSC → lembar E-JAATS. Keduanya digambar mesin tabel
+   yang sama di berkas ini; bedanya cuma daftar bagian/tabelnya (RDPS_FORM).
+   Catatan tersimpan membawa __rdpsForm ('newjaats' | 'ejaats') di state-nya;
+   catatan lama tanpa kunci itu = NEW-JAATS. Lembar E-JAATS diterangkan di
+   atas daftarnya sendiri, sesudah bagian NEW-JAATS.
+
+   ---- NEW-JAATS ----
 
    Dialihaksarakan dari "NEW-JAATS Daily Logbook (Update) 2026.xlsx", sheet
    "NEW-JAATS 1 DailyCheck" — satu lembar besar NEW-JAATS DAILY REPORT yang di
@@ -49,7 +60,36 @@ const RDPS_JENIS = {
   // LED Status & System Cisco C9300L: Green normal · Blinking Green degraded · Amber fault
   swSt: { opsi: [['g', 'GREEN', 'GREEN', 'ok'], ['bg', 'BLINKING GREEN', 'BLINK G', 'warn'], ['a', 'AMBER', 'AMBER', 'fail']] },
   // LED Active Cisco C9300L: Blinking Green normal · Green-Amber degraded · Blinking Amber fault
-  swAk: { opsi: [['bg', 'BLINKING GREEN', 'BLINK G', 'ok'], ['ga', 'GREEN-AMBER', 'G-AMBER', 'warn'], ['ba', 'BLINKING AMBER', 'BLINK A', 'fail']] }
+  swAk: { opsi: [['bg', 'BLINKING GREEN', 'BLINK G', 'ok'], ['ga', 'GREEN-AMBER', 'G-AMBER', 'warn'], ['ba', 'BLINKING AMBER', 'BLINK A', 'fail']] },
+
+  /* ----- E-JAATS (lokasi JATSC) — mengikuti kotak centang di kertasnya.
+     Kelas 'off' = memang tidak dipakai/tidak tersambung: bukan temuan. ----- */
+  // Hampir semua kotak: OK / NOT OK
+  oknok: { opsi: [['ok', 'OK', 'OK', 'ok'], ['nok', 'NOT OK', 'NOT OK', 'fail']] },
+  // Active splitter & CWP: OK / NOT OK / NOT USED
+  oknu:  { opsi: [['ok', 'OK', 'OK', 'ok'], ['nok', 'NOT OK', 'NOT OK', 'fail'], ['nu', 'NOT USED', 'N/USED', 'off']] },
+  // Network monitoring: up / down
+  updn:  { opsi: [['up', 'UP', 'UP', 'ok'], ['down', 'DOWN', 'DOWN', 'fail']] },
+  // Status server SDDS: Proc / Maintenance
+  pm:    { opsi: [['proc', 'PROC', 'PROC', 'ok'], ['maint', 'MAINTENANCE', 'MAINT', 'warn']] },
+  // Status server MDSI/PRISMA: Proc / Ready — pasangan aktif-siaga, dua-duanya
+  // sehat dan tidak bisa ditebak, jadi dilewati tombol Semua normal.
+  pr:    { opsi: [['proc', 'PROC', 'PROC', 'ok'], ['ready', 'READY', 'READY', 'ok']], tanpaMassal: true },
+  // Status server ARTAS: Main / Hs (hot standby) — alasannya sama
+  mh:    { opsi: [['main', 'MAIN', 'MAIN', 'ok'], ['hs', 'HOT STANDBY', 'HS', 'ok']], tanpaMassal: true },
+  // Processing status ARTAS: Dual = redundant (normal), Single = tinggal satu
+  ds:    { opsi: [['dual', 'DUAL', 'DUAL', 'ok'], ['single', 'SINGLE', 'SINGLE', 'warn']] },
+  // Sensor ARTAS: V connect · X disconnect · O not connect
+  conn:  { opsi: [['v', 'CONNECT', 'V CONN', 'ok'], ['x', 'DISCONNECT', 'X DISC', 'fail'], ['o', 'NOT CONNECT', 'O N/C', 'warn']] },
+  // Sensor ala Nagios (SN. consistency, interface, NTP) — urutan kertasnya
+  nag:   { opsi: [['ok', 'OK', 'OK', 'ok'], ['crit', 'CRIT', 'CRIT', 'fail'], ['unk', 'UNKNOWN', 'UNKN', 'warn'], ['warn', 'WARN', 'WARN', 'warn']] },
+  // Mode PRISMA: ONLINE / NOT ONLINE
+  onl:   { opsi: [['on', 'ONLINE', 'ONLINE', 'ok'], ['off', 'NOT ONLINE', 'NOT ONL', 'warn']] },
+  // USER ARTAS OUT: hanya SATU ARTAS OUT yang tersambung ke broadcast, jadi
+  // yang tidak tersambung itu wajar (off) — dan tidak bisa diisi massal.
+  out:   { opsi: [['c', 'CONNECTED', 'CONN', 'ok'], ['n', 'NOT CONNECTED', 'N/C', 'off']], tanpaMassal: true },
+  // Kotak centang tunggal (pekerjaan harian, backup SFPL): sudah dikerjakan
+  cek:   { opsi: [['v', 'SUDAH', '✓', 'ok']] }
 };
 
 /* ---------- Pembentuk tabel ----------
@@ -61,8 +101,26 @@ const RDPS_JENIS = {
                g = kepala grup di atas h; kolom bertetangga ber-g sama digabung
      rows  : { n: nama, j?: jenis (untuk kolom j:'baris'), s?: isi kolom info }
      no    : true → kolom nomor urut
-     penuh : true → selebar layar/kertas (tabel berkolom banyak) */
+     penuh : true → selebar layar/kertas (tabel berkolom banyak)
+     ket   : [teks] → catatan kecil di bawah tabel (petunjuk dari kertasnya)
+
+   TABEL MELINTANG (E-JAATS). Di lembar E-JAATS perangkatnya di KOLOM
+   (SDDS-A | SDDS-B) dan yang diperiksa di baris, jadi satu kolom memuat
+   angka dan tombol sekaligus. Kolom begitu ditulis t:'baris', j:'baris' dan
+   tipe selnya dibawa barisnya ({ n, t, j }) — rdpsTipe() yang menentukan. */
 const rdpsBaris = (n, j, s) => ({ n, j: j || '', s: s || '' });
+/** Tipe isian satu sel: dari kolomnya, atau dari barisnya kalau kolom t:'baris'. */
+const rdpsTipe = (col, row) => col.t === 'baris' ? (row.t || 'teks') : col.t;
+/** Pilihan yang bukan temuan: normal (ok) atau memang tidak dipakai (off). */
+const rdpsSehat = o => o[3] === 'ok' || o[3] === 'off';
+/** Pecah satu daftar panjang jadi n tabel berdampingan (lajur di kertasnya). */
+function rdpsLajur(id, judul, sebut, kepalaNama, cols, daftar, n){
+  const per = Math.ceil(daftar.length / n);
+  return Array.from({ length: n }, (_, i) => ({
+    id: `${id}-${i + 1}`, judul: `${judul} (${i + 1}/${n})`, sebut, kepalaNama, cols,
+    rows: daftar.slice(i * per, (i + 1) * per).map(x => rdpsBaris(x))
+  }));
+}
 
 /* ---------- Bagian 1: SUBSYSTEM SERVER ---------- */
 // [nama, jenis status] — Main/Standby untuk yang berpasangan, Operational/
@@ -255,17 +313,231 @@ const RDPS_BAGIAN = [
   { id:'ws',      label:'💻 Workstation',  judul:'WORKSTATION',      tabel: rdpsTabelWorkstation, halamanBaru: true }
 ];
 
+/* =====================================================================
+   ---- E-JAATS (lokasi JATSC) ----
+   Dialihaksarakan dari "EJAATS Daily Logbook (Format Terbaru) 2026.xlsx",
+   dua sheet yang di kertasnya dua halaman E-JAATS DAILY REPORT:
+     · "EJAATS SW BARU"  — status software: Services Radar & ADS-B di
+                           SDDS-A/B, GUI REC tiap CWP, ARTAS 1-2 (A/B),
+                           MDSI, PRISMA, R2D2, Network Monitoring, CNMS,
+                           Backup SFPL
+     · "E-JAATS HW_BARU" — pekerjaan pemeliharaan harian + status hardware:
+                           server, switch/NTP, RCS Rack, Active Splitter, CWP
+   Sama seperti NEW-JAATS: SATU catatan per dinas, sub-tab hanya membagi
+   layar. Baris yang di Excel-nya disembunyikan (radar MDN1, CKG3 kedua di
+   ARTAS, splitter "NO. 6 (SMG2)" & "NO. 7 (BACS)") tidak ikut — memang tidak
+   tercetak di kertasnya. cwp207 yang tertulis dua kali di daftar GUI REC
+   dijadikan satu.
+   ===================================================================== */
+
+/** Baris bertipe sendiri untuk tabel melintang: tombol pilihan / kotak angka. */
+const ejP = (n, j) => ({ n, t: 'pilih', j, s: '' });
+const ejA = n => ({ n, t: 'angka', j: '', s: '' });
+/** Kolom tabel melintang — satu kolom per perangkat. */
+const ejKol = (...nama) => nama.map((h, i) => ({ k: 'abcd'[i], h, t: 'baris', j: 'baris' }));
+/** Kolom status tunggal, dan kolom Keterangan. */
+const ejSt = (j, h) => ({ k: 'st', h: h || 'Status', t: 'pilih', j });
+const ejKet = { k: 'ket', h: 'Keterangan', t: 'teks', lebar: true };
+const ejUrut = (awalan, dari, sampai, lebar) =>
+  Array.from({ length: sampai - dari + 1 }, (_, i) => awalan + String(dari + i).padStart(lebar || 1, '0'));
+
+// Baris yang berulang di tiap server: CpuUsage (USER/SYST/WAIT), DiskUsage
+// (/ dan /boot), Memory (Ram GB + persen + kotak OK), FAN1-4.
+const EJ_CPU  = [ejA('CPU User (%)'), ejA('CPU Syst (%)'), ejA('CPU Wait (%)')];
+const EJ_DISK = [ejA('Disk / (%)'), ejA('Disk /boot (%)')];
+const EJ_MEM  = [ejA('RAM (GB)'), ejA('Memory (%)'), ejP('Memory Status', 'oknok')];
+const EJ_FAN  = ['FAN1', 'FAN2', 'FAN3', 'FAN4'].map(n => ejP(n, 'oknok'));
+
+/* ---------- Bagian 1: SDDS — Services Radar · ADS-B · GUI REC ---------- */
+const EJ_RADAR = ['CKG2','JOG2','KNO','NTA','PKU2','TPG2','PNK2','PDG','CKG3','BACS','SMG2','PLB2'];
+const EJ_ADSB  = ['ATC OUT ADSB INT.','B. ACEH','BANJARMASIN','BENGKULU','KULONPROGO','MATAK','MEDAN','NATUNA','PALEMBANG',
+                  'PAN. BUN','PEKANBARU','PONTIANAK','SEMARANG','NIAS','SOETA','LASIKIN','PUTUSIBAU','TANJ. PINANG',
+                  'SURABAYA','LOC. UDP IN ADSB'];
+const EJ_GUIREC = [...ejUrut('cwp', 1, 35, 2), 'cwp38', 'cwp39', 'cwp40', ...ejUrut('cwp', 201, 214),
+                   'cwptwr1', 'cwptwr2', 'cwptwr4', 'cwptwr6', 'cwptwr9', 'sur_rec'];
+
+function ejTabelSdds(){
+  const ab = [{ k:'a', h:'SDDS-A', t:'pilih', j:'oknok' }, { k:'b', h:'SDDS-B', t:'pilih', j:'oknok' }];
+  const gui = rdpsLajur('ej-gui', 'GUI REC', 'GUI REC', 'CWP', [ejSt('oknok', 'GUI REC')], EJ_GUIREC, 3);
+  gui[gui.length - 1].ket = ['GUI REC: 1. cd /home/sdd/teknisi/  2. ketik ./gui_info  3. more gui_now.log'];
+  return [
+    { id:'ej-radar', judul:'Services RADAR', sebut:'Radar', kepalaNama:'Radar', no:true, cols:ab, rows: EJ_RADAR.map(n => rdpsBaris(n)) },
+    { id:'ej-adsb',  judul:'Services ADS-B', sebut:'ADS-B', kepalaNama:'ADS-B', no:true, cols:ab, rows: EJ_ADSB.map(n => rdpsBaris(n)) },
+    { id:'ej-sdds',  judul:'Server SDDS', sebut:'SDDS', kepalaNama:'Item', cols: ejKol('SDDS-A', 'SDDS-B'),
+      rows: [ejP('Status Server', 'pm'), ...EJ_CPU, ...EJ_DISK, ...EJ_MEM] },
+    ...gui
+  ];
+}
+
+/* ---------- Bagian 2: ARTAS ---------- */
+const EJ_ARTAS_SENSOR = ['ADS-B','BACS2','CKG2','CKG3','JOG2','KNO1','NTA','PDG','PKU2','PLB2','PNK2','SMG2','TPG2'];
+
+function ejTabelArtas(){
+  const kol = ejKol('ARTAS1-A', 'ARTAS1-B', 'ARTAS2-A', 'ARTAS2-B');
+  return [
+    { id:'ej-artas', judul:'Services ARTAS', sebut:'ARTAS', kepalaNama:'Services', cols: kol,
+      rows: [ejP('Status Server', 'mh'), ejP('Processing Status', 'ds'), ...EJ_ARTAS_SENSOR.map(n => ejP(n, 'conn'))],
+      ket: ['V = Connect · X = Disconnect · O = Not Connect', 'Dual = Redundant'] },
+    { id:'ej-artas-item', judul:'ARTAS — CPU · Disk · Module', sebut:'ARTAS', kepalaNama:'Item', cols: kol,
+      rows: [ejA('CPU Total (%)'), ejA('CPU User (%)'), ejA('CPU System (%)'), ejA('CPU Wait (%)'),
+             ejA('Disk / (%)'), ejA('Disk /locrec (%)'), ejA('Disk /rec (%)'), ejA('Memory+SWAP (%)'),
+             ejP('FUNC. MMS', 'oknok'), ejP('FUNC. RBR', 'oknok'), ejP('FUNC. SRV', 'oknok'), ejP('FUNC. TRK', 'oknok'),
+             ejP('CLOCK STATUS', 'oknok'), ejP('USER ARTAS OUT', 'out')],
+      ket: ['NOTE: only one ARTAS OUT connected to broadcast.'] }
+  ];
+}
+
+/* ---------- Bagian 3: MDSI · PRISMA · R2D2 · Backup SFPL ---------- */
+function ejTabelServer(){
+  const nag = (...nama) => nama.map(n => ejP(n, 'nag'));
+  return [
+    { id:'ej-mdsi', judul:'MDSI', sebut:'MDSI', kepalaNama:'Services', cols: ejKol('MDSI-A', 'MDSI-B'),
+      rows: [ejP('Status Server', 'pr'), ...EJ_CPU, ejP('CPU Status', 'oknok'), ...EJ_DISK, ejP('Disk Status', 'oknok'), ...EJ_MEM,
+             ...nag('SN. CONFIG CONSISTENCY', 'SN. MODE CONSISTENCY', 'SN. FDPS RECEPTION', 'SN. SDPS RECEPTION', 'NTP SYNC.', 'SafetyNet State'),
+             ...EJ_FAN] },
+    { id:'ej-prisma', judul:'PRISMA', sebut:'PRISMA', kepalaNama:'Services', cols: ejKol('PRISMA-A', 'PRISMA-B'),
+      rows: [ejP('Status Server', 'pr'), ...EJ_CPU, ejP('CPU Status', 'oknok'), ...EJ_DISK, ejP('Disk Status', 'oknok'), ...EJ_MEM,
+             ...nag('Interface AFTN', 'Interface ARTAS', 'Interface S/N'), ejP('Mode', 'onl'), ejP('NTP Sync.', 'nag'),
+             ...EJ_FAN] },
+    { id:'ej-r2d2', judul:'R2D2', sebut:'R2D2', kepalaNama:'Services', cols: ejKol('R2D2-A', 'R2D2-B'),
+      rows: [...EJ_CPU, ejA('CPU Total (%)'), ejP('CPU Status', 'oknok'),
+             ejA('Disk / (%)'), ejA('Disk /boot (%)'), ejA('Disk /home (%)'), ejA('Disk /log (%)'), ejA('Disk /rec (%)'),
+             ...EJ_MEM, ejP('NTP Sync.', 'nag')] },
+    { id:'ej-sfpl', judul:'Backup SFPL ke CWP35', sebut:'Backup', kepalaNama:'Backup', cols: [ejSt('cek', 'Sudah')],
+      rows: ['Backup SFPL1', 'Backup SFPL2'].map(n => rdpsBaris(n)),
+      ket: ['SFPL1: 1. ssh fdps@fdps1, isi password  2. cd /usr/atcsys/log/sfpl/  3. cp sfplXX sdd@(IPCWP35):/home/sdd/sfpl1',
+            'SFPL2: 1. ssh fdps@fdps2, isi password  2. cd /usr/atcsys/log/sfpl/  3. cp sfplXX sdd@(IPCWP35):/home/sdd/sfpl2'] }
+  ];
+}
+
+/* ---------- Bagian 4: NETWORK MONITORING · TIME · CNMS ---------- */
+const EJ_SWITCH = ejUrut('SW', 1, 8);
+const EJ_NTP = ['NTP-A', 'NTP-B'];
+
+function ejTabelNetwork(){
+  return [
+    { id:'ej-net',  judul:'Network Monitoring', sebut:'Network', kepalaNama:'Switch', cols: [ejSt('updn')], rows: EJ_SWITCH.map(n => rdpsBaris(n)) },
+    { id:'ej-time', judul:'Time', sebut:'Time', kepalaNama:'NTP', cols: [ejSt('updn')], rows: EJ_NTP.map(n => rdpsBaris(n)) },
+    { id:'ej-cnms', judul:'CNMS', sebut:'CNMS', kepalaNama:'Item', cols: ejKol('CNMS'),
+      rows: [ejP('Status', 'oknok'), ...EJ_CPU, ejP('CPU Status', 'oknok'), ...EJ_DISK, ejP('Disk Status', 'oknok')] }
+  ];
+}
+
+/* ---------- Bagian 5: HARDWARE (sheet "E-JAATS HW_BARU") ---------- */
+const EJ_HARIAN = [
+  '1. Periksa status komputer server dan workstation pada CNMS',
+  '2. Periksa kerapian, kebersihan, dan suhu di ruang Processing Room',
+  '3. Periksa operasional Flight Strip Printer di setiap sektor control ATC',
+  '4. Periksa kondisi kebersihan monitor LCD 2K2K di setiap sektor control ATC',
+  '5. Periksa status input AFTN (koordinasikan dengan unit AMSC-ADPS)'
+];
+const EJ_HW_SERVER = ['SDDS-NG-1','SDDS-NG-2','ARTAS-1','ARTAS-2','PRISMA-1','PRISMA-2','MDSI-1','MDSI-2','R2D2-1','R2D2-2'];
+const EJ_HW_KOMPONEN = [['lan','LAN Card'],['psu','Power Supply'],['ram','RAM'],['cpu','Processor'],['fan','Fan'],['fp','Front Panel'],['hdd','Harddisk']];
+const EJ_RCS = ['CMG CARD','SNL CARD','FAN UNIT','PSU','SNL-H CARD'];
+const EJ_SPLITTER = ['NO. 1 (JOG2)','NO. 2 (CKG2)','NO. 3 (PKU2)','NO. 4 (PLB2)','NO. 5 (SMG2)','NO. 6 (BAC2)',
+                     'NO. 7 (CKG3)','NO. 8 (NTA2)','NO. 9 (KNO)','NO. 10 (TPG2)','NO. 11 (PNK2)','NO. 12 (PDG2)'];
+const EJ_HW_CWP = [...ejUrut('CWP', 1, 35), ...ejUrut('CWP', 38, 41), ...ejUrut('CWP', 201, 214),
+                   'CWPTWR1','CWPTWR2','CWPTWR3','CWPTWR4','CWPTWR6','CWPTWR8','CWPTWR9'];
+
+function ejTabelHardware(){
+  return [
+    // Di kertasnya suhu ditulis di samping pekerjaan no. 2 — di sini baris sendiri.
+    { id:'ej-harian', judul:'Pekerjaan Pemeliharaan Harian', sebut:'Pekerjaan harian', kepalaNama:'Pekerjaan', penuh:true,
+      cols: [{ k:'c', h:'Check', t:'baris', j:'baris' }],
+      rows: [...EJ_HARIAN.map(n => ejP(n, 'cek')), ejA('Suhu ruang Processing Room (°C)')] },
+    // Di kertasnya perangkat di kolom dan komponen di baris; di sini dibalik
+    // supaya tujuh kolom (bukan sepuluh) — lebih muat di layar HP dan A4.
+    { id:'ej-hw-srv', judul:'Server — Hardware Status', sebut:'Hardware', kepalaNama:'Device', penuh:true,
+      cols: EJ_HW_KOMPONEN.map(([k, h]) => ({ k, h, t:'pilih', j:'oknok' })), rows: EJ_HW_SERVER.map(n => rdpsBaris(n)) },
+    { id:'ej-hw-net', judul:'Network — Hardware Status', sebut:'Hardware Network', kepalaNama:'Device',
+      cols: [ejSt('oknok'), ejKet], rows: [...EJ_SWITCH, ...EJ_NTP].map(n => rdpsBaris(n)) },
+    { id:'ej-rcs', judul:'RCS Rack', sebut:'RCS Rack', kepalaNama:'Device',
+      cols: [{ k:'a', h:'Chain A', t:'pilih', j:'oknok' }, { k:'b', h:'Chain B', t:'pilih', j:'oknok' }, ejKet],
+      rows: EJ_RCS.map(n => rdpsBaris(n)) },
+    { id:'ej-spl', judul:'Active Splitter', sebut:'Active Splitter', kepalaNama:'Device',
+      cols: [ejSt('oknu'), ejKet], rows: EJ_SPLITTER.map(n => rdpsBaris(n)) },
+    ...rdpsLajur('ej-cwp', 'Controller Working Position', 'CWP', 'Device', [ejSt('oknu')], EJ_HW_CWP, 4)
+  ];
+}
+
+/* Sub-tab di layar mengikuti DUA SHEET Excel-nya — "EJAATS SW" dan
+   "E-JAATS HW" (EJAATS_GRUP) — bukan per bagian: teknisi mencarinya dengan
+   nama sheet itu. Bagian-bagian software tampil berurutan di dalam tab SW,
+   persis urutan halaman 1 kertasnya; halaman 2 = hardware. */
+const EJAATS_GRUP = [
+  { id:'sw', label:'💾 EJAATS SW' },
+  { id:'hw', label:'🛠 E-JAATS HW' }
+];
+const EJAATS_BAGIAN = [
+  { id:'sdds',   grup:'sw', judul:'SDDS — SERVICES RADAR · ADS-B · GUI REC', tabel: ejTabelSdds },
+  { id:'artas',  grup:'sw', judul:'ARTAS',                                   tabel: ejTabelArtas, minKartu: 400, lajurCetak: 250 },
+  { id:'server', grup:'sw', judul:'MDSI · PRISMA · R2D2',                    tabel: ejTabelServer },
+  { id:'net',    grup:'sw', judul:'NETWORK MONITORING · CNMS',               tabel: ejTabelNetwork },
+  { id:'hw',     grup:'hw', judul:'HARDWARE',                                tabel: ejTabelHardware, halamanBaru: true }
+];
+
+/* ---------- Registry lembar (= sub-tab lokasi) ----------
+   label  : nama lembar/sistemnya        lokasi : gedungnya (teks sub-tab)
+   judul  : kepala halaman cetak         legenda: arti label tombol
+   grup   : (opsional) sub-tab layar = kelompok bagian (b.grup), bukan per bagian */
+const RDPS_FORM = {
+  newjaats: {
+    label: 'NEW-JAATS', lokasi: 'NEW JATSC', judul: 'NEW-JAATS DAILY REPORT', bagian: RDPS_BAGIAN,
+    legenda: [
+      ['Server / Radar / Switch / CWP', 'OPR = Operative/Operational · FAIL = Failed · MAINT = Maintenance · MAIN/STBY = Main/Standby'],
+      ['LED Server (HPE)', 'GREEN = Normal · AMBER = Check iLO/IML · RED = Troubleshoot'],
+      ['LED Cisco C9300L', 'Status & System: GREEN = Normal · BLINK G = Degraded · AMBER = Fault — Active: BLINK G = Normal · G-AMBER = Degraded · BLINK A = Fault']
+    ]
+  },
+  ejaats: {
+    label: 'E-JAATS', lokasi: 'JATSC', judul: 'E-JAATS DAILY REPORT', bagian: EJAATS_BAGIAN, grup: EJAATS_GRUP,
+    legenda: [
+      ['Kotak status', 'OK / NOT OK · UP / DOWN · N/USED = Not Used · ✓ = sudah dikerjakan'],
+      ['Status server', 'PROC / MAINT (SDDS) · PROC / READY (MDSI, PRISMA) · MAIN / HS = Hot Standby (ARTAS)'],
+      ['ARTAS', 'DUAL = Redundant · SINGLE · V CONN = Connect · X DISC = Disconnect · O N/C = Not Connect'],
+      ['SafetyNet / Interface / NTP', 'OK · CRIT · UNKN = Unknown · WARN']
+    ]
+  }
+};
+const rdpsFormSah = f => (RDPS_FORM[f] ? f : 'newjaats');
+/** Lembar sebuah catatan tersimpan. Catatan sebelum E-JAATS ada tidak membawa
+    __rdpsForm — semuanya NEW-JAATS. */
+const rdpsFormTersimpan = state => rdpsFormSah(state && state.__rdpsForm);
+const rdpsBagianForm = form => RDPS_FORM[rdpsFormSah(form)].bagian;
+/** Sub-tab layar sebuah lembar: kelompoknya kalau ada (E-JAATS: SW / HW),
+    kalau tidak bagian-bagiannya sendiri (NEW-JAATS). → [{ id, label }] */
+const rdpsTabForm = form => RDPS_FORM[rdpsFormSah(form)].grup || rdpsBagianForm(form);
+/** Bagian yang tampil di bawah satu sub-tab. */
+const rdpsBagianTab = (form, tabId) => rdpsBagianForm(form).filter(b => (RDPS_FORM[rdpsFormSah(form)].grup ? b.grup : b.id) === tabId);
+
 /* ---------- State ---------- */
 
-/** Bagian yang sedang tampil di layar. Tidak ikut tersimpan — keempatnya
-    selalu disimpan bersama. */
+/** Lembar (lokasi) yang sedang dibuka di form. Ikut tersimpan sebagai
+    __rdpsForm oleh saveDailyCheck. */
+let dcRdpsForm = 'newjaats';
+/** Sub-tab yang sedang tampil di layar (id bagian, atau id kelompok untuk
+    lembar ber-grup). Tidak ikut tersimpan — semua bagian selalu disimpan bersama. */
 let dcRdpsBagian = 'server';
-/** Isian seluruh lembar. Kunci "tabel|nama|kolom"; kotak kosong tidak punya
-    kunci sama sekali. */
-let dcRdpsState = {};
+/** Isian tiap lembar. Pindah lokasi bukan reset: isian lembar yang
+    ditinggalkan tetap di sini sampai form di-reset. */
+let dcRdpsStates = { newjaats: {}, ejaats: {} };
+/** Isian lembar YANG SEDANG DIBUKA (menunjuk salah satu dcRdpsStates). Kunci
+    "tabel|nama|kolom"; kotak kosong tidak punya kunci sama sekali. */
+let dcRdpsState = dcRdpsStates.newjaats;
 
 const rdpsKunci = (tbl, row, col) => `${tbl.id}|${row.n}|${col.k}`;
-function initDcRdpsState(){ dcRdpsState = {}; }
+function initDcRdpsState(){
+  dcRdpsStates = { newjaats: {}, ejaats: {} };
+  dcRdpsState = dcRdpsStates[dcRdpsForm];
+}
+/** Jadikan `form` lembar yang dibuka, tanpa menggambar. Dipakai sub-tab lokasi
+    dan pemuatan catatan untuk disunting. */
+function rdpsPakaiForm(form){
+  dcRdpsForm = rdpsFormSah(form);
+  dcRdpsState = dcRdpsStates[dcRdpsForm];
+  const tab = rdpsTabForm(dcRdpsForm);
+  if(!tab.some(b => b.id === dcRdpsBagian)) dcRdpsBagian = tab[0].id;
+}
 /** Unit FDPS-RDPS sedang aktif? Dipakai dispatcher simpan/cetak/edit. */
 function dcRdpsAktif(){ return typeof unitAktif !== 'undefined' && unitAktif === 'fdpsrdps'; }
 
@@ -275,35 +547,33 @@ const rdpsOpsi = (jenis, v) => jenis.opsi.find(o => o[0] === v) || null;
 
 /** Semua sel pilih yang terisi dari sebuah state → [{tbl,row,col,opsi}].
     Dipakai temuan dan hitungan isi. */
-function rdpsJelajah(fn){
-  RDPS_BAGIAN.forEach(b => b.tabel().forEach(tbl => tbl.rows.forEach(row => tbl.cols.forEach(col => fn(b, tbl, row, col)))));
+function rdpsJelajah(fn, form){
+  rdpsBagianForm(form || dcRdpsForm).forEach(b => b.tabel().forEach(tbl => tbl.rows.forEach(row => tbl.cols.forEach(col => fn(b, tbl, row, col)))));
 }
 
 /** Temuan untuk riwayat/ringkasan: kotak berkelas fail → fails, warn → warns. */
-function rdpsTemuan(state){
+function rdpsTemuan(state, form){
   const st = state || dcRdpsState, fails = [], warns = [];
   rdpsJelajah((b, tbl, row, col) => {
-    if(col.t !== 'pilih') return;
+    if(rdpsTipe(col, row) !== 'pilih') return;
     const o = rdpsOpsi(rdpsJenisSel(col, row), st[rdpsKunci(tbl, row, col)]);
-    if(!o || o[3] === 'ok') return;
-    const kolom = tbl.cols.length > 1 ? ` ${col.g ? col.g + ' ' : ''}${col.h}` : '';
+    if(!o || rdpsSehat(o)) return;
+    const kolom = tbl.cols.filter(c => c.t !== 'teks' && c.t !== 'info').length > 1 ? ` ${col.g ? col.g + ' ' : ''}${col.h}` : '';
     const teks = `${tbl.sebut} · ${row.n}${kolom}: ${o[1]}`;
     (o[3] === 'fail' ? fails : warns).push(teks);
-  });
+  }, form);
   return { fails, warns };
 }
 
-/** Hitungan kotak status per bagian: {isi, total, rusak}. Untuk sub-tab. */
+/** Hitungan kotak status per sub-tab: {isi, total, rusak}. */
 function rdpsHitung(bagianId){
   let isi = 0, total = 0, rusak = 0;
-  const b = RDPS_BAGIAN.find(x => x.id === bagianId);
-  if(!b) return { isi, total, rusak };
-  b.tabel().forEach(tbl => tbl.rows.forEach(row => tbl.cols.forEach(col => {
-    if(col.t !== 'pilih') return;
+  rdpsBagianTab(dcRdpsForm, bagianId).forEach(b => b.tabel().forEach(tbl => tbl.rows.forEach(row => tbl.cols.forEach(col => {
+    if(rdpsTipe(col, row) !== 'pilih') return;
     total++;
     const o = rdpsOpsi(rdpsJenisSel(col, row), dcRdpsState[rdpsKunci(tbl, row, col)]);
-    if(o){ isi++; if(o[3] !== 'ok') rusak++; }
-  })));
+    if(o){ isi++; if(!rdpsSehat(o)) rusak++; }
+  }))));
   return { isi, total, rusak };
 }
 
@@ -321,7 +591,7 @@ function rdpsPutar(btn){
   rdpsSegarkanSubtab();
 }
 function rdpsLukisTombol(btn, o){
-  btn.classList.remove('ok', 'warn', 'fail', 'minus');
+  btn.classList.remove('ok', 'warn', 'fail', 'off', 'minus');
   btn.classList.add(o ? o[3] : 'minus');
   btn.textContent = o ? o[2] : '–';
   btn.title = o ? o[1] : 'Belum dicek';
@@ -339,7 +609,7 @@ function rdpsSemuaNormal(tabelId){
   if(!tbl) return;
   let n = 0;
   tbl.rows.forEach(row => tbl.cols.forEach(col => {
-    if(col.t !== 'pilih') return;
+    if(rdpsTipe(col, row) !== 'pilih') return;
     const jenis = rdpsJenisSel(col, row);
     if(jenis.tanpaMassal) return;
     const k = rdpsKunci(tbl, row, col);
@@ -348,7 +618,7 @@ function rdpsSemuaNormal(tabelId){
   renderDcRdpsTable();
   if(typeof toast === 'function') toast(n ? `${n} kotak ditandai normal — yang tidak normal ubah manual.` : 'Semua kotak di tabel ini sudah terisi.');
 }
-const rdpsSemuaTabel = () => RDPS_BAGIAN.flatMap(b => b.tabel());
+const rdpsSemuaTabel = () => rdpsBagianForm(dcRdpsForm).flatMap(b => b.tabel());
 
 /* ---------- Penggambar bersama (isi / baca / cetak) ---------- */
 
@@ -384,7 +654,8 @@ function rdpsSelHtml(tbl, row, col, st, mode){
   }
   const k = rdpsKunci(tbl, row, col);
   const v = st[k];
-  if(col.t === 'pilih'){
+  const tipe = rdpsTipe(col, row);
+  if(tipe === 'pilih'){
     const jenis = rdpsJenisSel(col, row);
     const o = rdpsOpsi(jenis, v);
     if(mode === 'isi'){
@@ -394,18 +665,18 @@ function rdpsSelHtml(tbl, row, col, st, mode){
     }
     if(cetak){
       // Di kertas yang rusak ditebalkan supaya langsung kelihatan.
-      const tebal = o && o[3] !== 'ok' ? 'font-weight:bold;' : '';
+      const tebal = o && !rdpsSehat(o) ? 'font-weight:bold;' : '';
       return `<td style="text-align:center;white-space:nowrap;${tebal}">${o ? escapeHtml(o[2]) : '–'}</td>`;
     }
     return `<td><span class="status-btn rdps-pilih ${o ? o[3] : 'minus'}" style="cursor:default;" title="${o ? escapeHtml(o[1]) : ''}">${o ? escapeHtml(o[2]) : '–'}</span></td>`;
   }
   const teks = escapeHtml(v == null ? '' : String(v));
   if(mode === 'isi'){
-    const lebar = col.t === 'angka' ? 'rdps-angka' : (col.lebar ? 'rdps-remark' : '');
+    const lebar = tipe === 'angka' ? 'rdps-angka' : (col.lebar ? 'rdps-remark' : '');
     return `<td><input type="text" class="lk-isi ${lebar}" data-k="${escapeHtml(k)}" value="${teks}"
-              ${col.t === 'angka' ? 'inputmode="decimal"' : ''} oninput="rdpsIsi(this)"></td>`;
+              ${tipe === 'angka' ? 'inputmode="decimal"' : ''} oninput="rdpsIsi(this)"></td>`;
   }
-  const rata = col.t === 'angka' ? 'center' : 'left';
+  const rata = tipe === 'angka' ? 'center' : 'left';
   return `<td style="text-align:${rata};">${teks || (cetak ? '' : '<span style="opacity:.45;">–</span>')}</td>`;
 }
 
@@ -418,16 +689,19 @@ function rdpsTabelHtml(tbl, st, mode){
     tds += tbl.cols.map(col => rdpsSelHtml(tbl, row, col, st, mode)).join('');
     return `<tr>${tds}</tr>`;
   }).join('');
+  const ket = tbl.ket || [];
   if(cetak){
     return `<div class="rdps-blk${tbl.penuh ? ' rdps-penuh' : ''}"><div class="rdps-blkh">${escapeHtml(tbl.judul)}</div>
-      <table class="rdps-print">${rdpsKepalaHtml(tbl, true)}<tbody>${body}</tbody></table></div>`;
+      <table class="rdps-print">${rdpsKepalaHtml(tbl, true)}<tbody>${body}</tbody></table>
+      ${ket.map(x => `<div class="rdps-ketc">${escapeHtml(x)}</div>`).join('')}</div>`;
   }
-  const bisaMassal = mode === 'isi' && tbl.rows.some(row => tbl.cols.some(col => col.t === 'pilih' && !rdpsJenisSel(col, row).tanpaMassal));
+  const bisaMassal = mode === 'isi' && tbl.rows.some(row => tbl.cols.some(col => rdpsTipe(col, row) === 'pilih' && !rdpsJenisSel(col, row).tanpaMassal));
   const tombol = bisaMassal
     ? `<button type="button" class="btn ghost" style="padding:3px 9px;font-size:11px;" onclick="rdpsSemuaNormal('${tbl.id}')">✓ Semua normal</button>` : '';
   return `<div class="rdps-kartu${tbl.penuh ? ' rdps-penuh' : ''}">
     <div class="rdps-kartu-kepala"><span>${escapeHtml(tbl.judul)}</span>${tombol}</div>
     <div class="lk-gulir"><table class="lk-tbl rdps-tbl">${rdpsKepalaHtml(tbl, false)}<tbody>${body}</tbody></table></div>
+    ${ket.length ? `<div class="rdps-ket">${ket.map(x => `<div>${escapeHtml(x)}</div>`).join('')}</div>` : ''}
   </div>`;
 }
 
@@ -443,13 +717,8 @@ function rdpsBagianHtml(b, st, mode){
 }
 
 /** Legenda singkat: arti tiap label, dikelompokkan per jenis pemeriksaan. */
-function rdpsLegendaHtml(cetak){
-  const baris = [
-    ['Server / Radar / Switch / CWP', 'OPR = Operative/Operational · FAIL = Failed · MAINT = Maintenance · MAIN/STBY = Main/Standby'],
-    ['LED Server (HPE)', 'GREEN = Normal · AMBER = Check iLO/IML · RED = Troubleshoot'],
-    ['LED Cisco C9300L', 'Status & System: GREEN = Normal · BLINK G = Degraded · AMBER = Fault — Active: BLINK G = Normal · G-AMBER = Degraded · BLINK A = Fault'],
-    ['Kotak kosong (–)', 'belum / tidak dicek']
-  ];
+function rdpsLegendaHtml(cetak, form){
+  const baris = [...RDPS_FORM[rdpsFormSah(form)].legenda, ['Kotak kosong (–)', 'belum / tidak dicek']];
   if(cetak) return `<div class="rdps-nb"><b>KETERANGAN :</b> ${baris.map(([a, b]) => `<b>${escapeHtml(a)}</b>: ${escapeHtml(b)}`).join(' &nbsp;|&nbsp; ')}</div>`;
   return baris.map(([a, b]) => `<div><b style="color:var(--text);">${escapeHtml(a)}</b> — ${escapeHtml(b)}</div>`).join('');
 }
@@ -460,20 +729,24 @@ function rdpsLegendaHtml(cetak){
 function renderDcRdpsTable(){
   const wrap = document.getElementById('dcRdpsWrap');
   if(!wrap) return;
-  const b = RDPS_BAGIAN.find(x => x.id === dcRdpsBagian) || RDPS_BAGIAN[0];
+  const lembar = RDPS_FORM[dcRdpsForm];
+  const tabs = rdpsTabForm(dcRdpsForm);
+  const b = tabs.find(x => x.id === dcRdpsBagian) || tabs[0];
+  // Satu sub-tab bisa memuat beberapa bagian (E-JAATS SW) — masing-masing diberi judul.
+  const isi = rdpsBagianTab(dcRdpsForm, b.id);
   // Posisi gulir modal dijaga — "Semua normal" menggambar ulang seluruh bagian.
   const modal = wrap.closest('.modal');
   const gulir = modal ? modal.scrollTop : 0;
   wrap.innerHTML = `
     <div class="rdps-info">
-      <div><b style="color:var(--text);">NEW-JAATS DAILY REPORT</b> — empat bagian di bawah satu lembar: diisi per tab, disimpan &amp; dicetak sekaligus.
+      <div><b style="color:var(--text);">${escapeHtml(lembar.judul)}</b> · Lokasi <b style="color:var(--accent);">${escapeHtml(lembar.lokasi)}</b> — ${tabs.length} tab di bawah satu lembar: diisi per tab, disimpan &amp; dicetak sekaligus.
         Klik kotak untuk memutar status; klik terus sampai kembali <b>–</b> untuk mengosongkan.</div>
-      <details style="margin-top:4px;"><summary style="cursor:pointer;color:var(--accent);">Arti label</summary>${rdpsLegendaHtml(false)}</details>
+      <details style="margin-top:4px;"><summary style="cursor:pointer;color:var(--accent);">Arti label</summary>${rdpsLegendaHtml(false, dcRdpsForm)}</details>
     </div>
-    <nav class="subtabs" id="dcRdpsSubtabs">${RDPS_BAGIAN.map(x =>
+    <nav class="subtabs" id="dcRdpsSubtabs">${tabs.map(x =>
       `<button type="button" class="subtab-btn${x.id === b.id ? ' active' : ''}" data-rdps="${x.id}" onclick="setDcRdpsBagian('${x.id}')">${escapeHtml(x.label)} <span class="rdps-hitung"></span></button>`
     ).join('')}</nav>
-    ${rdpsBagianHtml(b, dcRdpsState, 'isi')}`;
+    ${isi.map(x => (isi.length > 1 ? `<div class="lk-seksi-judul">${escapeHtml(x.judul)}</div>` : '') + rdpsBagianHtml(x, dcRdpsState, 'isi')).join('')}`;
   rdpsSegarkanSubtab();
   if(modal) modal.scrollTop = gulir;
 }
@@ -489,19 +762,40 @@ function rdpsSegarkanSubtab(){
 }
 
 function setDcRdpsBagian(id){
-  if(!RDPS_BAGIAN.some(x => x.id === id)) return;
+  if(!rdpsTabForm(dcRdpsForm).some(x => x.id === id)) return;
   dcRdpsBagian = id;
   renderDcRdpsTable();
   const nav = document.getElementById('dcRdpsSubtabs');
   if(nav) nav.scrollIntoView({ block:'nearest' });
 }
 
+/* ---------- Selektor lokasi (sub-tab New JATSC / JATSC) ---------- */
+
+/** Dipanggil sub-tab lokasi. Ganti lembar yang tampak; isian lembar lain
+    tetap tinggal (dcRdpsStates). */
+function setDcRdpsForm(form){
+  if(!RDPS_FORM[form]) return;
+  if(dcRdpsForm !== form){
+    rdpsPakaiForm(form);
+    dcRdpsBagian = rdpsTabForm(form)[0].id;
+    renderDcRdpsTable();
+  }
+  sinkronSubtabRdps();
+}
+/** Sorot sub-tab lokasi yang cocok. Dipanggil juga oleh terapkanUnit() supaya
+    pemuatan catatan untuk disunting ikut menyorotnya. */
+function sinkronSubtabRdps(){
+  document.querySelectorAll('#dcRdpsLokasi .subtab-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.rdpsform === dcRdpsForm);
+  });
+}
+
 /* ---------- Baca-saja: detail & cetak ---------- */
 
-/** Detail modal — keempat bagian berurutan. */
+/** Detail modal — semua bagian lembarnya berurutan. */
 function dcRdpsDetailHtml(state){
   const st = state || {};
-  return RDPS_BAGIAN.map(b => `<div class="lk-seksi-judul" style="margin-top:16px;">${escapeHtml(b.judul)}</div>${rdpsBagianHtml(b, st, 'baca')}`).join('');
+  return rdpsBagianForm(rdpsFormTersimpan(st)).map(b => `<div class="lk-seksi-judul" style="margin-top:16px;">${escapeHtml(b.judul)}</div>${rdpsBagianHtml(b, st, 'baca')}`).join('');
 }
 
 /** Halaman cetak: satu dokumen berisi keempat bagian, portrait, huruf rapat,
@@ -509,7 +803,9 @@ function dcRdpsDetailHtml(state){
     berdampingan, tabel lebar (status software server) selebar kertas. */
 function buildDcRdpsPrintHtml(r, state){
   const st = state || {};
-  const temuan = rdpsTemuan(st);
+  const form = rdpsFormTersimpan(st);
+  const lembar = RDPS_FORM[form];
+  const temuan = rdpsTemuan(st, form);
   const daftarTemuan = [...temuan.fails, ...temuan.warns];
   const gaya = `<style>
     #printArea .rdps{font-size:6.6pt;line-height:1.15;}
@@ -523,17 +819,18 @@ function buildDcRdpsPrintHtml(r, state){
     #printArea .rdps table.rdps-print{width:100%;border-collapse:collapse;}
     #printArea .rdps table.rdps-print td{border:1px solid #000;padding:0 2px !important;font-size:6.4pt;}
     #printArea .rdps .rdps-nb{font-size:6.3pt;margin-top:4px;}
+    #printArea .rdps .rdps-ketc{font-size:5.6pt;line-height:1.2;word-break:break-word;}
     #printArea .rdps .no-border td{border:none !important;padding:0 3px !important;}
   </style>`;
   return gaya + `
     <div class="rdps">
-      <div style="text-align:center;font-weight:bold;font-size:11pt;">NEW-JAATS DAILY REPORT</div>
-      <div style="text-align:center;font-size:7.5pt;margin-bottom:4px;">Fasilitas Otomasi — Unit FDPS-RDPS</div>
+      <div style="text-align:center;font-weight:bold;font-size:11pt;">${escapeHtml(lembar.judul)}</div>
+      <div style="text-align:center;font-size:7.5pt;margin-bottom:4px;">Fasilitas Otomasi — Unit FDPS-RDPS · Lokasi ${escapeHtml(lembar.lokasi)}</div>
       <table class="no-border" style="font-size:8pt;margin-bottom:2px;"><tr>
         <td style="width:50%;">HARI/TANGGAL : ${escapeHtml(r.tanggal || '') || '________'}</td>
         <td>DINAS : ${escapeHtml(r.dinas || '') || '________'}</td></tr></table>
-      ${RDPS_BAGIAN.map(b => rdpsBagianHtml(b, st, 'cetak')).join('')}
-      ${rdpsLegendaHtml(true)}
+      ${lembar.bagian.map(b => rdpsBagianHtml(b, st, 'cetak')).join('')}
+      ${rdpsLegendaHtml(true, form)}
       ${daftarTemuan.length ? `<div class="rdps-nb"><b>TEMUAN :</b> ${escapeHtml(daftarTemuan.join('; '))}</div>` : ''}
       ${r.remark ? `<div class="rdps-nb"><b>CATATAN :</b> ${escapeHtml(r.remark).replace(/\n/g, '<br>')}</div>` : ''}
       <table class="no-border" style="font-size:8pt;margin-top:10px;break-inside:avoid;"><tr>
