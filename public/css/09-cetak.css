@@ -832,3 +832,13 @@
 .cetak-lembar table.dinas-ket-tabel { width: auto; border-collapse: collapse; font-size: 8pt; margin-top: 1pt; }
 .cetak-lembar table.dinas-ket-tabel tr { background: none !important; }
 .cetak-lembar table.dinas-ket-tabel td { border: none; padding: 0 14pt 0 0; vertical-align: top; text-align: left; white-space: nowrap; }
+
+/* Tag sumber di kaki tiap lembar cetak dashboard (permintaan Bagus, 13 Okt
+   2026): sejak cetak lewat PDF buatan server, kepala/kaki peramban yang dulu
+   memuat alamat situs tidak ikut lagi dan lembarnya tanpa jejak asal. Bagian
+   dari alur isi lembar, jadi ikut terukur saat lembar dimuatkan satu halaman. */
+.cetak-lembar::after {
+  content: "Sumber: teknik-avengers.com";
+  display: block; clear: both; margin-top: 5pt;
+  font: italic 6.5pt Arial, Helvetica, sans-serif; color: #444; text-align: left;
+}
