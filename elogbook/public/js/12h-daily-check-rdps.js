@@ -474,7 +474,7 @@ const EJAATS_BAGIAN = [
    judul  : kepala halaman cetak         legenda: arti label tombol */
 const RDPS_FORM = {
   newjaats: {
-    label: 'NEW-JAATS', lokasi: 'New JATSC', judul: 'NEW-JAATS DAILY REPORT', bagian: RDPS_BAGIAN,
+    label: 'NEW-JAATS', lokasi: 'NEW JATSC', judul: 'NEW-JAATS DAILY REPORT', bagian: RDPS_BAGIAN,
     legenda: [
       ['Server / Radar / Switch / CWP', 'OPR = Operative/Operational · FAIL = Failed · MAINT = Maintenance · MAIN/STBY = Main/Standby'],
       ['LED Server (HPE)', 'GREEN = Normal · AMBER = Check iLO/IML · RED = Troubleshoot'],
