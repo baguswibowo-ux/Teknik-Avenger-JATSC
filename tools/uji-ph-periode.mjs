@@ -43,6 +43,7 @@ const ditolak = (nama, fn) => {
 try {
   const ttdHak = await import('../elogbook/ttd-hak.js');
   const db = await import('../elogbook/db.js');
+  const { pemanggil } = await import('../elogbook/ttd-qr.js');
 
   /* ---------------- aturan murni ---------------- */
   const { tanggalDokumenIso: iso, dalamPeriodePh: dalam } = ttdHak;
@@ -103,10 +104,12 @@ try {
   const TTD = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAMAAWgmWQ0AAAAASUVORK5CYII=';
   const tandatangani = (id, username, role, nama) => {
     const diwakili = db.listDiwakiliOleh(username, '2026-09-17');
-    return db.tandaTanganiCatatan('logbook', id, {
+    // Sejak TTD menjadi QR, identitas penanda tangan dibaca dari 'pemanggil'
+    // (diisi dispatcher server per permintaan) - di sini diisi tangan.
+    return pemanggil.run({ username, nama }, () => db.tandaTanganiCatatan('logbook', id, {
       nama, username, role, ttd: TTD,
       wakilDari: diwakili.map((p) => p.username), diwakili
-    });
+    }));
   };
 
   const hasil17 = tandatangani(id17, 'uji.teknisi', 'teknisi', 'Uji Teknisi');
