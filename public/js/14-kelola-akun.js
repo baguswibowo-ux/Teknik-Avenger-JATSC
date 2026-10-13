@@ -448,20 +448,27 @@ function gambarAktivasiUnit(){
       + 'aktifkan di sini kalau memang orang unit Anda, atau buat sendiri akunnya lewat <b>+ Akun baru</b> '
       + '(langsung aktif). Yang tampil hanya akun teknisi dan PIC unit di unit yang '
       + 'Anda pegang. Lewat <b>Ubah</b> Anda bisa menunjuk PIC Jadwal Dinas, PIC Sparepart, atau PIC ISR '
-      + 'untuk unit Anda; peran lain, unit, dan penghapusan tetap urusan administrator utama.',
+      + 'untuk unit Anda; peran lain, unit, dan penghapusan tetap urusan administrator utama. '
+      + 'Sesama admin unit di unit Anda ikut tampil, hanya untuk dilihat.',
     '<b>Letting new sign-ups through.</b> Technician accounts created via self-registration start '
       + 'deactivated — activate one here if the person is really from your unit. Only technician and '
       + 'unit PIC accounts in the units you hold appear. Use <b>Edit</b> to appoint a Duty Roster, '
       + 'Spare Parts, or ISR PIC for your unit; other roles, units, and deletion remain the main '
-      + 'administrator’s job.');
+      + 'administrator’s job. Fellow unit admins of your unit are listed too, view only.');
 
   // Teknisi yang SELURUH unitnya jatuh di dalam unit saya. Akun lintas-unit yang
   // bocor keluar cakupan tidak muncul — server pun menolaknya.
   const dalam = (u) => PERAN_UNIT_KELOLA.includes(u.role)
     && (u.unit || []).length > 0
     && (u.unit || []).every(k => scope.includes(k));
+  // Sesama admin unit yang memegang salah satu unit saya: tampil supaya tahu
+  // siapa saja rekan pengelolanya, tapi tanpa tombol — server menolak admin
+  // unit mengubah admin unit lain (PERAN_KELOLA_ADMINUNIT).
+  const rekan = (u) => u.role === 'adminunit' && !u.superadmin
+    && (u.unit || []).some(k => scope.includes(k));
+  const saya = (u) => String(u.username).toLowerCase() === String(akun.username).toLowerCase();
   // Nonaktif di atas: yang menunggu diaktifkan adalah alasan panel ini ada.
-  const baris = USERS.filter(dalam).sort((a,b)=>
+  const baris = USERS.filter(u => dalam(u) || rekan(u)).sort((a,b)=>
     (a.aktif === b.aktif)
       ? a.username.localeCompare(b.username)
       : (a.aktif ? 1 : -1));
@@ -494,10 +501,12 @@ function gambarAktivasiUnit(){
         <td><span class="pil ${u.aktif ? 'aktif-ya' : 'aktif-tidak'}">${
           u.aktif ? T('Aktif','Active') : T('Nonaktif','Deactivated')}</span></td>
         <td>${selLogin(u)}</td>
-        <td style="text-align:right;white-space:nowrap">
-          <button class="btn garis kecil" data-ubah-unit="${esc(u.username)}">${T('Ubah','Edit')}</button>
+        <td style="text-align:right;white-space:nowrap">${rekan(u)
+          ? `<span style="color:var(--muted)">${saya(u)
+              ? T('akun Anda','your account') : T('diatur administrator','set by the administrator')}</span>`
+          : `<button class="btn garis kecil" data-ubah-unit="${esc(u.username)}">${T('Ubah','Edit')}</button>
           <button class="${kelas}" data-aktif-toggle="${esc(u.username)}"
-          data-aktif-ke="${ke}">${label}</button></td>
+          data-aktif-ke="${ke}">${label}</button>`}</td>
       </tr>`;
     }).join('')).join('') + '</tbody>';
 }
