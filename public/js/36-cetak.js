@@ -431,10 +431,15 @@ function cetakKartuGambar(){
 
   const badanHtml = kirimSaja ? `${ringkasRekap}
     <div class="cetak-baris">
-      <label>${T('Kirim untuk disetujui oleh','Send for approval by')}</label>
+      <label>${CETAK.gabungan ? T('Manager Teknik (TTD tiap grup)','Technical Manager (signs each group)')
+        : T('Kirim untuk disetujui oleh','Send for approval by')}</label>
       ${pilihanPejabat}
     </div>
-    <div class="cetak-ket">${T(
+    ${CETAK.gabungan ? gabunganPilihDeputyHtml() : ''}
+    <div class="cetak-ket">${CETAK.gabungan ? T(
+      'Sekali kirim, tiap grup jadi satu lembar di Kotak Masuk Manager Teknik. Setelah SEMUA grup ditandatangani Manager Teknik, seluruhnya otomatis masuk ke Deputy GM Teknik. Lembar akhirnya muncul di Kotak Masuk Anda untuk dicetak.',
+      'One send: each group becomes a sheet in the Technical Manager\'s Inbox. Once ALL groups are signed, they go to the Deputy GM together. The final sheets appear in your Inbox for printing.')
+    : T(
       'Anda mengirim salinan data saat ini ke Kotak Masuk pejabat yang dipilih. Pejabat akan meninjau, menandatangani, dan file PDF akhirnya muncul di Kotak Masuk unit ini untuk dicetak.',
       'You are sending a copy of the current data to the selected officer\'s Inbox. The officer will review, sign, and the final PDF appears in this unit\'s Inbox for printing.')}</div>
     ${isianDinas}
@@ -504,6 +509,8 @@ function cetakPasangKartu(){
      cetakSnapshot() dan htmlDinas() bisa membacanya waktu tombol ditekan. */
   const tgl = el('cetakTanggal');
   if(tgl) tgl.addEventListener('change', ()=>{ CETAK.tanggalCetak = tgl.value; });
+  const pilihDeputy = el('cetakPilihDeputyPaket');
+  if(pilihDeputy) pilihDeputy.addEventListener('change', ()=>{ CETAK.deputyDipilih = pilihDeputy.value || null; });
 
   /* Kanvas pejabat dan kanvas saya masing-masing dipasang kalau ada di DOM.
      Ada/tidaknya ditentukan cetakKartuGambar berdasar keberadaan TTD tersimpan. */
@@ -1294,9 +1301,19 @@ function htmlPeralatan(){
    judul grup tidak bisa ditempatkan; orangnya dilaporkan di kartu kirim dan
    TIDAK ikut ke berkas mana pun, supaya ketahuan sebelum dikirim.
 
-   Tiap berkas adalah permintaan cetak biasa (jenis 'dinas') yang snapshot-nya
-   bertanda `gabungan:true` dan membawa nama grupnya; alur setuju/TTD-nya sama
-   persis dengan Cetak PUM per unit. Unit pembawanya unit yang sedang dibuka.
+   Tiap berkas adalah permintaan cetak jenis 'dinas' yang snapshot-nya bertanda
+   `gabungan:true` dan membawa nama grupnya. Unit pembawanya unit yang sedang
+   dibuka.
+
+   Alur TTD-nya SEPAKET (permintaan Bagus, 13 Okt 2026), dijaga server lewat
+   POST /cetak-antrian/paket:
+     1. Hanya PIC Jadwal Dinas semua unit (atau administrator) yang mengirim;
+        ia memilih Manager Teknik dan Deputy GM Teknik sekali untuk semua grup.
+     2. Manager Teknik menandatangani tiap grup. Lembar yang sudah di-TTD
+        berstatus 'menunggu-paket' — belum ke Deputy.
+     3. Begitu grup terakhir di-TTD, seluruh paket masuk ke Deputy sekaligus
+        ('menunggu-deputy'); Deputy menandatangani tiap grup -> 'disetujui'.
+     4. Satu grup ditolak = paketnya batal; PIC memperbaiki lalu kirim ulang.
    ======================================================================= */
 
 /** Nomor grup kalau baris ini baris JUDUL grup, 0 kalau bukan. */
@@ -1345,7 +1362,23 @@ function gabunganKopHtml(grup, bulan){
 
 function gabunganLabelKirim(){
   const n = dinasGabunganGrup().grup.length;
-  return T(`Kirim ${n} berkas untuk disetujui`, `Send ${n} files for approval`);
+  return T(`Kirim ${n} grup untuk di-TTD`, `Send ${n} groups for signing`);
+}
+
+/** Pilihan Deputy GM Teknik di kartu kirim — dipilih sekali untuk seluruh
+    paket, dan tidak boleh orang yang sama dengan Manager Teknik-nya. */
+function gabunganPilihDeputyHtml(){
+  const calon = (CETAK.pejabat || []).filter(p=>p.username !== CETAK.pejabatDipilih);
+  if(CETAK.deputyDipilih && !calon.some(p=>p.username === CETAK.deputyDipilih)) CETAK.deputyDipilih = null;
+  return `
+    <div class="cetak-baris" style="margin-top:10px">
+      <label>${T('Lalu ke Deputy GM Teknik','Then to Deputy GM Teknik')}</label>
+      <select id="cetakPilihDeputyPaket">
+        <option value="">— ${T('pilih','choose')} —</option>
+        ${calon.map(p=>`<option value="${esc(p.username)}"${p.username === CETAK.deputyDipilih ? ' selected' : ''}
+          >${esc(p.nama || p.username)}</option>`).join('')}
+      </select>
+    </div>`;
 }
 
 /** Ringkasan di kartu kirim: grup apa saja yang akan jadi berkas, dan siapa
@@ -1400,7 +1433,8 @@ function cetakLembarGabunganHtml(){
   }).join('');
 }
 
-/** Sekali tekan: satu permintaan cetak per grup, semuanya ke pejabat yang sama. */
+/** Sekali tekan: seluruh grup dikirim sebagai SATU paket — satu lembar per
+    grup, Manager Teknik dan Deputy yang sama untuk semuanya. */
 async function cetakKirimGabungan(){
   const { grup } = dinasGabunganGrup();
   if(!grup.length){
@@ -1411,41 +1445,38 @@ async function cetakKirimGabungan(){
   const tombol = el('btnLakukanCetak');
   const pejabat = CETAK.pejabat.find(p=>p.username === CETAK.pejabatDipilih) || {};
   const pejabatNama = pejabat.nama || CETAK.pejabatDipilih;
-  const terkirim = [];
-  let galat = '';
-  if(tombol) tombol.disabled = true;
-  for(const g of grup){
-    if(tombol) tombol.textContent = T(`Mengirim ${g.nama}…`, `Sending ${g.nama}…`);
-    try{
-      const jawab = await fetch('/cetak-antrian', {
-        method: 'POST', credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jenis: 'dinas', unit: CETAK.unit, bulan: gabunganBulan(),
-          pejabatUser: CETAK.pejabatDipilih, pejabatNama,
-          snapshot: gabunganSnapshot(g),
-          catatan: `PUM ${g.nama} — semua unit`
-        })
-      });
-      const j = await jawab.json().catch(()=>({}));
-      if(!jawab.ok) throw new Error(j.error || `HTTP ${jawab.status}`);
-      terkirim.push(g.nama);
-    }catch(e){
-      console.error('[cetak] gagal kirim', g.nama, e);
-      galat = `${g.nama}: ${e && e.message || e}`;
-      break;   // sisanya ditahan — jangan sampai pejabat menerima set yang bolong tanpa ada yang tahu
-    }
-  }
-  if(tombol){ tombol.disabled = false; tombol.textContent = gabunganLabelKirim(); }
-  if(typeof muatAntrianCetak === 'function') muatAntrianCetak().then(()=>gambarKotakMasuk?.());
-  if(galat){
-    pesan(T(`Terkirim ${terkirim.length} dari ${grup.length} berkas (${terkirim.join(', ') || '—'}). Berhenti di ${galat}`,
-            `Sent ${terkirim.length} of ${grup.length} files (${terkirim.join(', ') || '—'}). Stopped at ${galat}`));
+  const deputy = CETAK.pejabat.find(p=>p.username === CETAK.deputyDipilih);
+  if(!deputy){
+    pesan(T('Pilih dulu Deputy GM Teknik yang menerima setelah semua grup di-TTD Manager Teknik.',
+            'Pick the Deputy GM Teknik who receives the set once every group is signed.'));
+    el('cetakPilihDeputyPaket')?.focus();
     return;
   }
-  el('lapisCetak').classList.remove('buka');
-  pesan(T(`${terkirim.length} berkas PUM per grup dikirim ke ${pejabatNama}. Pantau statusnya di Kotak Masuk.`,
-          `${terkirim.length} per-group PUM files sent to ${pejabatNama}. Track them in the Inbox.`));
+  const deputyNama = deputy.nama || deputy.username;
+  if(tombol){ tombol.disabled = true; tombol.textContent = T('Mengirim…','Sending…'); }
+  try{
+    const jawab = await fetch('/cetak-antrian/paket', {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        unit: CETAK.unit, bulan: gabunganBulan(),
+        pejabatUser: CETAK.pejabatDipilih, pejabatNama,
+        deputyUser: deputy.username, deputyNama,
+        grup: grup.map(gabunganSnapshot)
+      })
+    });
+    const j = await jawab.json().catch(()=>({}));
+    if(!jawab.ok) throw new Error(j.error || `HTTP ${jawab.status}`);
+    el('lapisCetak').classList.remove('buka');
+    pesan(T(`${grup.length} grup dikirim ke ${pejabatNama}. Setelah semuanya di-TTD, otomatis masuk ke ${deputyNama}. Pantau di Kotak Masuk.`,
+            `${grup.length} groups sent to ${pejabatNama}. Once all are signed they go to ${deputyNama}. Track them in the Inbox.`));
+  }catch(e){
+    console.error('[cetak] gagal kirim paket PUM:', e);
+    pesan(T('Gagal mengirim: ','Send failed: ') + (e && e.message || e));
+  }finally{
+    if(tombol){ tombol.disabled = false; tombol.textContent = gabunganLabelKirim(); }
+    if(typeof muatAntrianCetak === 'function') muatAntrianCetak().then(()=>gambarKotakMasuk?.());
+  }
 }
 
 /* =======================================================================
@@ -1659,6 +1690,10 @@ function cetakKartuReviewGambar(){
   const sayaDeputy = !!p.deputyUser && saya === p.deputyUser;
   const menungguMT = p.status === 'menunggu';
   const menungguDeputy = p.status === 'menunggu-deputy';
+  /* Paket PUM per Grup: Manager Teknik dan Deputy sudah ditentukan pengirim,
+     dan lembarnya baru ke Deputy setelah semua grup di-TTD Manager Teknik. */
+  const paket = !!p.paket;
+  const menungguPaket = p.status === 'menunggu-paket';
   const giliranSaya = (sayaMT && menungguMT) || (sayaDeputy && menungguDeputy);
 
   const snapRekap = !!(p.snapshot && p.snapshot.rekap);
@@ -1670,6 +1705,7 @@ function cetakKartuReviewGambar(){
   const statusTeks = p.status === 'disetujui' ? T('Sudah Disetujui','Approved')
                    : p.status === 'ditolak' ? T('Ditolak','Rejected')
                    : menungguDeputy ? T('Menunggu TTD Deputy','Awaiting Deputy Signature')
+                   : menungguPaket ? T('Sudah TTD MT · menunggu grup lain','Signed · awaiting other groups')
                    // Kartu ini juga dibuka pengirim dan PIC unit yang hanya memantau —
                    // "Anda" hanya benar untuk pejabat yang dituju.
                    : sayaMT ? T('Menunggu TTD Anda','Awaiting Your Signature')
@@ -1713,11 +1749,12 @@ function cetakKartuReviewGambar(){
         ${p.tanggalTtd && p.status !== 'menunggu' ? `<div class="cetak-review-sub" style="color:var(--ok);margin-top:4px">${
           T('✓ ditandatangani ','✓ signed ') + esc(cetakWaktuRingkas(p.tanggalTtd))}</div>` : ''}
       </div>
-      ${p.jenis === 'dinas' && (p.deputyUser || menungguMT) ? `<div>
+      ${p.jenis === 'dinas' && (p.deputyUser || menungguMT || paket) ? `<div>
         <div class="cetak-review-lab">${T('MENGETAHUI (DEPUTY MT)','ACKNOWLEDGED (DEPUTY MT)')}</div>
-        <div class="cetak-review-nama">${esc(p.deputyNama || p.deputyUser || '—')}</div>
+        <div class="cetak-review-nama">${esc(p.deputyNama || p.deputyUser || p.paketDeputyNama || p.paketDeputyUser || '—')}</div>
         ${p.deputyUser ? `<div class="cetak-review-sub">${esc(p.deputyUser)}</div>` : `<div class="cetak-review-sub" style="font-style:italic;color:var(--muted)">${
-          T('(dipilih MT saat menandatangani)','(chosen by MT when signing)')}</div>`}
+          paket ? T('(menerima setelah semua grup di-TTD Manager Teknik)','(receives it once every group is signed)')
+                : T('(dipilih MT saat menandatangani)','(chosen by MT when signing)')}</div>`}
         ${sayaDeputy && menungguDeputy ? `<div class="cetak-review-sub" style="color:var(--accent);margin-top:4px">${
           T('— Anda pengesahnya','— You are the approver')}</div>` : ''}
         ${p.tanggalTtdDeputy ? `<div class="cetak-review-sub" style="color:var(--ok);margin-top:4px">${
@@ -1725,7 +1762,17 @@ function cetakKartuReviewGambar(){
       </div>` : ''}
     </div>
 
-    ${sayaMT && menungguMT && p.jenis === 'dinas' ? `
+    ${paket ? `
+      <div class="cetak-review-sek" style="margin-top:16px">
+        <div class="cetak-review-lab">${T('PAKET PUM PER GRUP','PER-GROUP PUM SET')} · ${
+          T('LEMBAR','SHEET')} ${Number(p.paketKe) || '?'}/${Number(p.paketJumlah) || '?'}</div>
+        <div class="cetak-ket">${esc(T(
+          `Tiap grup ditandatangani sendiri. Setelah ${Number(p.paketJumlah) || 'semua'} grup ditandatangani Manager Teknik, seluruhnya otomatis masuk ke ${p.paketDeputyNama || p.paketDeputyUser || 'Deputy GM Teknik'}.`,
+          `Each group is signed separately. Once all ${Number(p.paketJumlah) || ''} groups are signed by the Technical Manager, they go to ${p.paketDeputyNama || p.paketDeputyUser || 'the Deputy'} together.`))}</div>
+      </div>
+    ` : ''}
+
+    ${sayaMT && menungguMT && p.jenis === 'dinas' && !paket ? `
       <div class="cetak-review-sek" style="margin-top:16px">
         <div class="cetak-review-lab">${T('PILIH DEPUTY MANAGER TEKNIK','PICK DEPUTY MANAGER TEKNIK')}</div>
         <div class="cetak-ket">${T(
@@ -1758,7 +1805,13 @@ function cetakKartuReviewGambar(){
   const btnKirim = el('btnSetujuiKirim');
   if(btnCetak){
     btnCetak.disabled = false;
-    if(giliranSaya){
+    if(giliranSaya && paket){
+      /* Paket PUM per Grup: tanda tangan saja, tanpa mencetak — lembar
+         berikutnya di paket yang sama langsung dibuka. Yang mencetak nanti
+         PIC, setelah Deputy selesai. */
+      btnCetak.textContent = T('Setujui (TTD)','Approve (sign)');
+      btnCetak.onclick = cetakSetujuiPaket;
+    }else if(giliranSaya){
       /* MT atau Deputy sedang bertanda tangan → tombol utama "Setujui &
          Cetak" langsung memfinalisasi + cetak. Untuk MT di dinas ini
          berarti melewati Deputy (mis. urgensi); tombol "Setujui & Kirim"
@@ -1777,7 +1830,7 @@ function cetakKartuReviewGambar(){
     /* Tombol Setujui & Kirim tampil HANYA di kartu review MT untuk dinas
        menunggu — meneruskan permintaan ke Deputy MT untuk tanda tangan
        "Mengetahui". */
-    const tampil = sayaMT && menungguMT && p.jenis === 'dinas';
+    const tampil = sayaMT && menungguMT && p.jenis === 'dinas' && !paket;
     // Rekap yang sudah disetujui: tombol yang sama jadi "Unduh Excel" di
     // samping "Cetak / Simpan PDF" — satu persetujuan, dua keluaran.
     const excel = snapRekap && p.status === 'disetujui';
@@ -1853,6 +1906,59 @@ async function cetakTeruskanKeDeputy(){
     console.error('[cetak] teruskan gagal:', e);
     pesan(T('Gagal meneruskan: ','Forward failed: ') + (e && e.message || e));
     if(tombol){ tombol.disabled = false; tombol.textContent = T('Setujui & Kirim','Approve & Send'); }
+  }
+}
+
+/**
+ * Tanda tangan satu lembar paket PUM per Grup (Manager Teknik atau Deputy),
+ * tanpa mencetak, lalu langsung membuka lembar berikutnya di paket yang sama
+ * yang masih menunggu tanda tangan akun ini — lima grup, lima kali tekan.
+ */
+async function cetakSetujuiPaket(){
+  const p = CETAK._permintaan; if(!p) return;
+  const tombol = el('btnLakukanCetak');
+  if(tombol){ tombol.disabled = true; tombol.textContent = T('Menyetujui…','Approving…'); }
+  try{
+    if(CETAK.kanvasSaya && CETAK.kanvasSaya.ada){
+      await srvApi('simpanTtdSaya', {
+        dataUrl: CETAK.kanvasSaya.el.toDataURL('image/png'), slotIdx: 0
+      });
+      ttdAkunInvalidate(akun.user);
+    }
+    const jawab = await fetch(`/cetak-antrian/${encodeURIComponent(p.id)}/setujui`, {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
+    const j = await jawab.json().catch(()=>({}));
+    if(!jawab.ok) throw new Error(j.error || `HTTP ${jawab.status}`);
+
+    const grup = (p.snapshot && p.snapshot.grup) || '';
+    const deputyNama = p.paketDeputyNama || p.paketDeputyUser || 'Deputy GM Teknik';
+    if(typeof muatAntrianCetak === 'function') await muatAntrianCetak();
+    gambarKotakMasuk?.();
+    const saya = String(akun.user || '').toLowerCase();
+    const berikut = (CETAK_ANTRIAN.untukSaya || [])
+      .filter(x=>x.paket === p.paket && x.id !== p.id
+        && ((x.status === 'menunggu' && x.pejabatUser === saya)
+         || (x.status === 'menunggu-deputy' && x.deputyUser === saya)))
+      .sort((a, b)=>(Number(a.paketKe) || 0) - (Number(b.paketKe) || 0))[0];
+    if(berikut){
+      pesan(T(`${grup} ditandatangani. Lanjut ${(berikut.snapshot && berikut.snapshot.grup) || 'grup berikutnya'}.`,
+              `${grup} signed. Next: ${(berikut.snapshot && berikut.snapshot.grup) || 'next group'}.`));
+      await cetakBukaPermintaan(berikut);
+      return;
+    }
+    el('lapisCetak').classList.remove('buka');
+    pesan(j.paket && j.paket.lepas
+      ? T(`Semua grup sudah Anda tandatangani. Seluruh paket diteruskan ke ${deputyNama}.`,
+          `All groups signed. The whole set was forwarded to ${deputyNama}.`)
+      : T(`${grup} ditandatangani. Semua lembar paket ini sudah selesai Anda tandatangani.`,
+          `${grup} signed. You have signed every sheet in this set.`));
+  }catch(e){
+    console.error('[cetak] setujui paket gagal:', e);
+    pesan(T('Gagal menyetujui: ','Approve failed: ') + (e && e.message || e));
+    if(tombol){ tombol.disabled = false; tombol.textContent = T('Setujui (TTD)','Approve (sign)'); }
   }
 }
 
@@ -2282,27 +2388,6 @@ async function cetakLembarPermintaanHtml(p, snap){
     return `<div class="cetak-lembar">${kop}${cetakIsiSnapshotHtml(p, snap, blok)}</div>`;
   }
   return `<div class="cetak-lembar">${kop}${cetakIsiSnapshotHtml(p, snap)}${blok}</div>`;
-}
-
-/**
- * Baris jadwal yang ikut ke lembar cetak.
- *
- * Baris TANPA NIK yang juga tanpa isian dinas bukan orang — itu baris judul
- * grup ("GRUP 1", "GRUP 2", ...) atau baris pemisah yang ikut terimpor dari
- * Excel. Di layar jadwal baris itu berguna (pembagian grupnya terbaca, dan
- * Cetak PUM per Grup membacanya), tapi di kertas ia tercetak sebagai orang
- * bernomor urut tanpa NIK. Jadi tidak dicetak, dan nomor urutnya rapat.
- *
- * Orang sungguhan yang NIK-nya belum diisi TETAP tercetak selama ada isian
- * dinasnya — jadwal lama (sebelum kolom NIK ada) seluruhnya tanpa NIK, dan
- * menghilangkan orang dari lembar resmi lebih berbahaya daripada NIK kosong.
- */
-function dinasBarisCetak(orang){
-  return (Array.isArray(orang) ? orang : []).filter(o=>{
-    if(!o) return false;
-    if(String(o.nik || '').trim()) return true;
-    return (o.hari || []).some(h=>String(h || '').trim());
-  });
 }
 
 /**

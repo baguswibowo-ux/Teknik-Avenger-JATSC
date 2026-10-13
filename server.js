@@ -4549,6 +4549,12 @@ app.post('/cetak-antrian', badanCetak, async (req, res) => {
     });
   }
 
+  /* Lembar PUM per Grup hanya lahir lewat POST /cetak-antrian/paket — di sana
+     pengirimnya dijaga dan kelima grupnya diikat jadi satu paket. */
+  if (snapshot.gabungan) {
+    return res.status(400).json({ error: 'PUM per Grup dikirim sebagai satu paket (tombol "Cetak PUM per Grup").' });
+  }
+
   const kini = new Date().toISOString();
   const baris = {
     id:            cetakId(),
@@ -4577,6 +4583,110 @@ app.post('/cetak-antrian', badanCetak, async (req, res) => {
   }).catch(() => { /* aktivitas boleh gagal senyap */ });
 
   res.json({ ok: true, permintaan: baris });
+});
+
+/* =====================================================================
+   PAKET PUM PER GRUP
+
+   Jadwal Dinas untuk PUM dikirim SEKALI oleh PIC Jadwal Dinas (semua unit):
+   satu lembar per grup jaga berisi orang dari semua unit, dan semuanya diikat
+   jadi satu paket. Manager Teknik yang sama menandatangani tiap grup; lembar
+   yang sudah di-TTD menunggu ('menunggu-paket') sampai SEMUA grup di paketnya
+   di-TTD, baru seluruhnya masuk ke Deputy GM Teknik sekaligus
+   ('menunggu-deputy'). Deputy tidak pernah menerima paket yang bolong.
+
+   Manager Teknik dan Deputy dipilih pengirim saat mengirim; Deputy disimpan di
+   paketDeputyUser dan baru disalin ke deputyUser saat paketnya dilepas —
+   deputyUser yang terisi berarti "sudah di kotak masuk Deputy".
+   ===================================================================== */
+
+/** Yang boleh mengirim PUM per Grup: PIC Jadwal Dinas semua unit, atau administrator. */
+const bolehPumGrup = (user) => !!user && (user.role === 'admin' || user.superadmin === true
+  || PERAN_PIC[peranUser(user)] === 'dinas');
+
+/** Lepas paket ke Deputy kalau semua grupnya sudah di-TTD Manager Teknik.
+    Mengubah `daftar` di tempat; mengembalikan { sudah, jumlah, lepas }. */
+function paketLepasKalauLengkap(daftar, paket) {
+  const anggota = daftar.filter((x) => x.paket === paket);
+  const jumlah = Math.max(anggota.length, ...anggota.map((x) => Number(x.paketJumlah) || 0));
+  const sudah = anggota.filter((x) => x.status === 'menunggu-paket').length;
+  const lepas = anggota.length > 0 && sudah === jumlah;
+  if (lepas) {
+    for (const x of anggota) {
+      x.deputyUser = x.paketDeputyUser;
+      x.deputyNama = x.paketDeputyNama || x.paketDeputyUser;
+      x.status = 'menunggu-deputy';
+    }
+  }
+  return { sudah, jumlah, lepas };
+}
+
+app.post('/cetak-antrian/paket', badanCetak, async (req, res) => {
+  const user = await siapa(req);
+  if (!user) return res.status(401).json({ error: 'Masuk dulu untuk mengirim permintaan cetak.' });
+  if (!bolehPumGrup(user)) {
+    return res.status(403).json({ error: 'PUM per Grup hanya dikirim PIC Jadwal Dinas (semua unit) atau administrator.' });
+  }
+
+  const unit  = String(req.body?.unit || '').toLowerCase();
+  const bulan = String(req.body?.bulan || '');
+  const pejabatUser = String(req.body?.pejabatUser || '').trim().toLowerCase();
+  const pejabatNama = String(req.body?.pejabatNama || '').trim().slice(0, 80);
+  const deputyUser  = String(req.body?.deputyUser || '').trim().toLowerCase();
+  const deputyNama  = String(req.body?.deputyNama || '').trim().slice(0, 80);
+  const grup = Array.isArray(req.body?.grup) ? req.body.grup : [];
+  const saya = String(user.username || '').toLowerCase();
+
+  if (!unitSah(unit)) return res.status(400).json({ error: 'Kode unit tidak sah.' });
+  if (!bulanSah(bulan)) return res.status(400).json({ error: 'Bulan tidak sah (format YYYY-MM).' });
+  if (!pejabatUser) return res.status(400).json({ error: 'Manager Teknik belum dipilih.' });
+  if (!deputyUser) return res.status(400).json({ error: 'Deputy GM Teknik belum dipilih.' });
+  if (deputyUser === pejabatUser) {
+    return res.status(400).json({ error: 'Deputy GM Teknik tidak boleh sama dengan Manager Teknik yang menandatangani.' });
+  }
+  if (deputyUser === saya) return res.status(400).json({ error: 'Deputy GM Teknik tidak boleh pengirimnya sendiri.' });
+  if (!grup.length || grup.length > 12
+      || grup.some((g) => !g || typeof g !== 'object' || !Array.isArray(g.orang) || !g.orang.length || !String(g.grup || '').trim())) {
+    return res.status(400).json({ error: 'Belum ada grup yang bisa dikirim.' });
+  }
+  if (!(await pejabatBolehJenis(pejabatUser, 'dinas'))) {
+    return res.status(403).json({ error: pesanTanpaHakTtd('Manager Teknik ini', 'dinas') });
+  }
+  if (!(await pejabatBolehJenis(deputyUser, 'dinas'))) {
+    return res.status(403).json({ error: pesanTanpaHakTtd('Deputy GM Teknik ini', 'dinas') });
+  }
+
+  const kini = new Date().toISOString();
+  const paket = 'pkt_' + crypto.randomBytes(6).toString('hex');
+  const baris = grup.map((g, k) => ({
+    id:            cetakId(),
+    jenis: 'dinas', unit, bulan,
+    pembuatUser:   saya,
+    pembuatNama:   user.nama || user.username,
+    pejabatUser, pejabatNama: pejabatNama || pejabatUser,
+    tanggalKirim:  kini,
+    status:        'menunggu',
+    snapshot:      { ...g, jenis: 'dinas', unit, bulan, format: 'pum', gabungan: true, grup: String(g.grup).trim().slice(0, 40) },
+    catatan:       `PUM ${String(g.grup).trim().slice(0, 40)} — semua unit`,
+    ttdPejabatUrl: '', ttdPejabatNama: '', tanggalTtd: '',
+    paket, paketJumlah: grup.length, paketKe: k + 1,
+    paketDeputyUser: deputyUser, paketDeputyNama: deputyNama || deputyUser
+  }));
+
+  const daftar = await bacaAntrianCetak();
+  // Grup 1 paling atas di kotak masuk: daftar disusun terbaru-di-atas.
+  daftar.unshift(...baris);
+  await tulisAntrianCetak(daftar);
+
+  await catat(user, {
+    modul: 'cetak', aksi: 'kirim-paket-pum', unit,
+    rincian: `${baris.length} grup ${bulan} → ${pejabatNama || pejabatUser}, lalu ${deputyNama || deputyUser}`
+  }).catch(() => { /* aktivitas boleh gagal senyap */ });
+  kirimNotifKeAkun(pejabatUser,
+    `Jadwal Dinas PUM ${bulan}: ${baris.length} lembar per grup menunggu tanda tangan Anda (dari ${user.nama || user.username}).`,
+    { tag: 'pum-' + paket }).catch(() => {});
+
+  res.json({ ok: true, paket, permintaan: baris });
 });
 
 /** Daftar permintaan untuk user login: yang tertuju ke dia (kalau pejabat)
@@ -4729,6 +4839,10 @@ app.post('/cetak-antrian/:id/setujui', badanCetak, async (req, res) => {
   const superAtauAdmin = user.role === 'admin' || user.superadmin === true;
 
   if (b.status === 'disetujui') return res.json({ ok: true, permintaan: b });
+  /* Sudah di-TTD Manager Teknik, tinggal menunggu grup lain di paketnya. */
+  if (b.status === 'menunggu-paket') {
+    return res.json({ ok: true, permintaan: b, paket: paketLepasKalauLengkap(daftar, b.paket) });
+  }
 
   const menungguDeputy = b.status === 'menunggu-deputy';
   const bolehTahapIni = menungguDeputy
@@ -4752,7 +4866,17 @@ app.post('/cetak-antrian/:id/setujui', badanCetak, async (req, res) => {
 
   const kini = new Date().toISOString();
   const ttdUrlBaru = String(req.body?.ttdUrl || '');
-  if (menungguDeputy) {
+  let paket = null;
+  if (b.status === 'menunggu' && b.paket && b.paketDeputyUser) {
+    /* Paket PUM per Grup: TTD Manager Teknik dibubuhkan, tapi lembarnya belum
+       selesai dan belum ke Deputy — menunggu grup lain. Begitu grup terakhir
+       di-TTD, seluruh paket masuk ke Deputy sekaligus. */
+    b.status = 'menunggu-paket';
+    b.tanggalTtd = kini;
+    b.ttdPejabatNama = b.pejabatNama || saya;
+    b.ttdPejabatUrl = ttdUrlBaru || `/ttd-akun/${encodeURIComponent(b.pejabatUser)}/gambar`;
+    paket = paketLepasKalauLengkap(daftar, b.paket);
+  } else if (menungguDeputy) {
     /* Tahap 2: TTD Deputy MT dibubuhkan; permintaan selesai. */
     b.ttdDeputyUrl = ttdUrlBaru || `/ttd-akun/${encodeURIComponent(b.deputyUser)}/gambar`;
     b.ttdDeputyNama = b.deputyNama || saya;
@@ -4775,9 +4899,15 @@ app.post('/cetak-antrian/:id/setujui', badanCetak, async (req, res) => {
   await catat(user, {
     modul: 'cetak', aksi: menungguDeputy ? 'setujui-deputy' : 'setujui-permintaan', unit: b.unit,
     rincian: `${b.jenis} dari ${b.pembuatNama || b.pembuatUser}`
+      + (paket ? ` · paket PUM ${paket.lepas ? paket.jumlah : paket.sudah}/${paket.jumlah}${paket.lepas ? ' → ' + b.deputyNama : ''}` : '')
   }).catch(() => {});
+  if (paket && paket.lepas) {
+    kirimNotifKeAkun(b.deputyUser,
+      `Jadwal Dinas PUM ${b.bulan}: ${paket.jumlah} lembar per grup sudah ditandatangani ${b.pejabatNama || b.pejabatUser} dan menunggu tanda tangan Anda.`,
+      { tag: 'pum-' + b.paket }).catch(() => {});
+  }
 
-  res.json({ ok: true, permintaan: b });
+  res.json(paket ? { ok: true, permintaan: b, paket } : { ok: true, permintaan: b });
 });
 
 /**
@@ -4809,6 +4939,11 @@ app.post('/cetak-antrian/:id/teruskan', badanCetak, async (req, res) => {
 
   if (b.jenis !== 'dinas') {
     return res.status(400).json({ error: 'Meneruskan ke Deputy hanya berlaku untuk Jadwal Dinas.' });
+  }
+  if (b.paket) {
+    return res.status(409).json({
+      error: 'Lembar ini bagian dari paket PUM per Grup: diteruskan otomatis ke Deputy setelah semua grup ditandatangani.'
+    });
   }
   if (b.status !== 'menunggu') {
     return res.status(409).json({ error: `Permintaan ini tidak sedang menunggu Manager Teknik (status: ${b.status}).` });
@@ -4867,12 +5002,31 @@ app.post('/cetak-antrian/:id/tolak', badanCetak, async (req, res) => {
              || user.role === 'admin' || user.superadmin === true;
   if (!boleh) return res.status(403).json({ error: 'Hanya pejabat penerima atau administrator yang boleh menolak.' });
 
+  const alasan = String(req.body?.alasan || '').slice(0, 500);
   b.status = 'ditolak';
-  b.catatanTolak = String(req.body?.alasan || '').slice(0, 500);
+  b.catatanTolak = alasan;
   b.tanggalTtd = new Date().toISOString();
   daftar[i] = b;
+  /* Paket PUM per Grup harus utuh: satu grup ditolak berarti grup lain yang
+     belum selesai ikut batal, supaya tidak ada paket bolong yang menggantung
+     di kotak masuk. Pengirim memperbaiki jadwalnya lalu mengirim ulang. */
+  let ikutBatal = 0;
+  if (b.paket) {
+    const grupDitolak = (b.snapshot && b.snapshot.grup) || 'grup lain';
+    for (const x of daftar) {
+      if (x.paket !== b.paket || x.id === b.id || x.status === 'disetujui' || x.status === 'ditolak') continue;
+      x.status = 'ditolak';
+      x.catatanTolak = `Paket dibatalkan karena ${grupDitolak} ditolak${alasan ? ': ' + alasan : '.'}`;
+      ikutBatal++;
+    }
+  }
   await tulisAntrianCetak(daftar);
-  res.json({ ok: true, permintaan: b });
+  if (b.paket && b.pembuatUser !== saya) {
+    kirimNotifKeAkun(b.pembuatUser,
+      `Jadwal Dinas PUM ${b.bulan} ditolak ${user.nama || saya}${alasan ? ': ' + alasan : ''}. Seluruh paketnya batal - perbaiki lalu kirim ulang.`,
+      { tag: 'pum-' + b.paket }).catch(() => {});
+  }
+  res.json({ ok: true, permintaan: b, ikutBatal });
 });
 
 /** Hapus — pembuat boleh menarik permintaannya yang belum final, pejabat
@@ -4896,9 +5050,13 @@ app.delete('/cetak-antrian/:id', async (req, res) => {
       || (b.deputyUser && saya === b.deputyUser);
   if (!boleh) return res.status(403).json({ error: 'Bukan pihak yang berhak menghapus.' });
 
-  daftar.splice(i, 1);
-  await tulisAntrianCetak(daftar);
-  res.json({ ok: true });
+  /* Lembar paket PUM per Grup yang belum selesai ditarik sepaket — sisa
+     paketnya toh tidak akan pernah lengkap untuk dilepas ke Deputy. */
+  const sepaket = (x) => b.paket && b.status !== 'disetujui' && x.paket === b.paket && x.status !== 'disetujui';
+  const sisa = daftar.filter((x) => x.id !== b.id && !sepaket(x));
+  const terhapus = daftar.length - sisa.length;
+  await tulisAntrianCetak(sisa);
+  res.json({ ok: true, terhapus });
 });
 
 /* =====================================================================

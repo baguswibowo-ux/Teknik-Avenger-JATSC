@@ -561,10 +561,10 @@ function jdwIsi(unit){
                T('Versi untuk PUM: hanya kode PS/M/P/S; SPKL, cuti, dan lainnya dikosongkan.',
                  'PUM version: only PS/M/P/S codes; SPKL, leave, and others are blanked.')}">${
                T('Cetak PUM','Print (PUM)')}</button>
-             <button class="btn garis kecil" id="jdwCetakPumGrup" title="${
-               T('PUM per grup: nama dari semua unit dijadikan satu, satu berkas per grup (GRUP 1, GRUP 2, ...).',
-                 'PUM per group: all units combined, one file per group.')}">${
-               T('Cetak PUM per Grup','Print (PUM per Group)')}</button>
+             ${bolehPumGrup() ? `<button class="btn garis kecil" id="jdwCetakPumGrup" title="${
+               T('PUM per grup: nama dari semua unit dijadikan satu, satu lembar per grup (GRUP 1, GRUP 2, ...). Manager Teknik menandatangani tiap grup, lalu semuanya masuk ke Deputy GM Teknik.',
+                 'PUM per group: all units combined, one sheet per group. Signed per group, then all go to the Deputy.')}">${
+               T('Cetak PUM per Grup','Print (PUM per Group)')}</button>` : ''}
              <button class="btn garis kecil" id="jdwCetakTeknik" title="${
                T('Versi internal Teknik: seluruh kode ditampilkan apa adanya.',
                  'Internal Teknik version: every code is shown as-is.')}">${

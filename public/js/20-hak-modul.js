@@ -56,6 +56,10 @@ const subtabTerbatasDi = (kode) => bolehBuka(kode) ? null
   : [...new Set([modulPicAkun(), 'dinas'].filter(Boolean))];
 /** Modul ini modul semua-unit milik PIC yang sedang masuk? */
 const modulPicSemuaUnit = (modul) => !!akun && (PERAN_PIC_MODUL[akun.role] || []).includes(modul);
+/** Cetak PUM per Grup (semua unit dijadikan satu) hanya dikirim PIC Jadwal
+    Dinas semua unit atau administrator — sama dengan bolehPumGrup di server.js. */
+const bolehPumGrup = () => !!akun && (akun.role === 'admin' || akun.superadmin === true
+  || modulPicSemuaUnit('dinas'));
 /* Peran yang dipertimbangkan di layar Hak Akses. Peran view-only sengaja tidak
    dimasukkan — centangnya toh tidak berpengaruh; menyingkirkannya menghindarkan
    janji palsu. Server sudah menyaring peranSah untuk alasan yang sama. */
