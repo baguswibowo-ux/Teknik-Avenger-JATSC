@@ -155,8 +155,8 @@ function cetakAntrianKartu(p, hanyaLihat){
           : esc(namaUnit(p.unit)) + (p.bulan ? ' · ' + esc(namaBulan(p.bulan)) : '')}</b>
       </div>
       <div class="kmk-rn">${T('Dari','From')}: <b>${esc(p.pembuatNama || p.pembuatUser)}</b>
-        · ${T('untuk','for')}: <b>${esc(p.pejabatNama || p.pejabatUser)}</b>${p.paket
-          ? ` → <b>${esc(p.paketDeputyNama || p.paketDeputyUser || '')}</b>` : ''}
+        · ${T('untuk','for')}: <b>${esc(p.pejabatNama || p.pejabatUser)}</b>${p.paket && (p.deputyNama || p.paketDeputyNama)
+          ? ` → <b>${esc(p.deputyNama || p.paketDeputyNama)}</b>` : ''}
         · ${esc(cetakWaktuRingkas(p.tanggalKirim))}</div>
       ${p.catatan && !p.paket ? `<div class="kmk-rn" style="font-style:italic">"${esc(p.catatan)}"</div>` : ''}
     </div>

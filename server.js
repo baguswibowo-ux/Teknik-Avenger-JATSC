@@ -4597,9 +4597,11 @@ app.post('/cetak-antrian', badanCetak, async (req, res) => {
    satu-satu (rute /:id/setujui), yang sudah di-TTD menunggu ('menunggu-paket')
    sampai SEMUA grup di-TTD — Deputy tidak pernah menerima paket yang bolong.
 
-   Manager Teknik dan Deputy dipilih pengirim saat mengirim; Deputy disimpan di
-   paketDeputyUser dan baru disalin ke deputyUser saat paketnya dilepas —
-   deputyUser yang terisi berarti "sudah di kotak masuk Deputy".
+   Pengirim hanya memilih Manager Teknik. DEPUTY dipilih Manager Teknik saat ia
+   menandatangani — dialah yang mengirim paketnya ke Deputy (koreksi Bagus,
+   13 Okt 2026). Deputy disimpan di paketDeputyUser dan baru disalin ke
+   deputyUser saat paketnya dilepas — deputyUser yang terisi berarti "sudah di
+   kotak masuk Deputy".
    ===================================================================== */
 
 /** Yang boleh mengirim PUM per Grup: PIC Jadwal Dinas semua unit, atau administrator. */
@@ -4642,11 +4644,12 @@ app.post('/cetak-antrian/paket', badanCetak, async (req, res) => {
   if (!unitSah(unit)) return res.status(400).json({ error: 'Kode unit tidak sah.' });
   if (!bulanSah(bulan)) return res.status(400).json({ error: 'Bulan tidak sah (format YYYY-MM).' });
   if (!pejabatUser) return res.status(400).json({ error: 'Manager Teknik belum dipilih.' });
-  if (!deputyUser) return res.status(400).json({ error: 'Deputy GM Teknik belum dipilih.' });
-  if (deputyUser === pejabatUser) {
+  /* Deputy biasanya KOSONG di sini: Manager Teknik yang memilihnya saat
+     menandatangani. Kalau pengirim sudah mengisinya, aturannya sama. */
+  if (deputyUser && deputyUser === pejabatUser) {
     return res.status(400).json({ error: 'Deputy GM Teknik tidak boleh sama dengan Manager Teknik yang menandatangani.' });
   }
-  if (deputyUser === saya) return res.status(400).json({ error: 'Deputy GM Teknik tidak boleh pengirimnya sendiri.' });
+  if (deputyUser && deputyUser === saya) return res.status(400).json({ error: 'Deputy GM Teknik tidak boleh pengirimnya sendiri.' });
   if (!grup.length || grup.length > 12
       || grup.some((g) => !g || typeof g !== 'object' || !Array.isArray(g.orang) || !g.orang.length || !String(g.grup || '').trim())) {
     return res.status(400).json({ error: 'Belum ada grup yang bisa dikirim.' });
@@ -4654,7 +4657,7 @@ app.post('/cetak-antrian/paket', badanCetak, async (req, res) => {
   if (!(await pejabatBolehJenis(pejabatUser, 'dinas'))) {
     return res.status(403).json({ error: pesanTanpaHakTtd('Manager Teknik ini', 'dinas') });
   }
-  if (!(await pejabatBolehJenis(deputyUser, 'dinas'))) {
+  if (deputyUser && !(await pejabatBolehJenis(deputyUser, 'dinas'))) {
     return res.status(403).json({ error: pesanTanpaHakTtd('Deputy GM Teknik ini', 'dinas') });
   }
 
@@ -4672,7 +4675,7 @@ app.post('/cetak-antrian/paket', badanCetak, async (req, res) => {
     catatan:       `PUM ${String(g.grup).trim().slice(0, 40)} — semua unit`,
     ttdPejabatUrl: '', ttdPejabatNama: '', tanggalTtd: '',
     paket, paketJumlah: grup.length, paketKe: k + 1,
-    paketDeputyUser: deputyUser, paketDeputyNama: deputyNama || deputyUser
+    paketDeputyUser: deputyUser, paketDeputyNama: deputyUser ? (deputyNama || deputyUser) : ''
   }));
 
   const daftar = await bacaAntrianCetak();
@@ -4682,7 +4685,7 @@ app.post('/cetak-antrian/paket', badanCetak, async (req, res) => {
 
   await catat(user, {
     modul: 'cetak', aksi: 'kirim-paket-pum', unit,
-    rincian: `${baris.length} grup ${bulan} → ${pejabatNama || pejabatUser}, lalu ${deputyNama || deputyUser}`
+    rincian: `${baris.length} grup ${bulan} → ${pejabatNama || pejabatUser}`
   }).catch(() => { /* aktivitas boleh gagal senyap */ });
   kirimNotifKeAkun(pejabatUser,
     `Jadwal Dinas PUM ${bulan}: ${baris.length} lembar per grup menunggu tanda tangan Anda (dari ${user.nama || user.username}).`,
@@ -4719,6 +4722,25 @@ app.post('/cetak-antrian/paket/:paket/setujui', badanCetak, async (req, res) => 
   const contoh = giliran[0];
   let paket = null;
   if (tahapMT.length) {
+    /* Manager Teknik yang mengirim ke Deputy: pilihannya ikut di permintaan
+       ini. Tanpa Deputy, tidak ada yang ditandatangani — paket yang sudah
+       di-TTD tapi tak bertujuan akan menggantung. */
+    const deputyUser = String(req.body?.deputyUser || '').trim().toLowerCase() || contoh.paketDeputyUser || '';
+    const deputyNama = String(req.body?.deputyNama || '').trim().slice(0, 80)
+      || (deputyUser === contoh.paketDeputyUser ? contoh.paketDeputyNama : '') || deputyUser;
+    if (!deputyUser) return res.status(400).json({ error: 'Pilih dulu Deputy GM Teknik yang menerima paket ini.' });
+    if (deputyUser === contoh.pejabatUser) {
+      return res.status(400).json({ error: 'Deputy GM Teknik tidak boleh sama dengan Manager Teknik yang menandatangani.' });
+    }
+    if (deputyUser === contoh.pembuatUser) {
+      return res.status(400).json({ error: 'Deputy GM Teknik tidak boleh pembuat permintaan sendiri.' });
+    }
+    if (!(await pejabatBolehJenis(deputyUser, 'dinas'))) {
+      return res.status(403).json({ error: pesanTanpaHakTtd('Deputy GM Teknik ini', 'dinas') });
+    }
+    for (const b of anggota) {
+      if (b.status === 'menunggu' || b.status === 'menunggu-paket') { b.paketDeputyUser = deputyUser; b.paketDeputyNama = deputyNama; }
+    }
     for (const b of tahapMT) {
       b.status = 'menunggu-paket';
       b.tanggalTtd = kini;
@@ -4930,6 +4952,12 @@ app.post('/cetak-antrian/:id/setujui', badanCetak, async (req, res) => {
      /cetak-antrian; bolehTtd di sini adalah lapis kedua per-akun. */
   if (!superAtauAdmin && !(await pejabatBolehJenis(saya, b.jenis))) {
     return res.status(403).json({ error: pesanTanpaHakTtd('Anda', b.jenis) });
+  }
+
+  if (b.status === 'menunggu' && b.paket && !b.paketDeputyUser) {
+    return res.status(409).json({
+      error: 'Lembar ini bagian dari paket PUM per Grup: setujui paketnya sekaligus dan pilih Deputy GM Teknik penerimanya.'
+    });
   }
 
   const kini = new Date().toISOString();
