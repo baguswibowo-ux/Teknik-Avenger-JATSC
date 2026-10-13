@@ -449,12 +449,12 @@ function gambarAktivasiUnit(){
       + '(langsung aktif). Yang tampil hanya akun teknisi dan PIC unit di unit yang '
       + 'Anda pegang. Lewat <b>Ubah</b> Anda bisa menunjuk PIC Jadwal Dinas, PIC Sparepart, atau PIC ISR '
       + 'untuk unit Anda; peran lain, unit, dan penghapusan tetap urusan administrator utama. '
-      + 'Sesama admin unit di unit Anda ikut tampil, hanya untuk dilihat.',
+      + 'Sesama admin unit di unit Anda ikut tampil; yang bisa Anda ganti hanya password-nya.',
     '<b>Letting new sign-ups through.</b> Technician accounts created via self-registration start '
       + 'deactivated — activate one here if the person is really from your unit. Only technician and '
       + 'unit PIC accounts in the units you hold appear. Use <b>Edit</b> to appoint a Duty Roster, '
       + 'Spare Parts, or ISR PIC for your unit; other roles, units, and deletion remain the main '
-      + 'administrator’s job. Fellow unit admins of your unit are listed too, view only.');
+      + 'administrator’s job. Fellow unit admins of your unit are listed too; you can only change their password.');
 
   // Teknisi yang SELURUH unitnya jatuh di dalam unit saya. Akun lintas-unit yang
   // bocor keluar cakupan tidak muncul — server pun menolaknya.
@@ -462,11 +462,11 @@ function gambarAktivasiUnit(){
     && (u.unit || []).length > 0
     && (u.unit || []).every(k => scope.includes(k));
   // Sesama admin unit yang memegang salah satu unit saya: tampil supaya tahu
-  // siapa saja rekan pengelolanya, tapi tanpa tombol — server menolak admin
-  // unit mengubah admin unit lain (PERAN_KELOLA_ADMINUNIT).
+  // siapa saja rekan pengelolanya. Yang boleh disentuh hanya sandinya
+  // (adminUnitGantiSandiRekan di elogbook/server.js); sisanya ditolak server.
   const rekan = (u) => u.role === 'adminunit' && !u.superadmin
     && (u.unit || []).some(k => scope.includes(k));
-  const saya = (u) => String(u.username).toLowerCase() === String(akun.username).toLowerCase();
+  const saya = (u) => String(u.username).toLowerCase() === String(akun.user).toLowerCase();
   // Nonaktif di atas: yang menunggu diaktifkan adalah alasan panel ini ada.
   const baris = USERS.filter(u => dalam(u) || rekan(u)).sort((a,b)=>
     (a.aktif === b.aktif)
@@ -503,7 +503,8 @@ function gambarAktivasiUnit(){
         <td>${selLogin(u)}</td>
         <td style="text-align:right;white-space:nowrap">${rekan(u)
           ? `<span style="color:var(--muted)">${saya(u)
-              ? T('akun Anda','your account') : T('diatur administrator','set by the administrator')}</span>`
+              ? T('akun Anda','your account')
+              : `<button class="btn garis kecil" data-sandi-rekan="${esc(u.username)}">${T('Ganti password','Change password')}</button>`}</span>`
           : `<button class="btn garis kecil" data-ubah-unit="${esc(u.username)}">${T('Ubah','Edit')}</button>
           <button class="${kelas}" data-aktif-toggle="${esc(u.username)}"
           data-aktif-ke="${ke}">${label}</button>`}</td>
@@ -540,12 +541,17 @@ function bukaUnitAkun(u){
   const sendiri = !!u.sendiri;
   // ...dan untuk MEMBUAT akun di unitnya (u.baru): username, nama, peran, unit, sandi.
   const baru = !!u.baru;
+  // ...dan untuk mengganti sandi sesama admin unit (u.rekan): sandi saja.
+  const rekan = !!u.rekan;
+  el('isianUaUser').style.display = rekan ? 'none' : '';
+  el('isianUaNama').style.display = rekan ? 'none' : '';
   el('judulUnitAkun').textContent = baru ? T('Akun baru di unit Anda','New account in your unit')
+    : rekan ? T('Ganti password admin unit','Change unit admin password')
     : sendiri ? T('Ubah akun saya','Edit my account')
     : T('Ubah teknisi unit','Edit unit technician');
   el('ketUnitAkun').textContent = baru ? '' : u.username;
   el('isianUaLama').style.display = sendiri ? '' : 'none';
-  el('isianUaPeran').style.display = sendiri ? 'none' : '';
+  el('isianUaPeran').style.display = (sendiri || rekan) ? 'none' : '';
   el('uaPeran').innerHTML = PERAN_UNIT_KELOLA.map(p=>
     `<option value="${p}"${p === (u.role || 'teknisi') ? ' selected' : ''}>${esc(peranTampil(p))}</option>`).join('');
   const lingkup = unitLingkupSaya();
@@ -553,7 +559,7 @@ function bukaUnitAkun(u){
   el('uaUnit').innerHTML = (baru && Array.isArray(lingkup) ? lingkup : []).map(k=>
     `<option value="${esc(k)}">${esc(namaUnit(k))}</option>`).join('');
   el('labelUaPass').textContent = baru ? 'Password' : T('Ganti password','Change password');
-  el('uaPass').placeholder = baru ? T('minimal 6 karakter','at least 6 characters')
+  el('uaPass').placeholder = (baru || rekan) ? T('minimal 6 karakter','at least 6 characters')
     : T('kosongkan bila tidak diganti','leave empty to keep it');
   el('uaUser').placeholder = baru ? T('NIK pegawai','employee ID (NIK)') : 'mis. budi.santoso';
   el('btnSimpanUnitAkun').textContent = baru ? T('Buat akun','Create account') : T('Simpan perubahan','Save changes');
@@ -562,7 +568,7 @@ function bukaUnitAkun(u){
   el('uaPass').value = '';
   el('uaPassLama').value = '';
   el('lapisUnitAkun').classList.add('buka');
-  el(baru ? 'uaUser' : sendiri ? 'uaPassLama' : 'uaNama').focus();
+  el(baru ? 'uaUser' : sendiri ? 'uaPassLama' : rekan ? 'uaPass' : 'uaNama').focus();
 }
 
 /* Akun sendiri: server meminta sandi lama sebagai argumen ketiga di tiap
@@ -642,6 +648,23 @@ async function buatAkunUnit(){
   }
 }
 
+/* Sesama admin unit: hanya sandinya yang dikirim. */
+async function simpanSandiRekan(asal){
+  const pass = el('uaPass').value;
+  const b = el('btnSimpanUnitAkun');
+  try{
+    if(pass.length < 6) throw new Error(T('Password minimal 6 karakter.','Password must be at least 6 characters.'));
+    b.disabled = true;
+    await adminApi('setUserPassword', asal.username, pass);
+    pesan(T('Password ' + asal.username + ' sudah diganti.', 'Password for ' + asal.username + ' changed.'));
+    tutupUnitAkun();
+  }catch(e){
+    pesan(T('Gagal mengganti password: ','Could not change the password: ') + (e && e.message || e));
+  }finally{
+    b.disabled = false;
+  }
+}
+
 /* Kirim hanya yang berubah, satu panggilan per perubahan, berhenti pada
    kegagalan pertama. Rename PALING DULU — sama alasannya dengan simpanUbahan:
    langkah setelahnya merujuk akun lewat username yang berlaku saat itu, jadi
@@ -652,6 +675,7 @@ async function simpanUnitAkun(){
   if(!asal) return;
   if(asal.sendiri) return simpanAkunSaya(asal);
   if(asal.baru) return buatAkunUnit();
+  if(asal.rekan) return simpanSandiRekan(asal);
   const usernameBaru = el('uaUser').value.trim().toLowerCase();
   const nama = el('uaNama').value.trim();
   const pass = el('uaPass').value;
@@ -1615,6 +1639,12 @@ el('tblAktivasiUnit').addEventListener('click', e=>{
   if(ubah){
     const u = USERS.find(x=>x.username === ubah.dataset.ubahUnit);
     if(u) bukaUnitAkun(u);
+    return;
+  }
+  const sandi = e.target.closest('button[data-sandi-rekan]');
+  if(sandi){
+    const u = USERS.find(x=>x.username === sandi.dataset.sandiRekan);
+    if(u) bukaUnitAkun({ username: u.username, nama: u.nama, rekan: true });
     return;
   }
   const b = e.target.closest('button[data-aktif-toggle]'); if(!b) return;

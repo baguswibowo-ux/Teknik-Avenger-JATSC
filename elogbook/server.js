@@ -1893,6 +1893,20 @@ async function pastikanAdminUnitBolehKelola(target, user) {
 }
 
 /**
+ * Admin unit mengganti SANDI sesama admin unit yang memegang unit yang sama —
+ * permintaan Bagus, 13 Okt 2026, supaya lupa sandi tidak harus menunggu
+ * administrator. Hanya sandi: nama, username, peran, dan aktif/nonaktif rekan
+ * tetap milik administrator. Cukup SATU unit yang beririsan ("sama-sama di unit
+ * itu"); akun super-admin sudah ditolak pastikanBolehUbahTarget sebelumnya.
+ */
+async function adminUnitGantiSandiRekan(target, user) {
+  if (isAdmin(user) || user?.role !== 'adminunit' || target.role !== 'adminunit') return false;
+  const unitSaya = await unitUntukUser(user);
+  const unitTarget = await unitUntukUser(target);
+  return unitTarget.some((k) => unitSaya.includes(k));
+}
+
+/**
  * Admin unit mengubah akunnya SENDIRI (nama, username/NIK, sandi). Pagar unit
  * tidak berlaku di sana — akunnya bukan teknisi — jadi gantinya sandi lama
  * wajib cocok: tanpa itu, siapa pun yang sempat memegang sesinya yang masih
@@ -2054,7 +2068,9 @@ const API_ADMIN = {
     const target = await getUserByUsername(u);
     if (!target) throw new Error(`Pengguna "${u}" tidak ditemukan.`);
     pastikanBolehUbahTarget(target, user);
-    if (!adminUnitUbahSendiri(target, user, lama)) await pastikanAdminUnitBolehKelola(target, user);
+    if (!adminUnitUbahSendiri(target, user, lama) && !(await adminUnitGantiSandiRekan(target, user))) {
+      await pastikanAdminUnitBolehKelola(target, user);
+    }
     await setPassword(u, String(password));
     return true;
   },
