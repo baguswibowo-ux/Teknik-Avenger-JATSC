@@ -62,3 +62,20 @@
 
 .print-bar{display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap; margin-bottom:12px;}
 .print-bar .field{margin-bottom:0; flex:1; min-width:130px;}
+
+/* Tag sumber di kepala cetakan (permintaan Bagus, 13 Okt 2026). Dulu tulisan
+   "E-Logbook" di atas kertas datang dari kepala halaman peramban; cetakan
+   lewat Kirim PDF (dan peramban yang kepala-kakinya dimatikan) tidak
+   membawanya, jadi lembarnya tanpa jejak asal. Sekali di atas, sebelum kop. */
+@media print{
+  #printArea::before{
+    content:"E-Logbook - Sumber: teknik-avengers.com";
+    display:block; margin:0 0 4pt; text-align:left;
+    font:italic 7pt Arial, Helvetica, sans-serif; color:#444;
+  }
+}
+#printArea.preview #pratinjauIsi::before{
+  content:"E-Logbook - Sumber: teknik-avengers.com";
+  display:block; margin:0 0 4pt; text-align:left;
+  font:italic 7pt Arial, Helvetica, sans-serif; color:#444;
+}
