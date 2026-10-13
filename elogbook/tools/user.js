@@ -6,6 +6,7 @@
  *   npm run user -- passwd budi
  *   npm run user -- disable budi
  *   npm run user -- enable budi
+ *   npm run user -- nik arya 10012345     NIK untuk TTD QR (username bukan NIK)
  *
  * Password tidak diketik di baris perintah (supaya tidak tersimpan di history
  * shell) — akan diminta lewat prompt, atau dibuatkan acak dengan --auto.
@@ -13,7 +14,7 @@
 
 import readline from 'node:readline';
 import crypto from 'node:crypto';
-import { createUser, setPassword, setAktif, listUsers, getUserByUsername } from '../db.js';
+import { createUser, setPassword, setAktif, listUsers, getUserByUsername, setNikAkun } from '../db.js';
 
 const [, , perintah, ...arg] = process.argv;
 const auto = arg.includes('--auto');
@@ -75,6 +76,13 @@ switch (perintah) {
     break;
   }
 
+  case 'nik': {
+    const [username, nik = ''] = args;
+    if (!username) { console.error('Pakai: npm run user -- nik <username> <nik>'); process.exit(1); }
+    if (!setNikAkun(username, nik)) { console.error(`Username "${username}" tidak ditemukan.`); process.exit(1); }
+    console.log(nik ? `NIK "${username}" sekarang ${nik}.` : `NIK "${username}" dikosongkan.`);
+    break;
+  }
   case 'disable':
   case 'enable': {
     const [username] = args;

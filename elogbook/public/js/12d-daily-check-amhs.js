@@ -606,6 +606,7 @@ async function saveDcAmhsSistem(sys){
     ulang dinas berikutnya, dan terlihat sudah ditandatangani. */
 function amhsMuatTtd(padId, url){
   if(!url) return;
+  if(sigIsiDariUrl(padId, url)) return;
   const s = sigPads[padId]; if(!s) return;
   if(typeof resizeSigCanvas === 'function') resizeSigCanvas(padId);
   const rect = s.canvas.getBoundingClientRect();

@@ -45,6 +45,7 @@ import fs from 'node:fs';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { pesanPerluTtd, pesanSudahTtd, pesanBelumTtd, pesanTtdDiganti } from '../pesan-notif.js';
+import { pemanggil, bacaUrlTtdQr, svgTtdQr, urlTtdQr } from './ttd-qr.js';
 import {
   buatKunciVapid, kunciVapidSah, kirimPush, endpointSah, kunciLanggananSah, pesanUntukPush
 } from '../webpush.js';
@@ -75,7 +76,7 @@ const {
   getUserByUsername, verifyPassword, createUser, countUsers, hapusUser,
   jenisTtdSah, unitCatatan, unitHapus, pemilikLembarForm, tandaTanganiCatatan, batalkanTtdCatatan, listPejabatAktif, listPejabatUnit, listTeknisiUnit, listAkunAktif, listPemantauDinas, getInboxTtd,
   getTtdTersimpan, simpanTtdTersimpan, hapusTtdTersimpan, pilihTtdTersimpanAktif, rekapMentah,
-  listUsers, setPassword, setAktif, setRole, setNama, setUsername, ROLE_VALID, SEMUA_UNIT, jumlahAdminAktif,
+  listUsers, setPassword, setAktif, setRole, setNama, setUsername, setIdentitasTtdAkun, identitasTtdAkun, unitMilikUser, ROLE_VALID, SEMUA_UNIT, jumlahAdminAktif,
   UNIT, KODE_UNIT, unitSah, unitUntukUser, setUnitUser,
   createSession, getSessionUser, deleteSession, purgeExpiredSessions,
   ambilBerkas,
@@ -271,6 +272,9 @@ async function pastikanUnit(user, unit) {
   const kode = String(unit || '').trim();
   if (!unitSah(kode)) throw new Error('Unit logbook tidak dikenal: ' + kode);
   if (!(await unitUntukUser(user)).includes(kode)) {
+    if (user?.tanpaPerluasanPh && await sedangJadiPh(user)) {
+      throw new Error('Selama menjadi PH, unit lain hanya bisa dilihat. Menambah atau mengubah catatan hanya di unit Anda sendiri.');
+    }
     throw new Error('Akun Anda tidak diberi akses ke logbook ' + kode + '.');
   }
   return kode;
@@ -1729,15 +1733,24 @@ const API = {
     if (!u) return { ada: false, nama: '', role: '', path: '', dibuatPada: '' };
     const target = await getUserByUsername(u);
     if (!target) return { ada: false, nama: '', role: '', path: '', dibuatPada: '' };
-    const rek = await getTtdTersimpan(target.username);
-    const idx = rek.aktif | 0;
-    const slot = rek.slots[idx] || { path: '', dibuatPada: '' };
+    /* Sejak TTD menjadi QR (ttd-qr.js) tiap akun selalu "punya" tanda tangan:
+       QR berisi jabatan atau unit, nama, dan NIK-nya. Yang dulu dijawab dengan
+       coretan tersimpan kini dijawab dengan alamat QR itu — dashboard
+       menyalin dan menempelkannya persis seperti gambar TTD lama.
+       dibuatPada diisi sidik alamatnya: begitu NIK atau jabatan akun diubah,
+       sidiknya ikut berganti dan salinan di dashboard disegarkan. */
+    const identitas = await identitasTtdAkun(target.username);
+    const unitnya = identitas.jabatan ? [] : await unitMilikUser(target);
+    const jalur = urlTtdQr({
+      unit: unitnya.length ? namaUnit(unitnya[0]) : '',
+      nama: target.nama || target.username, ...identitas
+    }, DIR_DATA);
     return {
-      ada: !!slot.path,
+      ada: true,
       nama: target.nama || target.username,
       role: target.role,
-      path: slot.path || '',
-      dibuatPada: slot.dibuatPada || ''
+      path: jalur,
+      dibuatPada: 'qr-' + jalur.slice(-24, -4)
     };
   },
 
@@ -1828,8 +1841,10 @@ const API = {
    * catatan penutupan, tanggal, penutup) — jenis/keterangan/pelapor
    * tidak bisa ikut disunting lewat sini.
    */
-  tutupIsu: async (id, keteranganClosed, user) =>
-    tutupIsu(String(id || ''), String(keteranganClosed || ''), user?.username || ''),
+  tutupIsu: async (id, keteranganClosed, user) => {
+    await pastikanUnitIsu(user, id);
+    return tutupIsu(String(id || ''), String(keteranganClosed || ''), user?.username || '');
+  },
 
   /**
    * Menempel bukti fase "closed" pada isu. Terpisah dari addIssueLampiran
@@ -1837,9 +1852,19 @@ const API = {
    * foto hasil pekerjaannya — tapi tidak boleh menambah bukti "saat
    * kejadian" (fase open) yang aturannya berbeda.
    */
-  addBuktiTutupIsu: async (id, daftar) =>
-    tambahBuktiTutupIsu(String(id || ''), daftar || [])
+  addBuktiTutupIsu: async (id, daftar, user) => {
+    await pastikanUnitIsu(user, id);
+    return tambahBuktiTutupIsu(String(id || ''), daftar || []);
+  }
 };
+
+/** Isu hanya boleh ditutup oleh yang memegang unitnya. Dulu tidak diperiksa
+    karena tiap orang hanya melihat isu unitnya; sejak PH bisa melihat semua
+    unit, tombol tutup di unit lain harus benar-benar ditolak di sini. */
+async function pastikanUnitIsu(user, id) {
+  const info = await infoCatatan('isu', String(id || ''));
+  if (info && info.unit) await pastikanUnit(user, info.unit);
+}
 
 const sameUser = (a, b) => String(a).toLowerCase() === String(b).toLowerCase();
 
@@ -2021,6 +2046,20 @@ const API_ADMIN = {
     }
 
     const dibuat = await createUser({ username, password, nama, role, unit });
+    return listUsers();
+  },
+
+  /** NIK dan jabatan sebuah akun — yang tertulis di TTD QR-nya (ttd-qr.js).
+      TTD yang sudah dibubuhkan tidak ikut berubah: QR memuat identitas saat
+      ditandatangani. */
+  setUserIdentitas: async (username, isi, user) => {
+    const target = await getUserByUsername(String(username || '').trim());
+    if (!target) throw new Error(`Pengguna "${username}" tidak ditemukan.`);
+    pastikanBolehUbahTarget(target, user);
+    const p = (isi && typeof isi === 'object') ? isi : {};
+    const nik = p.nik === undefined ? undefined : String(p.nik || '').trim();
+    if (nik && !/^[0-9A-Za-z.\/-]{3,30}$/.test(nik)) throw new Error('NIK hanya angka/huruf, 3–30 karakter.');
+    await setIdentitasTtdAkun(target.username, { nik, jabatan: p.jabatan });
     return listUsers();
   },
 
@@ -2594,6 +2633,11 @@ app.post('/api/:fn', requireAuth, async (req, res) => {
                 : Object.prototype.hasOwnProperty.call(API, fn) ? API[fn]
                 : null;
   if (!handler) return res.status(404).json({ error: 'Fungsi tidak dikenal: ' + fn });
+  // PH melihat semua unit, tetapi menulis hanya di unitnya sendiri: untuk
+  // permintaan tulis dan fungsi pengelolaan, perluasan unit karena PH dimatikan
+  // (lihat unitUntukUser di db.js). tandaTangani tidak termasuk — menandatangani
+  // dokumen titipan di unit mana pun justru tugas seorang PH.
+  if (API_TULIS.has(fn) || adminOnly) req.user.tanpaPerluasanPh = true;
 
   if (adminOnly && !isAdmin(req.user)) {
     const peran = String(req.user?.role || '').toLowerCase();
@@ -2644,7 +2688,11 @@ app.post('/api/:fn', requireAuth, async (req, res) => {
   }
   try {
     // Argumen terakhir selalu identitas pemanggil; handler boleh mengabaikannya.
-    const result = await handler(...args, req.user);
+    // Identitas pemanggil juga dititipkan ke saveSignature (ttd-qr.js): tanda
+    // tangan dibubuhkan atas nama akun sesi ini, bukan atas kiriman layar.
+    const result = await pemanggil.run(
+      { username: req.user?.username || '', nama: req.user?.nama || '' },
+      () => handler(...args, req.user));
     if (pencatat) await tulisAktivitas(pencatat, args, result, sebelum, req.user);
     res.json({ result: result === undefined ? null : result });
   } catch (err) {
@@ -2654,6 +2702,17 @@ app.post('/api/:fn', requireAuth, async (req, res) => {
 });
 
 /* ============== BERKAS STATIS ============== */
+
+// TTD QR: gambarnya dibuat dari alamatnya sendiri (ttd-qr.js), tidak ada
+// berkasnya. Didaftarkan sebelum express.static supaya tidak dicari di disk.
+app.get('/uploads/qr-ttd/:berkas', requireAuth, (req, res) => {
+  const identitas = bacaUrlTtdQr('/uploads/qr-ttd/' + req.params.berkas, DIR_DATA);
+  if (!identitas) return res.status(404).end();
+  // Sejam saja: gambarnya dibuat dari alamatnya, jadi kalau bentuk QR-nya
+  // disempurnakan, alamat yang sama harus segera menampilkan yang baru.
+  res.setHeader('Cache-Control', 'private, max-age=3600');
+  res.type('image/svg+xml').send(svgTtdQr(identitas));
+});
 
 // Tanda tangan dan lampiran hanya boleh dilihat setelah login.
 app.use('/uploads', requireAuth, express.static(UPLOAD_DIR, {

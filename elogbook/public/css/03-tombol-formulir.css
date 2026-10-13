@@ -122,3 +122,33 @@ input[type=datetime-local]:disabled, input[type=month]:disabled{
 input[type=date], input[type=time], input[type=datetime-local], input[type=month]{color-scheme:dark;}
 html[data-tema="terang"] input[type=date], html[data-tema="terang"] input[type=time],
 html[data-tema="terang"] input[type=datetime-local], html[data-tema="terang"] input[type=month]{color-scheme:light;}
+
+/* ============== TTD SEBAGAI QR ==============
+   Papan goresan diganti satu tombol (08-tanda-tangan.js). QR selalu hitam di
+   atas putih, di tema apa pun — kamera tidak bisa membaca QR yang dibalik.
+   Warna tulisan tombolnya tetap terang: latar papan (--tinta-bg) gelap di
+   tema terang maupun gelap. */
+.sig-qr-tombol{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
+  width:100%; min-height:84px; padding:12px; border:none; background:transparent; color:#e8eef5;
+  cursor:pointer; font-family:inherit; text-align:center;}
+.sig-qr-tombol b{font-size:13px;}
+.sig-qr-tombol span{font-size:11px; color:#9aa7b4; font-family:var(--font-mono);}
+.sig-qr-tombol:hover{background:rgba(255,255,255,.06);}
+.sig-qr-tombol.sudah b{color:#6fdc9a;}
+.sig-qr-tombol img{height:72px; background:#fff; border-radius:3px; display:block;}
+.sig-thumb.sig-qr{background:#fff; padding:3px;}
+.sig-thumb.sig-qr img{height:132px; cursor:zoom-in;}
+.qr-besar{position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,.82); display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:14px; cursor:zoom-out;}
+.qr-besar img{width:min(86vw, 70vh, 420px); height:auto; background:#fff; border-radius:10px; padding:10px;}
+.qr-besar span{color:#e8eef5; font-size:12px; font-family:var(--font-mono);}
+/* Coretan tersimpan tidak dipakai lagi sejak TTD menjadi QR. Jendelanya tetap
+   ada karena panel PH (Pelaksana Harian) tinggal di dalamnya: tombol menunya
+   hanya muncul untuk yang boleh menunjuk PH atau sedang jadi PH (kelas
+   ph-tampil dipasang 28b-ph.js), dan bagian coretannya disembunyikan. */
+button[onclick="openTtdSayaModal()"]:not(.ph-tampil), #ttdTersimpanJalur{display:none !important;}
+#ttdSayaModalBg .modal > .field, #ttdSayaModalBg .modal > div:has(> #ttdSayaPratinjau), #ttdSayaPratinjau, #ttdSayaModalBg .subtle-note[data-t="ttdSayaCatatan"], #ttdSayaSaveBtn{display:none !important;}
+/* Lembar cetak: petak TTD setinggi goresan (40-48 px) dibiarkan meninggi
+   mengikuti QR-nya, supaya tidak menimpa nama di bawahnya. */
+div:has(> img.ttd-qr){height:auto !important;}
+

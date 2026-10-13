@@ -1089,6 +1089,14 @@ function isiKartuAkun(u){
         'This is the name E-Logbook matches when naming who must counter-sign — changing a job title '
         + 'is done here, without creating a new account.')}</div></div>
 
+    <div class="isian"><label for="aJabatan">${T('Jabatan (untuk TTD QR)','Position (for the QR signature)')}</label>
+      <input id="aJabatan" autocomplete="off" maxlength="60" value="${baru ? '' : esc(u.jabatan || '')}"
+        placeholder="${T('kosongkan untuk teknisi dan Manager Teknik','leave empty for technicians and Manager Teknik')}">
+      <div class="bantu">${T('Kalau diisi, TTD QR akun ini memuat jabatan ini menggantikan baris unit. '
+        + 'Teknisi cukup dikosongkan: QR-nya memuat unitnya. Akun berperan Manager Teknik '
+        + 'otomatis tertulis "Manager Teknik"; isi hanya untuk jabatan lain (Deputi, General Manager).',
+        'If filled, this account’s QR signature shows this position instead of the unit line. '
+        + 'Leave empty for technicians: their QR shows the unit.')}</div></div>
     <div class="isian"><label for="aRole">${T('Peran','Role')}</label>
       <select id="aRole"${diri ? ' disabled' : ''}>
         <option value="teknisi">${T('Teknisi — menyunting database unitnya, tidak menghapus',
@@ -1395,6 +1403,8 @@ async function buatAkunBaru(){
   }
 
   await adminApi('addUser', { username, password, nama, role, unit });
+  const jabatan = el('aJabatan') ? el('aJabatan').value.trim() : '';
+  if(jabatan) await adminApi('setUserIdentitas', username, { jabatan });
   pesan(T('Akun ' + username + ' dibuat.', 'Account ' + username + ' created.'));
 }
 
@@ -1443,6 +1453,8 @@ async function simpanUbahan(asal){
   if(nama !== (asal.nama || ''))                     kerja.push(['setUserNama', [kunci, nama]]);
   if(aktif !== !!asal.aktif)                         kerja.push(['setUserAktif', [kunci, aktif]]);
   if(pass)                                           kerja.push(['setUserPassword', [kunci, pass]]);
+  const jabatan = el('aJabatan') ? el('aJabatan').value.trim() : (asal.jabatan || '');
+  if(jabatan !== (asal.jabatan || '')) kerja.push(['setUserIdentitas', [kunci, { jabatan }]]);
 
   /* Hak lanjut (unit khusus, boleh TTD jenis) — disimpan LANGSUNG ke
      endpoint dashboard, tidak lewat adminApi (yang bicara ke E-Logbook).
@@ -1481,6 +1493,7 @@ async function simpanUbahan(asal){
     setUserRole:     T('peran','role'),
     setUserUnit:     T('unit','unit'),
     setUserNama:     T('nama','name'),
+    setUserIdentitas: T('jabatan','position'),
     setUserAktif:    T('status aktif','active status'),
     setUserPassword: T('password','password'),
     hakLanjut:       T('wewenang detail','detailed permissions')
