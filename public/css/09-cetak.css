@@ -818,6 +818,13 @@
    cetakan, tiap grup mulai di halaman baru. */
 #printArea .cetak-lembar + .cetak-lembar { break-before: page; page-break-before: always; }
 
+/* Lembar PUM per grup: pita warna berselang tiap ganti unit (seperti berkas
+   Excel Manager Teknik). print-color-adjust supaya latarnya ikut tercetak. */
+.cetak-lembar table.jdw tr.pita td {
+  background: #c5d3e8 !important;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+
 /* Kaki lembar PUM per grup: daftar KETERANGAN di kiri, tanpa garis tabel.
    Aturan umum layar (td berpadding besar, garis bawah, baris genap berwarna,
    table selebar wadah) dimatikan satu per satu. */

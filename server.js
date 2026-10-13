@@ -4590,10 +4590,12 @@ app.post('/cetak-antrian', badanCetak, async (req, res) => {
 
    Jadwal Dinas untuk PUM dikirim SEKALI oleh PIC Jadwal Dinas (semua unit):
    satu lembar per grup jaga berisi orang dari semua unit, dan semuanya diikat
-   jadi satu paket. Manager Teknik yang sama menandatangani tiap grup; lembar
-   yang sudah di-TTD menunggu ('menunggu-paket') sampai SEMUA grup di paketnya
-   di-TTD, baru seluruhnya masuk ke Deputy GM Teknik sekaligus
-   ('menunggu-deputy'). Deputy tidak pernah menerima paket yang bolong.
+   jadi satu paket. Manager Teknik menandatangani SEKALI untuk seluruh grup
+   (POST /cetak-antrian/paket/:paket/setujui), lalu seluruhnya masuk ke Deputy
+   GM Teknik ('menunggu-deputy'), yang juga menyetujui sekali untuk semuanya.
+   Tiap lembar tetap membawa TTD-nya sendiri. Kalau lembarnya ditandatangani
+   satu-satu (rute /:id/setujui), yang sudah di-TTD menunggu ('menunggu-paket')
+   sampai SEMUA grup di-TTD — Deputy tidak pernah menerima paket yang bolong.
 
    Manager Teknik dan Deputy dipilih pengirim saat mengirim; Deputy disimpan di
    paketDeputyUser dan baru disalin ke deputyUser saat paketnya dilepas —
@@ -4689,6 +4691,71 @@ app.post('/cetak-antrian/paket', badanCetak, async (req, res) => {
   res.json({ ok: true, paket, permintaan: baris });
 });
 
+/** Sekali setuju untuk seluruh paket: semua lembar yang sedang menunggu tanda
+    tangan akun ini ditandatangani sekaligus — tahap Manager Teknik dulu, dan
+    kalau tidak ada lagi yang menunggu Manager Teknik, tahap Deputy. */
+app.post('/cetak-antrian/paket/:paket/setujui', badanCetak, async (req, res) => {
+  const user = await siapa(req);
+  if (!user) return res.status(401).json({ error: 'Masuk dulu.' });
+
+  const daftar = await bacaAntrianCetak();
+  const anggota = daftar.filter((x) => x.paket && x.paket === req.params.paket);
+  if (!anggota.length) return res.status(404).json({ error: 'Paket cetak tidak ada.' });
+
+  const saya = String(user.username || '').toLowerCase();
+  const superAtauAdmin = user.role === 'admin' || user.superadmin === true;
+  const tahapMT = anggota.filter((x) => x.status === 'menunggu' && (x.pejabatUser === saya || superAtauAdmin));
+  const tahapDeputy = anggota.filter((x) => x.status === 'menunggu-deputy' && (x.deputyUser === saya || superAtauAdmin));
+  const giliran = tahapMT.length ? tahapMT : tahapDeputy;
+  if (!giliran.length) {
+    if (anggota.every((x) => x.status === 'disetujui')) return res.json({ ok: true, tahap: 'selesai', jumlah: 0, permintaan: anggota });
+    return res.status(403).json({ error: 'Tidak ada lembar di paket ini yang sedang menunggu tanda tangan Anda.' });
+  }
+  if (!superAtauAdmin && !(await pejabatBolehJenis(saya, 'dinas'))) {
+    return res.status(403).json({ error: pesanTanpaHakTtd('Anda', 'dinas') });
+  }
+
+  const kini = new Date().toISOString();
+  const contoh = giliran[0];
+  let paket = null;
+  if (tahapMT.length) {
+    for (const b of tahapMT) {
+      b.status = 'menunggu-paket';
+      b.tanggalTtd = kini;
+      b.ttdPejabatNama = b.pejabatNama || saya;
+      b.ttdPejabatUrl = `/ttd-akun/${encodeURIComponent(b.pejabatUser)}/gambar`;
+    }
+    paket = paketLepasKalauLengkap(daftar, req.params.paket);
+  } else {
+    for (const b of tahapDeputy) {
+      b.ttdDeputyUrl = `/ttd-akun/${encodeURIComponent(b.deputyUser)}/gambar`;
+      b.ttdDeputyNama = b.deputyNama || saya;
+      b.tanggalTtdDeputy = kini;
+      b.status = 'disetujui';
+      b.tanggalTtd = b.tanggalTtd || kini;
+    }
+  }
+  await tulisAntrianCetak(daftar);
+
+  await catat(user, {
+    modul: 'cetak', aksi: tahapMT.length ? 'setujui-paket-pum' : 'setujui-paket-pum-deputy', unit: contoh.unit,
+    rincian: `${giliran.length} grup ${contoh.bulan} dari ${contoh.pembuatNama || contoh.pembuatUser}`
+      + (paket && paket.lepas ? ' → ' + contoh.deputyNama : '')
+  }).catch(() => {});
+  if (paket && paket.lepas) {
+    kirimNotifKeAkun(contoh.deputyUser,
+      `Jadwal Dinas PUM ${contoh.bulan}: ${paket.jumlah} grup sudah ditandatangani ${contoh.pejabatNama || contoh.pejabatUser} dan menunggu persetujuan Anda.`,
+      { tag: 'pum-' + req.params.paket }).catch(() => {});
+  }
+  if (!tahapMT.length && contoh.pembuatUser !== saya) {
+    kirimNotifKeAkun(contoh.pembuatUser,
+      `Jadwal Dinas PUM ${contoh.bulan} sudah disetujui ${contoh.deputyNama || contoh.deputyUser}. ${giliran.length} grup siap dicetak dari Kotak Masuk.`,
+      { tag: 'pum-' + req.params.paket }).catch(() => {});
+  }
+
+  res.json({ ok: true, tahap: tahapMT.length ? 'mt' : 'deputy', jumlah: giliran.length, paket, permintaan: anggota });
+});
+
 /** Daftar permintaan untuk user login: yang tertuju ke dia (kalau pejabat)
     dan yang dia kirim sendiri (kalau pembuat). Admin/super-admin melihat
     semuanya. */
@@ -4759,9 +4826,10 @@ app.get('/cetak-antrian', async (req, res) => {
     // dicetak, status 'disetujui') sengaja tidak terhitung: itu bukan tugas
     // menanti tanda tangan, dan lencana yang tak bisa dikosongkan siapa pun
     // akan berhenti dibaca.
-    menungguSaya: untukSaya.filter((b) =>
+    // Satu paket PUM per Grup dihitung SATU: ia ditandatangani sekali untuk semua grupnya.
+    menungguSaya: new Set(untukSaya.filter((b) =>
       (b.status === 'menunggu' && b.pejabatUser === saya)
-      || (b.status === 'menunggu-deputy' && b.deputyUser === saya)).length
+      || (b.status === 'menunggu-deputy' && b.deputyUser === saya)).map((b) => b.paket || b.id)).size
   });
 });
 
@@ -5050,9 +5118,11 @@ app.delete('/cetak-antrian/:id', async (req, res) => {
       || (b.deputyUser && saya === b.deputyUser);
   if (!boleh) return res.status(403).json({ error: 'Bukan pihak yang berhak menghapus.' });
 
-  /* Lembar paket PUM per Grup yang belum selesai ditarik sepaket — sisa
-     paketnya toh tidak akan pernah lengkap untuk dilepas ke Deputy. */
-  const sepaket = (x) => b.paket && b.status !== 'disetujui' && x.paket === b.paket && x.status !== 'disetujui';
+  /* Lembar paket PUM per Grup dihapus sepaket (di Kotak Masuk ia satu kartu):
+     yang belum selesai bersama yang belum selesai, arsip yang sudah disetujui
+     bersama yang sudah disetujui — hak hapusnya sudah diperiksa di atas. */
+  const sepaket = (x) => b.paket && x.paket === b.paket
+    && (b.status === 'disetujui') === (x.status === 'disetujui');
   const sisa = daftar.filter((x) => x.id !== b.id && !sepaket(x));
   const terhapus = daftar.length - sisa.length;
   await tulisAntrianCetak(sisa);

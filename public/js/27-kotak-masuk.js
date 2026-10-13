@@ -126,10 +126,14 @@ function cetakAntrianKartu(p, hanyaLihat){
   const belumFinal = menunggu || menungguDeputy || menungguPaket;
   const disetujui = p.status === 'disetujui';
   const ditolak = p.status === 'ditolak';
+  /* "Buka & TTD" hanya untuk yang memang gilirannya menandatangani; pengirim
+     dan pejabat yang gilirannya sudah lewat cukup "Lihat". */
+  const sayaKm = String((akun && akun.user) || '').toLowerCase();
+  const giliranKm = (menunggu && p.pejabatUser === sayaKm) || (menungguDeputy && p.deputyUser === sayaKm);
   const rupaCip = belumFinal ? 'awas' : disetujui ? 'aman' : 'bahaya';
   const teksCip = menunggu ? T('Menunggu TTD','Awaiting signature')
                 : menungguDeputy ? T('Menunggu TTD Deputy','Awaiting Deputy signature')
-                : menungguPaket ? T('Sudah TTD MT · menunggu grup lain','Signed · awaiting other groups')
+                : menungguPaket ? T('Sebagian grup sudah TTD MT','Partly signed')
                 : disetujui ? T('Disetujui','Approved')
                 : T('Ditolak','Rejected');
   const rekap = !!(p.snapshot && p.snapshot.rekap);
@@ -146,36 +150,51 @@ function cetakAntrianKartu(p, hanyaLihat){
         <span class="cip">${esc(jenisNama.toUpperCase())}</span>
         <b>${rekap ? esc(T('Semua unit','All units') + (p.snapshot.periode ? ' · ' + p.snapshot.periode : ''))
           : (p.snapshot && p.snapshot.gabungan)
-            ? esc(T('Semua unit','All units') + ' · ' + (p.snapshot.grup || '')) + (p.bulan ? ' · ' + esc(namaBulan(p.bulan)) : '')
+            ? esc(T('Semua unit','All units') + ' · ' + (p.paket ? (Number(p.paketJumlah) || '?') + ' ' + T('grup','groups') : (p.snapshot.grup || '')))
+              + (p.bulan ? ' · ' + esc(namaBulan(p.bulan)) : '')
           : esc(namaUnit(p.unit)) + (p.bulan ? ' · ' + esc(namaBulan(p.bulan)) : '')}</b>
       </div>
       <div class="kmk-rn">${T('Dari','From')}: <b>${esc(p.pembuatNama || p.pembuatUser)}</b>
         · ${T('untuk','for')}: <b>${esc(p.pejabatNama || p.pejabatUser)}</b>${p.paket
-          ? ` → <b>${esc(p.paketDeputyNama || p.paketDeputyUser || '')}</b> · ${
-              T('lembar','sheet')} ${Number(p.paketKe) || '?'}/${Number(p.paketJumlah) || '?'}` : ''}
+          ? ` → <b>${esc(p.paketDeputyNama || p.paketDeputyUser || '')}</b>` : ''}
         · ${esc(cetakWaktuRingkas(p.tanggalKirim))}</div>
-      ${p.catatan ? `<div class="kmk-rn" style="font-style:italic">"${esc(p.catatan)}"</div>` : ''}
+      ${p.catatan && !p.paket ? `<div class="kmk-rn" style="font-style:italic">"${esc(p.catatan)}"</div>` : ''}
     </div>
     <div class="kmk-kanan">
       <span class="kmk-tombol">
         <button class="btn kecil" data-cetak-buka="${esc(p.id)}">${
-          belumFinal ? (hanyaLihat || menungguPaket ? T('Lihat','View') : T('Buka & TTD','Open & sign'))
-          : disetujui ? T('Cetak lagi','Reprint')
+          belumFinal ? (hanyaLihat || !giliranKm ? T('Lihat','View') : T('Buka & TTD','Open & sign'))
+          : disetujui ? (p.paket ? T('Lihat','View') : T('Cetak lagi','Reprint'))
           : T('Lihat','View')}</button>
+        ${p.paket && disetujui ? `<button class="btn kecil" data-cetak-paket-semua="${esc(p.paket)}" title="${
+          T('Seluruh grup di paket ini jadi satu berkas, satu halaman per grup.','Every group in this set as one file, one page per group.')}">${
+          T('Cetak semua grup (1 berkas)','Print all groups (1 file)')}</button>` : ''}
         ${(!disetujui && !hanyaLihat) || (typeof bolehHapusArsip === 'function' && bolehHapusArsip(p))
           ? `<button class="btn garis kecil" data-cetak-hapus="${esc(p.id)}"${
-              p.paket && !disetujui ? ` data-cetak-paket="${Number(p.paketJumlah) || 0}"` : ''}>${
+              p.paket ? ` data-cetak-paket="${Number(p.paketJumlah) || 0}"` : ''}>${
               T('Hapus','Delete')}</button>` : ''}
       </span>
     </div>
   </article>`;
 }
 
+/** Paket PUM per Grup tampil sebagai SATU kartu (lembar grup pertamanya yang
+    mewakili): ia ditandatangani dan dicetak sekali untuk semua grupnya. */
+function antrianRingkasPaket(daftar){
+  const wakil = new Map();
+  (daftar || []).forEach(b=>{
+    if(!b.paket) return;
+    const w = wakil.get(b.paket);
+    if(!w || (Number(b.paketKe) || 0) < (Number(w.paketKe) || 0)) wakil.set(b.paket, b);
+  });
+  return (daftar || []).filter(b=>!b.paket || wakil.get(b.paket) === b);
+}
+
 function gambarSeksiAntrianCetak(kotak){
   const p = CETAK_ANTRIAN;
-  const untuk = p.untukSaya || [];
-  const dari  = p.dariSaya  || [];
-  const unit  = p.dinasUnit || [];
+  const untuk = antrianRingkasPaket(p.untukSaya);
+  const dari  = antrianRingkasPaket(p.dariSaya);
+  const unit  = antrianRingkasPaket(p.dinasUnit);
   if(!untuk.length && !dari.length && !unit.length) return '';
 
   const seksi = (judul, daftar, kosongPesan, hanyaLihat)=>`
@@ -213,13 +232,23 @@ function pasangAksiAntrianCetak(){
       }
     });
   });
+  document.querySelectorAll('[data-cetak-paket-semua]').forEach(b=>{
+    b.addEventListener('click', async ()=>{
+      const a = CETAK_ANTRIAN;
+      const semua = new Map([...(a.untukSaya || []), ...(a.dariSaya || []), ...(a.dinasUnit || []), ...(a.semua || [])].map(x=>[x.id, x]));
+      b.disabled = true;
+      try{ await cetakPaketSemua(b.dataset.cetakPaketSemua, [...semua.values()]); }
+      catch(e){ pesan(T('Gagal mencetak paket: ','Failed to print the set: ') + (e && e.message || e)); }
+      finally{ b.disabled = false; }
+    });
+  });
   document.querySelectorAll('[data-cetak-hapus]').forEach(b=>{
     b.addEventListener('click', async ()=>{
       const id = b.dataset.cetakHapus;
       const sepaket = Number(b.dataset.cetakPaket) || 0;
       if(!confirm(sepaket
-        ? T(`Lembar ini bagian dari paket PUM per Grup. Menghapusnya menarik SELURUH paket (${sepaket} grup) yang belum selesai. Lanjutkan?`,
-            `This sheet is part of a per-group PUM set. Deleting it withdraws the WHOLE unfinished set (${sepaket} groups). Continue?`)
+        ? T(`Hapus SELURUH paket PUM per Grup ini (${sepaket} grup)?`,
+            `Delete this WHOLE per-group PUM set (${sepaket} groups)?`)
         : T('Hapus permintaan cetak ini?','Delete this print request?'))) return;
       try{
         const jawab = await fetch('/cetak-antrian/' + encodeURIComponent(id),
