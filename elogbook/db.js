@@ -461,6 +461,10 @@ tambahKolom('users', 'ph_sampai', "TEXT NOT NULL DEFAULT ''");
 /* Tanggal mulai tugas PH. Kosong pada penunjukan yang dibuat sebelum kolom ini
    ada — dibaca tanpa batas bawah, bukan ditebak (lihat dalamPeriodePh). */
 tambahKolom('users', 'ph_mulai', "TEXT NOT NULL DEFAULT ''");
+/* PH susulan: periode yang seluruhnya sudah lewat (lembar lama yang belum
+   ditandatangani). ph_tenggat = sampai tanggal berapa PH masih boleh
+   menandatanganinya. Kosong untuk penunjukan biasa. */
+tambahKolom('users', 'ph_tenggat', "TEXT NOT NULL DEFAULT ''");
 
 // DS Test: kategori daftar site, plus penandatangan Manager Teknik.
 tambahKolom('dstest', 'kategori', "TEXT NOT NULL DEFAULT 'domestik'");
@@ -3288,19 +3292,19 @@ export function getInboxTtd(username) {
  * simpan dan baca. Tidak berantai: PH dari PH tidak ikut diwakili.
  */
 export function getPh(username) {
-  const row = db.prepare(`SELECT u.ph_username, u.ph_mulai, u.ph_sampai, p.nama AS ph_nama, p.aktif AS ph_aktif
+  const row = db.prepare(`SELECT u.ph_username, u.ph_mulai, u.ph_sampai, u.ph_tenggat, p.nama AS ph_nama, p.aktif AS ph_aktif
                             FROM users u LEFT JOIN users p ON p.username = u.ph_username
                            WHERE u.username = ?`).get(String(username || '').trim());
   return {
     phUsername: row?.ph_username || '', phNama: row?.ph_nama || '',
-    mulai: row?.ph_mulai || '', sampai: row?.ph_sampai || '',
+    mulai: row?.ph_mulai || '', sampai: row?.ph_sampai || '', tenggat: row?.ph_tenggat || '',
     phAktifAkun: !!Number(row?.ph_aktif ?? 0)
   };
 }
 
-export function setPh(username, phUsername, sampai, mulai = '') {
-  db.prepare('UPDATE users SET ph_username = ?, ph_mulai = ?, ph_sampai = ? WHERE username = ?')
-    .run(String(phUsername || ''), String(mulai || ''), String(sampai || ''), String(username || '').trim());
+export function setPh(username, phUsername, sampai, mulai = '', tenggat = '') {
+  db.prepare('UPDATE users SET ph_username = ?, ph_mulai = ?, ph_sampai = ?, ph_tenggat = ? WHERE username = ?')
+    .run(String(phUsername || ''), String(mulai || ''), String(sampai || ''), String(tenggat || ''), String(username || '').trim());
 }
 
 /**
@@ -3318,10 +3322,12 @@ export function setPh(username, phUsername, sampai, mulai = '') {
 export function listDiwakiliOleh(phUsername, hariIni) {
   const u = String(phUsername || '').trim();
   if (!u) return [];
-  return db.prepare(`SELECT username, nama, ph_mulai AS mulai, ph_sampai AS sampai FROM users
-                      WHERE aktif = 1 AND ph_username = ? COLLATE NOCASE AND ph_sampai >= ?
+  /* "Hari ini" masih berlaku kalau periodenya belum lewat, ATAU periodenya
+     sudah lewat tetapi tenggat PH susulannya belum (ph_tenggat). */
+  return db.prepare(`SELECT username, nama, ph_mulai AS mulai, ph_sampai AS sampai, ph_tenggat AS tenggat FROM users
+                      WHERE aktif = 1 AND ph_username = ? COLLATE NOCASE AND (ph_sampai >= ? OR ph_tenggat >= ?)
                         AND (ph_mulai = '' OR ph_mulai <= ?)
-                      ORDER BY nama COLLATE NOCASE`).all(u, String(hariIni), String(hariIni));
+                      ORDER BY nama COLLATE NOCASE`).all(u, String(hariIni), String(hariIni), String(hariIni));
 }
 
 /**
