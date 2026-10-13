@@ -180,6 +180,9 @@ function sjrPanel(unit, alat){
       <span class="ket">${daftar.length
         ? T('terbaru di atas','newest first')
         : T('belum ada catatan','nothing recorded yet')}</span>
+      ${!sunting ? `<button class="btn garis kecil" id="sjrCetak" title="${esc(T(
+        'Cetak lembar Sejarah Peralatan alat ini saja','Print the history sheet of this equipment only'))}">${
+        T('Cetak','Print')}</button>` : ''}
       ${boleh && !sunting ? `<button class="btn garis kecil" id="sjrUbah">${
         T('Tulis','Write')}</button>` : ''}
     </span></div>`;
@@ -224,6 +227,13 @@ function sjrPanel(unit, alat){
 
 /** Pendengar panel Sejarah. Dipanggil sekali tiap gambarRinciAlat(). */
 function sjrPasang(unit, alat){
+  /* Cetak alat ini saja. Lembarnya selalu memuat alat INDUK beserta seluruh
+     sub-unitnya, jadi dari tab sub pun yang dikirim id induknya. */
+  el('sjrCetak')?.addEventListener('click', ()=>{
+    const induk = (PERALATAN[unit] || []).find(a=>a.id === alat.id
+      || (Array.isArray(a.sub) && a.sub.some(s=>s && s.id === alat.id)));
+    cetakBuka('peralatan', unit, { alat: (induk || alat).id });
+  });
   const ubah = el('sjrUbah');
   if(ubah) ubah.addEventListener('click', async ()=>{
     ubah.disabled = true;
