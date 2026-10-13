@@ -70,7 +70,8 @@ function renderPh(){
   // akan bertanya-tanya kenapa lembar tanggal lain milik pejabat yang sama
   // tidak ada.
   const mewakili = (phInfo.mewakili || [])
-    .map(p => `<b>${escapeHtml(p.nama)}</b> (lembar tanggal ${escapeHtml(periodePhTampil(p.mulai, p.sampai))})`)
+    .map(p => `<b>${escapeHtml(p.nama)}</b> (lembar tanggal ${escapeHtml(periodePhTampil(p.mulai, p.sampai))}${
+      p.tenggat && p.sampai < tanggalHariIni() ? ', ditandatangani paling lambat ' + escapeHtml(tanggalPhTampil(p.tenggat)) : ''})`)
     .join(', ');
   const catatanMewakili = mewakili
     ? `<div class="subtle-note" style="margin-top:6px;">Anda sedang menjadi PH untuk: ${mewakili}. Dokumennya ada di Kotak Masuk TTD Anda.</div>`
@@ -89,7 +90,8 @@ function renderPh(){
       ? '<span class="tg-badge tg-on">Aktif</span>'
       : '<span class="tg-badge tg-off">Terjadwal</span>';
     status.innerHTML = `${lencana} PH: <b>${escapeHtml(phInfo.phNama || phInfo.phUsername)}</b>`
-      + ` · lembar tanggal ${escapeHtml(periodePhTampil(phInfo.mulai, phInfo.sampai))}` + catatanMewakili;
+      + ` · lembar tanggal ${escapeHtml(periodePhTampil(phInfo.mulai, phInfo.sampai))}`
+      + (phInfo.tenggat ? ` · susulan, bisa ditandatangani s.d. ${escapeHtml(tanggalPhTampil(phInfo.tenggat))}` : '') + catatanMewakili;
     aksi.innerHTML = `<button class="btn ghost" onclick="akhiriPh()">${phInfo.aktif ? 'Akhiri sekarang' : 'Batalkan'}</button>`;
     return;
   }
@@ -108,11 +110,11 @@ function renderPh(){
       <datalist id="phCalonDaftar">${opsi}</datalist></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">
       <div class="field" style="flex:1;min-width:140px;"><label>Mulai tanggal</label>
-        <input type="date" id="phMulai" value="${tanggalHariIni()}" min="${tanggalHariIni()}"></div>
+        <input type="date" id="phMulai" value="${tanggalHariIni()}"></div>
       <div class="field" style="flex:1;min-width:140px;"><label>Sampai tanggal</label>
-        <input type="date" id="phSampai" min="${tanggalHariIni()}"></div>
+        <input type="date" id="phSampai"></div>
     </div>
-    <div class="subtle-note" style="margin-top:4px;">Yang dititipkan ke PH hanya lembar yang <b>tanggal kegiatannya</b> di dalam periode ini. Lembar tanggal lain tetap menunggu Anda.</div>
+    <div class="subtle-note" style="margin-top:4px;">Yang dititipkan ke PH hanya lembar yang <b>tanggal kegiatannya</b> di dalam periode ini. Lembar tanggal lain tetap menunggu Anda.<br>Tanggal yang sudah lewat boleh diisi (PH susulan untuk lembar lama yang belum ditandatangani): PH bisa menandatanganinya selama 14 hari sejak ditunjuk.</div>
     <button class="btn" style="margin-top:8px;" onclick="simpanPh()">Simpan PH</button>`;
 }
 

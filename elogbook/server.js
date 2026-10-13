@@ -332,6 +332,16 @@ function tanggalForm(form) {
 /** Tanggal hari ini (UTC), bentuk YYYY-MM-DD — sama dengan tanggal formulir. */
 const hariIniUtc = () => new Date().toISOString().slice(0, 10);
 
+/* PH SUSULAN (permintaan Bagus, 13 Okt 2026). Lembar lama yang belum
+   ditandatangani karena waktu itu yang berdinas PH: pejabat menunjuk PH-nya
+   dengan periode PERSIS tanggal lembar itu, walau sudah lewat. Yang masuk ke
+   kotak masuk PH tetap hanya lembar bertanggal di dalam periode; bedanya PH
+   masih boleh menandatanganinya sampai tenggat (PH_SUSULAN_HARI sejak
+   ditunjuk), lalu mati sendiri seperti penunjukan biasa. */
+const PH_SUSULAN_HARI = 14;
+/** Penunjukan ini masih bisa dipakai menandatangani pada `hari`? */
+const phMasihBerlaku = (ph, hari) => !!ph.sampai && (ph.sampai >= hari || String(ph.tenggat || '') >= hari);
+
 /**
  * PH yang sedang mewakili seorang pejabat: { username, nama } atau null.
  *
@@ -343,7 +353,7 @@ const hariIniUtc = () => new Date().toISOString().slice(0, 10);
 async function phAktifUntuk(username, tanggalDokumen) {
   const ph = await getPh(username);
   const hari = hariIniUtc();
-  if (!ph.phUsername || !ph.phAktifAkun || !ph.sampai || ph.sampai < hari) return null;
+  if (!ph.phUsername || !ph.phAktifAkun || !phMasihBerlaku(ph, hari)) return null;
   if (ph.mulai && ph.mulai > hari) return null;
   if (tanggalDokumen !== undefined && !dalamPeriodePh(tanggalDokumen, ph.mulai, ph.sampai)) return null;
   return { username: ph.phUsername, nama: ph.phNama || ph.phUsername };
@@ -1632,14 +1642,14 @@ const API = {
     const hari = hariIniUtc();
     const mewakili = (await listDiwakiliOleh(user.username, hari))
       .filter((p) => !sameUser(p.username, user.username))
-      .map((p) => ({ nama: p.nama || p.username, mulai: p.mulai || '', sampai: p.sampai || '' }));
+      .map((p) => ({ nama: p.nama || p.username, mulai: p.mulai || '', sampai: p.sampai || '', tenggat: p.tenggat || '' }));
     // Yang tidak bisa menandatangani tidak bisa menunjuk PH, tapi tetap perlu
     // tahu kalau dirinya sedang menjadi PH bagi seseorang.
     if (!bolehTtdSusulan(user)) return { boleh: false, mewakili };
     const ph = await getPh(user.username);
     // Tiga keadaan, bukan dua: ditunjuk untuk nanti (belum mulai) juga perlu
     // terbaca di layar, supaya pejabatnya tahu penunjukannya sudah tersimpan.
-    const berlaku = !!(ph.phUsername && ph.phAktifAkun && ph.sampai && ph.sampai >= hari);
+    const berlaku = !!(ph.phUsername && ph.phAktifAkun && phMasihBerlaku(ph, hari));
     const belumMulai = berlaku && !!ph.mulai && ph.mulai > hari;
     const aktif = berlaku && !belumMulai;
     const calon = (await listCalonPh())
@@ -1648,7 +1658,7 @@ const API = {
     return {
       boleh: true, aktif, belumMulai,
       phUsername: ph.phUsername, phNama: ph.phNama,
-      mulai: ph.mulai, sampai: ph.sampai, mewakili, calon
+      mulai: ph.mulai, sampai: ph.sampai, tenggat: ph.sampai < hari ? ph.tenggat : '', mewakili, calon
     };
   },
 
@@ -1663,7 +1673,10 @@ const API = {
     const tanggalSah = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(Date.parse(s + 'T00:00:00Z'));
     const sampai = String(payload?.sampai || '').trim();
     if (!tanggalSah(sampai)) throw new Error('Tanggal selesai tidak sah.');
-    if (sampai < hariIniUtc()) throw new Error('Tanggal selesai sudah lewat.');
+    /* Tanggal selesai yang sudah lewat = PH susulan untuk lembar lama: sah,
+       dengan tenggat menandatangani (lihat PH_SUSULAN_HARI). */
+    const tenggat = sampai < hariIniUtc()
+      ? new Date(Date.now() + PH_SUSULAN_HARI * 86400000).toISOString().slice(0, 10) : '';
     // Tanggal mulai boleh kosong dari peramban lama yang belum mengirimnya —
     // dibaca sebagai hari ini, bukan tanpa batas bawah: penunjukan BARU selalu
     // punya awal, dan tanpa awal seluruh lembar lama pejabatnya ikut tertitip.
@@ -1674,7 +1687,7 @@ const API = {
     // karena salah ketik tahun.
     const batas = new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10);
     if (sampai > batas) throw new Error('PH paling lama 90 hari ke depan.');
-    await setPh(user.username, target.username, sampai, mulai);
+    await setPh(user.username, target.username, sampai, mulai, tenggat);
     return API.phStatus(user);
   },
 
