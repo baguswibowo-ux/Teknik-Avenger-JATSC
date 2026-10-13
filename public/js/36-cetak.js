@@ -134,6 +134,9 @@ async function cetakBuka(mode, unit, opts){
   /* Ragam cetakan Jadwal Dinas — dibawa lewat opts.formatDinas dari tombol
      Cetak PUM / Cetak Teknik. Mode non-dinas tetap set ke 'teknik' sebagai
      bawaan yang aman (tidak dipakai, tapi tidak boleh undefined). */
+  // Cetak satu alat saja (tombol Cetak di panel Sejarah): id alat INDUK-nya.
+  // Kosong = seluruh alat di tab grup yang menyala, seperti tombol Cetak unit.
+  CETAK.alat = (mode === 'peralatan' && opts && opts.alat) ? String(opts.alat) : '';
   CETAK.formatDinas = (mode === 'dinas' && opts && opts.formatDinas === 'pum') ? 'pum' : 'teknik';
   CETAK.rekap = mode === 'sparepart' && !!(opts && opts.rekap);
   CETAK.pejabatDipilih = null;
@@ -1164,14 +1167,16 @@ function htmlPeralatan(){
   // tombol Print ditekan, jadi pindah tab setelah itu tidak mengubah hasil.
   const semua = (PERALATAN[CETAK.unit] || []).slice()
                   .sort((a,b)=>(a.nama||'').localeCompare(b.nama||''));
-  const rows = CETAK.grup
-    ? semua.filter(a=>(a.grup || '') === CETAK.grup)
-    : semua;
+  const rows = CETAK.alat
+    ? semua.filter(a=>a.id === CETAK.alat)
+    : CETAK.grup
+      ? semua.filter(a=>(a.grup || '') === CETAK.grup)
+      : semua;
 
   // Judul kecil di atas tabel: mengumumkan grup mana yang dicetak. Waktu
   // kosong (tab Semua), keterangannya "Seluruh grup" supaya orang yang
   // memegang cetakan tahu bahwa memang lengkap, bukan potongan.
-  const subJudul = `<div style="text-align:center;font-size:10pt;margin:-6pt 0 10pt;color:#555">${
+  const subJudul = CETAK.alat ? '' : `<div style="text-align:center;font-size:10pt;margin:-6pt 0 10pt;color:#555">${
     CETAK.grup
       ? `${T('Grup lokasi','Location group')}: <b>${esc(CETAK.grup)}</b> · ${rows.length} ${
           T('peralatan dari','equipment of')} ${semua.length}`
