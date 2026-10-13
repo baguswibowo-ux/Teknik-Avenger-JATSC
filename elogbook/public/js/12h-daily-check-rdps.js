@@ -460,18 +460,26 @@ function ejTabelHardware(){
   ];
 }
 
-/* Halaman 1 kertasnya = empat bagian software, halaman 2 = hardware. */
+/* Sub-tab di layar mengikuti DUA SHEET Excel-nya — "EJAATS SW" dan
+   "E-JAATS HW" (EJAATS_GRUP) — bukan per bagian: teknisi mencarinya dengan
+   nama sheet itu. Bagian-bagian software tampil berurutan di dalam tab SW,
+   persis urutan halaman 1 kertasnya; halaman 2 = hardware. */
+const EJAATS_GRUP = [
+  { id:'sw', label:'💾 EJAATS SW' },
+  { id:'hw', label:'🛠 E-JAATS HW' }
+];
 const EJAATS_BAGIAN = [
-  { id:'sdds',   label:'📡 SDDS',             judul:'SDDS — SERVICES RADAR · ADS-B · GUI REC', tabel: ejTabelSdds },
-  { id:'artas',  label:'🧭 ARTAS',            judul:'ARTAS',                                   tabel: ejTabelArtas, minKartu: 400, lajurCetak: 250 },
-  { id:'server', label:'🖥 MDSI·PRISMA·R2D2', judul:'MDSI · PRISMA · R2D2',                    tabel: ejTabelServer },
-  { id:'net',    label:'🔌 Network',          judul:'NETWORK MONITORING · CNMS',               tabel: ejTabelNetwork },
-  { id:'hw',     label:'🛠 Hardware',         judul:'HARDWARE',                                tabel: ejTabelHardware, halamanBaru: true }
+  { id:'sdds',   grup:'sw', judul:'SDDS — SERVICES RADAR · ADS-B · GUI REC', tabel: ejTabelSdds },
+  { id:'artas',  grup:'sw', judul:'ARTAS',                                   tabel: ejTabelArtas, minKartu: 400, lajurCetak: 250 },
+  { id:'server', grup:'sw', judul:'MDSI · PRISMA · R2D2',                    tabel: ejTabelServer },
+  { id:'net',    grup:'sw', judul:'NETWORK MONITORING · CNMS',               tabel: ejTabelNetwork },
+  { id:'hw',     grup:'hw', judul:'HARDWARE',                                tabel: ejTabelHardware, halamanBaru: true }
 ];
 
 /* ---------- Registry lembar (= sub-tab lokasi) ----------
    label  : nama lembar/sistemnya        lokasi : gedungnya (teks sub-tab)
-   judul  : kepala halaman cetak         legenda: arti label tombol */
+   judul  : kepala halaman cetak         legenda: arti label tombol
+   grup   : (opsional) sub-tab layar = kelompok bagian (b.grup), bukan per bagian */
 const RDPS_FORM = {
   newjaats: {
     label: 'NEW-JAATS', lokasi: 'NEW JATSC', judul: 'NEW-JAATS DAILY REPORT', bagian: RDPS_BAGIAN,
@@ -482,7 +490,7 @@ const RDPS_FORM = {
     ]
   },
   ejaats: {
-    label: 'E-JAATS', lokasi: 'JATSC', judul: 'E-JAATS DAILY REPORT', bagian: EJAATS_BAGIAN,
+    label: 'E-JAATS', lokasi: 'JATSC', judul: 'E-JAATS DAILY REPORT', bagian: EJAATS_BAGIAN, grup: EJAATS_GRUP,
     legenda: [
       ['Kotak status', 'OK / NOT OK · UP / DOWN · N/USED = Not Used · ✓ = sudah dikerjakan'],
       ['Status server', 'PROC / MAINT (SDDS) · PROC / READY (MDSI, PRISMA) · MAIN / HS = Hot Standby (ARTAS)'],
@@ -496,14 +504,19 @@ const rdpsFormSah = f => (RDPS_FORM[f] ? f : 'newjaats');
     __rdpsForm — semuanya NEW-JAATS. */
 const rdpsFormTersimpan = state => rdpsFormSah(state && state.__rdpsForm);
 const rdpsBagianForm = form => RDPS_FORM[rdpsFormSah(form)].bagian;
+/** Sub-tab layar sebuah lembar: kelompoknya kalau ada (E-JAATS: SW / HW),
+    kalau tidak bagian-bagiannya sendiri (NEW-JAATS). → [{ id, label }] */
+const rdpsTabForm = form => RDPS_FORM[rdpsFormSah(form)].grup || rdpsBagianForm(form);
+/** Bagian yang tampil di bawah satu sub-tab. */
+const rdpsBagianTab = (form, tabId) => rdpsBagianForm(form).filter(b => (RDPS_FORM[rdpsFormSah(form)].grup ? b.grup : b.id) === tabId);
 
 /* ---------- State ---------- */
 
 /** Lembar (lokasi) yang sedang dibuka di form. Ikut tersimpan sebagai
     __rdpsForm oleh saveDailyCheck. */
 let dcRdpsForm = 'newjaats';
-/** Bagian yang sedang tampil di layar. Tidak ikut tersimpan — semua bagian
-    selalu disimpan bersama. */
+/** Sub-tab yang sedang tampil di layar (id bagian, atau id kelompok untuk
+    lembar ber-grup). Tidak ikut tersimpan — semua bagian selalu disimpan bersama. */
 let dcRdpsBagian = 'server';
 /** Isian tiap lembar. Pindah lokasi bukan reset: isian lembar yang
     ditinggalkan tetap di sini sampai form di-reset. */
@@ -522,8 +535,8 @@ function initDcRdpsState(){
 function rdpsPakaiForm(form){
   dcRdpsForm = rdpsFormSah(form);
   dcRdpsState = dcRdpsStates[dcRdpsForm];
-  const bagian = rdpsBagianForm(dcRdpsForm);
-  if(!bagian.some(b => b.id === dcRdpsBagian)) dcRdpsBagian = bagian[0].id;
+  const tab = rdpsTabForm(dcRdpsForm);
+  if(!tab.some(b => b.id === dcRdpsBagian)) dcRdpsBagian = tab[0].id;
 }
 /** Unit FDPS-RDPS sedang aktif? Dipakai dispatcher simpan/cetak/edit. */
 function dcRdpsAktif(){ return typeof unitAktif !== 'undefined' && unitAktif === 'fdpsrdps'; }
@@ -552,17 +565,15 @@ function rdpsTemuan(state, form){
   return { fails, warns };
 }
 
-/** Hitungan kotak status per bagian: {isi, total, rusak}. Untuk sub-tab. */
+/** Hitungan kotak status per sub-tab: {isi, total, rusak}. */
 function rdpsHitung(bagianId){
   let isi = 0, total = 0, rusak = 0;
-  const b = rdpsBagianForm(dcRdpsForm).find(x => x.id === bagianId);
-  if(!b) return { isi, total, rusak };
-  b.tabel().forEach(tbl => tbl.rows.forEach(row => tbl.cols.forEach(col => {
+  rdpsBagianTab(dcRdpsForm, bagianId).forEach(b => b.tabel().forEach(tbl => tbl.rows.forEach(row => tbl.cols.forEach(col => {
     if(rdpsTipe(col, row) !== 'pilih') return;
     total++;
     const o = rdpsOpsi(rdpsJenisSel(col, row), dcRdpsState[rdpsKunci(tbl, row, col)]);
     if(o){ isi++; if(!rdpsSehat(o)) rusak++; }
-  })));
+  }))));
   return { isi, total, rusak };
 }
 
@@ -719,20 +730,23 @@ function renderDcRdpsTable(){
   const wrap = document.getElementById('dcRdpsWrap');
   if(!wrap) return;
   const lembar = RDPS_FORM[dcRdpsForm];
-  const b = lembar.bagian.find(x => x.id === dcRdpsBagian) || lembar.bagian[0];
+  const tabs = rdpsTabForm(dcRdpsForm);
+  const b = tabs.find(x => x.id === dcRdpsBagian) || tabs[0];
+  // Satu sub-tab bisa memuat beberapa bagian (E-JAATS SW) — masing-masing diberi judul.
+  const isi = rdpsBagianTab(dcRdpsForm, b.id);
   // Posisi gulir modal dijaga — "Semua normal" menggambar ulang seluruh bagian.
   const modal = wrap.closest('.modal');
   const gulir = modal ? modal.scrollTop : 0;
   wrap.innerHTML = `
     <div class="rdps-info">
-      <div><b style="color:var(--text);">${escapeHtml(lembar.judul)}</b> · Lokasi <b style="color:var(--accent);">${escapeHtml(lembar.lokasi)}</b> — ${lembar.bagian.length} bagian di bawah satu lembar: diisi per tab, disimpan &amp; dicetak sekaligus.
+      <div><b style="color:var(--text);">${escapeHtml(lembar.judul)}</b> · Lokasi <b style="color:var(--accent);">${escapeHtml(lembar.lokasi)}</b> — ${tabs.length} tab di bawah satu lembar: diisi per tab, disimpan &amp; dicetak sekaligus.
         Klik kotak untuk memutar status; klik terus sampai kembali <b>–</b> untuk mengosongkan.</div>
       <details style="margin-top:4px;"><summary style="cursor:pointer;color:var(--accent);">Arti label</summary>${rdpsLegendaHtml(false, dcRdpsForm)}</details>
     </div>
-    <nav class="subtabs" id="dcRdpsSubtabs">${lembar.bagian.map(x =>
+    <nav class="subtabs" id="dcRdpsSubtabs">${tabs.map(x =>
       `<button type="button" class="subtab-btn${x.id === b.id ? ' active' : ''}" data-rdps="${x.id}" onclick="setDcRdpsBagian('${x.id}')">${escapeHtml(x.label)} <span class="rdps-hitung"></span></button>`
     ).join('')}</nav>
-    ${rdpsBagianHtml(b, dcRdpsState, 'isi')}`;
+    ${isi.map(x => (isi.length > 1 ? `<div class="lk-seksi-judul">${escapeHtml(x.judul)}</div>` : '') + rdpsBagianHtml(x, dcRdpsState, 'isi')).join('')}`;
   rdpsSegarkanSubtab();
   if(modal) modal.scrollTop = gulir;
 }
@@ -748,7 +762,7 @@ function rdpsSegarkanSubtab(){
 }
 
 function setDcRdpsBagian(id){
-  if(!rdpsBagianForm(dcRdpsForm).some(x => x.id === id)) return;
+  if(!rdpsTabForm(dcRdpsForm).some(x => x.id === id)) return;
   dcRdpsBagian = id;
   renderDcRdpsTable();
   const nav = document.getElementById('dcRdpsSubtabs');
@@ -763,7 +777,7 @@ function setDcRdpsForm(form){
   if(!RDPS_FORM[form]) return;
   if(dcRdpsForm !== form){
     rdpsPakaiForm(form);
-    dcRdpsBagian = rdpsBagianForm(form)[0].id;
+    dcRdpsBagian = rdpsTabForm(form)[0].id;
     renderDcRdpsTable();
   }
   sinkronSubtabRdps();
