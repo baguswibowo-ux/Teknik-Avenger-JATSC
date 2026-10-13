@@ -124,6 +124,23 @@ function formulirPeralatan(asal){
   </section>`;
 }
 
+/* Isian Grup Lokasi menawarkan grup yang sudah dipakai alat lain di unit ini,
+   supaya alat masuk ke tab yang sudah ada tanpa mengetik ulang namanya —
+   beda huruf besar/kecil saja sudah melahirkan tab baru. Mengetik nama lain
+   tetap boleh: itu cara membuat grup baru. */
+function saranGrupPasang(){
+  const isian = el('dGrup');
+  if(!isian) return;
+  const grup = [...new Set((PERALATAN[unitDibuka] || []).map(a=>(a.grup || '').trim()).filter(Boolean))]
+    .sort((a,b)=>a.localeCompare(b));
+  if(grup.length === 0) return;
+  const daftar = document.createElement('datalist');
+  daftar.id = 'saranGrup';
+  daftar.innerHTML = grup.map(g=>`<option value="${esc(g)}"></option>`).join('');
+  isian.after(daftar);
+  isian.setAttribute('list', 'saranGrup');
+}
+
 function bukaKartuData(jenis, asal, parentAlatId){
   const baru = !asal;
   const alatIni = jenis === 'peralatan';
@@ -222,6 +239,7 @@ function bukaKartuData(jenis, asal, parentAlatId){
     el('btnHapusData')?.addEventListener('click', hapusData);
     gambarKartuPasang();
     dokumentasiPasang(asal);
+    saranGrupPasang();
     el('lapisData').classList.add('buka');
     el('dNama').focus();
     return;
@@ -233,6 +251,7 @@ function bukaKartuData(jenis, asal, parentAlatId){
     papanNamaPasang();
     gambarKartuPasang();
     dokumentasiPasang(asal);
+    saranGrupPasang();
     el('lapisData').classList.add('buka');
     el('dNama').focus();
     return;
@@ -330,6 +349,7 @@ function bukaKartuData(jenis, asal, parentAlatId){
   papanNamaPasang();
   gambarKartuPasang();
   dokumentasiPasang(asal);
+  saranGrupPasang();
   el('lapisData').classList.add('buka');
   el('dNama').focus();
 }
