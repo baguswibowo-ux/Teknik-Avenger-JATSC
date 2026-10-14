@@ -324,8 +324,9 @@ function buildDcFgkPrintHtml(r, state){
     </table>`;
 }
 
-/** Halaman cetak daily check Listrik & Mekanik — empat lembar (STS / MDS /
-    Beban Listrik / UPS) yang dipilih dari __lkForm. Judul kepalanya memakai
+/** Halaman cetak daily check Listrik & Mekanik — empat lembar JATSC (STS / MDS /
+    Beban Listrik / UPS) dan tiga lembar NEW JATSC (MDS / UPS / Chiller · Pompa ·
+    AHU) yang dipilih dari __lkForm. Judul kepalanya memakai
     judul lembar aslinya apa adanya, dengan baris kedua nama bandara — persis
     dua baris kepala di berkas Excel-nya.
 
@@ -333,7 +334,8 @@ function buildDcFgkPrintHtml(r, state){
     perlu diterangkan ada di kolom KONDISI, dan itu pun sudah dicetak sebagai
     kata penuh (ON / STANDBY / OFF), bukan simbol.
 
-    PORTRAIT, mengikuti keempat sheet di berkas aslinya (A4, orientation
+    PORTRAIT (kecuali lembar Chiller NEW JATSC — lihat DC_LK_LANSKAP di 12g),
+    mengikuti keempat sheet di berkas aslinya (A4, orientation
     portrait, diperkecil 64–95%). Lembarnya memang lebar — MDS enam belas
     kolom — jadi hurufnya dikecilkan dan lebar kolom angka dibagi rata
     (lkColgroupCetak di 12g) supaya tetap muat selebar kertas berdiri. */
@@ -353,7 +355,7 @@ function buildDcLkPrintHtml(r, state){
     </div>
     <table class="no-border" style="font-size:9pt;margin-bottom:8px;">
       <tr>
-        <td style="width:33%;">LEMBAR : ${escapeHtml(((typeof DC_LK_LABEL !== 'undefined' && DC_LK_LABEL[form]) || 'STS').toUpperCase())}</td>
+        <td style="width:33%;">LEMBAR : ${escapeHtml(((typeof lkNama === 'function') ? lkNama(form) : 'STS').toUpperCase())}</td>
         <td style="width:33%;">DINAS : ${escapeHtml(r.dinas)||'________'}</td>
         <td>HARI/TANGGAL : ${escapeHtml(r.tanggal)||'________'}</td>
       </tr>
@@ -477,7 +479,7 @@ function printCurrentDailyCheck(){
                       : dcState;
   // Pengamatan, Gedung & Keamanan, dan Listrik & Mekanik mengikuti lembar
   // Excel-nya yang portrait; unit lain landscape.
-  doPrint(buildDcPrintHtml(r, state), (pgm || fgk || lk || rdps) ? 'portrait' : 'landscape');
+  doPrint(buildDcPrintHtml(r, state), lk ? lkArahCetak(state) : (pgm || fgk || rdps) ? 'portrait' : 'landscape');
 }
 
 /** Cetak daily check yang sudah tersimpan di database. Detailnya dulu diambil
@@ -505,6 +507,7 @@ async function printSavedDailyCheck(id){
     if(!isAmhs && !tolakCetakBilaBelumTtd(rPrint, 'dc')) return;
     // AMHS, Pengamatan, Gedung-Keamanan, Listrik-Mekanik, & NEW-JAATS mengikuti
     // lembar aslinya yang portrait; sisanya landscape.
-    doPrint(buildDcPrintHtml(rPrint, detail.state || {}), (isAmhs || isPgm || isFgk || isLk || isRdps) ? 'portrait' : 'landscape');
+    doPrint(buildDcPrintHtml(rPrint, detail.state || {}),
+            isLk ? lkArahCetak(detail.state) : (isAmhs || isPgm || isFgk || isRdps) ? 'portrait' : 'landscape');
   }catch(e){ toast('Gagal mengambil detail daily check.'); }
 }

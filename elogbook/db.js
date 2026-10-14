@@ -767,12 +767,13 @@ export const UNIT = [
     pakaiFrek: false,
     labelUraian: 'Uraian Pekerjaan / Kejadian',
     labelPj: 'Manager Teknik',
-    // Daily Check punya form-nya sendiri: empat lembar (STS, MDS No Break,
-    // Beban Listrik, dan UPS Beban Utama Operasional) yang dipilih lewat
-    // sub-tab — lihat js/12g-daily-check-listrik.js. Monitoring, DS Test, dan
+    // Daily Check punya form-nya sendiri: empat lembar JATSC (STS, MDS No
+    // Break, Beban Listrik, UPS Beban Utama Operasional) dan tiga lembar NEW
+    // JATSC (MDS No Break, UPS, Chiller · Pompa · AHU) yang dipilih lewat
+    // sub-tab dua tingkat — lihat js/12g-daily-check-listrik.js. Monitoring, DS Test, dan
     // berkala belum berlaku di unit ini.
     adaDailyCheck: true,
-    dcJudul: 'Daily Check Fasilitas Listrik & Mekanik — STS · MDS · Beban Listrik · UPS',
+    dcJudul: 'Daily Check Fasilitas Listrik & Mekanik — JATSC · NEW JATSC',
     adaMonitoring: false,
     adaDsTest: false,
     adaBerkala: false,
@@ -1972,7 +1973,7 @@ function lokasiDariStateJson(stateJson) {
     kolom Lokasi; isi state penuh tidak dikembalikan (masih besar). */
 /** Lembar mana di dalam satu unit yang dipakai baris ini — kunci sub-lembar yang
     ditanam form di state: __pgmForm (Pengamatan), __fgkForm (Gedung & Keamanan),
-    __lkForm (Listrik & Mekanik), __rdpsForm (FDPS-RDPS: newjaats/ejaats),
+    __lkForm (Listrik & Mekanik: sts/mds/beban/ups + nj…), __rdpsForm (FDPS-RDPS: newjaats/ejaats),
     __sistem (AMHS). Kosong untuk unit yang lembarnya
     tunggal. Dibaca dashboard Avenger untuk menyaring bukti kegiatan berkala per
     lembar, sama perannya dengan kolom Lokasi bagi Radtel. */

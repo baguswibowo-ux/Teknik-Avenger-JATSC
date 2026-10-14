@@ -376,7 +376,7 @@ async function saveDailyCheck(){
   // Pengamatan, Gedung & Keamanan, dan Listrik & Mekanik menumpang tabel
   // dailychecks yang sama (pola AMHS): lembar mana yang dipakai ditandai
   // __format + __pgmForm (ckg3/mer), __fgkForm (toilet/akses/jatsc), atau __lkForm
-  // (sts/mds/beban/ups) di dalam state JSON. FDPS-RDPS sama: __rdpsForm
+  // (sts/mds/beban/ups + njmds/njups/njchiller) di dalam state JSON. FDPS-RDPS sama: __rdpsForm
   // (newjaats/ejaats) = lokasi New JATSC / JATSC.
   const stateDipakai = radkom ? dcRkState
                      : nav    ? { ...dcNState, ...meta }
@@ -498,9 +498,13 @@ function renderDcHistory(){
   // FDPS-RDPS: dua lokasi masuk satu daftar — kartunya menyebut lokasi + lembarnya.
   const rdps = (typeof dcRdpsAktif === 'function') && dcRdpsAktif();
   const lembarRdps = r => { const f = RDPS_FORM[rdpsFormSah(r.form)]; return f.lokasi + ' · ' + f.label; };
+  // Listrik & Mekanik: tujuh lembar di dua gedung masuk satu daftar — kartunya
+  // menyebut gedung + lembarnya. Catatan lama tanpa kolom Form = STS.
+  const lk = (typeof dcListrikAktif === 'function') && dcListrikAktif();
   wrap.innerHTML = daftar.map(r=>{
     const lembar = fgk ? ' &middot; <b style="color:var(--accent);">' + escapeHtml(DC_FGK_NAMA[fgkFormSah(r.form)]) + '</b>'
-                 : rdps ? ' &middot; <b style="color:var(--accent);">' + escapeHtml(lembarRdps(r)) + '</b>' : '';
+                 : rdps ? ' &middot; <b style="color:var(--accent);">' + escapeHtml(lembarRdps(r)) + '</b>'
+                 : lk ? ' &middot; <b style="color:var(--accent);">' + escapeHtml(lkNama(lkFormTersimpan({ __lkForm: r.form }))) + '</b>' : '';
     const tag = r.fails.length ? `<span class="tag fail">${r.fails.length} gangguan</span>`
               : r.warns.length ? `<span class="tag warn">${r.warns.length} alarm</span>`
               : `<span class="tag ok">semua normal</span>`;
@@ -696,7 +700,7 @@ async function openDcDetail(id){
   body.innerHTML = `
     <div style="font-size:13px;margin-bottom:10px;line-height:1.7;">
       <b>${escapeHtml(r.tanggal)}</b><br>
-      Dinas: ${escapeHtml(r.dinas)||'-'}${(!unitPakaiSuhuMer() || jatscTersimpan || navTersimpan || pgmTersimpan || fgkTersimpan || lkTersimpan) ? '' : ' &middot; Suhu MER: ' + (escapeHtml(r.suhu)||'-')}${pgmTersimpan ? ' &middot; Form: ' + escapeHtml((typeof DC_PGM_LABEL !== 'undefined' && DC_PGM_LABEL[state.__pgmForm]) || 'Radar CKG 3') : ''}${fgkTersimpan ? ' &middot; Lokasi: ' + escapeHtml((typeof DC_FGK_LABEL !== 'undefined' && DC_FGK_LABEL[state.__fgkForm]) || 'NEW JATSC') : ''}${lkTersimpan ? ' &middot; Lembar: ' + escapeHtml((typeof DC_LK_LABEL !== 'undefined' && DC_LK_LABEL[state.__lkForm]) || 'STS') : ''}${rdpsTersimpan ? ' &middot; Lokasi: ' + escapeHtml(RDPS_FORM[rdpsFormTersimpan(state)].lokasi + ' (' + RDPS_FORM[rdpsFormTersimpan(state)].label + ')') : ''}
+      Dinas: ${escapeHtml(r.dinas)||'-'}${(!unitPakaiSuhuMer() || jatscTersimpan || navTersimpan || pgmTersimpan || fgkTersimpan || lkTersimpan) ? '' : ' &middot; Suhu MER: ' + (escapeHtml(r.suhu)||'-')}${pgmTersimpan ? ' &middot; Form: ' + escapeHtml((typeof DC_PGM_LABEL !== 'undefined' && DC_PGM_LABEL[state.__pgmForm]) || 'Radar CKG 3') : ''}${fgkTersimpan ? ' &middot; Lokasi: ' + escapeHtml((typeof DC_FGK_LABEL !== 'undefined' && DC_FGK_LABEL[state.__fgkForm]) || 'NEW JATSC') : ''}${lkTersimpan ? ' &middot; Lembar: ' + escapeHtml(lkNama(lkFormTersimpan(state))) : ''}${rdpsTersimpan ? ' &middot; Lokasi: ' + escapeHtml(RDPS_FORM[rdpsFormTersimpan(state)].lokasi + ' (' + RDPS_FORM[rdpsFormTersimpan(state)].label + ')') : ''}
     </div>
     ${dcRadkomAktif()
       ? dcRkDetailHtml(state)

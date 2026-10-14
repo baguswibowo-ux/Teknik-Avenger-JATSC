@@ -236,22 +236,39 @@ try{ document.documentElement.setAttribute('data-tema',
                 onclick="setDcFgkForm('akses')">Lift &amp; Akses Door</button>
       </nav>
     </div>
-    <!-- Sub-tab pemilih LEMBAR untuk unit Listrik & Mekanik: empat lembar
-         pengecekan harian yang di berkas aslinya jadi empat sheet — STS, MDS
-         No Break, Beban Listrik, dan UPS. Labelnya nama lembar (bukan lokasi):
-         keempatnya di gedung yang sama, yang beda peralatan yang diukur.
-         setDcLkForm() di js/12g-daily-check-listrik.js menukar isi #dcLkWrap.
-         07-unit.js menampilkan nav ini hanya untuk unit listrikmekanik. -->
-    <nav class="subtabs" id="dcLkSubtabs" style="display:none;">
-      <button class="subtab-btn active" data-lkform="sts"
-              onclick="setDcLkForm('sts')">⚡ STS</button>
-      <button class="subtab-btn" data-lkform="mds"
-              onclick="setDcLkForm('mds')">🔌 MDS</button>
-      <button class="subtab-btn" data-lkform="beban"
-              onclick="setDcLkForm('beban')">📊 Beban Listrik</button>
-      <button class="subtab-btn" data-lkform="ups"
-              onclick="setDcLkForm('ups')">🔋 UPS</button>
-    </nav>
+    <!-- Sub-tab unit Listrik & Mekanik, DUA TINGKAT seperti Gedung & Keamanan.
+         Baris atas memilih LOKASI: JATSC (Tower) atau NEW JATSC. Baris kedua
+         lembar di gedung itu — JATSC empat lembar (STS, MDS No Break, Beban
+         Listrik, UPS), NEW JATSC tiga (MDS No Break, UPS, Chiller · Pompa ·
+         AHU). setDcLkLokasi() / setDcLkForm() di js/12g-daily-check-listrik.js
+         menukar isi #dcLkWrap; sinkronSubtabLk() menampakkan baris kedua yang
+         cocok. 07-unit.js menampilkan wadah ini hanya untuk unit listrikmekanik. -->
+    <div id="dcLkSubtabs" style="display:none;">
+      <nav class="subtabs" style="margin-bottom:8px;">
+        <button class="subtab-btn active" data-lklokasi="jatsc"
+                onclick="setDcLkLokasi('jatsc')">📍 JATSC</button>
+        <button class="subtab-btn" data-lklokasi="nj"
+                onclick="setDcLkLokasi('nj')">📍 NEW JATSC</button>
+      </nav>
+      <nav class="subtabs" data-lklembar="jatsc">
+        <button class="subtab-btn active" data-lkform="sts"
+                onclick="setDcLkForm('sts')">⚡ STS</button>
+        <button class="subtab-btn" data-lkform="mds"
+                onclick="setDcLkForm('mds')">🔌 MDS</button>
+        <button class="subtab-btn" data-lkform="beban"
+                onclick="setDcLkForm('beban')">📊 Beban Listrik</button>
+        <button class="subtab-btn" data-lkform="ups"
+                onclick="setDcLkForm('ups')">🔋 UPS</button>
+      </nav>
+      <nav class="subtabs" data-lklembar="nj" style="display:none;">
+        <button class="subtab-btn" data-lkform="njmds"
+                onclick="setDcLkForm('njmds')">🔌 MDS</button>
+        <button class="subtab-btn" data-lkform="njups"
+                onclick="setDcLkForm('njups')">🔋 UPS</button>
+        <button class="subtab-btn" data-lkform="njchiller"
+                onclick="setDcLkForm('njchiller')">❄ Chiller · Pompa · AHU</button>
+      </nav>
+    </div>
     <!-- Sub-tab pemilih LOKASI untuk unit FDPS-RDPS: New JATSC = lembar
          NEW-JAATS, JATSC = lembar E-JAATS (software + hardware). setDcRdpsForm()
          di js/12h-daily-check-rdps.js menukar isi #dcRdpsWrap. 07-unit.js
@@ -351,7 +368,7 @@ try{ document.documentElement.setAttribute('data-tema',
            yang perlu dijelaskan cuma arti tiga keadaan kolom KONDISI. Diisi
            sinkronSubtabLk() di js/12g-daily-check-listrik.js. -->
       <div id="dcLkInfo" style="display:none;margin-bottom:10px;font-size:12.5px;color:var(--muted);padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:var(--panel-2);">
-        <b style="color:var(--text);">Lembar:</b> <span id="dcLkInfoNama" style="color:var(--accent);font-weight:600;">STS</span>
+        <b style="color:var(--text);">Lembar:</b> <span id="dcLkInfoNama" style="color:var(--accent);font-weight:600;">JATSC · STS</span>
         &nbsp;·&nbsp; <span id="dcLkInfoIsi" style="color:var(--text);">STS Line 1 &middot; Line 2 &middot; Output — 9 lokasi</span>
         <span id="dcLkInfoHint">&nbsp;·&nbsp; Kolom KONDISI diklik untuk berputar: ON → STBY → OFF</span>
       </div>
