@@ -467,7 +467,7 @@ function printBapb(id){
   const ttdBlok = (judul1, judul2, ttd, nama) => `<td style="width:33%;text-align:center;vertical-align:top;">
       <div>${judul1}</div><div style="margin-bottom:4px;">${judul2}</div>
       <div style="height:48px;">${ttdImg(ttd, 42)}</div>
-      <div style="border-top:1px solid #000;display:inline-block;min-width:150px;padding:0 10px;">${escapeHtml(nama) || '&nbsp;'}</div>
+      <div style="border-top:1px solid #000;display:inline-block;min-width:150px;padding:0 10px;">${namaPhHtml(nama) || '&nbsp;'}</div>
     </td>`;
   doPrint(`
     <div style="font-size:9pt;font-weight:bold;line-height:1.3;">PERUM LPPNPI<br>KANTOR CABANG GEDUNG 611<br>BANDARA SOEKARNO-HATTA</div>

@@ -1111,7 +1111,7 @@ function printBerkala(id){
           <div>Mengetahui,</div>
           <div style="margin-bottom:4px;">Manager Teknik</div>
           <div style="height:46px;">${ttdImg(b.managerTtd, 40)}</div>
-          <div style="border-top:1px solid #000;display:inline-block;padding:0 24px;">${b.managerTtd ? (escapeHtml(b.managerNama)||'&nbsp;') : '&nbsp;'}</div>
+          <div style="border-top:1px solid #000;display:inline-block;padding:0 24px;">${b.managerTtd ? (namaPhHtml(b.managerNama)||'&nbsp;') : '&nbsp;'}</div>
         </td>
       </tr>
     </table>`, (gv || np) ? 'landscape' : 'portrait');

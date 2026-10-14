@@ -99,7 +99,7 @@ function buildDcRkPrintHtml(r, state){
           <div style="margin-bottom:4px;">PH MANAGER TEKNIK</div>
           <div style="height:46px;">${ttdImg(r.managerTtd, 40)}</div>
           <div style="border-top:1px solid #000;display:inline-block;padding:0 24px;">
-            ${r.managerTtd ? (escapeHtml(r.managerNama) || '&nbsp;') : '&nbsp;'}
+            ${r.managerTtd ? (namaPhHtml(r.managerNama) || '&nbsp;') : '&nbsp;'}
           </div>
         </td>
       </tr>
@@ -147,7 +147,7 @@ function buildDcJatscPrintHtml(r, state){
           <div style="margin-bottom:4px;">Manager Teknik</div>
           <div style="height:46px;">${ttdImg(r.managerTtd, 40)}</div>
           <div style="border-top:1px solid #000;display:inline-block;padding:0 24px;">
-            ${r.managerTtd ? (escapeHtml(r.managerNama) || '&nbsp;') : '&nbsp;'}
+            ${r.managerTtd ? (namaPhHtml(r.managerNama) || '&nbsp;') : '&nbsp;'}
           </div>
         </td>
       </tr>
@@ -193,7 +193,7 @@ function buildDcNavPrintHtml(r, state){
           <div style="margin-bottom:4px;">Manager Teknik</div>
           <div style="height:46px;">${ttdImg(r.managerTtd, 40)}</div>
           <div style="border-top:1px solid #000;display:inline-block;padding:0 24px;">
-            ${r.managerTtd ? (escapeHtml(r.managerNama) || '&nbsp;') : '&nbsp;'}
+            ${r.managerTtd ? (namaPhHtml(r.managerNama) || '&nbsp;') : '&nbsp;'}
           </div>
         </td>
       </tr>
@@ -245,7 +245,7 @@ function buildDcPgmPrintHtml(r, state){
           <div style="margin-bottom:4px;">Manager Teknik</div>
           <div style="height:46px;">${ttdImg(r.managerTtd, 40)}</div>
           <div style="border-top:1px solid #000;display:inline-block;padding:0 24px;">
-            ${r.managerTtd ? (escapeHtml(r.managerNama) || '&nbsp;') : '&nbsp;'}
+            ${r.managerTtd ? (namaPhHtml(r.managerNama) || '&nbsp;') : '&nbsp;'}
           </div>
         </td>
       </tr>
@@ -317,7 +317,7 @@ function buildDcFgkPrintHtml(r, state){
           <div style="margin-bottom:4px;">Manager Teknik</div>
           <div style="height:46px;">${ttdImg(r.managerTtd, 40)}</div>
           <div style="border-top:1px solid #000;display:inline-block;padding:0 24px;">
-            ${r.managerTtd ? (escapeHtml(r.managerNama) || '&nbsp;') : '&nbsp;'}
+            ${r.managerTtd ? (namaPhHtml(r.managerNama) || '&nbsp;') : '&nbsp;'}
           </div>
         </td>
       </tr>
@@ -374,7 +374,7 @@ function buildDcLkPrintHtml(r, state){
           <div style="margin-bottom:4px;">Manager Teknik</div>
           <div style="height:46px;">${ttdImg(r.managerTtd, 40)}</div>
           <div style="border-top:1px solid #000;display:inline-block;padding:0 24px;">
-            ${r.managerTtd ? (escapeHtml(r.managerNama) || '&nbsp;') : '&nbsp;'}
+            ${r.managerTtd ? (namaPhHtml(r.managerNama) || '&nbsp;') : '&nbsp;'}
           </div>
         </td>
       </tr>
@@ -423,7 +423,7 @@ function buildDcPrintHtml(r, state){
           <div style="margin-bottom:4px;">Manager Teknik</div>
           <div style="height:46px;">${ttdImg(r.managerTtd, 40)}</div>
           <div style="border-top:1px solid #000;display:inline-block;padding:0 24px;">
-            ${r.managerTtd ? (escapeHtml(r.managerNama) || '&nbsp;') : '&nbsp;'}
+            ${r.managerTtd ? (namaPhHtml(r.managerNama) || '&nbsp;') : '&nbsp;'}
           </div>
         </td>
       </tr>

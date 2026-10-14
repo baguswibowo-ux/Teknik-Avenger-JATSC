@@ -16,7 +16,7 @@ function entryPrintRow(e, i, pakaiKolomLokasi){
   const tekCell = e.teknisiTtd
     ? (namaList.length ? namaList.map((n,k)=>`${k+1}. ${escapeHtml(n)}`).join('<br>') : escapeHtml(e.teknisiNama))
     : '';
-  const pjCell = e.pjTtd ? escapeHtml(e.pjNama) : '';
+  const pjCell = e.pjTtd ? namaPhHtml(e.pjNama) : '';
   return `
     <tr>
       <td style="text-align:center;width:28px;">${i+1}</td>

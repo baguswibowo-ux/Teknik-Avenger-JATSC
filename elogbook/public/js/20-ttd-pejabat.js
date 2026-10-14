@@ -178,7 +178,7 @@ function kandidatTtdUntuk(){
  * satu isian nama dan satu pemilih akun tujuan.
  */
 function renderPihakKedua(kind, id, nama, ttdUrl, sebutan = 'manager teknik'){
-  const teks = escapeHtml(nama) || '<span style="color:var(--muted);">-</span>';
+  const teks = namaPhHtml(nama) || '<span style="color:var(--muted);">-</span>';
   if(ttdUrl) return teks;
   if(!adminAktif()) return teks;
   return `${teks} <button class="btn ghost" style="padding:2px 6px;font-size:11px;vertical-align:middle;"

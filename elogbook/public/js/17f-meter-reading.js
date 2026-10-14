@@ -847,7 +847,7 @@ function printMr(id){
           <div>Mengetahui,</div>
           <div style="margin-bottom:4px;">Manager Teknik</div>
           <div style="height:46px;">${ttdImg(d.managerTtd, 40)}</div>
-          <div style="border-top:1px solid #000;display:inline-block;padding:0 24px;">${d.managerTtd ? (escapeHtml(d.managerNama) || '&nbsp;') : '&nbsp;'}</div>
+          <div style="border-top:1px solid #000;display:inline-block;padding:0 24px;">${d.managerTtd ? (namaPhHtml(d.managerNama) || '&nbsp;') : '&nbsp;'}</div>
         </td>
       </tr>
     </table>`, portrait ? 'portrait' : 'landscape');

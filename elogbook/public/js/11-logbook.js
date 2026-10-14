@@ -232,7 +232,7 @@ function renderEntries(){
         <div class="entry-body">${escapeHtml(e.uraian)}${tautanKartuHtml(e.tautan)}</div>
         <div class="entry-sigs">
           <div class="sig-block"><b>${tekLabel}</b>${sigThumbHtml(e.teknisiTtd)}</div>
-          <div class="sig-block"><b>${escapeHtml(e.pjNama)||'Manager Teknik'}</b>${sigThumbHtml(e.pjTtd)}</div>
+          <div class="sig-block"><b>${namaPhHtml(e.pjNama)||'Manager Teknik'}</b>${sigThumbHtml(e.pjTtd)}</div>
         </div>
       </div>
       <div class="entry-diinput">${diinputOlehHtml(e.diinputOleh, e.dibuatPada, acuanWaktuEntry(e))}</div>

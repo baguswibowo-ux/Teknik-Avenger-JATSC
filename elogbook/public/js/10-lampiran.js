@@ -135,6 +135,16 @@ function lampiranGaleriHtml(daftar){
 }
 function escapeHtml(s){ if(!s) return ''; return String(s).replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
 
+/** Nama pihak kedua untuk ditampilkan/dicetak: keterangan PH-nya turun ke
+    baris sendiri —
+      Hendra Septa Nugroho
+      (PH Manager Teknik Trianto Aditya Putra)
+    Nama tanpa keterangan PH keluar seperti escapeHtml biasa. */
+function namaPhHtml(nama){
+  const m = /^(.+?)\s*(\((?:PH|Plh)\b[^)]*\))\s*$/i.exec(String(nama || ''));
+  return m ? escapeHtml(m[1]) + '<br>' + escapeHtml(m[2]) : escapeHtml(nama);
+}
+
 /* ============== LAMPIRAN LEMBAR DAILY CHECK & PREVENTIVE ==============
    Dokumen pendukung yang ditempel ke lembar yang sudah tersimpan — dari jendela
    detailnya. Tiap jendela detail menyisipkan lampiranCatatanHtml(jenis, id);

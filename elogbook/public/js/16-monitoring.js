@@ -155,7 +155,7 @@ function openMonDetail(id){
     <div style="font-size:13px;line-height:1.7;margin-bottom:10px;"><b>${escapeHtml(m.tanggal)}</b></div>
     ${monTabelHtml(m, false)}
     <div class="detail-ttd">
-      <div class="sig-block"><b>${T('personilOps')}</b>${escapeHtml(m.personilOps)||'-'}${sigPejabatHtml('monitoring', m.id, m.personilOpsTtd, m)}</div>
+      <div class="sig-block"><b>${T('personilOps')}</b>${namaPhHtml(m.personilOps)||'-'}${sigPejabatHtml('monitoring', m.id, m.personilOpsTtd, m)}</div>
       <div class="sig-block"><b>${T('personilTeknik')}</b>${escapeHtml(m.personilTeknik)||'-'}${sigThumbHtml(m.teknisiTtd)}</div>
     </div>
     ${lampiranCatatanHtml('monitoring', m.id)}
@@ -177,7 +177,7 @@ function printMon(id){
         <td style="width:50%;text-align:center;vertical-align:top;">
           <div>Personil Operasi</div>
           <div style="height:46px;">${ttdImg(m.personilOpsTtd, 40)}</div>
-          <div style="border-top:1px solid #000;display:inline-block;padding:0 24px;">${m.personilOpsTtd ? (escapeHtml(m.personilOps)||'&nbsp;') : '&nbsp;'}</div>
+          <div style="border-top:1px solid #000;display:inline-block;padding:0 24px;">${m.personilOpsTtd ? (namaPhHtml(m.personilOps)||'&nbsp;') : '&nbsp;'}</div>
         </td>
         <td style="text-align:center;vertical-align:top;">
           <div>Personil Teknik</div>

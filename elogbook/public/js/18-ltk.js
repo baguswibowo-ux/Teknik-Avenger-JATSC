@@ -195,7 +195,7 @@ function printLtk(id){
           <div>Mengetahui,</div>
           <div style="margin-bottom:4px;">Manager Teknik 1</div>
           <div style="height:48px;">${ttdImg(l.managerTtd, 42)}</div>
-          <div style="border-top:1px solid #000;display:inline-block;padding:0 24px;">${l.managerTtd ? (escapeHtml(l.managerNama)||'&nbsp;') : '&nbsp;'}</div>
+          <div style="border-top:1px solid #000;display:inline-block;padding:0 24px;">${l.managerTtd ? (namaPhHtml(l.managerNama)||'&nbsp;') : '&nbsp;'}</div>
         </td>
         <td style="text-align:center;vertical-align:top;">
           <div>${escapeHtml(l.kota)||'Tangerang'}, ${escapeHtml(l.tanggalLapor)}</div>
