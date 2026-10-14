@@ -63,10 +63,13 @@ const rapi = (s) => String(s || '').trim().replace(/\s+/g, ' ');
 /** Alamat gambar QR untuk satu identitas. NIK boleh kosong (penanda tangan
     tanpa akun): QR-nya lalu hanya memuat unit dan nama. Jabatan, kalau ada,
     menggantikan baris unit — Manager Teknik menandatangani dokumen banyak
-    unit, dan yang menerangkan dirinya adalah jabatannya. */
-export function urlTtdQr({ unit, nama, nik, jabatan }, dataDir) {
+    unit, dan yang menerangkan dirinya adalah jabatannya. Kecuali `denganUnit`:
+    unit dan jabatan dua-duanya terbaca — Manager Operasi, yang unitnya (ACC /
+    APP) justru bagian dari keterangan dirinya. */
+export function urlTtdQr({ unit, nama, nik, jabatan, denganUnit }, dataDir) {
   const bagian = [rapi(unit), rapi(nama), rapi(nik)];
   if (rapi(jabatan)) bagian.push(rapi(jabatan));
+  if (rapi(jabatan) && denganUnit) bagian.push(1);
   const isi = Buffer.from(JSON.stringify(bagian)).toString('base64url');
   return `${AWALAN_QR}${isi}.${segel(isi, dataDir)}.svg`;
 }
@@ -81,8 +84,10 @@ export function bacaUrlTtdQr(url, dataDir) {
   const benar = segel(m[1], dataDir);
   if (!crypto.timingSafeEqual(Buffer.from(m[2]), Buffer.from(benar))) return null;
   try {
-    const [unit, nama, nik, jabatan] = JSON.parse(Buffer.from(m[1], 'base64url').toString('utf8'));
-    return { unit: rapi(unit), nama: rapi(nama), nik: rapi(nik), jabatan: rapi(jabatan) };
+    const [unit, nama, nik, jabatan, denganUnit] = JSON.parse(Buffer.from(m[1], 'base64url').toString('utf8'));
+    const hasil = { unit: rapi(unit), nama: rapi(nama), nik: rapi(nik), jabatan: rapi(jabatan) };
+    if (denganUnit) hasil.denganUnit = true;
+    return hasil;
   } catch { return null; }
 }
 
@@ -90,10 +95,10 @@ export function bacaUrlTtdQr(url, dataDir) {
 export const KOP_QR = 'Perum LPPNPI Cabang JATSC';
 
 /** Yang terbaca saat QR-nya dipindai. */
-export function teksTtdQr({ unit, nama, nik, jabatan }) {
+export function teksTtdQr({ unit, nama, nik, jabatan, denganUnit }) {
   const baris = [KOP_QR];
+  if (unit && (!jabatan || denganUnit)) baris.push('Unit: ' + unit);
   if (jabatan) baris.push('Jabatan: ' + jabatan);
-  else if (unit) baris.push('Unit: ' + unit);
   baris.push('Nama: ' + nama);
   if (nik) baris.push('NIK: ' + nik);
   return baris.join('\n');

@@ -33,7 +33,7 @@ function hapusMonTeknisi(key){ monTeknisiRows = monTeknisiRows.filter(x=>x.key!=
 const mapMon = m => ({ id:m.ID, tanggal:m.Tanggal, baris:m.Baris||[],
                        personilOps:m.PersonilOps||'', personilTeknik:m.PersonilTeknik||'',
                        personilOpsTtd:m.PersonilOpsTTD||'',
-                       managerOps:m.ManagerOps||'', managerOpsTtd:m.ManagerOpsTTD||'',
+                       managerOps:m.ManagerOps||'', managerOpsTtd:m.ManagerOpsTTD||'', managerOpsUnit:m.ManagerOpsUnit||'', managerOpsJabatan:m.ManagerOpsJabatan||'Manager Operasi',
                        managerNama:m.ManagerNama||'', managerTtd:m.ManagerTTD||'',
                        teknisiNamaList:m.TeknisiNamaListJSON||[],
                        teknisiTtd:m.TeknisiTTD||'', diinputOleh:m.DiinputOleh||'', dibuatPada:m.DibuatPada||'',
@@ -58,6 +58,8 @@ function renderBarisMon(){
 function openMonModal(){
   document.getElementById('monTanggal').value = tanggalHariIni();
   document.getElementById('monManOps').value = '';
+  document.getElementById('monManOpsUnit').value = '';
+  document.getElementById('monManOpsJabatan').value = 'Manager Operasi';
   // Manager Teknik dipilih dari akun pejabat — tanpa isian nama. Daftarnya
   // sama dengan pemilih "Kirim TTD ke akun" di form lain (pejabatList).
   document.getElementById('monManagerAkun').innerHTML =
@@ -85,6 +87,9 @@ async function saveMon(){
   const managerOps = document.getElementById('monManOps').value.trim();
   const managerOpsTtd = getSigDataUrl('sigMonManOps');
   if(managerOpsTtd && !managerOps){ toast(T('monManOpsNamaKosong')); return; }
+  // Baris "Unit" di QR-nya unit operasi (ACC / APP), bukan unit teknik.
+  const managerOpsUnit = document.getElementById('monManOpsUnit').value;
+  if(managerOpsTtd && !managerOpsUnit){ toast(T('monManOpsUnitKosong')); return; }
   // Manager Teknik: akun yang dipilih jadi tujuan TTD, dan namanya yang
   // tercatat di lembar. Dikosongkan boleh — seperti form lain.
   const ttdUntuk = document.getElementById('monManagerAkun').value;
@@ -97,7 +102,8 @@ async function saveMon(){
       managerNama, ttdUntuk,
       personilTeknik: namaTeknikMon.join(', '),
       teknisiNamaList: namaTeknikMon,
-      managerOps, managerOpsTtd,
+      managerOps, managerOpsUnit, managerOpsTtd,
+      managerOpsJabatan: document.getElementById('monManOpsJabatan').value,
       teknisiTtd: getSigDataUrl('sigMon'),
       baris
     });
@@ -164,6 +170,9 @@ const KOLOM_MON_JUDUL = ['Sector','Frequency','Time','Flight','Level','Bearing',
     tidak lagi mengisinya, tapi yang sudah tercatat tetap ditampilkan. */
 const monAdaOpsLama = m => !!(m.personilOps || m.personilOpsTtd);
 
+/** Judul petak Manager Operasi: jabatan + unitnya — "PH Manager Operasi ACC". */
+const monJabatanOps = m => (m.managerOpsJabatan || 'Manager Operasi') + (m.managerOpsUnit ? ' ' + m.managerOpsUnit : '');
+
 function openMonDetail(id){
   const m = monitoring.find(x=>x.id===id);
   if(!m) return;
@@ -172,7 +181,7 @@ function openMonDetail(id){
     <div style="font-size:13px;line-height:1.7;margin-bottom:10px;"><b>${escapeHtml(m.tanggal)}</b></div>
     ${monTabelHtml(m, false)}
     <div class="detail-ttd">
-      <div class="sig-block"><b>${T('managerOps')}</b>${escapeHtml(m.managerOps)||'-'}${sigThumbHtml(m.managerOpsTtd)}${bolehUbahManOpsMon(m) ? monManOpsEditBtn(m.id) : ''}</div>
+      <div class="sig-block"><b>${escapeHtml(monJabatanOps(m))}</b>${escapeHtml(m.managerOps)||'-'}${sigThumbHtml(m.managerOpsTtd)}${bolehUbahManOpsMon(m) ? monManOpsEditBtn(m.id) : ''}</div>
       <div class="sig-block"><b>${T('bapbTeknik')}</b>${renderPihakKedua('monitoring', m.id, m.managerNama, m.managerTtd)}${sigPejabatHtml('monitoring', m.id, m.managerTtd, m)}</div>
       ${monAdaOpsLama(m) ? `<div class="sig-block"><b>${T('personilOps')}</b>${escapeHtml(m.personilOps)||'-'}${sigThumbHtml(m.personilOpsTtd)}</div>` : ''}
       <div class="sig-block"><b>${T('personilTeknik')}</b>${escapeHtml(m.personilTeknik)||'-'}${sigThumbHtml(m.teknisiTtd)}</div>
@@ -207,6 +216,8 @@ function openMonManOpsModal(id){
   if(!m) return;
   monManOpsTargetId = id;
   document.getElementById('monManOpsEditNama').value = m.managerOps || '';
+  document.getElementById('monManOpsEditUnit').value = m.managerOpsUnit || '';
+  document.getElementById('monManOpsEditJabatan').value = m.managerOpsJabatan || 'Manager Operasi';
   const sig = 'sigMonManOpsEdit';
   if(!sigPads[sig]) setupSigCanvas(sig);
   resizeSigCanvas(sig); clearSig(sig);
@@ -226,7 +237,10 @@ async function simpanMonManOps(){
   // TTD baru kalau tombolnya ditekan; kalau tidak, biarkan yang lama.
   const ttdBaru = getSigDataUrl('sigMonManOpsEdit');
   if(ttdBaru && !nama){ toast(T('monManOpsNamaKosong')); return; }
-  const patch = { managerOps: nama };
+  const unitOps = document.getElementById('monManOpsEditUnit').value;
+  if(ttdBaru && !unitOps){ toast(T('monManOpsUnitKosong')); return; }
+  const patch = { managerOps: nama, managerOpsUnit: unitOps,
+                  managerOpsJabatan: document.getElementById('monManOpsEditJabatan').value };
   if(ttdBaru) patch.managerOpsTtd = ttdBaru;
   const btn = document.getElementById('monManOpsSaveBtn'); btn.disabled = true;
   try{
@@ -249,7 +263,7 @@ function printMon(id){
   // keluar kosong. Tiga kolom seperti BAPB: Manager Operasi · Manager Teknik ·
   // Personil Teknik. Lembar lama yang punya Personil Operasi mendapat kolomnya.
   const kolom = [
-    ['Mengetahui,', 'Manager Operasi', m.managerOpsTtd, m.managerOps],
+    ['Mengetahui,', escapeHtml(monJabatanOps(m)), m.managerOpsTtd, m.managerOps],
     ['Mengetahui / Menyetujui,', 'Manager Teknik', m.managerTtd, m.managerNama],
     ...(monAdaOpsLama(m) ? [['&nbsp;', 'Personil Operasi', m.personilOpsTtd, m.personilOps]] : []),
     ['&nbsp;', 'Personil Teknik', m.teknisiTtd, m.personilTeknik]

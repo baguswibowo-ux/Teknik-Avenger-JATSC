@@ -1752,7 +1752,11 @@ try{ document.documentElement.setAttribute('data-tema',
       <div>
         <!-- Manager Operasi tidak punya akun: nama diketik, TTD-nya QR atas
              nama itu. Boleh dikosongkan dulu dan disusulkan dari detail. -->
-        <div class="field"><label data-t="managerOps">Manager Operasi</label><input type="text" id="monManOps" data-t-ph="phManagerOps" placeholder="Nama manager operasi"></div>
+        <!-- Urutannya sama dengan yang terbaca di QR-nya: Unit (ACC / APP),
+             Jabatan (Manager Operasi atau PH-nya), lalu Nama yang diketik. -->
+        <div class="field"><label data-t="monManOpsUnit">Unit Operasi</label><select id="monManOpsUnit"><option value="" data-t="monManOpsUnitPilih">— pilih ACC / APP —</option><option value="ACC">ACC</option><option value="APP">APP</option></select></div>
+        <div class="field"><label data-t="monManOpsJabatan">Jabatan</label><select id="monManOpsJabatan"><option value="Manager Operasi">Manager Operasi</option><option value="PH Manager Operasi">PH Manager Operasi</option></select></div>
+        <div class="field"><label data-t="monManOpsNama">Nama</label><input type="text" id="monManOps" data-t-ph="phManagerOps" placeholder="Nama manager operasi"></div>
         <div class="field"><label data-t="ttdManagerOps">TTD Manager Operasi</label><div class="sig-wrap"><canvas id="sigMonManOps"></canvas><div class="sig-toolbar"><span class="sig-hint" data-t="ttdHintUmum">tanda tangan di sini</span><button class="sig-clear" onclick="clearSig('sigMonManOps')" data-t="bersihkan">bersihkan</button></div></div></div>
       </div>
       <div>
@@ -1788,7 +1792,9 @@ try{ document.documentElement.setAttribute('data-tema',
       <h3 data-t="ttdManagerOps">TTD Manager Operasi</h3>
       <button class="icon-btn" onclick="closeMonManOpsModal()" data-t-title="tutup" title="Tutup">&#10005;</button>
     </div>
-    <div class="field"><label data-t="managerOps">Manager Operasi</label><input type="text" id="monManOpsEditNama" data-t-ph="phManagerOps" placeholder="Nama manager operasi"></div>
+    <div class="field"><label data-t="monManOpsUnit">Unit Operasi</label><select id="monManOpsEditUnit"><option value="" data-t="monManOpsUnitPilih">— pilih ACC / APP —</option><option value="ACC">ACC</option><option value="APP">APP</option></select></div>
+    <div class="field"><label data-t="monManOpsJabatan">Jabatan</label><select id="monManOpsEditJabatan"><option value="Manager Operasi">Manager Operasi</option><option value="PH Manager Operasi">PH Manager Operasi</option></select></div>
+    <div class="field"><label data-t="monManOpsNama">Nama</label><input type="text" id="monManOpsEditNama" data-t-ph="phManagerOps" placeholder="Nama manager operasi"></div>
     <div class="field" style="margin-top:6px;"><label data-t="ttdDiSini">Tanda Tangan</label><div class="sig-wrap"><canvas id="sigMonManOpsEdit"></canvas><div class="sig-toolbar"><span class="sig-hint" data-t="ttdHintUmum">tanda tangan di sini</span><button class="sig-clear" onclick="clearSig('sigMonManOpsEdit')" data-t="bersihkan">bersihkan</button></div></div></div>
     <div class="modal-footer">
       <button class="btn ghost" onclick="closeMonManOpsModal()" data-t="batal">Batal</button>
@@ -2669,7 +2675,7 @@ try{ document.documentElement.setAttribute('data-tema',
 
 <script src="avenger-tautan.js"></script>
 <script src="js/01-tema.js?v=20261009kedip"></script>
-<script src="js/02-bahasa.js?v=20261014mon"></script>
+<script src="js/02-bahasa.js?v=20261014unit"></script>
 <script src="js/03-waktu.js"></script>
 <script src="js/04-toast-tab.js"></script>
 <script src="js/05-jembatan-server.js"></script>
@@ -2691,7 +2697,7 @@ try{ document.documentElement.setAttribute('data-tema',
 <script src="js/13-daily-check-radkom.js"></script>
 <script src="js/14-daily-check-umum.js?v=20261009akses7"></script>
 <script src="js/15-isu.js?v=20260916adminunit"></script>
-<script src="js/16-monitoring.js?v=20261014ph"></script>
+<script src="js/16-monitoring.js?v=20261014unit"></script>
 <script src="js/17-ds-test.js?v=20261014ph"></script>
 <script src="js/17c-radio.js?v=20261014ph"></script>
 <script src="js/17d-weekly-pengamatan.js?v=20261014ph"></script>

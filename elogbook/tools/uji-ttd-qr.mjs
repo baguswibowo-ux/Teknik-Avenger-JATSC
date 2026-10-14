@@ -112,19 +112,29 @@ test('Monitoring tiga petak: Manager Operasi atas nama, Manager Teknik lewat aku
   const qr = (url) => { const q = bacaUrlTtdQr(url, DATA); return { nama: q.nama, nik: q.nik }; };
 
   // Di form: QR Manager Operasi atas nama yang diketik, bukan akun teknisinya.
-  const a = lembar({ managerOps: 'Dodi Manops', managerOpsTtd: PENANDA_QR });
+  // Baris Unit-nya unit operasi yang dipilih (ACC / APP), bukan unit teknik.
+  const a = lembar({ managerOps: 'Dodi Manops', managerOpsUnit: 'acc', managerOpsTtd: PENANDA_QR });
   assert.deepEqual(qr(a.ManagerOpsTTD), { nama: 'Dodi Manops', nik: '' });
+  assert.equal(a.ManagerOpsUnit, 'ACC');
+  assert.equal(teksTtdQr(bacaUrlTtdQr(a.ManagerOpsTTD, DATA)), 'Perum LPPNPI Cabang JATSC\nUnit: ACC\nJabatan: Manager Operasi\nNama: Dodi Manops');
+  const ph = lembar({ managerOps: 'Budi Wakil', managerOpsUnit: 'APP', managerOpsJabatan: 'PH Manager Operasi', managerOpsTtd: PENANDA_QR });
+  assert.equal(teksTtdQr(bacaUrlTtdQr(ph.ManagerOpsTTD, DATA)), 'Perum LPPNPI Cabang JATSC\nUnit: APP\nJabatan: PH Manager Operasi\nNama: Budi Wakil');
+  assert.equal(ph.ManagerOpsJabatan, 'PH Manager Operasi');
+  assert.throws(() => lembar({ managerOps: 'Dodi Manops', managerOpsTtd: PENANDA_QR }), /unit Manager Operasi/);
+  assert.throws(() => lembar({ managerOps: 'Dodi Manops', managerOpsUnit: 'TWR', managerOpsTtd: PENANDA_QR }), /unit Manager Operasi/);
   assert.deepEqual([a.ManagerNama, a.ManagerTTD, a.TtdUntuk], ['Arya Gunanawan', '', 'arya']);
-  assert.throws(() => lembar({ managerOpsTtd: PENANDA_QR }), /nama Manager Operasi/);
+  assert.throws(() => lembar({ managerOpsUnit: 'ACC', managerOpsTtd: PENANDA_QR }), /nama Manager Operasi/);
 
   // Susulan oleh pembuat (boleh diganti juga); orang lain ditolak.
   const b = lembar();
   assert.equal(b.ManagerOpsTTD, '');
-  assert.throws(() => ubah(b.ID, { managerOps: 'Dodi Manops', managerOpsTtd: PENANDA_QR }, { username: 'orang.lain' }), /pembuat lembar/);
-  ubah(b.ID, { managerOps: 'Dodi Manops', managerOpsTtd: PENANDA_QR });
+  assert.throws(() => ubah(b.ID, { managerOps: 'Dodi Manops', managerOpsUnit: 'APP', managerOpsTtd: PENANDA_QR }, { username: 'orang.lain' }), /pembuat lembar/);
+  ubah(b.ID, { managerOps: 'Dodi Manops', managerOpsUnit: 'APP', managerOpsTtd: PENANDA_QR });
   assert.throws(() => ubah(b.ID, { managerOps: 'Dodi M.' }), /bubuhkan ulang/);
-  const b2 = ubah(b.ID, { managerOps: 'Dodi M.', managerOpsTtd: PENANDA_QR });
-  assert.equal(qr(b2.ManagerOpsTTD).nama, 'Dodi M.');
+  assert.throws(() => ubah(b.ID, { managerOpsUnit: 'ACC' }), /bubuhkan ulang/);
+  assert.throws(() => ubah(b.ID, { managerOpsJabatan: 'PH Manager Operasi' }), /bubuhkan ulang/);
+  const b2 = ubah(b.ID, { managerOps: 'Dodi M.', managerOpsUnit: 'ACC', managerOpsTtd: PENANDA_QR });
+  assert.deepEqual([qr(b2.ManagerOpsTTD).nama, bacaUrlTtdQr(b2.ManagerOpsTTD, DATA).unit, b2.ManagerOpsUnit], ['Dodi M.', 'ACC', 'ACC']);
 
   // Lembarnya menunggu di kotak masuk Manager Teknik yang dipilih.
   assert.ok(db.getInboxTtd('arya').some((it) => it.jenis === 'monitoring' && it.id === b.ID));
@@ -136,7 +146,7 @@ test('Monitoring tiga petak: Manager Operasi atas nama, Manager Teknik lewat aku
 
   // Sesudah Manager Teknik tanda tangan: petak Manager Operasi beku, juga untuk
   // admin, dan pembuatnya tidak lagi boleh menghapus lembarnya.
-  assert.throws(() => ubah(b.ID, { managerOps: 'Orang Lain', managerOpsTtd: PENANDA_QR }, { username: 'arya', admin: true }), /Manager Teknik sudah tanda tangan/);
+  assert.throws(() => ubah(b.ID, { managerOps: 'Orang Lain', managerOpsUnit: 'ACC', managerOpsTtd: PENANDA_QR }, { username: 'arya', admin: true }), /Manager Teknik sudah tanda tangan/);
   assert.equal(db.pemilikLembarForm('monitoring', b.ID).sudahTtd, true);
   assert.equal(db.pemilikLembarForm('monitoring', a.ID).sudahTtd, false);
 });
