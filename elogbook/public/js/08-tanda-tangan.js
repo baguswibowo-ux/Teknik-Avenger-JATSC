@@ -23,7 +23,7 @@ const PENANDA_QR = 'qr:akun';
 const PAPAN_GORES = ['sigTtdSaya'];
 /* Penanda tangannya tidak punya akun — QR-nya memuat nama yang diketik di
    formulir, bukan nama akun yang sedang login. */
-const PAPAN_ATAS_NAMA = ['sigMonOps', 'sigMonManOps', 'sigMonManOpsEdit', 'sigBapbPemakai', 'sigBapbPemakaiEdit'];
+const PAPAN_ATAS_NAMA = ['sigMonManOps', 'sigMonManOpsEdit', 'sigBapbPemakai', 'sigBapbPemakaiEdit'];
 
 function setupSigQr(id, canvas){
   const state = {canvas, ctx: canvas.getContext('2d'), qr:true, empty:true, tetap:''};
@@ -149,7 +149,7 @@ function getSigDataUrl(id){
    yang jalan sekali di init() ikut memasang tombol "pakai TTD tersimpan" di
    atasnya. Kanvas di dalam modal tersembunyi berlebar 0; resizeSigCanvas
    menunda dirinya sendiri sampai jendelanya benar-benar terlihat. */
-function initAllSigPads(){ ['sigFeTeknisi','sigFeeTeknisi','sigDcTeknisi','sigMon','sigMonOps','sigMonManOps','sigDs','sigRadio','sigWk','sigLtkTeknisi','sigTtdPejabat','sigBerkala','sigBapbPemakai','sigBapbPetugas'].forEach(id=>{ if(!sigPads[id]) setupSigCanvas(id); }); }
+function initAllSigPads(){ ['sigFeTeknisi','sigFeeTeknisi','sigDcTeknisi','sigMon','sigMonManOps','sigDs','sigRadio','sigWk','sigLtkTeknisi','sigTtdPejabat','sigBerkala','sigBapbPemakai','sigBapbPetugas'].forEach(id=>{ if(!sigPads[id]) setupSigCanvas(id); }); }
 function resizeAllVisibleSigPads(){ Object.keys(sigPads).forEach(resizeSigCanvas); }
 window.addEventListener('resize', resizeAllVisibleSigPads);
 window.addEventListener('orientationchange', ()=>setTimeout(resizeAllVisibleSigPads, 250));

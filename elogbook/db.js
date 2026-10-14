@@ -379,11 +379,17 @@ tambahKolom('entries', 'frek', "TEXT NOT NULL DEFAULT ''");
 // Monitoring: tanda tangan personil operasi dan daftar nama teknisi pelaksana.
 tambahKolom('monitoring', 'personil_ops_ttd', "TEXT NOT NULL DEFAULT ''");
 tambahKolom('monitoring', 'teknisi_nama_list', "TEXT NOT NULL DEFAULT '[]'");
-// Monitoring: petak ketiga — Manager Operasi (mengetahui). Sepola Manager
-// Pemakai di BAPB: tanpa akun, dibubuhkan di form atau disusulkan dari detail
-// (updateMonitoring), di luar jalur TTD susulan JENIS_TTD.
+/* Monitoring: tiga petak seperti BAPB (14 Okt 2026) — Manager Operasi, Manager
+   Teknik, teknisi pelaksana.
+   - Manager Operasi (mengetahui) sepola Manager Pemakai di BAPB: tanpa akun,
+     dibubuhkan di form atau disusulkan dari detail (updateMonitoring).
+   - Manager Teknik adalah petak yang dirutekan ke akun lewat ttd_untuk (lihat
+     JENIS_TTD 'monitoring'), menggantikan Personil Operasi. Kolom personil_ops
+     dan personil_ops_ttd tinggal untuk lembar lama. */
 tambahKolom('monitoring', 'manager_ops', "TEXT NOT NULL DEFAULT ''");
 tambahKolom('monitoring', 'manager_ops_ttd', "TEXT NOT NULL DEFAULT ''");
+tambahKolom('monitoring', 'manager_teknik', "TEXT NOT NULL DEFAULT ''");
+tambahKolom('monitoring', 'manager_teknik_ttd', "TEXT NOT NULL DEFAULT ''");
 
 /* Lokasi gedung tempat catatan dibuat. Kosong pada catatan lama: gedungnya
    memang tidak pernah dicatat waktu itu, dan menebaknya sekarang sama saja
@@ -1535,11 +1541,11 @@ export function tambahLampiranIsu(issueId, fase, daftar) {
  * Pembuat & keadaan TTD pejabat sebuah lembar tab FORM (LTK / BAPB /
  * Monitoring). Server memakainya untuk mengizinkan PEMBUATNYA SENDIRI
  * menghapus lembar itu selama pejabatnya belum menandatangani — Manager
- * Teknik untuk LTK & BAPB, Personil Ops untuk Monitoring. Sesudah TTD itu
+ * Teknik untuk LTK, BAPB, dan Monitoring. Sesudah TTD itu
  * ada, lembarnya jadi arsip sah dan hanya admin / admin unit yang boleh
  * menghapus. null = catatan tidak ditemukan.
  */
-const TTD_KUNCI_HAPUS = { ltk: 'manager_ttd', bapb: 'teknik_ttd', monitoring: 'personil_ops_ttd' };
+const TTD_KUNCI_HAPUS = { ltk: 'manager_ttd', bapb: 'teknik_ttd', monitoring: 'manager_teknik_ttd' };
 export function pemilikLembarForm(jenis, id) {
   const kol = TTD_KUNCI_HAPUS[jenis];
   if (!kol) return null;
@@ -2364,7 +2370,8 @@ const RUTE_TTD_META = {
   ltk:     { tabel: 'ltk',         ttdCol: 'manager_ttd', namaCol: 'manager_nama', subyek: 'manager teknik' },
   berkala: { tabel: 'berkala',     ttdCol: 'manager_ttd', namaCol: 'manager_nama', subyek: 'manager teknik' },
   dstest:  { tabel: 'dstest',      ttdCol: 'manager_ttd', namaCol: 'manager_nama', subyek: 'manager teknik' },
-  bapb:    { tabel: 'bapb',        ttdCol: 'teknik_ttd',  namaCol: 'teknik_nama',  subyek: 'manager teknik' }
+  bapb:    { tabel: 'bapb',        ttdCol: 'teknik_ttd',  namaCol: 'teknik_nama',  subyek: 'manager teknik' },
+  monitoring: { tabel: 'monitoring', ttdCol: 'manager_teknik_ttd', namaCol: 'manager_teknik', subyek: 'manager teknik' }
 };
 
 export function updateTtdRouting(kind, id, patch = {}) {
@@ -2411,6 +2418,7 @@ const rowToMonitoring = (r, extra = {}) => ({
   PersonilOps: r.personil_ops, PersonilTeknik: r.personil_teknik,
   PersonilOpsTTD: r.personil_ops_ttd || '',
   ManagerOps: r.manager_ops || '', ManagerOpsTTD: r.manager_ops_ttd || '',
+  ManagerNama: r.manager_teknik || '', ManagerTTD: r.manager_teknik_ttd || '',
   TeknisiTTD: r.teknisi_ttd,
   TeknisiNamaListJSON: parseJson(r.teknisi_nama_list, []),
   DiinputOleh: extra.diinputOleh ?? (r.dibuat_oleh || ''),
@@ -2453,17 +2461,23 @@ export function insertMonitoring(rec = {}, olehUsername = '', olehNama = '') {
     personil_ops_ttd: saveSignature(rec.personilOpsTtd, 'monitoring_ops', { unit: rec.unit, nama: rec.personilOps }),
     manager_ops: String(rec.managerOps || '').trim(),
     manager_ops_ttd: ttdManagerOps(rec.managerOpsTtd, rec.managerOps, rec.unit),
+    // Manager Teknik tidak dibubuhkan di form: namanya tujuan, tanda tangannya
+    // susulan lewat kotak masuk akun yang ditunjuk ttd_untuk — sama dengan BAPB.
+    manager_teknik: String(rec.managerNama || '').trim(),
+    manager_teknik_ttd: '',
     teknisi_ttd: saveSignature(rec.teknisiTtd, 'monitoring_teknisi', { unit: rec.unit }),
     ttd_untuk: rec.ttdUntuk || '',
     teknisi_nama_list: JSON.stringify(namaList),
     dibuat_pada: nowIso()
   };
   db.prepare(`INSERT INTO monitoring (id, unit, tanggal, baris_json, personil_ops, personil_teknik,
-                                      personil_ops_ttd, manager_ops, manager_ops_ttd, teknisi_ttd, ttd_untuk,
+                                      personil_ops_ttd, manager_ops, manager_ops_ttd, manager_teknik,
+                                      manager_teknik_ttd, teknisi_ttd, ttd_untuk,
                                       teknisi_nama_list, dibuat_pada, dibuat_oleh)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
     .run(row.id, row.unit, row.tanggal, row.baris_json, row.personil_ops, row.personil_teknik,
-         row.personil_ops_ttd, row.manager_ops, row.manager_ops_ttd, row.teknisi_ttd, row.ttd_untuk,
+         row.personil_ops_ttd, row.manager_ops, row.manager_ops_ttd, row.manager_teknik,
+         row.manager_teknik_ttd, row.teknisi_ttd, row.ttd_untuk,
          row.teknisi_nama_list, row.dibuat_pada, olehUsername);
   // dibuat_oleh ikut disertakan supaya tombol yang khusus pembuat (TTD Manager
   // Operasi, hapus) langsung muncul tanpa memuat ulang — sama dengan insertBapb.
@@ -2472,10 +2486,11 @@ export function insertMonitoring(rec = {}, olehUsername = '', olehNama = '') {
 
 /**
  * Sunting susulan Monitoring — hanya petak Manager Operasi (nama + tanda
- * tangan). Teknisi bisa menyimpan lembarnya dulu lalu menyusulkan TTD manager
- * operasi belakangan. Selama petaknya masih kosong: pembuat lembar atau admin.
- * Sesudah terisi hanya admin — pembuat tidak mengganti paraf yang sudah ada.
- * QR-nya memuat nama, jadi nama yang berubah wajib dibubuhkan ulang.
+ * tangan), oleh pembuat lembar atau admin. Sama dengan panel Manager Pemakai
+ * di BAPB (updateBapb): teknisi bisa menyimpan lembarnya dulu lalu
+ * menyusulkan TTD manager operasi, dan petaknya beku begitu Manager Teknik
+ * sudah tanda tangan. QR-nya memuat nama, jadi nama yang berubah wajib
+ * dibubuhkan ulang.
  */
 export function updateMonitoring(id, patch = {}, { username = '', admin = false } = {}) {
   const r = db.prepare('SELECT * FROM monitoring WHERE id = ?').get(String(id));
@@ -2483,8 +2498,8 @@ export function updateMonitoring(id, patch = {}, { username = '', admin = false 
   if (!admin && String(r.dibuat_oleh || '') !== String(username || '')) {
     throw new Error('Hanya pembuat lembar ini atau administrator yang boleh menyuntingnya.');
   }
-  if (r.manager_ops_ttd && !admin) {
-    throw new Error('Manager Operasi sudah tanda tangan — hanya administrator yang boleh mengubahnya.');
+  if (r.manager_teknik_ttd) {
+    throw new Error('Manager Teknik sudah tanda tangan — petak Manager Operasi tidak bisa diubah lagi.');
   }
   const namaBaru = patch.managerOps !== undefined ? String(patch.managerOps || '').trim() : r.manager_ops;
   let ttdBaru = r.manager_ops_ttd;
@@ -2505,10 +2520,10 @@ export function updateMonitoring(id, patch = {}, { username = '', admin = false 
 }
 
 export function removeMonitoring(id) {
-  const r = db.prepare('SELECT teknisi_ttd, personil_ops_ttd, manager_ops_ttd FROM monitoring WHERE id = ?').get(id);
+  const r = db.prepare('SELECT teknisi_ttd, personil_ops_ttd, manager_ops_ttd, manager_teknik_ttd FROM monitoring WHERE id = ?').get(id);
   db.prepare('DELETE FROM monitoring WHERE id = ?').run(id);
   hapusLampiranCatatanSemua('monitoring', id);
-  if (r) { removeSignatureFile(r.teknisi_ttd); removeSignatureFile(r.personil_ops_ttd); removeSignatureFile(r.manager_ops_ttd); }
+  if (r) { removeSignatureFile(r.teknisi_ttd); removeSignatureFile(r.personil_ops_ttd); removeSignatureFile(r.manager_ops_ttd); removeSignatureFile(r.manager_teknik_ttd); }
   return true;
 }
 
@@ -3054,7 +3069,9 @@ export const removeIssue = (id) => {
 export const JENIS_TTD = {
   logbook:    { tabel: 'entries',     nama: 'pj_nama',      ttd: 'pj_ttd',           prefix: 'logbook_pj',         label: 'Manager Teknik',   tglKolom: 'tanggal' },
   dailycheck: { tabel: 'dailychecks', nama: 'manager_nama', ttd: 'manager_ttd',      prefix: 'dailycheck_manager', label: 'Manager Teknik',   tglKolom: 'tanggal' },
-  monitoring: { tabel: 'monitoring',  nama: 'personil_ops', ttd: 'personil_ops_ttd', prefix: 'monitoring_ops',     label: 'Personil Operasi', tglKolom: 'tanggal' },
+  // Monitoring: petak susulannya Manager Teknik (dulu Personil Operasi).
+  // Manager Operasi dibubuhkan di form, di luar jalur ini — seperti BAPB.
+  monitoring: { tabel: 'monitoring',  nama: 'manager_teknik', ttd: 'manager_teknik_ttd', prefix: 'monitoring_manager', label: 'Manager Teknik', tglKolom: 'tanggal' },
   dstest:     { tabel: 'dstest',      nama: 'manager_nama', ttd: 'manager_ttd',      prefix: 'dstest_manager',     label: 'Manager Teknik',   tglKolom: 'tanggal' },
   berkala:    { tabel: 'berkala',     nama: 'manager_nama', ttd: 'manager_ttd',      prefix: 'berkala_manager',    label: 'Manager Teknik',   tglKolom: 'tanggal' },
   ltk:        { tabel: 'ltk',         nama: 'manager_nama', ttd: 'manager_ttd',      prefix: 'ltk_manager',        label: 'Manager Teknik',   tglKolom: 'tanggal_lapor' },

@@ -1729,9 +1729,23 @@ try{ document.documentElement.setAttribute('data-tema',
         <tbody id="monBody"></tbody>
       </table>
     </div>
-    <!-- Tiga panel tanda tangan sejajar, seperti BAPB: Teknik · Personil
-         Operasi · Manager Operasi (mengetahui). -->
+    <!-- Tiga panel tanda tangan sejajar, urutannya seperti BAPB:
+         Manager Operasi · Manager Teknik · teknisi pelaksana. -->
     <div class="grid3" style="margin-top:14px;">
+      <div>
+        <!-- Manager Operasi tidak punya akun: nama diketik, TTD-nya QR atas
+             nama itu. Boleh dikosongkan dulu dan disusulkan dari detail. -->
+        <div class="field"><label data-t="managerOps">Manager Operasi</label><input type="text" id="monManOps" data-t-ph="phManagerOps" placeholder="Nama manager operasi"></div>
+        <div class="field"><label data-t="ttdManagerOps">TTD Manager Operasi</label><div class="sig-wrap"><canvas id="sigMonManOps"></canvas><div class="sig-toolbar"><span class="sig-hint" data-t="ttdHintUmum">tanda tangan di sini</span><button class="sig-clear" onclick="clearSig('sigMonManOps')" data-t="bersihkan">bersihkan</button></div></div></div>
+      </div>
+      <div>
+        <!-- Manager Teknik: tanpa isian nama — cukup pilih akunnya. Lembarnya
+             langsung masuk kotak masuk akun itu (PH-nya diurus sistem) dan
+             nama yang tercetak diambil dari akun yang dipilih. Pilihannya
+             diisi openMonModal (16-monitoring.js). -->
+        <div class="field"><label data-t="bapbTeknik">Manager Teknik</label><select id="monManagerAkun"></select></div>
+        <div class="subtle-note" data-t="bapbTeknikSusulan">TTD Manager Teknik dibubuhkan belakangan lewat kotak masuk akun yang dituju.</div>
+      </div>
       <div>
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <label style="font-family:var(--font-mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);" data-t="namaTeknisiPelaksana">Nama Teknisi Pelaksana</label>
@@ -1739,17 +1753,6 @@ try{ document.documentElement.setAttribute('data-tema',
         </div>
         <div id="monTeknisiList" style="margin-top:8px;"></div>
         <div class="field" style="margin-top:6px;"><label data-t="ttdPersonilTeknik">TTD Personil Teknik</label><div class="sig-wrap"><canvas id="sigMon"></canvas><div class="sig-toolbar"><span class="sig-hint" data-t="ttdHintTeknisi">tanda tangan teknisi</span><button class="sig-clear" onclick="clearSig('sigMon')" data-t="bersihkan">bersihkan</button></div></div></div>
-      </div>
-      <div>
-        <div class="field"><label data-t="personilOps">Personil Operasi</label><input type="text" id="monOps" list="pejabatDatalist" data-t-ph="phPersonilOps" placeholder="Nama personil operasi"></div>
-        <div class="field"><label data-t="kirimTtdKe">Kirim TTD ke akun</label><select id="monOpsAkun"><option value="" data-t="kirimTtdOtomatis">Otomatis (dari nama di atas)</option></select></div>
-        <div class="field"><label data-t="ttdPersonilOps">TTD Personil Operasi</label><div class="sig-wrap"><canvas id="sigMonOps"></canvas><div class="sig-toolbar"><span class="sig-hint" data-t="ttdHintUmum">tanda tangan di sini</span><button class="sig-clear" onclick="clearSig('sigMonOps')" data-t="bersihkan">bersihkan</button></div></div></div>
-      </div>
-      <div>
-        <!-- Manager Operasi tidak punya akun: nama diketik, TTD-nya QR atas
-             nama itu. Boleh dikosongkan dulu dan disusulkan dari detail. -->
-        <div class="field"><label data-t="managerOps">Manager Operasi</label><input type="text" id="monManOps" data-t-ph="phManagerOps" placeholder="Nama manager operasi"></div>
-        <div class="field"><label data-t="ttdManagerOps">TTD Manager Operasi</label><div class="sig-wrap"><canvas id="sigMonManOps"></canvas><div class="sig-toolbar"><span class="sig-hint" data-t="ttdHintUmum">tanda tangan di sini</span><button class="sig-clear" onclick="clearSig('sigMonManOps')" data-t="bersihkan">bersihkan</button></div></div></div>
       </div>
     </div>
     <div class="modal-footer">
@@ -1760,8 +1763,8 @@ try{ document.documentElement.setAttribute('data-tema',
 </div>
 
 <!-- MODAL SUNTING TTD MANAGER OPERASI (Monitoring Frekuensi) — sepola TTD
-     Manager Pemakai di BAPB: pembuat lembar menyusulkannya selama petaknya
-     masih kosong; sesudah terisi hanya admin yang bisa mengubah. -->
+     Manager Pemakai di BAPB: pembuat lembar / admin menyusulkan atau
+     menggantinya selama Manager Teknik belum tanda tangan. -->
 <div class="modal-bg" id="monManOpsBg">
   <div class="modal" style="max-width:440px;">
     <div class="modal-kepala">

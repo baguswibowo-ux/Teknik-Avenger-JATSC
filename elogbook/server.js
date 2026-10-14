@@ -557,7 +557,7 @@ async function notifJikaTujuanBaru(jenis, id, sebelum, user) {
 }
 
 /* updateTtdRouting memakai nama jenis lamanya sendiri. */
-const JENIS_DARI_RUTE = { entry: 'logbook', dc: 'dailycheck', ltk: 'ltk', berkala: 'berkala', dstest: 'dstest', bapb: 'bapb' };
+const JENIS_DARI_RUTE = { entry: 'logbook', dc: 'dailycheck', ltk: 'ltk', berkala: 'berkala', dstest: 'dstest', bapb: 'bapb', monitoring: 'monitoring' };
 
 /* Siapa saja yang berhak tahu nasib sebuah lembar: akun yang menyimpannya,
    ditambah teknisi yang tercantum sebagai pelaksana — mereka dinas bersama,
@@ -1357,8 +1357,8 @@ const API = {
     return hasil;
   },
 
-  /** Sunting susulan petak Manager Operasi — pembuat lembar selama petaknya
-      masih kosong, atau admin/admin unit (dijaga updateMonitoring di db.js). */
+  /** Sunting susulan petak Manager Operasi — pembuat lembar atau admin, selama
+      Manager Teknik belum menandatangani (dijaga updateMonitoring di db.js). */
   updateMonitoring: async (id, patch, user) => {
     const unit = await unitCatatan('monitoring', String(id));
     if (!unit) throw new Error('Catatan tidak ditemukan — mungkin sudah dihapus.');

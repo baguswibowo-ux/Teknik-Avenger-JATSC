@@ -250,7 +250,8 @@ function srvPasang(unitSaya, paket, unitSemua){
     ]);
     cek('monitoring', 'Monitoring Frekuensi', d.monitoring, tglTanggal, [
       { peran:'Teknisi Onduty', nama:r=>r.PersonilTeknik, ttd:r=>r.TeknisiTTD },
-      { peran:'Personil Operasi', nama:r=>r.PersonilOps,  ttd:r=>r.PersonilOpsTTD }
+      { peran:'Manager Teknik',  nama:r=>r.ManagerNama, ttd:r=>r.ManagerTTD },
+      { peran:'Manager Operasi', nama:r=>r.ManagerOps,  ttd:r=>r.ManagerOpsTTD }
     ]);
     cek('dstest',     'DS Test',              d.dstest,     tglTanggal, [
       { peran:'Teknisi Onduty', nama:r=>r.TeknisiNama, ttd:r=>r.TeknisiTTD },
