@@ -397,10 +397,10 @@ tambahKolom('monitoring', 'teknisi_nama_list', "TEXT NOT NULL DEFAULT '[]'");
      dan personil_ops_ttd tinggal untuk lembar lama. */
 tambahKolom('monitoring', 'manager_ops', "TEXT NOT NULL DEFAULT ''");
 tambahKolom('monitoring', 'manager_ops_ttd', "TEXT NOT NULL DEFAULT ''");
-// Unit operasi Manager Operasi (ACC / APP) — itu yang terbaca di baris "Unit"
+// Unit operasi Manager Operasi (ACC / APP / TOWER/ADC) — itu yang terbaca di baris "Unit"
 // QR-nya, bukan unit teknik pembuat lembar.
 tambahKolom('monitoring', 'manager_ops_unit', "TEXT NOT NULL DEFAULT ''");
-// Jabatannya — "Manager Operasi" atau "PH Manager Operasi" — baris "Jabatan"
+// Jabatannya — "Manager Operasi", "PH Manager Operasi", atau "Supervisor" — baris "Jabatan"
 // di QR dan judul petaknya di cetakan.
 tambahKolom('monitoring', 'manager_ops_jabatan', "TEXT NOT NULL DEFAULT ''");
 // NIK-nya, opsional — diketik di form karena Manager Operasi tidak punya akun.
@@ -2471,7 +2471,7 @@ export function listMonitoring(unit = 'radkom', limit = 200) {
 function ttdManagerOps(ttd, nama, unitOps, jabatan, nik) {
   if (!ttd) return '';
   if (!String(nama || '').trim()) throw new Error('Isi dulu nama Manager Operasi sebelum membubuhkan tanda tangannya.');
-  if (!unitOps) throw new Error('Pilih dulu unit Manager Operasi (ACC atau APP) sebelum membubuhkan tanda tangannya.');
+  if (!unitOps) throw new Error('Pilih dulu unit Manager Operasi (ACC, APP, atau TOWER/ADC) sebelum membubuhkan tanda tangannya.');
   return saveSignature(ttd, 'monitoring_manops', { unit: unitOps, nama, jabatan: jabatanManagerOps(jabatan), nik: nikManagerOps(nik) });
 }
 
@@ -2480,14 +2480,14 @@ const nikManagerOps = (v) => String(v || '').replace(/\D/g, '').slice(0, 30);
 
 /** Jabatan yang bisa dipilih untuk petak Manager Operasi. Di luar daftar =
     yang pertama (bukan PH). */
-export const JABATAN_MANAGER_OPS = ['Manager Operasi', 'PH Manager Operasi'];
+export const JABATAN_MANAGER_OPS = ['Manager Operasi', 'PH Manager Operasi', 'Supervisor'];
 const jabatanManagerOps = (v) => {
   const s = String(v || '').trim();
   return JABATAN_MANAGER_OPS.includes(s) ? s : JABATAN_MANAGER_OPS[0];
 };
 
 /** Unit operasi yang dikenal untuk Manager Operasi. Di luar daftar = kosong. */
-export const UNIT_MANAGER_OPS = ['ACC', 'APP'];
+export const UNIT_MANAGER_OPS = ['ACC', 'APP', 'TOWER/ADC'];
 const unitManagerOps = (v) => {
   const s = String(v || '').trim().toUpperCase();
   return UNIT_MANAGER_OPS.includes(s) ? s : '';

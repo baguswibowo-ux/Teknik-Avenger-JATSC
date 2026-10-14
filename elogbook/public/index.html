@@ -1752,10 +1752,10 @@ try{ document.documentElement.setAttribute('data-tema',
       <div>
         <!-- Manager Operasi tidak punya akun: nama diketik, TTD-nya QR atas
              nama itu. Boleh dikosongkan dulu dan disusulkan dari detail. -->
-        <!-- Urutannya sama dengan yang terbaca di QR-nya: Unit (ACC / APP),
-             Jabatan (Manager Operasi atau PH-nya), Nama, lalu NIK kalau diisi. -->
-        <div class="field"><label data-t="monManOpsUnit">Unit Operasi</label><select id="monManOpsUnit"><option value="" data-t="monManOpsUnitPilih">— pilih ACC / APP —</option><option value="ACC">ACC</option><option value="APP">APP</option></select></div>
-        <div class="field"><label data-t="monManOpsJabatan">Jabatan</label><select id="monManOpsJabatan"><option value="Manager Operasi">Manager Operasi</option><option value="PH Manager Operasi">PH Manager Operasi</option></select></div>
+        <!-- Urutannya sama dengan yang terbaca di QR-nya: Unit (ACC / APP / TOWER/ADC),
+             Jabatan (Manager Operasi, PH-nya, atau Supervisor), Nama, lalu NIK kalau diisi. -->
+        <div class="field"><label data-t="monManOpsUnit">Unit Operasi</label><select id="monManOpsUnit"><option value="" data-t="monManOpsUnitPilih">— pilih unit —</option><option value="ACC">ACC</option><option value="APP">APP</option><option value="TOWER/ADC">TOWER/ADC</option></select></div>
+        <div class="field"><label data-t="monManOpsJabatan">Jabatan</label><select id="monManOpsJabatan"><option value="Manager Operasi">Manager Operasi</option><option value="PH Manager Operasi">PH Manager Operasi</option><option value="Supervisor">Supervisor</option></select></div>
         <div class="field"><label data-t="monManOpsNama">Nama</label><input type="text" id="monManOps" data-t-ph="phManagerOps" placeholder="Nama manager operasi"></div>
         <div class="field"><label data-t-html="monManOpsNik">NIK <span style="text-transform:none;letter-spacing:0;">(opsional)</span></label><input type="text" id="monManOpsNik" inputmode="numeric" maxlength="30" data-t-ph="phMonManOpsNik" placeholder="Nomor induk karyawan"></div>
         <div class="field"><label data-t="ttdManagerOps">TTD Manager Operasi</label><div class="sig-wrap"><canvas id="sigMonManOps"></canvas><div class="sig-toolbar"><span class="sig-hint" data-t="ttdHintUmum">tanda tangan di sini</span><button class="sig-clear" onclick="clearSig('sigMonManOps')" data-t="bersihkan">bersihkan</button></div></div></div>
@@ -1784,6 +1784,10 @@ try{ document.documentElement.setAttribute('data-tema',
   </div>
 </div>
 
+<!-- Saran unit dan jabatan Penerima Barang di BAPB — isiannya tetap bebas. -->
+<datalist id="unitOpsDatalist"><option value="ACC"><option value="APP"><option value="TOWER/ADC"></datalist>
+<datalist id="jabatanOpsDatalist"><option value="ATC"><option value="Supervisor"><option value="Manager Operasi"><option value="PH Manager Operasi"></datalist>
+
 <!-- MODAL SUNTING TTD MANAGER OPERASI (Monitoring Frekuensi) — sepola TTD
      Manager Pemakai di BAPB: pembuat lembar / admin menyusulkan atau
      menggantinya selama Manager Teknik belum tanda tangan. -->
@@ -1793,8 +1797,8 @@ try{ document.documentElement.setAttribute('data-tema',
       <h3 data-t="ttdManagerOps">TTD Manager Operasi</h3>
       <button class="icon-btn" onclick="closeMonManOpsModal()" data-t-title="tutup" title="Tutup">&#10005;</button>
     </div>
-    <div class="field"><label data-t="monManOpsUnit">Unit Operasi</label><select id="monManOpsEditUnit"><option value="" data-t="monManOpsUnitPilih">— pilih ACC / APP —</option><option value="ACC">ACC</option><option value="APP">APP</option></select></div>
-    <div class="field"><label data-t="monManOpsJabatan">Jabatan</label><select id="monManOpsEditJabatan"><option value="Manager Operasi">Manager Operasi</option><option value="PH Manager Operasi">PH Manager Operasi</option></select></div>
+    <div class="field"><label data-t="monManOpsUnit">Unit Operasi</label><select id="monManOpsEditUnit"><option value="" data-t="monManOpsUnitPilih">— pilih unit —</option><option value="ACC">ACC</option><option value="APP">APP</option><option value="TOWER/ADC">TOWER/ADC</option></select></div>
+    <div class="field"><label data-t="monManOpsJabatan">Jabatan</label><select id="monManOpsEditJabatan"><option value="Manager Operasi">Manager Operasi</option><option value="PH Manager Operasi">PH Manager Operasi</option><option value="Supervisor">Supervisor</option></select></div>
     <div class="field"><label data-t="monManOpsNama">Nama</label><input type="text" id="monManOpsEditNama" data-t-ph="phManagerOps" placeholder="Nama manager operasi"></div>
     <div class="field"><label data-t-html="monManOpsNik">NIK <span style="text-transform:none;letter-spacing:0;">(opsional)</span></label><input type="text" id="monManOpsEditNik" inputmode="numeric" maxlength="30" data-t-ph="phMonManOpsNik" placeholder="Nomor induk karyawan"></div>
     <div class="field" style="margin-top:6px;"><label data-t="ttdDiSini">Tanda Tangan</label><div class="sig-wrap"><canvas id="sigMonManOpsEdit"></canvas><div class="sig-toolbar"><span class="sig-hint" data-t="ttdHintUmum">tanda tangan di sini</span><button class="sig-clear" onclick="clearSig('sigMonManOpsEdit')" data-t="bersihkan">bersihkan</button></div></div></div>
@@ -2295,8 +2299,8 @@ try{ document.documentElement.setAttribute('data-tema',
              menerima barangnya. Tanpa akun — unit, jabatan, nama, dan NIK
              diketik, dan itu yang terbaca di QR-nya. -->
         <div style="font-family:var(--font-mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:6px;" data-t="bapbPemakai">Penerima Barang</div>
-        <div class="field"><label data-t="bapbPemakaiUnit">Unit</label><input type="text" id="bapbPemakaiUnit" maxlength="60" data-t-ph="phBapbPemakaiUnit" placeholder="mis. ACC, APP, Radkom"></div>
-        <div class="field"><label data-t="monManOpsJabatan">Jabatan</label><input type="text" id="bapbPemakaiJabatan" maxlength="80" data-t-ph="phBapbPemakaiJabatan" placeholder="mis. Manager Operasi"></div>
+        <div class="field"><label data-t="bapbPemakaiUnit">Unit</label><input type="text" id="bapbPemakaiUnit" maxlength="60" list="unitOpsDatalist" data-t-ph="phBapbPemakaiUnit" placeholder="mis. ACC, APP, TOWER/ADC"></div>
+        <div class="field"><label data-t="monManOpsJabatan">Jabatan</label><input type="text" id="bapbPemakaiJabatan" maxlength="80" list="jabatanOpsDatalist" data-t-ph="phBapbPemakaiJabatan" placeholder="mis. ATC, Supervisor"></div>
         <div class="field"><label data-t="monManOpsNama">Nama</label><input type="text" id="bapbPemakaiNama" data-t-ph="phBapbPemakaiNama" placeholder="Nama penerima barang"></div>
         <div class="field"><label data-t-html="monManOpsNik">NIK <span style="text-transform:none;letter-spacing:0;">(opsional)</span></label><input type="text" id="bapbPemakaiNik" inputmode="numeric" maxlength="30" data-t-ph="phMonManOpsNik" placeholder="Nomor induk karyawan"></div>
         <div class="field"><label data-t="ttdDiSini">Tanda Tangan</label><div class="sig-wrap"><canvas id="sigBapbPemakai"></canvas><div class="sig-toolbar"><span class="sig-hint" data-t="ttdHintUmum">tanda tangan di sini</span><button class="sig-clear" onclick="clearSig('sigBapbPemakai')" data-t="bersihkan">bersihkan</button></div></div></div>
@@ -2372,8 +2376,8 @@ try{ document.documentElement.setAttribute('data-tema',
       <h3 data-t="bapbPemakaiUbahJudul">TTD Penerima Barang</h3>
       <button class="icon-btn" onclick="closeBapbPemakaiModal()" data-t-title="tutup" title="Tutup">&#10005;</button>
     </div>
-    <div class="field"><label data-t="bapbPemakaiUnit">Unit</label><input type="text" id="bapbPemakaiEditUnit" maxlength="60" data-t-ph="phBapbPemakaiUnit" placeholder="mis. ACC, APP, Radkom"></div>
-    <div class="field"><label data-t="monManOpsJabatan">Jabatan</label><input type="text" id="bapbPemakaiEditJabatan" maxlength="80" data-t-ph="phBapbPemakaiJabatan" placeholder="mis. Manager Operasi"></div>
+    <div class="field"><label data-t="bapbPemakaiUnit">Unit</label><input type="text" id="bapbPemakaiEditUnit" maxlength="60" list="unitOpsDatalist" data-t-ph="phBapbPemakaiUnit" placeholder="mis. ACC, APP, TOWER/ADC"></div>
+    <div class="field"><label data-t="monManOpsJabatan">Jabatan</label><input type="text" id="bapbPemakaiEditJabatan" maxlength="80" list="jabatanOpsDatalist" data-t-ph="phBapbPemakaiJabatan" placeholder="mis. ATC, Supervisor"></div>
     <div class="field"><label data-t="monManOpsNama">Nama</label><input type="text" id="bapbPemakaiEditNama" data-t-ph="phBapbPemakaiNama" placeholder="Nama penerima barang"></div>
     <div class="field"><label data-t-html="monManOpsNik">NIK <span style="text-transform:none;letter-spacing:0;">(opsional)</span></label><input type="text" id="bapbPemakaiEditNik" inputmode="numeric" maxlength="30" data-t-ph="phMonManOpsNik" placeholder="Nomor induk karyawan"></div>
     <div class="field" style="margin-top:6px;"><label data-t="ttdDiSini">Tanda Tangan</label><div class="sig-wrap"><canvas id="sigBapbPemakaiEdit"></canvas><div class="sig-toolbar"><span class="sig-hint" data-t="ttdHintUmum">tanda tangan di sini</span><button class="sig-clear" onclick="clearSig('sigBapbPemakaiEdit')" data-t="bersihkan">bersihkan</button></div></div></div>
@@ -2687,7 +2691,7 @@ try{ document.documentElement.setAttribute('data-tema',
 
 <script src="avenger-tautan.js"></script>
 <script src="js/01-tema.js?v=20261009kedip"></script>
-<script src="js/02-bahasa.js?v=20261014terima"></script>
+<script src="js/02-bahasa.js?v=20261014adc"></script>
 <script src="js/03-waktu.js"></script>
 <script src="js/04-toast-tab.js"></script>
 <script src="js/05-jembatan-server.js"></script>
