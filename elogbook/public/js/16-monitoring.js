@@ -33,6 +33,7 @@ function hapusMonTeknisi(key){ monTeknisiRows = monTeknisiRows.filter(x=>x.key!=
 const mapMon = m => ({ id:m.ID, tanggal:m.Tanggal, baris:m.Baris||[],
                        personilOps:m.PersonilOps||'', personilTeknik:m.PersonilTeknik||'',
                        personilOpsTtd:m.PersonilOpsTTD||'',
+                       managerOps:m.ManagerOps||'', managerOpsTtd:m.ManagerOpsTTD||'',
                        teknisiNamaList:m.TeknisiNamaListJSON||[],
                        teknisiTtd:m.TeknisiTTD||'', diinputOleh:m.DiinputOleh||'', dibuatPada:m.DibuatPada||'',
                        dibuatOlehUsername:m.DibuatOlehUsername||'',
@@ -57,14 +58,15 @@ function openMonModal(){
   document.getElementById('monTanggal').value = tanggalHariIni();
   document.getElementById('monOps').value = '';
   document.getElementById('monOpsAkun').value = '';
+  document.getElementById('monManOps').value = '';
   monBaris = []; monSeq = 0;
   for(let i=0;i<3;i++) tambahBarisMon();   // mulai dengan beberapa baris kosong
   monTeknisiRows = []; monTeknisiSeq = 0; addMonTeknisi();
   if(monTeknisiRows[0]) monTeknisiRows[0].nama = userSaatIni ? (userSaatIni.nama || userSaatIni.username) : '';
   renderMonTeknisi();
-  ['sigMon','sigMonOps'].forEach(id=>{ if(!sigPads[id]) setupSigCanvas(id); resizeSigCanvas(id); clearSig(id); });
+  ['sigMon','sigMonOps','sigMonManOps'].forEach(id=>{ if(!sigPads[id]) setupSigCanvas(id); resizeSigCanvas(id); clearSig(id); });
   document.getElementById('monModalBg').classList.add('show');
-  setTimeout(()=>['sigMon','sigMonOps'].forEach(resizeSigCanvas), 60);
+  setTimeout(()=>['sigMon','sigMonOps','sigMonManOps'].forEach(resizeSigCanvas), 60);
 }
 function closeMonModal(){ document.getElementById('monModalBg').classList.remove('show'); }
 
@@ -75,6 +77,10 @@ async function saveMon(){
   if(baris.length === 0){ toast(T('monKosong')); return; }
 
   const namaTeknikMon = monTeknisiRows.map(t=>(t.nama||'').trim()).filter(Boolean);
+  // QR Manager Operasi memuat nama yang diketik — tanpa nama tidak ada isinya.
+  const managerOps = document.getElementById('monManOps').value.trim();
+  const managerOpsTtd = getSigDataUrl('sigMonManOps');
+  if(managerOpsTtd && !managerOps){ toast(T('monManOpsNamaKosong')); return; }
   const btn = document.getElementById('monSaveBtn'); btn.disabled = true;
   try{
     const saved = await gsRun('addMonitoring', {
@@ -85,6 +91,7 @@ async function saveMon(){
       personilTeknik: namaTeknikMon.join(', '),
       teknisiNamaList: namaTeknikMon,
       personilOpsTtd: getSigDataUrl('sigMonOps'),
+      managerOps, managerOpsTtd,
       teknisiTtd: getSigDataUrl('sigMon'),
       baris
     });
@@ -157,6 +164,7 @@ function openMonDetail(id){
     <div class="detail-ttd">
       <div class="sig-block"><b>${T('personilOps')}</b>${escapeHtml(m.personilOps)||'-'}${sigPejabatHtml('monitoring', m.id, m.personilOpsTtd, m)}</div>
       <div class="sig-block"><b>${T('personilTeknik')}</b>${escapeHtml(m.personilTeknik)||'-'}${sigThumbHtml(m.teknisiTtd)}</div>
+      <div class="sig-block"><b>${T('managerOps')}</b>${escapeHtml(m.managerOps)||'-'}${sigThumbHtml(m.managerOpsTtd)}${bolehUbahManOpsMon(m) ? monManOpsEditBtn(m.id) : ''}</div>
     </div>
     ${lampiranCatatanHtml('monitoring', m.id)}
     <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line);">${diinputOlehHtml(m.diinputOleh, m.dibuatPada, String(m.tanggal||'').slice(0,10))}</div>`;
@@ -164,22 +172,91 @@ function openMonDetail(id){
   document.getElementById('formDetailBg').classList.add('show');
 }
 
+/* ---------- Sunting susulan TTD Manager Operasi ----------
+   Sepola TTD Manager Pemakai di BAPB (18b-bapb.js): lembarnya boleh disimpan
+   dulu, TTD manager operasi menyusul dari jendela detail. Selama petaknya
+   masih kosong: pembuat lembar atau admin. Sesudah terisi hanya admin —
+   server menjaga hal yang sama (updateMonitoring di db.js). */
+
+function bolehUbahManOpsMon(m){
+  if(!m || m.__titipan) return false;
+  if(typeof kelolaUnitAktif === 'function' && kelolaUnitAktif()) return true;
+  if(m.managerOpsTtd) return false;
+  return !!(userSaatIni && m.dibuatOlehUsername && userSaatIni.username === m.dibuatOlehUsername);
+}
+
+function monManOpsEditBtn(id){
+  return `<button class="btn ghost" style="display:block;padding:2px 6px;font-size:11px;margin-top:4px;"
+    onclick="openMonManOpsModal('${id}')">${T('bapbUbahTtdPemakai')}</button>`;
+}
+
+let monManOpsTargetId = null;
+
+function openMonManOpsModal(id){
+  const m = monitoring.find(x=>x.id===id);
+  if(!m) return;
+  monManOpsTargetId = id;
+  document.getElementById('monManOpsEditNama').value = m.managerOps || '';
+  const sig = 'sigMonManOpsEdit';
+  if(!sigPads[sig]) setupSigCanvas(sig);
+  resizeSigCanvas(sig); clearSig(sig);
+  document.getElementById('monManOpsBg').classList.add('show');
+  setTimeout(()=>resizeSigCanvas(sig), 60);
+}
+
+function closeMonManOpsModal(){
+  document.getElementById('monManOpsBg').classList.remove('show');
+  monManOpsTargetId = null;
+}
+
+async function simpanMonManOps(){
+  if(!monManOpsTargetId) return;
+  const id = monManOpsTargetId;
+  const nama = document.getElementById('monManOpsEditNama').value.trim();
+  // TTD baru kalau tombolnya ditekan; kalau tidak, biarkan yang lama.
+  const ttdBaru = getSigDataUrl('sigMonManOpsEdit');
+  if(ttdBaru && !nama){ toast(T('monManOpsNamaKosong')); return; }
+  const patch = { managerOps: nama };
+  if(ttdBaru) patch.managerOpsTtd = ttdBaru;
+  const btn = document.getElementById('monManOpsSaveBtn'); btn.disabled = true;
+  try{
+    const saved = await gsRun('updateMonitoring', id, patch);
+    const i = monitoring.findIndex(x=>x.id===id);
+    if(i >= 0) monitoring[i] = mapMon(saved);
+    renderMonList();
+    closeMonManOpsModal();
+    // Buka lagi detailnya supaya hasilnya langsung terlihat di tempat yang sama.
+    openMonDetail(id);
+    toast(T('monTersimpan'));
+  }catch(e){ toast(T('gagalSimpan') + ' — ' + (e.message || T('coba'))); }
+  btn.disabled = false;
+}
+
 function printMon(id){
   const m = monitoring.find(x=>x.id===id);
   if(!m) return;
-  // Boleh dicetak sebelum Personil Ops TTD — kolom TTD-nya keluar kosong.
+  // Boleh dicetak sebelum Personil Ops / Manager Operasi TTD — kolom TTD-nya
+  // keluar kosong. Tiga kolom seperti BAPB: yang mengetahui di kiri.
   doPrint(`
     <div style="text-align:center;font-weight:bold;font-size:12pt;margin-bottom:4px;">MONITORING FREKUENSI NEW JATSC</div>
     <div style="text-align:center;font-size:9pt;margin-bottom:10px;">TANGGAL : ${escapeHtml(m.tanggal)}</div>
     ${monTabelHtml(m, true)}
-    <table class="no-border" style="font-size:9pt;margin-top:16px;">
+    <table class="no-border" style="font-size:9pt;margin-top:16px;break-inside:avoid;">
       <tr>
-        <td style="width:50%;text-align:center;vertical-align:top;">
+        <td style="width:33%;text-align:center;vertical-align:top;">
+          <div>Mengetahui,</div>
+          <div>Manager Operasi</div>
+          <div style="height:46px;">${ttdImg(m.managerOpsTtd, 40)}</div>
+          <div style="border-top:1px solid #000;display:inline-block;min-width:150px;padding:0 10px;">${m.managerOpsTtd ? (escapeHtml(m.managerOps)||'&nbsp;') : '&nbsp;'}</div>
+        </td>
+        <td style="width:33%;text-align:center;vertical-align:top;">
+          <div>&nbsp;</div>
           <div>Personil Operasi</div>
           <div style="height:46px;">${ttdImg(m.personilOpsTtd, 40)}</div>
           <div style="border-top:1px solid #000;display:inline-block;padding:0 24px;">${m.personilOpsTtd ? (escapeHtml(m.personilOps)||'&nbsp;') : '&nbsp;'}</div>
         </td>
         <td style="text-align:center;vertical-align:top;">
+          <div>&nbsp;</div>
           <div>Personil Teknik</div>
           <div style="height:46px;">${ttdImg(m.teknisiTtd, 40)}</div>
           <div style="border-top:1px solid #000;display:inline-block;padding:0 24px;">${m.teknisiTtd ? (escapeHtml(m.personilTeknik)||'&nbsp;') : '&nbsp;'}</div>

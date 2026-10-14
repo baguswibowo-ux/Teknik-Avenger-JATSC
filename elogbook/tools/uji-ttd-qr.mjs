@@ -102,6 +102,38 @@ test('penanda tangan tanpa akun (Personil Operasi): QR unit + nama, tanpa NIK', 
   assert.deepEqual({ nama: tek.nama, nik: tek.nik }, { nama: 'Bagus Wibowo', nik: '10012550' });
 });
 
+test('Monitoring: TTD Manager Operasi di form atau susulan; sesudah terisi hanya admin', () => {
+  const lembar = (lain = {}) => pemanggil.run(BAGUS, () => db.insertMonitoring({
+    unit: 'radkom', tanggal: '2026-10-14', baris: [Object.fromEntries(db.KOLOM_MONITORING.map((k) => [k, 'x']))],
+    personilOps: 'Rina Operasi', teknisiNamaList: ['Bagus Wibowo'], teknisiTtd: PENANDA_QR, ...lain
+  }, BAGUS.username, BAGUS.nama));
+  const ubah = (id, patch, siapa = { username: BAGUS.username }) =>
+    pemanggil.run(BAGUS, () => db.updateMonitoring(id, patch, siapa));
+
+  // Di form: QR atas nama yang diketik, bukan akun teknisi yang sedang login.
+  const a = lembar({ managerOps: 'Dodi Manops', managerOpsTtd: PENANDA_QR });
+  assert.deepEqual({ nama: bacaUrlTtdQr(a.ManagerOpsTTD, DATA).nama, nik: bacaUrlTtdQr(a.ManagerOpsTTD, DATA).nik },
+    { nama: 'Dodi Manops', nik: '' });
+  assert.throws(() => lembar({ managerOpsTtd: PENANDA_QR }), /nama Manager Operasi/);
+
+  // Susulan oleh pembuat selama petaknya kosong; orang lain ditolak.
+  const b = lembar();
+  assert.equal(b.ManagerOpsTTD, '');
+  assert.throws(() => ubah(b.ID, { managerOps: 'Dodi Manops', managerOpsTtd: PENANDA_QR }, { username: 'arya' }), /pembuat lembar/);
+  const b2 = ubah(b.ID, { managerOps: 'Dodi Manops', managerOpsTtd: PENANDA_QR });
+  assert.equal(bacaUrlTtdQr(b2.ManagerOpsTTD, DATA).nama, 'Dodi Manops');
+  assert.equal(db.listMonitoring('radkom').find((m) => m.ID === b.ID).ManagerOpsTTD, b2.ManagerOpsTTD);
+
+  // Sudah terisi: pembuat ditolak; admin boleh, tapi nama baru wajib TTD ulang.
+  assert.throws(() => ubah(b.ID, { managerOps: 'Orang Lain', managerOpsTtd: PENANDA_QR }), /hanya administrator/);
+  const admin = { username: 'arya', admin: true };
+  assert.throws(() => ubah(b.ID, { managerOps: 'Dodi M.' }, admin), /bubuhkan ulang/);
+  const b3 = ubah(b.ID, { managerOps: 'Dodi M.', managerOpsTtd: PENANDA_QR }, admin);
+  assert.equal(bacaUrlTtdQr(b3.ManagerOpsTTD, DATA).nama, 'Dodi M.');
+  // Personil Operasi tidak ikut tersentuh.
+  assert.equal(b3.PersonilOps, 'Rina Operasi');
+});
+
 test('lembar AMHS: petak dinas yang sudah terisi tidak ditandatangani ulang orang berikutnya', () => {
   const dc = pemanggil.run(BAGUS, () => db.insertDailyCheck({
     unit: 'radtel', tanggal: '12 Oktober 2026', tanggalIso: '2026-10-12', dinas: 'Pagi',

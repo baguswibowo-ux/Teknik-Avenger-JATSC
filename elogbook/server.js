@@ -65,7 +65,7 @@ const {
   listIssues, insertIssue, updateIssue, removeIssue, getIssue,
   tutupIsu, tambahBuktiTutupIsu,
   tambahLampiranIsu, hapusLampiranIsu,
-  listMonitoring, insertMonitoring, removeMonitoring,
+  listMonitoring, insertMonitoring, updateMonitoring, removeMonitoring,
   listDsTest, insertDsTest, removeDsTest, updateDsTest, DS_SITE, KATEGORI_DS,
   listBerkala, insertBerkala, updateBerkala, removeBerkala, BERKALA_ITEM, JENIS_BERKALA,
   LOKASI,
@@ -945,7 +945,7 @@ async function unitDanHakAkses(user, unit) {
 /** Fungsi yang menambah atau mengubah data. Pejabat ditolak di sini. */
 const API_TULIS = new Set([
   'addEntry', 'addDailyCheck', 'addIssue', 'addMonitoring', 'addLtk', 'addDsTest', 'addBerkala',
-  'addBapb', 'updateBapb', 'suntingLampiranBapb', 'suntingLampiranCatatan',
+  'addBapb', 'updateBapb', 'updateMonitoring', 'suntingLampiranBapb', 'suntingLampiranCatatan',
   'updateEntry', 'updateDailyCheck', 'updateDsTest', 'updateBerkala', 'updateTtdRouting',
   // Menutup isu dan menempel bukti penutup bukan admin-only: teknisi
   // yang menyelesaikan gangguan boleh menandai isunya selesai.
@@ -1355,6 +1355,17 @@ const API = {
     const hasil = await insertMonitoring({ ...(rec || {}), unit, ttdUntuk }, user.username, user.nama);
     notifPerluTtd('monitoring', ttdUntuk, { unit, tanggal: rec?.tanggal }, user.nama || user.username, hasil?.ID);
     return hasil;
+  },
+
+  /** Sunting susulan petak Manager Operasi — pembuat lembar selama petaknya
+      masih kosong, atau admin/admin unit (dijaga updateMonitoring di db.js). */
+  updateMonitoring: async (id, patch, user) => {
+    const unit = await unitCatatan('monitoring', String(id));
+    if (!unit) throw new Error('Catatan tidak ditemukan — mungkin sudah dihapus.');
+    await pastikanUnit(user, unit);
+    const p = patch || {};
+    return updateMonitoring(String(id), { managerOps: p.managerOps, managerOpsTtd: p.managerOpsTtd },
+                            { username: user.username, admin: kelolaUnit(user) });
   },
 
   addDsTest: async (rec, user) => {
@@ -2386,6 +2397,7 @@ const DOKUMEN_FN = {
   deleteEntry:         { jenis: 'logbook',    aksi: 'hapus' },
   updateDailyCheck:    { jenis: 'dailycheck', aksi: 'ubah' },
   deleteDcRecord:      { jenis: 'dailycheck', aksi: 'hapus' },
+  updateMonitoring:    { jenis: 'monitoring', aksi: 'ubah' },
   deleteMonitoring:    { jenis: 'monitoring', aksi: 'hapus' },
   updateDsTest:        { jenis: 'dstest',     aksi: 'ubah' },
   deleteDsTest:        { jenis: 'dstest',     aksi: 'hapus' },

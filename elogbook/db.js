@@ -379,6 +379,11 @@ tambahKolom('entries', 'frek', "TEXT NOT NULL DEFAULT ''");
 // Monitoring: tanda tangan personil operasi dan daftar nama teknisi pelaksana.
 tambahKolom('monitoring', 'personil_ops_ttd', "TEXT NOT NULL DEFAULT ''");
 tambahKolom('monitoring', 'teknisi_nama_list', "TEXT NOT NULL DEFAULT '[]'");
+// Monitoring: petak ketiga — Manager Operasi (mengetahui). Sepola Manager
+// Pemakai di BAPB: tanpa akun, dibubuhkan di form atau disusulkan dari detail
+// (updateMonitoring), di luar jalur TTD susulan JENIS_TTD.
+tambahKolom('monitoring', 'manager_ops', "TEXT NOT NULL DEFAULT ''");
+tambahKolom('monitoring', 'manager_ops_ttd', "TEXT NOT NULL DEFAULT ''");
 
 /* Lokasi gedung tempat catatan dibuat. Kosong pada catatan lama: gedungnya
    memang tidak pernah dicatat waktu itu, dan menebaknya sekarang sama saja
@@ -2405,6 +2410,7 @@ const rowToMonitoring = (r, extra = {}) => ({
   Baris: parseJson(r.baris_json, []),
   PersonilOps: r.personil_ops, PersonilTeknik: r.personil_teknik,
   PersonilOpsTTD: r.personil_ops_ttd || '',
+  ManagerOps: r.manager_ops || '', ManagerOpsTTD: r.manager_ops_ttd || '',
   TeknisiTTD: r.teknisi_ttd,
   TeknisiNamaListJSON: parseJson(r.teknisi_nama_list, []),
   DiinputOleh: extra.diinputOleh ?? (r.dibuat_oleh || ''),
@@ -2423,6 +2429,15 @@ export function listMonitoring(unit = 'radkom', limit = 200) {
   }));
 }
 
+/** Petak Manager Operasi: QR-nya memuat nama yang diketik, jadi tanpa nama
+    tidak ada yang bisa dibubuhkan — saveSignature akan jatuh ke akun yang
+    sedang login dan teknisinya ikut bertanda tangan sebagai manager operasi. */
+function ttdManagerOps(ttd, nama, unit) {
+  if (!ttd) return '';
+  if (!String(nama || '').trim()) throw new Error('Isi dulu nama Manager Operasi sebelum membubuhkan tanda tangannya.');
+  return saveSignature(ttd, 'monitoring_manops', { unit, nama });
+}
+
 export function insertMonitoring(rec = {}, olehUsername = '', olehNama = '') {
   const baris = bersihkanBarisMonitoring(rec.baris);
   if (baris.length === 0) throw new Error('Belum ada baris pengamatan yang terisi.');
@@ -2436,24 +2451,64 @@ export function insertMonitoring(rec = {}, olehUsername = '', olehNama = '') {
     personil_ops: String(rec.personilOps || '').trim(),
     personil_teknik: String(rec.personilTeknik || '').trim(),
     personil_ops_ttd: saveSignature(rec.personilOpsTtd, 'monitoring_ops', { unit: rec.unit, nama: rec.personilOps }),
+    manager_ops: String(rec.managerOps || '').trim(),
+    manager_ops_ttd: ttdManagerOps(rec.managerOpsTtd, rec.managerOps, rec.unit),
     teknisi_ttd: saveSignature(rec.teknisiTtd, 'monitoring_teknisi', { unit: rec.unit }),
     ttd_untuk: rec.ttdUntuk || '',
     teknisi_nama_list: JSON.stringify(namaList),
     dibuat_pada: nowIso()
   };
   db.prepare(`INSERT INTO monitoring (id, unit, tanggal, baris_json, personil_ops, personil_teknik,
-                                      personil_ops_ttd, teknisi_ttd, ttd_untuk, teknisi_nama_list, dibuat_pada, dibuat_oleh)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+                                      personil_ops_ttd, manager_ops, manager_ops_ttd, teknisi_ttd, ttd_untuk,
+                                      teknisi_nama_list, dibuat_pada, dibuat_oleh)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
     .run(row.id, row.unit, row.tanggal, row.baris_json, row.personil_ops, row.personil_teknik,
-         row.personil_ops_ttd, row.teknisi_ttd, row.ttd_untuk, row.teknisi_nama_list, row.dibuat_pada, olehUsername);
-  return rowToMonitoring(row, { diinputOleh: olehNama || olehUsername });
+         row.personil_ops_ttd, row.manager_ops, row.manager_ops_ttd, row.teknisi_ttd, row.ttd_untuk,
+         row.teknisi_nama_list, row.dibuat_pada, olehUsername);
+  // dibuat_oleh ikut disertakan supaya tombol yang khusus pembuat (TTD Manager
+  // Operasi, hapus) langsung muncul tanpa memuat ulang — sama dengan insertBapb.
+  return rowToMonitoring({ ...row, dibuat_oleh: olehUsername }, { diinputOleh: olehNama || olehUsername });
+}
+
+/**
+ * Sunting susulan Monitoring — hanya petak Manager Operasi (nama + tanda
+ * tangan). Teknisi bisa menyimpan lembarnya dulu lalu menyusulkan TTD manager
+ * operasi belakangan. Selama petaknya masih kosong: pembuat lembar atau admin.
+ * Sesudah terisi hanya admin — pembuat tidak mengganti paraf yang sudah ada.
+ * QR-nya memuat nama, jadi nama yang berubah wajib dibubuhkan ulang.
+ */
+export function updateMonitoring(id, patch = {}, { username = '', admin = false } = {}) {
+  const r = db.prepare('SELECT * FROM monitoring WHERE id = ?').get(String(id));
+  if (!r) throw new Error('Form monitoring tidak ditemukan — mungkin sudah dihapus.');
+  if (!admin && String(r.dibuat_oleh || '') !== String(username || '')) {
+    throw new Error('Hanya pembuat lembar ini atau administrator yang boleh menyuntingnya.');
+  }
+  if (r.manager_ops_ttd && !admin) {
+    throw new Error('Manager Operasi sudah tanda tangan — hanya administrator yang boleh mengubahnya.');
+  }
+  const namaBaru = patch.managerOps !== undefined ? String(patch.managerOps || '').trim() : r.manager_ops;
+  let ttdBaru = r.manager_ops_ttd;
+  if (patch.managerOpsTtd !== undefined) {
+    // TTD baru: penanda → simpan; string kosong → hapus paraf.
+    ttdBaru = ttdManagerOps(patch.managerOpsTtd, namaBaru, r.unit);
+  } else if (r.manager_ops_ttd && namaBaru !== r.manager_ops) {
+    throw new Error('Nama Manager Operasi berubah — bubuhkan ulang tanda tangannya.');
+  }
+  if (r.manager_ops_ttd && r.manager_ops_ttd !== ttdBaru) removeSignatureFile(r.manager_ops_ttd);
+  db.prepare('UPDATE monitoring SET manager_ops = ?, manager_ops_ttd = ? WHERE id = ?')
+    .run(namaBaru, ttdBaru, String(id));
+  const nama = petaNamaPengguna();
+  return rowToMonitoring({ ...r, manager_ops: namaBaru, manager_ops_ttd: ttdBaru }, {
+    diinputOleh: namaTampil(nama, r.dibuat_oleh),
+    ttdOleh: namaTampil(nama, r.ttd_oleh)
+  });
 }
 
 export function removeMonitoring(id) {
-  const r = db.prepare('SELECT teknisi_ttd, personil_ops_ttd FROM monitoring WHERE id = ?').get(id);
+  const r = db.prepare('SELECT teknisi_ttd, personil_ops_ttd, manager_ops_ttd FROM monitoring WHERE id = ?').get(id);
   db.prepare('DELETE FROM monitoring WHERE id = ?').run(id);
   hapusLampiranCatatanSemua('monitoring', id);
-  if (r) { removeSignatureFile(r.teknisi_ttd); removeSignatureFile(r.personil_ops_ttd); }
+  if (r) { removeSignatureFile(r.teknisi_ttd); removeSignatureFile(r.personil_ops_ttd); removeSignatureFile(r.manager_ops_ttd); }
   return true;
 }
 
