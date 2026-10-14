@@ -1575,7 +1575,7 @@ const API = {
     // penandanya disebut lengkap dengan keterangan PH-nya, sama dengan yang
     // tercetak.
     notifSudahTtd(j, hasil.dibuatOleh, {
-      unit, tanggal: hasil.tanggal, penanda: hasil.sebagaiPh ? hasil.nama : penandaPhDiketik(user.nama || user.username, hasil.nama), id: String(id)
+      unit, tanggal: hasil.tanggal, penanda: (hasil.sebagaiPh || hasil.phDiketik) ? hasil.nama : penandaPhDiketik(user.nama || user.username, hasil.nama), id: String(id)
     });
     return hasil;
   },

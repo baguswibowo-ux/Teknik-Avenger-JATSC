@@ -147,3 +147,24 @@ export function phDiketik(namaDiLembar) {
   if (!m || !m[2].trim()) return null;
   return { sebutan: m[1].toUpperCase() === 'PLH' ? 'Plh' : 'PH', nama: m[2].trim() };
 }
+
+/**
+ * Nama lengkap untuk lembar yang PH-nya DIKETIK teknisi: nama PH di depan,
+ * lalu kedudukan dan nama pejabat yang ia gantikan —
+ * "PH Hendra Septa Nugroho" + Trianto Aditya Putra →
+ * "Hendra Septa Nugroho (PH Manager Teknik Trianto Aditya Putra)".
+ *
+ * Bentuknya sengaja sama dengan namaCetakPh, supaya PH yang diketik dan PH
+ * lewat penunjukan akun terbaca sama di lembar: "PH" saja tidak menerangkan
+ * Manager Teknik mana yang sedang digantikan.
+ *
+ * Bukan PH yang diketik, atau pejabatnya tidak diketahui → null (pemanggil
+ * membiarkan namanya apa adanya).
+ */
+export function namaPhDiketikLengkap(namaDiLembar, namaPejabat, kedudukan = '') {
+  const ph = phDiketik(namaDiLembar);
+  const atas = String(namaPejabat || '').trim();
+  if (!ph || !atas) return null;
+  const jabatan = String(kedudukan || '').replace(/\s*\([^)]*\)\s*$/, '').trim();
+  return `${ph.nama.replace(/\s+/g, ' ')} (${ph.sebutan} ${jabatan ? jabatan + ' ' : ''}${atas})`;
+}

@@ -109,10 +109,15 @@ const JABATAN_PH = 'PH Manager Teknik';
 const laporPh = new Map();   // nama di lembar -> { n, jadi }
 
 /** Identitas PH dari nama tercetak "PH. Nama" — null kalau bukan lembar PH. */
-function pihakPh(nama) {
+function pihakPh(nama, ttdOleh, ttdUntuk) {
   const n = String(nama || '').trim();
-  if (!RE_PH.test(n)) return null;
-  const bersih = n.replace(RE_PH, '').replace(/\s*\(.*$/, '').trim();
+  // Sesudah nama-ph-lengkap.mjs, PH yang dulu diketik berbentuk "Nama (PH
+  // Manager Teknik Nama Pejabat)" dan tetap tercatat dibubuhkan akun pejabatnya
+  // (PH lewat penunjukan akun dibubuhkan akun PH sendiri — bukan urusan ini).
+  const lengkap = /^(.+?)\s*\((?:PH|Plh)\b[^)]*\)\s*$/i.exec(n);
+  const olehPejabat = kunci(ttdOleh) === kunci(ttdUntuk || ttdOleh);
+  if (!RE_PH.test(n) && !(lengkap && olehPejabat)) return null;
+  const bersih = (RE_PH.test(n) ? n.replace(RE_PH, '').replace(/\s*\(.*$/, '') : lengkap[1]).trim();
   if (!bersih) return null;
   const a = akunDariNama(bersih) || akunDariNama(ejaanPh.get(kunci(bersih)) || '');
   const orang = a ? { ...dariAkun(a), jabatan: JABATAN_PH } : { nama: bersih, nik: '', jabatan: JABATAN_PH };
@@ -127,8 +132,8 @@ function pihakPh(nama) {
  * dibubuhkan dari akun Manager Teknik — goresannya milik si PH, jadi QR-nya
  * mengikuti nama yang tercetak, bukan pemilik akunnya.
  */
-function pihakKedua(nama, ttdOleh) {
-  const ph = pihakPh(nama);
+function pihakKedua(nama, ttdOleh, ttdUntuk) {
+  const ph = pihakPh(nama, ttdOleh, ttdUntuk);
   if (ph) return ph;
   const a = akunPerUsername.get(String(ttdOleh || '').toLowerCase());
   if (a && (!kunci(nama) || kunci(nama).startsWith(kunci(a.nama)))) return dariAkun(a);
@@ -160,31 +165,31 @@ const daftarNama = (list, tunggal) => {
 const PETAK = {
   entries: {
     teknisi_ttd: (r) => teknisi(daftarNama(r.teknisi_nama_list, r.teknisi_nama), r.dibuat_oleh),
-    pj_ttd: (r) => pihakKedua(r.pj_nama, r.ttd_oleh)
+    pj_ttd: (r) => pihakKedua(r.pj_nama, r.ttd_oleh, r.ttd_untuk)
   },
   dailychecks: {
     teknisi_ttd: (r) => teknisi(daftarNama(r.teknisi_nama_list, r.teknisi_nama), r.dibuat_oleh),
-    manager_ttd: (r) => pihakKedua(r.manager_nama, r.ttd_oleh)
+    manager_ttd: (r) => pihakKedua(r.manager_nama, r.ttd_oleh, r.ttd_untuk)
   },
   monitoring: {
     teknisi_ttd: (r) => teknisi(daftarNama(r.teknisi_nama_list, r.personil_teknik), r.dibuat_oleh),
-    personil_ops_ttd: (r) => pihakKedua(r.personil_ops, r.ttd_oleh)
+    personil_ops_ttd: (r) => pihakKedua(r.personil_ops, r.ttd_oleh, r.ttd_untuk)
   },
   dstest: {
     teknisi_ttd: (r) => teknisi(daftarNama(r.teknisi_nama_list, r.teknisi_nama), r.dibuat_oleh),
-    manager_ttd: (r) => pihakKedua(r.manager_nama, r.ttd_oleh)
+    manager_ttd: (r) => pihakKedua(r.manager_nama, r.ttd_oleh, r.ttd_untuk)
   },
   berkala: {
     teknisi_ttd: (r) => teknisi(daftarNama(r.teknisi_nama_list, r.teknisi_nama), r.dibuat_oleh),
-    manager_ttd: (r) => pihakKedua(r.manager_nama, r.ttd_oleh)
+    manager_ttd: (r) => pihakKedua(r.manager_nama, r.ttd_oleh, r.ttd_untuk)
   },
   ltk: {
     teknisi_ttd: (r) => teknisi(daftarNama('[]', r.teknisi_nama), r.dibuat_oleh),
-    manager_ttd: (r) => pihakKedua(r.manager_nama, r.ttd_oleh)
+    manager_ttd: (r) => pihakKedua(r.manager_nama, r.ttd_oleh, r.ttd_untuk)
   },
   bapb: {
     petugas_ttd: (r) => teknisi(daftarNama(r.petugas_nama_list, r.petugas_nama), r.dibuat_oleh),
-    teknik_ttd: (r) => pihakKedua(r.teknik_nama, r.ttd_oleh),
+    teknik_ttd: (r) => pihakKedua(r.teknik_nama, r.ttd_oleh, r.ttd_untuk),
     pemakai_ttd: (r) => pihakKedua(r.pemakai_nama, '')
   }
 };

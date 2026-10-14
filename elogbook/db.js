@@ -8,7 +8,7 @@
  */
 
 import { KOLOM_RINGKAS } from './ringkas-dokumen.js';
-import { hakTtd, namaCetakPh, diwakiliUntukTanggal } from './ttd-hak.js';
+import { hakTtd, namaCetakPh, namaPhDiketikLengkap, diwakiliUntukTanggal } from './ttd-hak.js';
 import { PENANDA_QR, AWALAN_QR, pemanggil, urlTtdQr, bacaUrlTtdQr, nikDariUsername, jabatanAkun } from './ttd-qr.js';
 import { DatabaseSync } from 'node:sqlite';
 import crypto from 'node:crypto';
@@ -3066,9 +3066,17 @@ export function tandaTanganiCatatan(jenis, id, { nama, username, role, ttd, waki
   // yang ia wakili ("Uji Teknisi (PH Manager Teknik Uji Pejabat)") — bukan nama
   // pejabat saja seperti yang diketik teknisi di formulir. TTD si PH di atas
   // nama orang lain sama saja dengan memalsu arsip.
+  // PH yang DIKETIK teknisi ("PH Hendra Septa Nugroho") dan dibubuhkan lewat
+  // akun pejabatnya: namanya dilengkapi dengan pejabat yang digantikan —
+  // "Hendra Septa Nugroho (PH Manager Teknik Trianto Aditya Putra)". Pejabatnya
+  // akun yang dituju lembar ini; tanpa tujuan, pejabat yang membubuhkannya.
+  const pejabatDiganti = sebagaiPh ? null
+    : (row.ttd_untuk ? getUserByUsername(row.ttd_untuk) : (role === 'pejabat' ? { nama: nama || username } : null));
+  const namaPhKetik = pejabatDiganti
+    ? namaPhDiketikLengkap(row.nama, pejabatDiganti.nama || row.ttd_untuk, t.label) : null;
   const namaTetap = sebagaiPh
     ? namaCetakPh(nama || username, row.ttd_untuk, diwakiliSah, t.label)
-    : (String(row.nama || '').trim() ? row.nama : String(nama || ''));
+    : (namaPhKetik || (String(row.nama || '').trim() ? row.nama : String(nama || '')));
   const pada = nowIso();
   db.prepare(`UPDATE ${t.tabel} SET ${t.nama} = ?, ${t.ttd} = ?, ttd_oleh = ?, ttd_pada = ? WHERE id = ?`)
     .run(namaTetap, path, String(username || ''), pada, String(id));
@@ -3079,7 +3087,9 @@ export function tandaTanganiCatatan(jenis, id, { nama, username, role, ttd, waki
     // membuat lembar ini, dan tanggalnya. Bukan bagian dari data formulir.
     dibuatOleh: String(row.dibuat_oleh || ''), tanggal: String(row.tanggal || ''),
     // Lewat PH? Dipakai server.js untuk menyebut penanda di notifikasi.
-    sebagaiPh
+    sebagaiPh,
+    // PH yang diketik di formulir: `nama` sudah memuat PH dan pejabatnya.
+    phDiketik: !!namaPhKetik
   };
 }
 

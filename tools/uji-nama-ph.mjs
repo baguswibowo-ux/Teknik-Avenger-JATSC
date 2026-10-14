@@ -8,7 +8,7 @@
  *
  * Jalankan dari akar aplikasi: node tools/uji-nama-ph.mjs
  */
-import { namaCetakPh } from '../elogbook/ttd-hak.js';
+import { namaCetakPh, namaPhDiketikLengkap } from '../elogbook/ttd-hak.js';
 
 const diwakili = [
   { username: 'uus', nama: 'Uus Susanto' },
@@ -52,6 +52,19 @@ cek('pejabat di luar daftar',
 cek('username huruf besar',
   namaCetakPh('Uji Teknisi', 'UUS', diwakili, 'Manager Teknik'),
   'Uji Teknisi (PH Manager Teknik Uus Susanto)');
+
+// PH yang DIKETIK teknisi di formulir: dilengkapi dengan pejabat yang
+// digantikan, bentuknya sama dengan PH lewat penunjukan akun.
+cek('ph diketik',
+  namaPhDiketikLengkap('PH Hendra Septa Nugroho', 'Trianto Aditya Putra', 'Manager Teknik'),
+  'Hendra Septa Nugroho (PH Manager Teknik Trianto Aditya Putra)');
+cek('ph diketik bertitik, spasi ganda, slot BAPB',
+  namaPhDiketikLengkap('Ph.  Hendra  Septa Nugroho', 'Trianto Aditya Putra', 'Manager Teknik (BAPB)'),
+  'Hendra Septa Nugroho (PH Manager Teknik Trianto Aditya Putra)');
+cek('bukan ph diketik', namaPhDiketikLengkap('Philip Santoso', 'Uus Susanto', 'Manager Teknik'), null);
+cek('sudah lengkap tidak dilengkapi dua kali',
+  namaPhDiketikLengkap('Hendra Septa Nugroho (PH Manager Teknik Trianto Aditya Putra)', 'Uus Susanto', 'Manager Teknik'), null);
+cek('pejabat tidak diketahui', namaPhDiketikLengkap('PH Hendra Septa Nugroho', '', 'Manager Teknik'), null);
 
 console.log(`\n${lulus} lulus, ${gagal} gagal`);
 process.exit(gagal ? 1 : 0);
