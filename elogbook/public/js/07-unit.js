@@ -235,7 +235,8 @@ function terapkanUnit(){
   // Sub-tab pemilih LOKASI Gedung & Keamanan (New JATSC vs JATSC).
   const dcFgkSubtabs = document.getElementById('dcFgkSubtabs');
   if(dcFgkSubtabs) dcFgkSubtabs.style.display = fgk ? '' : 'none';
-  // Sub-tab pemilih LEMBAR Listrik & Mekanik (STS / MDS / Beban Listrik / UPS).
+  // Sub-tab Listrik & Mekanik, dua tingkat: LOKASI (JATSC / NEW JATSC) lalu
+  // lembarnya (STS / MDS / Beban Listrik / UPS · MDS / UPS / Chiller).
   const dcLkSubtabs = document.getElementById('dcLkSubtabs');
   if(dcLkSubtabs) dcLkSubtabs.style.display = lk ? '' : 'none';
   // Sub-tab pemilih LOKASI FDPS-RDPS (New JATSC = NEW-JAATS, JATSC = E-JAATS).
