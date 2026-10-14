@@ -3054,11 +3054,20 @@ export function tandaTanganiCatatan(jenis, id, { nama, username, role, ttd, waki
     role, username, ttdUntuk: row.ttd_untuk, dibuatOleh: row.dibuat_oleh, wakilDari: wakilSah
   });
 
+  // Pejabat yang diwakili, untuk QR: namanya dari pengalihan PH yang berlaku,
+  // sama dengan yang dipakai namaCetakPh.
+  const diwakiliIni = diwakiliSah.find((p) =>
+    String(p && p.username || '').toLowerCase() === String(row.ttd_untuk || '').toLowerCase());
+  const pejabatDiwakili = (diwakiliIni && String(diwakiliIni.nama || '').trim()) || String(row.ttd_untuk || '').trim();
   const path = saveSignature(ttd, t.prefix, {
     unit: row.unit,
-    // "Manager Teknik (BAPB)" -> "PH Manager Teknik": keterangan dalam kurung
-    // itu penanda petak di formulir, bukan bagian dari jabatannya.
-    jabatan: sebagaiPh ? 'PH ' + String(t.label || '').replace(/\s*\([^)]*\)\s*$/, '') : ''
+    // "Manager Teknik (BAPB)" -> "PH Manager Teknik Uus Susanto": keterangan
+    // dalam kurung itu penanda petak di formulir, bukan bagian dari jabatannya;
+    // nama pejabatnya ikut, supaya QR yang dipindai pun menerangkan Manager
+    // Teknik mana yang digantikan.
+    jabatan: sebagaiPh
+      ? ('PH ' + String(t.label || '').replace(/\s*\([^)]*\)\s*$/, '') + ' ' + pejabatDiwakili).trim()
+      : ''
   });
   if (!path) throw new Error('Tanda tangannya kosong.');
 

@@ -20,7 +20,7 @@
  *     pelaksana; kalau tidak, pelaksana pertama yang punya akun.
  *   - PH (lembar bertuliskan "PH. Nama", dibubuhkan lewat akun Manager Teknik
  *     semasa PH belum punya jalur sendiri) : QR atas nama si PH, berjabatan
- *     "PH Manager Teknik", dengan NIK kalau namanya cocok sebuah akun (lihat
+ *     "PH Manager Teknik <nama pejabat yang digantikan>", dengan NIK kalau namanya cocok sebuah akun (lihat
  *     PETA_PH). Tanda tangannya SUDAH ADA sejak dulu — yang berubah hanya
  *     bentuknya; ttd_oleh (akun yang membubuhkan) tidak disentuh.
  *   - Yang tidak cocok akun mana pun (Personil Operasi, Manager Pemakai, nama
@@ -120,7 +120,12 @@ function pihakPh(nama, ttdOleh, ttdUntuk) {
   const bersih = (RE_PH.test(n) ? n.replace(RE_PH, '').replace(/\s*\(.*$/, '') : lengkap[1]).trim();
   if (!bersih) return null;
   const a = akunDariNama(bersih) || akunDariNama(ejaanPh.get(kunci(bersih)) || '');
-  const orang = a ? { ...dariAkun(a), jabatan: JABATAN_PH } : { nama: bersih, nik: '', jabatan: JABATAN_PH };
+  // Jabatannya menyebut pejabat yang digantikan: akun yang dituju lembar itu,
+  // kalau tidak tercatat akun yang membubuhkannya.
+  const pejabat = akunPerUsername.get(String(ttdUntuk || '').toLowerCase())
+    || akunPerUsername.get(String(ttdOleh || '').toLowerCase());
+  const jabatan = (JABATAN_PH + ' ' + (pejabat ? String(pejabat.nama || '').trim() : '')).trim();
+  const orang = a ? { ...dariAkun(a), jabatan } : { nama: bersih, nik: '', jabatan };
   const l = laporPh.get(kunci(bersih)) || { tertulis: bersih, n: 0, jadi: orang.nama + (orang.nik ? ' + NIK' : ' (nama saja, tanpa akun)') };
   l.n++; laporPh.set(kunci(bersih), l);
   return orang;
