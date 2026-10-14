@@ -98,8 +98,7 @@ export function hakTtd({ role, username, ttdUntuk, dibuatOleh, wakilDari }) {
  * siapa yang diwakili; yang perlu dipastikannya lembar itu ditandatangani pada
  * kedudukan yang benar. Kedudukan datang dari SLOT TTD yang dibubuhkan
  * (JENIS_TTD di db.js), bukan dari jabatan orangnya — satu orang bisa mewakili
- * kedudukan yang berbeda di lembar yang berbeda, dan pada lembar Monitoring
- * slotnya memang Personil Operasi, bukan Manager Teknik.
+ * kedudukan yang berbeda di lembar yang berbeda.
  *
  * Keterangan dalam kurung pada label slot dibuang: "Manager Teknik (BAPB)" ada
  * untuk membedakan slot di kotak masuk, dan membawanya ke bawah tanda tangan

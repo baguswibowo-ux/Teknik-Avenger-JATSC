@@ -44,7 +44,8 @@ export const MODUL_DOKUMEN = {
 /** Jenis pada updateTtdRouting (RUTE_TTD_META di db.js) → jenis dokumen. */
 export const JENIS_RUTE = {
   entry: 'logbook', dc: 'dailycheck', ltk: 'ltk',
-  berkala: 'berkala', dstest: 'dstest', bapb: 'bapb'
+  berkala: 'berkala', dstest: 'dstest', bapb: 'bapb',
+  monitoring: 'monitoring'
 };
 
 /** Gabungan kode unit, unik, huruf kecil, dipisah koma — bentuk kolom `unit`

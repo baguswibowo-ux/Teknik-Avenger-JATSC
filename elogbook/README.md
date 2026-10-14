@@ -93,7 +93,7 @@ formulir, masing-masing pada petak pihak keduanya:
 |---|---|
 | Logbook Fasilitas | Penanggung Jawab |
 | Daily Check | Mengetahui — Manager Teknik |
-| Form Monitoring Frekuensi | Personil Operasi |
+| Form Monitoring Frekuensi | Mengetahui — Manager Teknik |
 | DS Test | Mengetahui — Manager Teknik |
 | LTK | Mengetahui — Manager Teknik |
 

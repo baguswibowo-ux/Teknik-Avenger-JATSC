@@ -36,7 +36,7 @@
  *   ltk              → teknisiTtd + managerTtd
  *   berkala          → teknisiTtd + managerTtd
  *   dstest           → teknisiTtd + managerTtd
- *   monitoring       → teknisiTtd + personilOpsTtd
+ *   monitoring       → teknisiTtd + managerTtd
  */
 const TTD_LENGKAP_META = {
   entry:      [['teknisiTtd','teknisi'],       ['pjTtd','penanggung jawab']],
@@ -46,7 +46,7 @@ const TTD_LENGKAP_META = {
   ltk:        [['teknisiTtd','teknisi'],       ['managerTtd','manager teknik']],
   berkala:    [['teknisiTtd','teknisi'],       ['managerTtd','manager teknik']],
   dstest:     [['teknisiTtd','teknisi'],       ['managerTtd','manager teknik']],
-  monitoring: [['teknisiTtd','teknisi'],       ['personilOpsTtd','personil ops']]
+  monitoring: [['teknisiTtd','teknisi'],       ['managerTtd','manager teknik']]
 };
 
 /** { ok, alasan }. Lengkap → { ok:true }. Belum → { ok:false, alasan:'…' }. */
@@ -251,6 +251,7 @@ async function simpanRuteTtd(){
               : kind === 'berkala' ? (typeof berkalaList !== 'undefined' ? berkalaList : null)
               : kind === 'dstest' ? (typeof dsList !== 'undefined' ? dsList : null)
               : kind === 'bapb' ? (typeof bapbList !== 'undefined' ? bapbList : null)
+              : kind === 'monitoring' ? (typeof monitoring !== 'undefined' ? monitoring : null)
               : null;
     if(Array.isArray(arr)){
       const rec = arr.find(x=>x.id===id);
@@ -271,6 +272,7 @@ async function simpanRuteTtd(){
     if(kind === 'berkala' && typeof renderBerkalaList === 'function') renderBerkalaList();
     if(kind === 'dstest') segarkanSemuaDaftarDstest();
     if(kind === 'bapb' && typeof renderBapbList === 'function') renderBapbList();
+    if(kind === 'monitoring' && typeof renderMonList === 'function') renderMonList();
   }catch(e){
     toast('Gagal menyimpan rute TTD — ' + (e.message || 'coba lagi.'));
   }
@@ -281,7 +283,7 @@ async function simpanRuteTtd(){
 let ttdTarget = null;   // { jenis, id }
 
 const TTD_JUDUL = {
-  logbook:'ttdSbgPj', dailycheck:'ttdSbgManager', monitoring:'ttdSbgOps',
+  logbook:'ttdSbgPj', dailycheck:'ttdSbgManager', monitoring:'ttdSbgManager',
   dstest:'ttdSbgManager', berkala:'ttdSbgManager', ltk:'ttdSbgManager', bapb:'ttdSbgManager'
 };
 
@@ -290,7 +292,7 @@ function namaPadaFormulir(jenis, id){
   switch(jenis){
     case 'logbook':    return entries.find(x=>x.id===id)?.pjNama || '';
     case 'dailycheck': return dcHistory.find(x=>x.id===id)?.managerNama || '';
-    case 'monitoring': return monitoring.find(x=>x.id===id)?.personilOps || '';
+    case 'monitoring': return monitoring.find(x=>x.id===id)?.managerNama || '';
     case 'dstest':     return dsList.find(x=>x.id===id)?.managerNama || '';
     case 'berkala':    return berkalaList.find(x=>x.id===id)?.managerNama || '';
     case 'ltk':        return ltkList.find(x=>x.id===id)?.managerNama || '';
@@ -367,7 +369,8 @@ const TTD_TERAP = {
   },
   monitoring: (r)=>{
     const m = monitoring.find(x=>x.id===r.id);
-    if(m){ m.personilOps = r.nama; m.personilOpsTtd = r.ttd; m.ttdOleh = r.ttdOleh; m.ttdPada = r.ttdPada; }
+    // Petak susulan Monitoring adalah Manager Teknik (dulu Personil Operasi).
+    if(m){ m.managerNama = r.nama; m.managerTtd = r.ttd; m.ttdOleh = r.ttdOleh; m.ttdPada = r.ttdPada; }
     renderMonList();
   },
   dstest: (r)=>{
@@ -530,7 +533,7 @@ async function bukaDetailTitipan(jenis, id){
 /* Daftar ini HARUS ditambah setiap kali ada modal baru ber-<select> akun —
    kalau terlewat, pilihannya cuma "Otomatis" dan nama pejabat tidak muncul
    (itu yang terjadi pada mlManagerAkun sebelum masuk daftar ini). */
-const AKUN_TTD_SELECT_ID = ['fePjAkun','feePjAkun','dcManagerAkun','dcAmhsAkun_amhs','dcAmhsAkun_aadps','dcAmhsAkun_datis','monOpsAkun','dsManagerAkun','radioManagerAkun','wkManagerAkun','llzManagerAkun','mrManagerAkun','mlManagerAkun','rkManagerAkun','bkManagerAkun','ltkManagerAkun','bapbTeknikAkun'];
+const AKUN_TTD_SELECT_ID = ['fePjAkun','feePjAkun','dcManagerAkun','dcAmhsAkun_amhs','dcAmhsAkun_aadps','dcAmhsAkun_datis','dsManagerAkun','radioManagerAkun','wkManagerAkun','llzManagerAkun','mrManagerAkun','mlManagerAkun','rkManagerAkun','bkManagerAkun','ltkManagerAkun','bapbTeknikAkun'];
 
 /** Isi <datalist> saran nama akun dan tiap <select> pilihan akun eksplisit —
     dipanggil sekali saat data dimuat. */
