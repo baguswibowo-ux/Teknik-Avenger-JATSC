@@ -337,8 +337,8 @@ function buildDcFgkPrintHtml(r, state){
     PORTRAIT (kecuali lembar Chiller NEW JATSC — lihat DC_LK_LANSKAP di 12g),
     mengikuti keempat sheet di berkas aslinya (A4, orientation
     portrait, diperkecil 64–95%). Lembarnya memang lebar — MDS enam belas
-    kolom — jadi hurufnya dikecilkan dan lebar kolom angka dibagi rata
-    (lkColgroupCetak di 12g) supaya tetap muat selebar kertas berdiri. */
+    kolom — jadi lebar kolom dibagi menurut isinya dan hurufnya dikecilkan
+    kalau perlu (lkTataCetak di 12g) supaya tetap muat selebar kertas. */
 function buildDcLkPrintHtml(r, state){
   const form = (typeof lkFormTersimpan === 'function') ? lkFormTersimpan(state) : 'sts';
   const judul = (typeof DC_LK_SUBJUDUL !== 'undefined' && DC_LK_SUBJUDUL[form]) || 'PENGECEKAN HARIAN';

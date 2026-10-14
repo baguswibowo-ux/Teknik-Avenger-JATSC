@@ -52,8 +52,6 @@
        awal    : '-' | {kol:'250'} → isi awal kotak angka, sama dengan yang
                                 sudah tercetak di kertasnya
        ket     : 'teks'       → isi awal kolom KETERANGAN
-     Seksi boleh menyebut wLabel / wKet (persen) untuk lebar kolom di kertas —
-     lembar Chiller dua puluh tiga kolom angka, jatah bawaannya tak cukup.
 
    SEMUA KOTAK ISIAN DIWARNAI SENDIRI (--panel-2 / --line / --text). Kotak
    bawaan peramban berlatar putih dan di tema gelap terlihat seperti bercak —
@@ -405,7 +403,7 @@ const lkBlokChiller = (no, nama) => [
 
 function lkSeksiNjChiller(){
   return [
-    { judul: 'CHILLER', ket: true, wLabel: 16, wKet: 8,
+    { judul: 'CHILLER', ket: true,
       cols: ['ar', 'as', 'at', 'pin', 'pout', 'tin', 'tout'].concat(LK_NJ_COND, ['kond', 'comp', 'disc', 'suct']),
       head: [
         [['NO', 1, 2], ['PERALATAN', 1, 2], ['AMPERE COMP.', 3], ['TEK. AIR', 2], ['TEMP. AIR', 2],
@@ -625,10 +623,12 @@ function lkTemuan(){ return { fails: [], warns: [] }; }
 
 /** Besar huruf tabel di kertas. Yang membatasi bukan tinggi halaman — lembar
     paling panjang (STS, 40-an baris) masih sisa banyak di A4 berdiri —
-    melainkan LEBARNYA: MDS punya enam belas kolom yang harus muat di 194mm.
-    Satu tetapan supaya keempat lembar tetap seukuran; kalau ada kolom yang
-    mulai berganti baris di kertas, kecilkan di sini saja. */
-const LK_FS_CETAK = 'font-size:7pt;';
+    melainkan LEBARNYA: MDS punya enam belas kolom yang harus muat di 194mm. */
+let LK_FS_CETAK = 'font-size:7pt;';
+/* Bukan tetapan lagi: lkSeksiHtml menyetelnya per seksi dari lkTataCetak() —
+   seksi yang kolomnya terlalu banyak untuk lebar kertasnya dikecilkan
+   secukupnya (paling kecil 5,5pt), yang lain tetap 7pt. */
+const LK_PT_CETAK = 7, LK_PT_CETAK_MIN = 5.5;
 
 /** Kepala tabel: sec.head = deret baris; sel = 'Teks' | ['Teks',colspan,rowspan].
 
@@ -644,7 +644,7 @@ function lkHeadHtml(sec, cetak){
       const cs = Array.isArray(s) && s[1] ? ` colspan="${s[1]}"` : '';
       const rs = Array.isArray(s) && s[2] ? ` rowspan="${s[2]}"` : '';
       return cetak
-        ? `<td${cs}${rs} style="${fs}text-align:center;font-weight:bold;">${escapeHtml(t)}</td>`
+        ? `<td${cs}${rs} style="${fs}text-align:center;font-weight:bold;padding:0 1px;line-height:1.1;">${escapeHtml(t)}</td>`
         : `<th${cs}${rs}>${escapeHtml(t)}</th>`;
     }).join('');
     return cetak ? `<tr class="p-kepala">${sel}</tr>` : `<tr>${sel}</tr>`;
@@ -693,31 +693,92 @@ function lkSelHtml(si, ri, kol, st, mode, aktif, rs){
   return `<td${span} style="text-align:${kol === 'ket' ? 'left' : 'center'};${fs}">${teks || kosong}</td>`;
 }
 
-/** Lebar kolom untuk cetak. Tanpa ini tata letak otomatis membagi lebar
-    menurut PANJANG TULISAN kepalanya — "SUHU RUANGAN (°C)" jadi selebar tiga
-    kolom arus digabung, padahal isinya sama-sama satu angka. Kolom angka
-    dibagi rata; nama panel & keterangan dapat jatah tetap.
+/** Kepala tiap kolom fisik (NO, nama, data…, SATUAN, KETERANGAN): deret
+    tulisan sel kepala yang lebarnya SATU kolom di atas kolom itu. Sel kepala
+    yang membentang beberapa kolom (TEGANGAN → R-N/S-N/T-N) tidak ikut — ia
+    selalu muat di gabungan anak-anaknya. */
+function lkKepalaKolom(sec){
+  const total = lkTotalKolom(sec);
+  const terisi = sec.head.map(()=>Array(total).fill(false));
+  const teks = Array.from({ length: total }, ()=>[]);
+  sec.head.forEach((baris, r)=>{
+    let c = 0;
+    baris.forEach(sel=>{
+      while(terisi[r][c]) c++;
+      const t  = Array.isArray(sel) ? sel[0] : sel;
+      const cs = (Array.isArray(sel) && sel[1]) || 1;
+      const rs = (Array.isArray(sel) && sel[2]) || 1;
+      for(let i = 0; i < rs && r + i < sec.head.length; i++)
+        for(let j = 0; j < cs; j++) terisi[r + i][c + j] = true;
+      if(cs === 1 && teks[c]) teks[c].push(String(t));
+      c += cs;
+    });
+  });
+  return teks;
+}
 
-    Tidak dipakai untuk seksi berkolom sedikit (mis. catatan kWh) — di sana
-    bagi-rata justru membuat satu kotak isian selebar setengah halaman. */
-function lkColgroupCetak(sec){
-  if(sec.cols.length < 3) return '';
-  const wNo = sec.no === false ? 0 : 3;
-  const wSat = sec.sat ? 6 : 0;
-  const wKet = sec.ket ? (sec.wKet || 12) : 0;
-  const wLabel = sec.wLabel || 22;
-  const wData = Math.max(1, 100 - wNo - wLabel - wSat - wKet) / sec.cols.length;
-  const col = w => `<col style="width:${w}%">`;
-  return '<colgroup>' +
-    (wNo ? col(wNo) : '') + col(wLabel) +
-    sec.cols.map(()=>col(wData.toFixed(2))).join('') +
-    (wSat ? col(wSat) : '') + (wKet ? col(wKet) : '') +
-    '</colgroup>';
+/** Tata letak cetak satu seksi: lebar tiap kolom + besar hurufnya.
+
+    Lebar dibagi MENURUT ISI, bukan rata: tiap kolom dihitung butuh berapa
+    huruf — kata terpanjang di kepalanya (kepala boleh turun baris di spasi,
+    tapi satu kata tidak boleh terpotong), dan isi terlebar yang mungkin
+    ("220.5" untuk angka, "STANDBY" untuk KONDISI, nama panel terpanjang untuk
+    kolom nama). Dulu kolom angka dibagi rata, sehingga "STANDBY" dan kepala
+    seperti BLOWER / V.BELT menerjang garis kolom sebelahnya.
+
+    Kalau jumlah kebutuhan melebihi lebar kertas, hurufnya yang dikecilkan
+    (sampai LK_PT_CETAK_MIN) — lebih baik kecil daripada bertumpuk. `lanskap`
+    arah kertas yang benar-benar dipakai (pilihan pemakai bisa menimpa bawaan
+    lembarnya).
+
+    Seksi berkolom sedikit (catatan kWh, temperatur luar) tidak diatur —
+    dibiarkan tata letak otomatis. */
+function lkTataCetak(sec, lanskap){
+  if(sec.cols.length < 3) return { colgroup: '', pt: LK_PT_CETAK };
+  const kepala = lkKepalaKolom(sec);
+  const kata = t => Math.max(0, ...String(t).split(/\s+/).map(w=>w.length));
+  // Kepala dicetak tebal dan kapital semua: kira-kira 1,25 lebar huruf biasa.
+  const butuhKepala = i => Math.max(0, ...(kepala[i] || []).map(kata)) * 1.25 + 1;
+  const baris = sec.rows.filter(r=>!r.group);
+  const adaNo = sec.no !== false;
+  const unit = [];
+  let i = 0;
+  if(adaNo) unit.push(Math.max(3.5, butuhKepala(i++)));
+  // Nama panel: selebar nama terpanjang, dibatasi supaya satu nama panjang
+  // tidak memakan jatah kolom angka (kelebihannya turun baris).
+  const namaMaks = Math.max(0, ...baris.map(r=>String(r.label).length));
+  unit.push(Math.max(butuhKepala(i++), Math.min(32, Math.max(12, namaMaks)) + 1));
+  sec.cols.forEach(kol=>{
+    const isi = kol === 'kondisi' ? 9.5 : 6;      // "STANDBY" · "220.5"
+    unit.push(Math.max(isi, butuhKepala(i++)));
+  });
+  if(sec.sat) unit.push(Math.max(butuhKepala(i++), Math.max(0, ...baris.map(r=>kata(r.sat))) + 2));
+  if(sec.ket) unit.push(Math.max(butuhKepala(i++), 14));
+  const jumlah = unit.reduce((a, b)=>a + b, 0);
+  // Satu "huruf" 7pt ± 1,4 mm; bidang cetak 194 mm berdiri, 281 mm rebah.
+  const muat = (lanskap ? 281 : 194) / 1.4;
+  const pt = Math.max(LK_PT_CETAK_MIN, Math.min(LK_PT_CETAK, LK_PT_CETAK * muat / jumlah));
+  return {
+    colgroup: '<colgroup>' + unit.map(u=>`<col style="width:${(u * 100 / jumlah).toFixed(2)}%">`).join('') + '</colgroup>',
+    pt: Math.round(pt * 10) / 10
+  };
+}
+
+/** Kertasnya rebah? Pilihan orientasi pemakai (21-cetak-dasar.js) menang atas
+    bawaan lembarnya — sama aturannya dengan doPrint(). */
+function lkCetakLanskap(form){
+  if(typeof orientasiCetak !== 'undefined' && orientasiCetak !== 'auto') return orientasiCetak === 'landscape';
+  return !!DC_LK_LANSKAP[form];
 }
 
 /** Satu seksi = satu tabel. */
-function lkSeksiHtml(sec, si, st, mode){
+function lkSeksiHtml(sec, si, st, mode, form){
   const cetak = mode === 'cetak';
+  // Tata letak kertas dihitung dulu: besar hurufnya dipakai semua sel seksi ini.
+  const tata = cetak ? lkTataCetak(sec, lkCetakLanskap(form)) : null;
+  // Seksi yang dikecilkan juga dirapatkan: jarak tepi sel tidak ikut mengecil
+  // bersama hurufnya, dan di kolom 6 mm jarak itu yang membuat angka menabrak.
+  if(tata) LK_FS_CETAK = 'font-size:' + tata.pt + 'pt;' + (tata.pt < LK_PT_CETAK ? 'padding:0 1px;' : '');
   const fs = cetak ? LK_FS_CETAK : '';
   const total = lkTotalKolom(sec);
 
@@ -749,7 +810,7 @@ function lkSeksiHtml(sec, si, st, mode){
     // Tanpa kelas .lk-tbl / .lk-seksi-judul: keduanya berwarna tema gelap.
     // Yang dibawa hanya .lk-print, penanda buat gaya cetak yang disuntikkan
     // buildDcLkPrintHtml (rapat-rapat sel supaya lembarnya muat sehalaman).
-    const cg = lkColgroupCetak(sec);
+    const cg = tata.colgroup;
     const tl = cg ? 'table-layout:fixed;' : '';
     return `<div style="margin:0 0 6px;">
       <div style="font-weight:bold;font-size:7pt;margin:4px 0 2px;border-bottom:1px solid #000;">${escapeHtml(sec.judul)}</div>
@@ -763,7 +824,7 @@ function lkSeksiHtml(sec, si, st, mode){
 
 /** Satu lembar utuh. */
 function lkLembarHtml(form, st, mode){
-  return lkSeksi(form).map((sec, si)=>lkSeksiHtml(sec, si, st, mode)).join('');
+  return lkSeksi(form).map((sec, si)=>lkSeksiHtml(sec, si, st, mode, form)).join('');
 }
 
 /** Gambar lembar yang sedang dipilih ke #dcLkWrap. */
