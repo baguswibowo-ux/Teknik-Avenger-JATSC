@@ -120,6 +120,10 @@ test('Monitoring tiga petak: Manager Operasi atas nama, Manager Teknik lewat aku
   const ph = lembar({ managerOps: 'Budi Wakil', managerOpsUnit: 'APP', managerOpsJabatan: 'PH Manager Operasi', managerOpsTtd: PENANDA_QR });
   assert.equal(teksTtdQr(bacaUrlTtdQr(ph.ManagerOpsTTD, DATA)), 'Perum LPPNPI Cabang JATSC\nUnit: APP\nJabatan: PH Manager Operasi\nNama: Budi Wakil');
   assert.equal(ph.ManagerOpsJabatan, 'PH Manager Operasi');
+  // NIK opsional, diketik di form: ikut terbaca, angka saja.
+  const nik = lembar({ managerOps: 'Dodi Manops', managerOpsUnit: 'ACC', managerOpsNik: ' 1001-2345 ', managerOpsTtd: PENANDA_QR });
+  assert.equal(teksTtdQr(bacaUrlTtdQr(nik.ManagerOpsTTD, DATA)), 'Perum LPPNPI Cabang JATSC\nUnit: ACC\nJabatan: Manager Operasi\nNama: Dodi Manops\nNIK: 10012345');
+  assert.equal(nik.ManagerOpsNik, '10012345');
   assert.throws(() => lembar({ managerOps: 'Dodi Manops', managerOpsTtd: PENANDA_QR }), /unit Manager Operasi/);
   assert.throws(() => lembar({ managerOps: 'Dodi Manops', managerOpsUnit: 'TWR', managerOpsTtd: PENANDA_QR }), /unit Manager Operasi/);
   assert.deepEqual([a.ManagerNama, a.ManagerTTD, a.TtdUntuk], ['Arya Gunanawan', '', 'arya']);
@@ -133,6 +137,7 @@ test('Monitoring tiga petak: Manager Operasi atas nama, Manager Teknik lewat aku
   assert.throws(() => ubah(b.ID, { managerOps: 'Dodi M.' }), /bubuhkan ulang/);
   assert.throws(() => ubah(b.ID, { managerOpsUnit: 'ACC' }), /bubuhkan ulang/);
   assert.throws(() => ubah(b.ID, { managerOpsJabatan: 'PH Manager Operasi' }), /bubuhkan ulang/);
+  assert.throws(() => ubah(b.ID, { managerOpsNik: '10012345' }), /bubuhkan ulang/);
   const b2 = ubah(b.ID, { managerOps: 'Dodi M.', managerOpsUnit: 'ACC', managerOpsTtd: PENANDA_QR });
   assert.deepEqual([qr(b2.ManagerOpsTTD).nama, bacaUrlTtdQr(b2.ManagerOpsTTD, DATA).unit, b2.ManagerOpsUnit], ['Dodi M.', 'ACC', 'ACC']);
 

@@ -33,7 +33,7 @@ function hapusMonTeknisi(key){ monTeknisiRows = monTeknisiRows.filter(x=>x.key!=
 const mapMon = m => ({ id:m.ID, tanggal:m.Tanggal, baris:m.Baris||[],
                        personilOps:m.PersonilOps||'', personilTeknik:m.PersonilTeknik||'',
                        personilOpsTtd:m.PersonilOpsTTD||'',
-                       managerOps:m.ManagerOps||'', managerOpsTtd:m.ManagerOpsTTD||'', managerOpsUnit:m.ManagerOpsUnit||'', managerOpsJabatan:m.ManagerOpsJabatan||'Manager Operasi',
+                       managerOps:m.ManagerOps||'', managerOpsTtd:m.ManagerOpsTTD||'', managerOpsUnit:m.ManagerOpsUnit||'', managerOpsNik:m.ManagerOpsNik||'', managerOpsJabatan:m.ManagerOpsJabatan||'Manager Operasi',
                        managerNama:m.ManagerNama||'', managerTtd:m.ManagerTTD||'',
                        teknisiNamaList:m.TeknisiNamaListJSON||[],
                        teknisiTtd:m.TeknisiTTD||'', diinputOleh:m.DiinputOleh||'', dibuatPada:m.DibuatPada||'',
@@ -59,6 +59,7 @@ function openMonModal(){
   document.getElementById('monTanggal').value = tanggalHariIni();
   document.getElementById('monManOps').value = '';
   document.getElementById('monManOpsUnit').value = '';
+  document.getElementById('monManOpsNik').value = '';
   document.getElementById('monManOpsJabatan').value = 'Manager Operasi';
   // Manager Teknik dipilih dari akun pejabat — tanpa isian nama. Daftarnya
   // sama dengan pemilih "Kirim TTD ke akun" di form lain (pejabatList).
@@ -104,6 +105,7 @@ async function saveMon(){
       teknisiNamaList: namaTeknikMon,
       managerOps, managerOpsUnit, managerOpsTtd,
       managerOpsJabatan: document.getElementById('monManOpsJabatan').value,
+      managerOpsNik: document.getElementById('monManOpsNik').value.trim(),
       teknisiTtd: getSigDataUrl('sigMon'),
       baris
     });
@@ -217,6 +219,7 @@ function openMonManOpsModal(id){
   monManOpsTargetId = id;
   document.getElementById('monManOpsEditNama').value = m.managerOps || '';
   document.getElementById('monManOpsEditUnit').value = m.managerOpsUnit || '';
+  document.getElementById('monManOpsEditNik').value = m.managerOpsNik || '';
   document.getElementById('monManOpsEditJabatan').value = m.managerOpsJabatan || 'Manager Operasi';
   const sig = 'sigMonManOpsEdit';
   if(!sigPads[sig]) setupSigCanvas(sig);
@@ -240,7 +243,8 @@ async function simpanMonManOps(){
   const unitOps = document.getElementById('monManOpsEditUnit').value;
   if(ttdBaru && !unitOps){ toast(T('monManOpsUnitKosong')); return; }
   const patch = { managerOps: nama, managerOpsUnit: unitOps,
-                  managerOpsJabatan: document.getElementById('monManOpsEditJabatan').value };
+                  managerOpsJabatan: document.getElementById('monManOpsEditJabatan').value,
+                  managerOpsNik: document.getElementById('monManOpsEditNik').value.trim() };
   if(ttdBaru) patch.managerOpsTtd = ttdBaru;
   const btn = document.getElementById('monManOpsSaveBtn'); btn.disabled = true;
   try{

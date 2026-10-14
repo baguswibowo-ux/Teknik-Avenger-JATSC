@@ -1364,7 +1364,8 @@ const API = {
     if (!unit) throw new Error('Catatan tidak ditemukan — mungkin sudah dihapus.');
     await pastikanUnit(user, unit);
     const p = patch || {};
-    return updateMonitoring(String(id), { managerOps: p.managerOps, managerOpsUnit: p.managerOpsUnit, managerOpsJabatan: p.managerOpsJabatan, managerOpsTtd: p.managerOpsTtd },
+    return updateMonitoring(String(id), { managerOps: p.managerOps, managerOpsUnit: p.managerOpsUnit, managerOpsJabatan: p.managerOpsJabatan,
+                                         managerOpsNik: p.managerOpsNik, managerOpsTtd: p.managerOpsTtd },
                             { username: user.username, admin: kelolaUnit(user) });
   },
 

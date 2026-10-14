@@ -394,6 +394,8 @@ tambahKolom('monitoring', 'manager_ops_unit', "TEXT NOT NULL DEFAULT ''");
 // Jabatannya — "Manager Operasi" atau "PH Manager Operasi" — baris "Jabatan"
 // di QR dan judul petaknya di cetakan.
 tambahKolom('monitoring', 'manager_ops_jabatan', "TEXT NOT NULL DEFAULT ''");
+// NIK-nya, opsional — diketik di form karena Manager Operasi tidak punya akun.
+tambahKolom('monitoring', 'manager_ops_nik', "TEXT NOT NULL DEFAULT ''");
 tambahKolom('monitoring', 'manager_teknik', "TEXT NOT NULL DEFAULT ''");
 tambahKolom('monitoring', 'manager_teknik_ttd', "TEXT NOT NULL DEFAULT ''");
 
@@ -1142,7 +1144,7 @@ export const purgeExpiredSessions = () =>
  * Alamat yang sudah tersimpan dikembalikan apa adanya, supaya menyimpan ulang
  * sebuah catatan tidak mengganti tanda tangan yang sudah ada.
  */
-export function saveSignature(dataUrl, prefix, { unit = '', nama = '', jabatan = '' } = {}) {
+export function saveSignature(dataUrl, prefix, { unit = '', nama = '', jabatan = '', nik = '' } = {}) {
   if (!dataUrl) return '';
   const s = String(dataUrl);
   if (prefix === 'ttd_akun') return simpanGambarTtd(s, prefix);
@@ -1155,11 +1157,13 @@ export function saveSignature(dataUrl, prefix, { unit = '', nama = '', jabatan =
   const namaUnit = (UNIT.find((u) => u.kode === unit) || {}).nama || String(unit || '');
   const tanpaAkun = String(nama || '').trim();
   // Tanpa akun tetapi berjabatan (Manager Operasi): unit dan jabatan
-  // dua-duanya terbaca, lihat urlTtdQr.
+  // dua-duanya terbaca, lihat urlTtdQr. NIK-nya, kalau diketik di formulir,
+  // ikut — hanya untuk jalur tanpa akun ini; NIK akun selalu dari datanya.
   if (tanpaAkun) {
     const jab = String(jabatan || '').trim();
-    return urlTtdQr(jab ? { unit: namaUnit, nama: tanpaAkun, jabatan: jab, denganUnit: true }
-                        : { unit: namaUnit, nama: tanpaAkun }, DATA_DIR);
+    const nikKetik = String(nik || '').trim();
+    return urlTtdQr(jab ? { unit: namaUnit, nama: tanpaAkun, nik: nikKetik, jabatan: jab, denganUnit: true }
+                        : { unit: namaUnit, nama: tanpaAkun, nik: nikKetik }, DATA_DIR);
   }
   const p = pemanggil.getStore();
   if (!p || !p.username) throw new Error('Tanda tangan hanya bisa dibubuhkan oleh akun yang sedang login.');
@@ -2431,6 +2435,7 @@ const rowToMonitoring = (r, extra = {}) => ({
   PersonilOps: r.personil_ops, PersonilTeknik: r.personil_teknik,
   PersonilOpsTTD: r.personil_ops_ttd || '',
   ManagerOps: r.manager_ops || '', ManagerOpsTTD: r.manager_ops_ttd || '',
+  ManagerOpsNik: r.manager_ops_nik || '',
   ManagerOpsUnit: r.manager_ops_unit || '', ManagerOpsJabatan: r.manager_ops_jabatan || JABATAN_MANAGER_OPS[0],
   ManagerNama: r.manager_teknik || '', ManagerTTD: r.manager_teknik_ttd || '',
   TeknisiTTD: r.teknisi_ttd,
@@ -2454,12 +2459,15 @@ export function listMonitoring(unit = 'radkom', limit = 200) {
 /** Petak Manager Operasi: QR-nya memuat nama yang diketik, jadi tanpa nama
     tidak ada yang bisa dibubuhkan — saveSignature akan jatuh ke akun yang
     sedang login dan teknisinya ikut bertanda tangan sebagai manager operasi. */
-function ttdManagerOps(ttd, nama, unitOps, jabatan) {
+function ttdManagerOps(ttd, nama, unitOps, jabatan, nik) {
   if (!ttd) return '';
   if (!String(nama || '').trim()) throw new Error('Isi dulu nama Manager Operasi sebelum membubuhkan tanda tangannya.');
   if (!unitOps) throw new Error('Pilih dulu unit Manager Operasi (ACC atau APP) sebelum membubuhkan tanda tangannya.');
-  return saveSignature(ttd, 'monitoring_manops', { unit: unitOps, nama, jabatan: jabatanManagerOps(jabatan) });
+  return saveSignature(ttd, 'monitoring_manops', { unit: unitOps, nama, jabatan: jabatanManagerOps(jabatan), nik: nikManagerOps(nik) });
 }
+
+/** NIK yang diketik: angka saja, paling panjang 30 — sama batasnya dengan NIK akun. */
+const nikManagerOps = (v) => String(v || '').replace(/\D/g, '').slice(0, 30);
 
 /** Jabatan yang bisa dipilih untuk petak Manager Operasi. Di luar daftar =
     yang pertama (bukan PH). */
@@ -2492,7 +2500,8 @@ export function insertMonitoring(rec = {}, olehUsername = '', olehNama = '') {
     manager_ops: String(rec.managerOps || '').trim(),
     manager_ops_unit: unitManagerOps(rec.managerOpsUnit),
     manager_ops_jabatan: jabatanManagerOps(rec.managerOpsJabatan),
-    manager_ops_ttd: ttdManagerOps(rec.managerOpsTtd, rec.managerOps, unitManagerOps(rec.managerOpsUnit), rec.managerOpsJabatan),
+    manager_ops_nik: nikManagerOps(rec.managerOpsNik),
+    manager_ops_ttd: ttdManagerOps(rec.managerOpsTtd, rec.managerOps, unitManagerOps(rec.managerOpsUnit), rec.managerOpsJabatan, rec.managerOpsNik),
     // Manager Teknik tidak dibubuhkan di form: namanya tujuan, tanda tangannya
     // susulan lewat kotak masuk akun yang ditunjuk ttd_untuk — sama dengan BAPB.
     manager_teknik: String(rec.managerNama || '').trim(),
@@ -2503,12 +2512,13 @@ export function insertMonitoring(rec = {}, olehUsername = '', olehNama = '') {
     dibuat_pada: nowIso()
   };
   db.prepare(`INSERT INTO monitoring (id, unit, tanggal, baris_json, personil_ops, personil_teknik,
-                                      personil_ops_ttd, manager_ops, manager_ops_unit, manager_ops_jabatan, manager_ops_ttd, manager_teknik,
+                                      personil_ops_ttd, manager_ops, manager_ops_unit, manager_ops_jabatan, manager_ops_nik, manager_ops_ttd, manager_teknik,
                                       manager_teknik_ttd, teknisi_ttd, ttd_untuk,
                                       teknisi_nama_list, dibuat_pada, dibuat_oleh)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
     .run(row.id, row.unit, row.tanggal, row.baris_json, row.personil_ops, row.personil_teknik,
-         row.personil_ops_ttd, row.manager_ops, row.manager_ops_unit, row.manager_ops_jabatan, row.manager_ops_ttd, row.manager_teknik,
+         row.personil_ops_ttd, row.manager_ops, row.manager_ops_unit, row.manager_ops_jabatan, row.manager_ops_nik,
+         row.manager_ops_ttd, row.manager_teknik,
          row.manager_teknik_ttd, row.teknisi_ttd, row.ttd_untuk,
          row.teknisi_nama_list, row.dibuat_pada, olehUsername);
   // dibuat_oleh ikut disertakan supaya tombol yang khusus pembuat (TTD Manager
@@ -2537,18 +2547,21 @@ export function updateMonitoring(id, patch = {}, { username = '', admin = false 
   const unitBaru = patch.managerOpsUnit !== undefined ? unitManagerOps(patch.managerOpsUnit) : (r.manager_ops_unit || '');
   const jabLama = jabatanManagerOps(r.manager_ops_jabatan);
   const jabBaru = patch.managerOpsJabatan !== undefined ? jabatanManagerOps(patch.managerOpsJabatan) : jabLama;
+  const nikBaru = patch.managerOpsNik !== undefined ? nikManagerOps(patch.managerOpsNik) : (r.manager_ops_nik || '');
   let ttdBaru = r.manager_ops_ttd;
   if (patch.managerOpsTtd !== undefined) {
     // TTD baru: penanda → simpan; string kosong → hapus paraf.
-    ttdBaru = ttdManagerOps(patch.managerOpsTtd, namaBaru, unitBaru, jabBaru);
-  } else if (r.manager_ops_ttd && (namaBaru !== r.manager_ops || unitBaru !== (r.manager_ops_unit || '') || jabBaru !== jabLama)) {
-    throw new Error('Nama, unit, atau jabatan Manager Operasi berubah — bubuhkan ulang tanda tangannya.');
+    ttdBaru = ttdManagerOps(patch.managerOpsTtd, namaBaru, unitBaru, jabBaru, nikBaru);
+  } else if (r.manager_ops_ttd && (namaBaru !== r.manager_ops || unitBaru !== (r.manager_ops_unit || '')
+                                   || jabBaru !== jabLama || nikBaru !== (r.manager_ops_nik || ''))) {
+    throw new Error('Nama, NIK, unit, atau jabatan Manager Operasi berubah — bubuhkan ulang tanda tangannya.');
   }
   if (r.manager_ops_ttd && r.manager_ops_ttd !== ttdBaru) removeSignatureFile(r.manager_ops_ttd);
-  db.prepare('UPDATE monitoring SET manager_ops = ?, manager_ops_unit = ?, manager_ops_jabatan = ?, manager_ops_ttd = ? WHERE id = ?')
-    .run(namaBaru, unitBaru, jabBaru, ttdBaru, String(id));
+  db.prepare(`UPDATE monitoring SET manager_ops = ?, manager_ops_unit = ?, manager_ops_jabatan = ?,
+                                    manager_ops_nik = ?, manager_ops_ttd = ? WHERE id = ?`)
+    .run(namaBaru, unitBaru, jabBaru, nikBaru, ttdBaru, String(id));
   const nama = petaNamaPengguna();
-  return rowToMonitoring({ ...r, manager_ops: namaBaru, manager_ops_unit: unitBaru, manager_ops_jabatan: jabBaru, manager_ops_ttd: ttdBaru }, {
+  return rowToMonitoring({ ...r, manager_ops: namaBaru, manager_ops_unit: unitBaru, manager_ops_jabatan: jabBaru, manager_ops_nik: nikBaru, manager_ops_ttd: ttdBaru }, {
     diinputOleh: namaTampil(nama, r.dibuat_oleh),
     ttdOleh: namaTampil(nama, r.ttd_oleh)
   });
