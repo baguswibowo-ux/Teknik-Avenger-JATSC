@@ -599,10 +599,12 @@ header a{color:var(--sian)}
   $('pHp').onclick = () => pilihPerangkat(false);
   $('pPc').onclick = () => pilihPerangkat(true);
 
-  /* ?bab=3 membuka bab itu, ?alat=pc membuka tampilan PC — dipakai tautan dari buku manual */
+  /* ?bab=3 / #bab3 membuka bab itu, ?alat=pc / #pc membuka tampilan PC — dipakai tautan dari buku manual */
   bangunBab();
-  const par = new URLSearchParams(location.search), minta = parseInt(par.get('bab'), 10);
-  pilihPerangkat(par.get('alat') === 'pc', minta >= 1 && minta <= BAB.length ? minta - 1 : 0);
+  // juga lewat tanda pagar (#bab3, #pc, #pc-bab3): alamat bertanda tanya tidak selalu sampai
+  const par = new URLSearchParams(location.search), pagar = location.hash.slice(1);
+  const minta = parseInt(par.get('bab'), 10) || parseInt((pagar.match(/bab(\d+)/) || [])[1], 10);
+  pilihPerangkat(par.get('alat') === 'pc' || /(^|-)pc(-|$)/.test(pagar), minta >= 1 && minta <= BAB.length ? minta - 1 : 0);
 })();
 </script>
 </body>
