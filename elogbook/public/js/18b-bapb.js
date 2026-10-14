@@ -27,6 +27,7 @@ const mapBapb = b => ({
   lokasi: b.Lokasi || '',
   items: Array.isArray(b.Items) ? b.Items : [],
   pemakaiNama: b.PemakaiNama || '', pemakaiTtd: b.PemakaiTTD || '',
+  pemakaiUnit: b.PemakaiUnit || '', pemakaiJabatan: b.PemakaiJabatan || '', pemakaiNik: b.PemakaiNik || '',
   teknikNama: b.TeknikNama || '',  teknikTtd: b.TeknikTTD || '',
   // `petugasNama` versi rangkuman (koma), `petugasNamaList` versi larik untuk
   // ditampilkan per-baris di detail.
@@ -112,7 +113,7 @@ function openBapbModal(){
   document.getElementById('bapbTanggal').value = tanggalHariIni();
   document.getElementById('bapbUntukPekerjaan').value = '';
   document.getElementById('bapbLokasi').value = '';
-  document.getElementById('bapbPemakaiNama').value = '';
+  ['Unit','Jabatan','Nama','Nik'].forEach(k => { document.getElementById('bapbPemakai' + k).value = ''; });
   document.getElementById('bapbTeknikNama').value = '';
   // Akun mantek tujuan TTD susulan — dikosongkan tiap membuka form baru.
   const akunSel = document.getElementById('bapbTeknikAkun');
@@ -169,6 +170,7 @@ async function saveBapb(){
       lokasi: v('bapbLokasi'),
       items,
       pemakaiNama: v('bapbPemakaiNama'), pemakaiTtd: getSigDataUrl('sigBapbPemakai'),
+      pemakaiUnit: v('bapbPemakaiUnit'), pemakaiJabatan: v('bapbPemakaiJabatan'), pemakaiNik: v('bapbPemakaiNik'),
       // Manager Teknik: nama + akun tujuan TTD susulan (kotak masuk mantek).
       // Tidak ada teknikTtd dari form — dibubuhkan belakangan oleh mantek.
       teknikNama: v('bapbTeknikNama'),
@@ -260,7 +262,7 @@ function openBapbDetail(id){
     </div>
     ${itemsHtml}
     <div class="detail-ttd" style="margin-top:14px;">
-      <div class="sig-block"><b>${T('bapbPemakai')}</b>${escapeHtml(b.pemakaiNama) || '-'}${sigThumbHtml(b.pemakaiTtd)}${bolehUbahPemakaiBapb(b) ? bapbPemakaiEditBtn(b.id) : ''}</div>
+      <div class="sig-block"><b>${T('bapbPemakai')}</b>${escapeHtml(b.pemakaiNama) || '-'}${bapbPenerimaKetHtml(b)}${sigThumbHtml(b.pemakaiTtd)}${bolehUbahPemakaiBapb(b) ? bapbPemakaiEditBtn(b.id) : ''}</div>
       <div class="sig-block"><b>${T('bapbTeknik')}</b>${renderPihakKedua('bapb', b.id, b.teknikNama, b.teknikTtd)}${sigPejabatHtml('bapb', b.id, b.teknikTtd, b)}</div>
       <div class="sig-block"><b>${T('namaTeknisiPelaksana')}</b>${
         (b.petugasNamaList && b.petugasNamaList.length)
@@ -278,7 +280,13 @@ function openBapbDetail(id){
   document.getElementById('formDetailBg').classList.add('show');
 }
 
-/* ---------- Sunting susulan TTD Manager Pemakai ----------
+/** Jabatan · unit · NIK Penerima Barang, sebaris kecil di bawah namanya. */
+function bapbPenerimaKetHtml(b){
+  const ket = [b.pemakaiJabatan, b.pemakaiUnit, b.pemakaiNik ? 'NIK ' + b.pemakaiNik : ''].filter(Boolean);
+  return ket.length ? `<div style="font-size:11.5px;color:var(--muted);">${ket.map(escapeHtml).join(' &middot; ')}</div>` : '';
+}
+
+/* ---------- Sunting susulan TTD Penerima Barang (dulu "Manager Pemakai") ----------
    "Langkah terakhir sebelum ke mantek": pembuat lembar (atau admin) bisa
    membubuhkan atau mengganti paraf Manager Pemakai belakangan, selama Manager
    Teknik BELUM tanda tangan. Begitu mantek membubuhkan parafnya, panel pemakai
@@ -303,6 +311,9 @@ function openBapbPemakaiModal(id){
   if (!b) return;
   bapbPemakaiTargetId = id;
   document.getElementById('bapbPemakaiEditNama').value = b.pemakaiNama || '';
+  document.getElementById('bapbPemakaiEditUnit').value = b.pemakaiUnit || '';
+  document.getElementById('bapbPemakaiEditJabatan').value = b.pemakaiJabatan || '';
+  document.getElementById('bapbPemakaiEditNik').value = b.pemakaiNik || '';
   const sig = 'sigBapbPemakaiEdit';
   if (!sigPads[sig]) setupSigCanvas(sig);
   resizeSigCanvas(sig); clearSig(sig);
@@ -321,7 +332,11 @@ async function simpanBapbPemakai(){
   const nama = document.getElementById('bapbPemakaiEditNama').value.trim();
   // TTD baru kalau digambar; kalau tidak, biarkan yang lama (kirim undefined).
   const ttdBaru = getSigDataUrl('sigBapbPemakaiEdit');
-  const patch = { pemakaiNama: nama };
+  if (ttdBaru && !nama) { toast(T('bapbPenerimaNamaKosong')); return; }
+  const patch = { pemakaiNama: nama,
+                  pemakaiUnit: document.getElementById('bapbPemakaiEditUnit').value.trim(),
+                  pemakaiJabatan: document.getElementById('bapbPemakaiEditJabatan').value.trim(),
+                  pemakaiNik: document.getElementById('bapbPemakaiEditNik').value.trim() };
   if (ttdBaru) patch.pemakaiTtd = ttdBaru;
   const btn = document.getElementById('bapbPemakaiSaveBtn'); btn.disabled = true;
   try {
@@ -439,7 +454,7 @@ async function hapusBapb(id){
    kop tiga baris di kiri atas, judul di tengah, Nomor/Tanggal/Untuk
    Pekerjaan/Lokasi, tabel barang (NOMOR URUT · NAMA BARANG · UKURAN ·
    BANYAKNYA · TANGGAL PEMASANGAN · KETERANGAN), lalu tiga kolom tanda tangan:
-   Mengetahui Manager Pemakai · Mengetahui/Menyetujui Manager Teknik ·
+   Yang Menerima (Penerima Barang) · Mengetahui/Menyetujui Manager Teknik ·
    Petugas Pemasangan (nama + tanda tangan bernomor).
 
    Boleh dicetak kapan saja. TTD yang belum ada keluar sebagai ruang kosong
@@ -493,7 +508,7 @@ function printBapb(id){
     ${typeof lampiranPrintHtml === 'function' ? lampiranPrintHtml(b.lampiran, 'LAMPIRAN') : ''}
     <table class="no-border" style="${fs}margin-top:18px;break-inside:avoid;">
       <tr>
-        ${ttdBlok('MENGETAHUI', 'MANAGER PEMAKAI', b.pemakaiTtd, b.pemakaiNama)}
+        ${ttdBlok('YANG MENERIMA', escapeHtml([b.pemakaiJabatan, b.pemakaiUnit].filter(Boolean).join(' ').toUpperCase()) || 'PENERIMA BARANG', b.pemakaiTtd, b.pemakaiNama)}
         ${ttdBlok('MENGETAHUI / MENYETUJUI', 'MANAGER TEKNIK', b.teknikTtd, b.teknikNama)}
         <td style="text-align:center;vertical-align:top;">
           <div>Tangerang, ${escapeHtml(b.tanggal)}</div>

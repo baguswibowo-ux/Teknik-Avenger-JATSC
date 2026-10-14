@@ -376,6 +376,15 @@ tambahKolom('issues', 'unit', "TEXT NOT NULL DEFAULT 'radtel'");
 tambahKolom('entries', 'jam_selesai', "TEXT NOT NULL DEFAULT ''");
 tambahKolom('entries', 'frek', "TEXT NOT NULL DEFAULT ''");
 
+/* BAPB: petak "Manager Pemakai" menjadi PENERIMA BARANG (14 Okt 2026) — dialah
+   yang mengambil dan menerima barangnya, dan tidak selalu seorang manager.
+   Nama kolom pemakai_* dibiarkan (data lama). Unit, jabatan, dan NIK-nya
+   diketik bebas dan ikut terbaca di QR-nya, seperti Manager Operasi di
+   Monitoring; yang kosong tidak tampil. */
+tambahKolom('bapb', 'pemakai_unit', "TEXT NOT NULL DEFAULT ''");
+tambahKolom('bapb', 'pemakai_jabatan', "TEXT NOT NULL DEFAULT ''");
+tambahKolom('bapb', 'pemakai_nik', "TEXT NOT NULL DEFAULT ''");
+
 // Monitoring: tanda tangan personil operasi dan daftar nama teknisi pelaksana.
 tambahKolom('monitoring', 'personil_ops_ttd', "TEXT NOT NULL DEFAULT ''");
 tambahKolom('monitoring', 'teknisi_nama_list', "TEXT NOT NULL DEFAULT '[]'");
@@ -2959,6 +2968,7 @@ const rowToBapb = (r, extra = {}) => {
     UntukPekerjaan: r.untuk_pekerjaan, Lokasi: r.lokasi,
     Items: Array.isArray(items) ? items : [],
     PemakaiNama: r.pemakai_nama, PemakaiTTD: r.pemakai_ttd,
+    PemakaiUnit: r.pemakai_unit || '', PemakaiJabatan: r.pemakai_jabatan || '', PemakaiNik: r.pemakai_nik || '',
     TeknikNama: r.teknik_nama, TeknikTTD: r.teknik_ttd,
     // Nama teknisi pelaksana sekarang bisa jamak. Kolom lama `petugas_nama`
     // tetap terisi versi rangkumannya (dipisah koma) supaya rekap/pencarian
@@ -2987,6 +2997,23 @@ export function listBapb(unit = 'radkom', limit = 200) {
   }));
 }
 
+/** Identitas Penerima Barang dari kiriman layar, sudah dirapikan. */
+const penerimaBapb = (o = {}) => ({
+  nama: String(o.pemakaiNama ?? '').trim(),
+  unit: String(o.pemakaiUnit ?? '').trim().slice(0, 60),
+  jabatan: String(o.pemakaiJabatan ?? '').trim().slice(0, 80),
+  nik: String(o.pemakaiNik ?? '').replace(/\D/g, '').slice(0, 30)
+});
+
+/** TTD Penerima Barang: QR atas nama yang diketik. Tanpa nama tidak ada yang
+    bisa dibubuhkan — saveSignature akan jatuh ke akun teknisi yang sedang
+    login. Unit yang dikosongkan memakai unit pembuat lembar, seperti dulu. */
+function ttdPenerimaBapb(ttd, p, unitLembar) {
+  if (!ttd) return '';
+  if (!p.nama) throw new Error('Isi dulu nama Penerima Barang sebelum membubuhkan tanda tangannya.');
+  return saveSignature(ttd, 'bapb_pemakai', { unit: p.unit || unitLembar, nama: p.nama, jabatan: p.jabatan, nik: p.nik });
+}
+
 export function insertBapb(rec = {}, olehUsername = '', olehNama = '') {
   const teks = (v) => String(v ?? '').trim();
   const items = Array.isArray(rec.items) ? rec.items.map(bapbItemBersih) : [];
@@ -3004,6 +3031,7 @@ export function insertBapb(rec = {}, olehUsername = '', olehNama = '') {
     : (teks(rec.petugasNama) ? [teks(rec.petugasNama)] : []);
   const petugasRingkas = petugasList.join(', ');
 
+  const penerima = penerimaBapb(rec);
   const row = {
     id: newId(),
     unit: unitSah(rec.unit) ? rec.unit : 'radkom',
@@ -3012,8 +3040,9 @@ export function insertBapb(rec = {}, olehUsername = '', olehNama = '') {
     untuk_pekerjaan: teks(rec.untukPekerjaan),
     lokasi: teks(rec.lokasi),
     items_json: JSON.stringify(items),
-    pemakai_nama: teks(rec.pemakaiNama),
-    pemakai_ttd: saveSignature(rec.pemakaiTtd, 'bapb_pemakai', { unit: rec.unit, nama: rec.pemakaiNama }),
+    pemakai_nama: penerima.nama,
+    pemakai_unit: penerima.unit, pemakai_jabatan: penerima.jabatan, pemakai_nik: penerima.nik,
+    pemakai_ttd: ttdPenerimaBapb(rec.pemakaiTtd, penerima, rec.unit),
     // Manager Teknik tidak lagi dibubuhkan di form: namanya boleh diisi (sebagai
     // tujuan), tanda tangannya dibubuhkan susulan lewat kotak masuk. ttd_untuk
     // menunjuk akun mantek supaya lembarnya muncul di kotak masuknya.
@@ -3026,11 +3055,13 @@ export function insertBapb(rec = {}, olehUsername = '', olehNama = '') {
     dibuat_pada: nowIso()
   };
   db.prepare(`INSERT INTO bapb (id, unit, nomor, tanggal, untuk_pekerjaan, lokasi, items_json,
-                                pemakai_nama, pemakai_ttd, teknik_nama, teknik_ttd, ttd_untuk,
+                                pemakai_nama, pemakai_unit, pemakai_jabatan, pemakai_nik, pemakai_ttd,
+                                teknik_nama, teknik_ttd, ttd_untuk,
                                 petugas_nama, petugas_nama_list, petugas_ttd, dibuat_pada, dibuat_oleh)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
     .run(row.id, row.unit, row.nomor, row.tanggal, row.untuk_pekerjaan, row.lokasi, row.items_json,
-         row.pemakai_nama, row.pemakai_ttd, row.teknik_nama, row.teknik_ttd, row.ttd_untuk,
+         row.pemakai_nama, row.pemakai_unit, row.pemakai_jabatan, row.pemakai_nik, row.pemakai_ttd,
+         row.teknik_nama, row.teknik_ttd, row.ttd_untuk,
          row.petugas_nama, row.petugas_nama_list, row.petugas_ttd, row.dibuat_pada, olehUsername);
   const lampiran = tambahLampiranBapb(row.id, rec.lampiran);
   // dibuat_oleh ikut disertakan: tanpanya DibuatOlehUsername kosong di jawaban
@@ -3040,28 +3071,41 @@ export function insertBapb(rec = {}, olehUsername = '', olehNama = '') {
 }
 
 /**
- * Sunting susulan BAPB — hanya panel Manager Pemakai (nama + tanda tangan).
+ * Sunting susulan BAPB — hanya panel Penerima Barang (identitas + tanda tangan).
  * Ini "langkah terakhir sebelum ke mantek": teknisi bisa menyimpan lembarnya
  * dulu, lalu membubuhkan/mengganti TTD pemakai belakangan. Dikunci begitu
  * Manager Teknik sudah tanda tangan — mengubah paraf di bawah lembar yang
  * sudah disahkan mantek sama saja memalsu arsip.
  */
 export function updateBapb(id, patch = {}, { username = '', admin = false } = {}) {
-  const r = db.prepare('SELECT unit, dibuat_oleh, teknik_ttd, pemakai_ttd, pemakai_nama FROM bapb WHERE id = ?').get(String(id));
+  const r = db.prepare(`SELECT unit, dibuat_oleh, teknik_ttd, pemakai_ttd, pemakai_nama,
+                               pemakai_unit, pemakai_jabatan, pemakai_nik FROM bapb WHERE id = ?`).get(String(id));
   if (!r) throw new Error('BAPB tidak ditemukan — mungkin sudah dihapus.');
   if (!admin && String(r.dibuat_oleh || '') !== String(username || '')) {
     throw new Error('Hanya pembuat lembar ini atau administrator yang boleh menyuntingnya.');
   }
   if (r.teknik_ttd) {
-    throw new Error('Manager Teknik sudah tanda tangan — panel pemakai tidak bisa diubah lagi.');
+    throw new Error('Manager Teknik sudah tanda tangan — panel Penerima Barang tidak bisa diubah lagi.');
   }
-  const setBaru = {};
-  if (patch.pemakaiNama !== undefined) setBaru.pemakai_nama = String(patch.pemakaiNama || '').trim();
+  // Yang tidak dikirim tetap seperti tersimpan.
+  const lama = { nama: r.pemakai_nama || '', unit: r.pemakai_unit || '', jabatan: r.pemakai_jabatan || '', nik: r.pemakai_nik || '' };
+  const kiriman = penerimaBapb(patch);
+  const p = {
+    nama: patch.pemakaiNama !== undefined ? kiriman.nama : lama.nama,
+    unit: patch.pemakaiUnit !== undefined ? kiriman.unit : lama.unit,
+    jabatan: patch.pemakaiJabatan !== undefined ? kiriman.jabatan : lama.jabatan,
+    nik: patch.pemakaiNik !== undefined ? kiriman.nik : lama.nik
+  };
+  const setBaru = { pemakai_nama: p.nama, pemakai_unit: p.unit, pemakai_jabatan: p.jabatan, pemakai_nik: p.nik };
   if (patch.pemakaiTtd !== undefined) {
-    // TTD baru: string dataURL → simpan; string kosong → hapus paraf.
-    const path = patch.pemakaiTtd ? saveSignature(patch.pemakaiTtd, 'bapb_pemakai', { unit: r.unit, nama: setBaru.pemakai_nama ?? r.pemakai_nama }) : '';
+    // TTD baru: penanda → simpan; string kosong → hapus paraf.
+    const path = ttdPenerimaBapb(patch.pemakaiTtd, p, r.unit);
     if (r.pemakai_ttd && r.pemakai_ttd !== path) removeSignatureFile(r.pemakai_ttd);
     setBaru.pemakai_ttd = path;
+  } else if (r.pemakai_ttd && ['nama', 'unit', 'jabatan', 'nik'].some((k) => p[k] !== lama[k])) {
+    // QR-nya memuat identitas itu; mengubahnya tanpa TTD baru meninggalkan QR
+    // yang isinya tidak lagi sama dengan yang tertulis di lembar.
+    throw new Error('Identitas Penerima Barang berubah — bubuhkan ulang tanda tangannya.');
   }
   const kunci = Object.keys(setBaru);
   if (kunci.length) {

@@ -1526,7 +1526,7 @@ try{ document.documentElement.setAttribute('data-tema',
     <div class="section-head">
       <div>
         <h2 data-t="bapbJudul">BAPB — Berita Acara Pemasangan Barang</h2>
-        <p data-t="bapbSub">Catatan resmi pemasangan alat: nomor berita acara, daftar barang yang terpasang, dan panel tanda tangan pemakai, teknik, serta petugas pemasangan.</p>
+        <p data-t="bapbSub">Catatan resmi pemasangan alat: nomor berita acara, daftar barang yang terpasang, dan panel tanda tangan penerima barang, teknik, serta petugas pemasangan.</p>
       </div>
       <button class="btn btn-tambah" onclick="openBapbModal()" data-t="tambahBapb">+ Buat BAPB</button>
     </div>
@@ -2291,7 +2291,14 @@ try{ document.documentElement.setAttribute('data-tema',
          mengikuti tata-letak formulir aslinya: Pemakai · Teknik · Petugas. -->
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:16px;">
       <div>
-        <div class="field"><label data-t="bapbPemakai">Manager Pemakai</label><input type="text" id="bapbPemakaiNama" data-t-ph="phBapbPemakaiNama" placeholder="Nama manager pemakai"></div>
+        <!-- Penerima Barang (dulu "Manager Pemakai"): yang mengambil dan
+             menerima barangnya. Tanpa akun — unit, jabatan, nama, dan NIK
+             diketik, dan itu yang terbaca di QR-nya. -->
+        <div style="font-family:var(--font-mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:6px;" data-t="bapbPemakai">Penerima Barang</div>
+        <div class="field"><label data-t="bapbPemakaiUnit">Unit</label><input type="text" id="bapbPemakaiUnit" maxlength="60" data-t-ph="phBapbPemakaiUnit" placeholder="mis. ACC, APP, Radkom"></div>
+        <div class="field"><label data-t="monManOpsJabatan">Jabatan</label><input type="text" id="bapbPemakaiJabatan" maxlength="80" data-t-ph="phBapbPemakaiJabatan" placeholder="mis. Manager Operasi"></div>
+        <div class="field"><label data-t="monManOpsNama">Nama</label><input type="text" id="bapbPemakaiNama" data-t-ph="phBapbPemakaiNama" placeholder="Nama penerima barang"></div>
+        <div class="field"><label data-t-html="monManOpsNik">NIK <span style="text-transform:none;letter-spacing:0;">(opsional)</span></label><input type="text" id="bapbPemakaiNik" inputmode="numeric" maxlength="30" data-t-ph="phMonManOpsNik" placeholder="Nomor induk karyawan"></div>
         <div class="field"><label data-t="ttdDiSini">Tanda Tangan</label><div class="sig-wrap"><canvas id="sigBapbPemakai"></canvas><div class="sig-toolbar"><span class="sig-hint" data-t="ttdHintUmum">tanda tangan di sini</span><button class="sig-clear" onclick="clearSig('sigBapbPemakai')" data-t="bersihkan">bersihkan</button></div></div></div>
       </div>
       <div>
@@ -2362,10 +2369,13 @@ try{ document.documentElement.setAttribute('data-tema',
 <div class="modal-bg" id="bapbPemakaiBg">
   <div class="modal" style="max-width:440px;">
     <div class="modal-kepala">
-      <h3 data-t="bapbPemakaiUbahJudul">TTD Manager Pemakai</h3>
+      <h3 data-t="bapbPemakaiUbahJudul">TTD Penerima Barang</h3>
       <button class="icon-btn" onclick="closeBapbPemakaiModal()" data-t-title="tutup" title="Tutup">&#10005;</button>
     </div>
-    <div class="field"><label data-t="bapbPemakai">Manager Pemakai</label><input type="text" id="bapbPemakaiEditNama" data-t-ph="phBapbPemakaiNama" placeholder="Nama manager pemakai"></div>
+    <div class="field"><label data-t="bapbPemakaiUnit">Unit</label><input type="text" id="bapbPemakaiEditUnit" maxlength="60" data-t-ph="phBapbPemakaiUnit" placeholder="mis. ACC, APP, Radkom"></div>
+    <div class="field"><label data-t="monManOpsJabatan">Jabatan</label><input type="text" id="bapbPemakaiEditJabatan" maxlength="80" data-t-ph="phBapbPemakaiJabatan" placeholder="mis. Manager Operasi"></div>
+    <div class="field"><label data-t="monManOpsNama">Nama</label><input type="text" id="bapbPemakaiEditNama" data-t-ph="phBapbPemakaiNama" placeholder="Nama penerima barang"></div>
+    <div class="field"><label data-t-html="monManOpsNik">NIK <span style="text-transform:none;letter-spacing:0;">(opsional)</span></label><input type="text" id="bapbPemakaiEditNik" inputmode="numeric" maxlength="30" data-t-ph="phMonManOpsNik" placeholder="Nomor induk karyawan"></div>
     <div class="field" style="margin-top:6px;"><label data-t="ttdDiSini">Tanda Tangan</label><div class="sig-wrap"><canvas id="sigBapbPemakaiEdit"></canvas><div class="sig-toolbar"><span class="sig-hint" data-t="ttdHintUmum">tanda tangan di sini</span><button class="sig-clear" onclick="clearSig('sigBapbPemakaiEdit')" data-t="bersihkan">bersihkan</button></div></div></div>
     <div class="modal-footer">
       <button class="btn ghost" onclick="closeBapbPemakaiModal()" data-t="batal">Batal</button>
@@ -2677,7 +2687,7 @@ try{ document.documentElement.setAttribute('data-tema',
 
 <script src="avenger-tautan.js"></script>
 <script src="js/01-tema.js?v=20261009kedip"></script>
-<script src="js/02-bahasa.js?v=20261014nik"></script>
+<script src="js/02-bahasa.js?v=20261014terima"></script>
 <script src="js/03-waktu.js"></script>
 <script src="js/04-toast-tab.js"></script>
 <script src="js/05-jembatan-server.js"></script>
@@ -2708,7 +2718,7 @@ try{ document.documentElement.setAttribute('data-tema',
 <script src="js/17g-maint-listrik.js?v=20261014ph"></script>
 <script src="js/17h-meter-radkom.js?v=20261014ph"></script>
 <script src="js/18-ltk.js?v=20261014ph"></script>
-<script src="js/18b-bapb.js?v=20261014ph"></script>
+<script src="js/18b-bapb.js?v=20261014terima"></script>
 <script src="js/19-berkala.js?v=20261014ph"></script>
 <script src="js/20-ttd-pejabat.js?v=20261014pilih"></script>
 <script src="js/21-cetak-dasar.js?v=20261012qr2"></script>

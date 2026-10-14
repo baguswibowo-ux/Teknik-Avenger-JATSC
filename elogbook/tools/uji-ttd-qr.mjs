@@ -156,6 +156,33 @@ test('Monitoring tiga petak: Manager Operasi atas nama, Manager Teknik lewat aku
   assert.equal(db.pemilikLembarForm('monitoring', a.ID).sudahTtd, false);
 });
 
+test('BAPB: Penerima Barang — unit, jabatan, nama, NIK diketik dan terbaca di QR; beku sesudah Manager Teknik', () => {
+  const bapb = (lain = {}) => pemanggil.run(BAGUS, () => db.insertBapb({
+    unit: 'radkom', nomor: 'BA-1', tanggal: '2026-10-14', items: [{ namaBarang: 'Modul' }],
+    teknikNama: 'Arya Gunanawan', ttdUntuk: 'arya', petugasNamaList: ['Bagus Wibowo'], petugasTtd: PENANDA_QR, ...lain
+  }, BAGUS.username, BAGUS.nama));
+  const ubah = (id, patch) => pemanggil.run(BAGUS, () => db.updateBapb(id, patch, { username: BAGUS.username }));
+  const teks = (url) => teksTtdQr(bacaUrlTtdQr(url, DATA));
+
+  const a = bapb({ pemakaiNama: 'Sari Penerima', pemakaiUnit: 'ACC', pemakaiJabatan: 'Supervisor', pemakaiNik: '1002-0001', pemakaiTtd: PENANDA_QR });
+  assert.equal(teks(a.PemakaiTTD), 'Perum LPPNPI Cabang JATSC\nUnit: ACC\nJabatan: Supervisor\nNama: Sari Penerima\nNIK: 10020001');
+  assert.deepEqual([a.PemakaiUnit, a.PemakaiJabatan, a.PemakaiNik], ['ACC', 'Supervisor', '10020001']);
+  // Hanya nama, seperti lembar lama: unit pembuat lembar, tanpa jabatan dan NIK.
+  const b = bapb({ pemakaiNama: 'Sari Penerima', pemakaiTtd: PENANDA_QR });
+  assert.equal(teks(b.PemakaiTTD), 'Perum LPPNPI Cabang JATSC\nUnit: Radkom\nNama: Sari Penerima');
+  assert.throws(() => bapb({ pemakaiTtd: PENANDA_QR }), /nama Penerima Barang/);
+
+  // Susulan: identitas berubah wajib TTD ulang; yang tidak dikirim tetap.
+  assert.throws(() => ubah(b.ID, { pemakaiJabatan: 'Manager Operasi' }), /bubuhkan ulang/);
+  const b2 = ubah(b.ID, { pemakaiJabatan: 'Manager Operasi', pemakaiUnit: 'APP', pemakaiTtd: PENANDA_QR });
+  assert.equal(teks(b2.PemakaiTTD), 'Perum LPPNPI Cabang JATSC\nUnit: APP\nJabatan: Manager Operasi\nNama: Sari Penerima');
+  assert.equal(ubah(b.ID, {}).PemakaiTTD, b2.PemakaiTTD);
+
+  pemanggil.run(ARYA, () => db.tandaTanganiCatatan('bapb', b.ID,
+    { nama: ARYA.nama, username: ARYA.username, role: 'pejabat', ttd: PENANDA_QR, wakilDari: [], diwakili: [] }));
+  assert.throws(() => ubah(b.ID, { pemakaiNama: 'Orang Lain', pemakaiTtd: PENANDA_QR }), /Manager Teknik sudah tanda tangan/);
+});
+
 test('lembar AMHS: petak dinas yang sudah terisi tidak ditandatangani ulang orang berikutnya', () => {
   const dc = pemanggil.run(BAGUS, () => db.insertDailyCheck({
     unit: 'radtel', tanggal: '12 Oktober 2026', tanggalIso: '2026-10-12', dinas: 'Pagi',
