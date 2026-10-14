@@ -175,6 +175,13 @@ const monAdaOpsLama = m => !!(m.personilOps || m.personilOpsTtd);
 /** Judul petak Manager Operasi: jabatan + unitnya — "PH Manager Operasi ACC". */
 const monJabatanOps = m => (m.managerOpsJabatan || 'Manager Operasi') + (m.managerOpsUnit ? ' ' + m.managerOpsUnit : '');
 
+/** Nama-nama teknisi pelaksana, yang dari unit lain diberi tag unitnya. */
+function monTeknikHtml(m){
+  const daftar = (m.teknisiNamaList && m.teknisiNamaList.length) ? m.teknisiNamaList
+               : String(m.personilTeknik || '').split(',').map(x=>x.trim()).filter(Boolean);
+  return daftar.map(namaBertagUnit).join(', ');
+}
+
 function openMonDetail(id){
   const m = monitoring.find(x=>x.id===id);
   if(!m) return;
@@ -186,7 +193,7 @@ function openMonDetail(id){
       <div class="sig-block"><b>${escapeHtml(monJabatanOps(m))}</b>${escapeHtml(m.managerOps)||'-'}${sigThumbHtml(m.managerOpsTtd)}${bolehUbahManOpsMon(m) ? monManOpsEditBtn(m.id) : ''}</div>
       <div class="sig-block"><b>${T('bapbTeknik')}</b>${renderPihakKedua('monitoring', m.id, m.managerNama, m.managerTtd)}${sigPejabatHtml('monitoring', m.id, m.managerTtd, m)}</div>
       ${monAdaOpsLama(m) ? `<div class="sig-block"><b>${T('personilOps')}</b>${escapeHtml(m.personilOps)||'-'}${sigThumbHtml(m.personilOpsTtd)}</div>` : ''}
-      <div class="sig-block"><b>${T('personilTeknik')}</b>${escapeHtml(m.personilTeknik)||'-'}${sigThumbHtml(m.teknisiTtd)}</div>
+      <div class="sig-block"><b>${T('personilTeknik')}</b>${monTeknikHtml(m)||'-'}${sigThumbHtml(m.teknisiTtd)}</div>
     </div>
     ${lampiranCatatanHtml('monitoring', m.id)}
     <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line);">${diinputOlehHtml(m.diinputOleh, m.dibuatPada, String(m.tanggal||'').slice(0,10))}</div>`;
@@ -270,15 +277,16 @@ function printMon(id){
     ['Mengetahui,', escapeHtml(monJabatanOps(m)), m.managerOpsTtd, m.managerOps],
     ['Mengetahui / Menyetujui,', 'Manager Teknik', m.managerTtd, m.managerNama],
     ...(monAdaOpsLama(m) ? [['&nbsp;', 'Personil Operasi', m.personilOpsTtd, m.personilOps]] : []),
-    ['&nbsp;', 'Personil Teknik', m.teknisiTtd, m.personilTeknik]
+    // Nama teknisi sudah berupa HTML: yang dari unit lain bertag unitnya.
+    ['&nbsp;', 'Personil Teknik', m.teknisiTtd, m.personilTeknik, monTeknikHtml(m)]
   ];
   const lebar = Math.floor(100 / kolom.length);
-  const ttdKolom = kolom.map(([atas, jabatan, ttd, nama]) => `
+  const ttdKolom = kolom.map(([atas, jabatan, ttd, nama, namaHtml]) => `
         <td style="width:${lebar}%;text-align:center;vertical-align:top;">
           <div>${atas}</div>
           <div>${jabatan}</div>
           <div style="height:46px;">${ttdImg(ttd, 40)}</div>
-          <div style="border-top:1px solid #000;display:inline-block;min-width:150px;padding:0 10px;">${ttd ? (namaPhHtml(nama)||'&nbsp;') : '&nbsp;'}</div>
+          <div style="border-top:1px solid #000;display:inline-block;min-width:150px;padding:0 10px;">${ttd ? (namaHtml || namaPhHtml(nama) || '&nbsp;') : '&nbsp;'}</div>
         </td>`).join('');
   doPrint(`
     <div style="text-align:center;font-weight:bold;font-size:12pt;margin-bottom:4px;">MONITORING FREKUENSI NEW JATSC</div>

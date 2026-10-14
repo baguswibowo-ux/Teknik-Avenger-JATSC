@@ -541,7 +541,7 @@ function isiPilihanPejabat(){
   const dl = document.getElementById('pejabatDatalist');
   if(dl) dl.innerHTML = pejabatList.map(p=>`<option value="${escapeHtml(p.nama)}">`).join('');
 
-  const opsi = `<option value="" data-t="kirimTtdOtomatis">${T('kirimTtdOtomatis')}</option>` +
+  const opsi = `<option value="" data-t="monPilihManager">${T('monPilihManager')}</option>` +
     pejabatList.map(p=>`<option value="${escapeHtml(p.username)}">${escapeHtml(p.nama)}</option>`).join('');
   AKUN_TTD_SELECT_ID.forEach(id=>{
     const el = document.getElementById(id);
@@ -549,19 +549,127 @@ function isiPilihanPejabat(){
     const lama = el.value;
     el.innerHTML = opsi;
     if([...el.options].some(o=>o.value===lama)) el.value = lama;
+    pasangPemilihTunggal(el);
   });
+}
+
+/* ============== PEMILIH MANAGER TEKNIK TUNGGAL (14 Okt 2026) ==============
+   Permintaan Bagus: di semua formulir, Manager Teknik cukup DIPILIH dari satu
+   daftar akun — seperti form Monitoring — tanpa isian nama terpisah dan tanpa
+   "Otomatis (dari nama di atas)". Lembarnya langsung ke kotak masuk akun itu;
+   PH-nya diurus sistem.
+
+   Isian nama lamanya tidak dibuang, hanya disembunyikan dan diisi sendiri dari
+   akun yang dipilih: belasan fungsi simpan/sunting masih membaca dan mengisinya
+   (…ManagerNama + ttdUntukTerpilih), dan semuanya tetap jalan tanpa disentuh.
+
+   Lembar lama yang namanya diketik bebas dan tidak cocok dengan akun mana pun
+   (mis. "PH Bagus") tampil sebagai satu pilihan tambahan berisi nama itu, supaya
+   menyunting lembarnya tidak diam-diam menghapus nama yang sudah tercatat. */
+const PENANDA_NAMA_LAMA = '\u0001nama-lama';
+const NILAI_ASLI = {
+  input:  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value'),
+  select: Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')
+};
+
+/** Isian nama pasangan sebuah pemilih akun: fePjAkun → fePjNama, dst. */
+function inputNamaPemilih(id){
+  return document.getElementById(id.startsWith('dcAmhsAkun_') ? id.replace('dcAmhsAkun_', 'dcAmhsMgr_')
+                                                              : id.replace(/Akun$/, 'Nama'));
+}
+
+/** Samakan tampilan pemilih dengan nama yang tersimpan di isian tersembunyinya. */
+function selaraskanPemilihTtd(sel, inp){
+  sel.querySelector('option[data-lama]')?.remove();
+  if(NILAI_ASLI.select.get.call(sel)) return;          // akun sudah terpilih
+  const nama = String(NILAI_ASLI.input.get.call(inp) || '').trim();
+  if(!nama) return;
+  const akun = pejabatList.find(p => p.nama === nama);
+  if(akun){ NILAI_ASLI.select.set.call(sel, akun.username); return; }
+  const o = document.createElement('option');
+  o.value = PENANDA_NAMA_LAMA; o.dataset.lama = '1'; o.textContent = nama;
+  sel.insertBefore(o, sel.options[1] || null);
+  NILAI_ASLI.select.set.call(sel, PENANDA_NAMA_LAMA);
+}
+
+function pasangPemilihTunggal(sel){
+  const inp = inputNamaPemilih(sel.id);
+  if(!inp) return;
+  if(sel.dataset.tunggal){ selaraskanPemilihTtd(sel, inp); return; }
+  sel.dataset.tunggal = '1';
+
+  // Fungsi buka/sunting formulir mengisi nama dan akun lewat .value, urutannya
+  // tidak tentu. Keduanya dicegat, lalu diselaraskan sekali sesudah fungsinya
+  // selesai — bukan di tengah, saat baru salah satunya yang terisi.
+  let antre = false;
+  const nanti = () => {
+    if(antre) return;
+    antre = true;
+    queueMicrotask(() => { antre = false; selaraskanPemilihTtd(sel, inp); });
+  };
+  Object.defineProperty(inp, 'value', { configurable: true,
+    get(){ return NILAI_ASLI.input.get.call(this); },
+    set(v){ NILAI_ASLI.input.set.call(this, v); nanti(); } });
+  Object.defineProperty(sel, 'value', { configurable: true,
+    // Pilihan "nama lama" bukan akun: bagi pembacanya nilainya tetap kosong.
+    get(){ const v = NILAI_ASLI.select.get.call(this); return v === PENANDA_NAMA_LAMA ? '' : v; },
+    set(v){ NILAI_ASLI.select.set.call(this, v); nanti(); } });
+
+  // Memilih akun = mengisi namanya. Memilih "— pilih —" = mengosongkannya.
+  sel.addEventListener('change', () => {
+    const v = NILAI_ASLI.select.get.call(sel);
+    if(v === PENANDA_NAMA_LAMA) return;
+    const akun = pejabatList.find(p => p.username === v);
+    NILAI_ASLI.input.set.call(inp, akun ? akun.nama : '');
+    sel.querySelector('option[data-lama]')?.remove();
+  });
+
+  // Tampilan: isian nama disembunyikan, pemilih memakai labelnya, dan di
+  // bawahnya keterangan bahwa TTD-nya menyusul lewat kotak masuk.
+  const petakNama = inp.closest('.field'), petakAkun = sel.closest('.field');
+  const labelNama = petakNama && petakNama.querySelector('label');
+  const labelAkun = petakAkun && petakAkun.querySelector('label');
+  if(labelNama && labelAkun){
+    if(labelNama.dataset.t){ labelAkun.dataset.t = labelNama.dataset.t; labelAkun.textContent = T(labelNama.dataset.t); }
+    else labelAkun.textContent = labelNama.textContent.replace(/\s*\(Nama\)\s*$/, '');
+  }
+  if(petakNama) petakNama.style.display = 'none';
+  if(petakAkun){
+    petakAkun.style.marginTop = '';
+    const sesudah = petakAkun.nextElementSibling;
+    if(!(sesudah && sesudah.classList.contains('subtle-note'))){
+      const ket = document.createElement('div');
+      ket.className = 'subtle-note'; ket.dataset.t = 'bapbTeknikSusulan';
+      ket.textContent = T('bapbTeknikSusulan');
+      petakAkun.after(ket);
+    }
+  }
+  selaraskanPemilihTtd(sel, inp);
 }
 
 /** Isi <datalist> saran nama teknisi — dipakai baris kedua dst pada semua
     formulir yang punya daftar nama teknisi. Baris pertama tetap otomatis
     nama pengisi dokumen; ini cuma menyarankan nama rekan sedinas yang sudah
     terdaftar di unit yang sedang dibuka, supaya salah eja dan salah singkatan
-    tidak lagi tersimpan sebagai salinan berbeda dari orang yang sama. */
+    tidak lagi tersimpan sebagai salinan berbeda dari orang yang sama.
+    Teknisi unit lain ikut disarankan di bawahnya, dengan nama unitnya sebagai
+    keterangan — untuk pekerjaan lintas unit. */
 function isiPilihanTeknisiUnit(){
   const dl = document.getElementById('teknisiDatalist');
   if(!dl) return;
   const daftar = (typeof teknisiUnitList !== 'undefined' && Array.isArray(teknisiUnitList)) ? teknisiUnitList : [];
-  dl.innerHTML = daftar.map(t=>`<option value="${escapeHtml(t.nama || t.username)}">`).join('');
+  dl.innerHTML = daftar.map(t=>`<option value="${escapeHtml(t.nama || t.username)}"${
+    t.unitLain ? ` label="${escapeHtml(t.unitLain)}"` : ''}>`).join('');
+}
+
+/** Nama teknisi + tag unitnya kalau ia dari unit lain: "Budi Santoso (Radtel)".
+    Teknisi unit sendiri dan nama yang tidak dikenal tampil apa adanya. Sudah
+    aman untuk HTML. */
+function namaBertagUnit(nama){
+  const n = String(nama || '').trim();
+  const daftar = (typeof teknisiUnitList !== 'undefined' && Array.isArray(teknisiUnitList)) ? teknisiUnitList : [];
+  const t = daftar.find(x => x.unitLain && String(x.nama || '').trim().toLowerCase() === n.toLowerCase());
+  return escapeHtml(n) + (t ? ` (${escapeHtml(t.unitLain)})` : '');
 }
 
 /** Nama yang diketik teknisi -> username akun, kalau memang cocok persis. */

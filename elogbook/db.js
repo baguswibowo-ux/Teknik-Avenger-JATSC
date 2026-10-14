@@ -3399,6 +3399,28 @@ export function listTeknisiUnit(unitKode) {
 }
 
 /**
+ * Teknisi aktif yang BUKAN anggota unit ini, berikut nama unitnya — untuk
+ * pekerjaan lintas unit (mis. Radtel ikut di lembar Radkom). Hanya akun yang
+ * memang terikat unit; admin dan pejabat tidak punya baris user_unit.
+ */
+export function listTeknisiUnitLain(unitKode) {
+  const kode = String(unitKode || '').trim();
+  if (!kode) return [];
+  const baris = db.prepare(`
+    SELECT u.username, u.nama, GROUP_CONCAT(uu.unit) AS unit
+      FROM users u JOIN user_unit uu ON uu.user_id = u.id
+     WHERE u.aktif = 1
+       AND NOT EXISTS (SELECT 1 FROM user_unit x WHERE x.user_id = u.id AND x.unit = ?)
+     GROUP BY u.id
+     ORDER BY u.nama COLLATE NOCASE`).all(kode);
+  const namaUnit = (k) => (UNIT.find((u) => u.kode === k) || {}).nama || k;
+  return baris.map((b) => ({
+    username: b.username, nama: b.nama,
+    unitLain: String(b.unit || '').split(',').filter(Boolean).map(namaUnit).join('/')
+  }));
+}
+
+/**
  * Kotak masuk TTD seorang akun: seluruh catatan di lima formulir yang
  * menunjuknya (ttd_untuk) dan belum ditandatangani siapa pun. Lintas unit —
  * pejabat dan admin memang berhak atas semua unit, jadi tidak digilir per unit

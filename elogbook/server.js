@@ -74,7 +74,7 @@ const {
   listBapb, insertBapb, updateBapb, removeBapb, suntingLampiranBapb,
   listLampiranCatatan, suntingLampiranCatatan, JENIS_LAMPIRAN_CATATAN,
   getUserByUsername, verifyPassword, createUser, countUsers, hapusUser,
-  jenisTtdSah, unitCatatan, unitHapus, pemilikLembarForm, tandaTanganiCatatan, batalkanTtdCatatan, listPejabatAktif, listPejabatUnit, listTeknisiUnit, listAkunAktif, listPemantauDinas, getInboxTtd,
+  jenisTtdSah, unitCatatan, unitHapus, pemilikLembarForm, tandaTanganiCatatan, batalkanTtdCatatan, listPejabatAktif, listPejabatUnit, listTeknisiUnit, listTeknisiUnitLain, listAkunAktif, listPemantauDinas, getInboxTtd,
   getTtdTersimpan, simpanTtdTersimpan, hapusTtdTersimpan, pilihTtdTersimpanAktif, rekapMentah,
   listUsers, setPassword, setAktif, setRole, setNama, setUsername, setIdentitasTtdAkun, identitasTtdAkun, unitMilikUser, ROLE_VALID, SEMUA_UNIT, jumlahAdminAktif,
   UNIT, KODE_UNIT, unitSah, unitUntukUser, setUnitUser,
@@ -1227,7 +1227,9 @@ const API = {
       listPejabatAktif(),
       // Daftar akun yang boleh masuk ke unit ini — jadi saran nama pada baris
       // teknisi kedua dst. Baris pertama tetap otomatis nama pengisi dokumen.
-      listTeknisiUnit(u),
+      // Disusul teknisi unit LAIN (bertanda unitLain) untuk pekerjaan lintas
+      // unit: namanya ikut disarankan, dan unitnya tampil sebagai tag.
+      (async () => [...await listTeknisiUnit(u), ...await listTeknisiUnitLain(u)])(),
       // Kotak masuk TTD: milik sendiri (peran penanda tangan saja) ditambah
       // titipan pejabat yang sedang ia wakili sebagai PH — lihat inboxTtdDenganPh.
       inboxTtdDenganPh(user),
