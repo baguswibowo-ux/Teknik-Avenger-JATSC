@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b1b33">
+<title>Video Tutorial Avengers untuk Teknisi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Barlow:wght@400;500;600;700&family=Share+Tech+Mono&display=swap">
+<style>
+[hidden]{display:none!important}
+:root{
+  color-scheme:dark;
+  --langit:#04070f; --kartu:rgba(12,22,42,.86); --garis:rgba(90,130,190,.28);
+  --sian:#35e0c4; --sian-gelap:#04231e; --jingga:#f6971d; --biru:#29b6f6;
+  --teks:#f2f6ff; --redup:#9fb0cd; --kabur:#6d7f9e;
+  /* warna tiruan layar aplikasi (tema terang, bawaan Avengers sekarang) */
+  --a-latar:#eef2f7; --a-panel:#fff; --a-garis:#d5dde8; --a-teks:#14213a; --a-redup:#63728a;
+  --a-aksen:#0b84c6; --a-ok:#16965a; --a-awas:#c97a06; --a-bahaya:#cf3a3a;
+}
+*{box-sizing:border-box}
+html,body{background:var(--langit);color:var(--teks)}
+body{margin:0;font-family:'Barlow','Segoe UI',system-ui,sans-serif;font-size:15px;line-height:1.55;padding-inline:16px;padding-block:24px 40px;
+  background:radial-gradient(1100px 560px at 85% -10%,#10254a 0%,transparent 60%),var(--langit)}
+.bungkus{max-width:1120px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+.alis{font-family:'Share Tech Mono',monospace;font-size:12px;letter-spacing:.26em;color:var(--jingga)}
+h1{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:clamp(28px,5vw,40px);line-height:1.05;margin:6px 0 8px;text-wrap:balance}
+header p{margin:0;color:var(--redup);max-width:66ch}
+header a{color:var(--sian)}
+
+/* daftar bab */
+.bab{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
+.bab button{text-align:left;font:inherit;color:var(--teks);background:var(--kartu);border:1px solid var(--garis);border-radius:12px;padding:10px 12px;cursor:pointer;display:grid;grid-template-columns:auto 1fr;gap:2px 10px;align-items:baseline}
+.bab button .no{font-family:'Share Tech Mono',monospace;color:var(--jingga);font-size:13px;grid-row:span 2}
+.bab button b{font-weight:600;font-size:14.5px;line-height:1.25}
+.bab button small{color:var(--kabur);font-size:12.5px}
+.bab button[aria-pressed="true"]{border-color:var(--sian);box-shadow:0 0 0 1px var(--sian) inset}
+.bab button[aria-pressed="true"] .no{color:var(--sian)}
+.bab button:focus-visible,.kontrol button:focus-visible,.kemajuan button:focus-visible{outline:2px solid var(--jingga);outline-offset:3px}
+
+.panggung{display:grid;grid-template-columns:auto 1fr;gap:40px;align-items:center}
+@media (max-width:820px){.panggung{grid-template-columns:1fr;gap:16px;justify-items:center}}
+.kolom-hp{display:flex;flex-direction:column;align-items:center;gap:12px}
+.hp{position:relative;width:clamp(240px,70vw,310px);aspect-ratio:9/19;max-width:100%;border-radius:40px;padding:9px;
+  background:linear-gradient(145deg,#1b2638,#070b14);box-shadow:0 0 0 1px #2a3a55,0 30px 60px -20px rgba(0,0,0,.8)}
+.layar{position:relative;width:100%;height:100%;border-radius:31px;overflow:hidden;background:var(--a-latar);font-size:10.5px;line-height:1.35;color:var(--a-teks)}
+.status{position:absolute;top:0;left:0;right:0;height:24px;padding:6px 18px 0;display:flex;justify-content:space-between;font-weight:600;font-size:10px;z-index:30;color:#fff;background:#0b1b33}
+.isi{position:absolute;inset:24px 0 0;overflow:hidden;transition:opacity .25s}
+.isi.ganti{opacity:0}
+.jari{position:absolute;width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:50%;z-index:40;pointer-events:none;background:rgba(11,132,198,.3);border:2px solid rgba(11,132,198,.95);opacity:0}
+.jari.tekan{animation:tekan .7s ease-out 1}
+@keyframes tekan{0%{opacity:0;transform:scale(1.7)}35%{opacity:1;transform:scale(.8)}100%{opacity:0;transform:scale(1.3)}}
+.putar-besar{position:absolute;inset:0;z-index:50;display:grid;place-items:center;background:rgba(4,7,15,.82);border:0;border-radius:31px;cursor:pointer;color:var(--teks);font:600 13px 'Barlow',sans-serif}
+.putar-besar span{display:flex;flex-direction:column;align-items:center;gap:10px}
+.putar-besar svg{width:62px;height:62px}
+.kontrol{display:flex;align-items:center;gap:8px}
+.kontrol button{width:40px;height:40px;border-radius:50%;border:1px solid var(--garis);background:var(--kartu);color:var(--teks);display:grid;place-items:center;cursor:pointer}
+.kontrol button.utama{width:50px;height:50px;background:var(--sian);color:var(--sian-gelap);border:0}
+.kemajuan{display:flex;gap:4px;width:clamp(240px,70vw,310px);max-width:100%}
+.kemajuan button{flex:1;height:5px;border-radius:3px;border:0;padding:0;background:#1b2740;cursor:pointer;position:relative;overflow:hidden}
+.kemajuan button i{position:absolute;inset:0;width:0;background:var(--sian)}
+.keterangan{max-width:540px;width:100%}
+.nomor{font-family:'Share Tech Mono',monospace;font-size:12px;letter-spacing:.2em;color:var(--jingga)}
+.keterangan h2{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:clamp(24px,4.2vw,34px);line-height:1.08;margin:6px 0 10px;text-wrap:balance}
+.narasi{color:#c6d3ea;font-size:16px;margin:0;min-height:6.2em}
+.tip{margin-top:14px;padding:10px 12px;border:1px solid rgba(246,151,29,.4);border-radius:10px;background:rgba(246,151,29,.07);font-size:14px;color:#f3dcc0}
+.catatan{border-top:1px solid var(--garis);padding-top:14px;color:var(--kabur);font-size:13px;max-width:84ch}
+
+/* ================= tiruan layar aplikasi ================= */
+.isi b{font-weight:600}
+.dk{background:linear-gradient(180deg,#0b1b33,#12305a);color:#fff;padding:8px 9px 7px}
+.dk .b1{display:flex;gap:7px;align-items:center}
+.dk .logo{width:24px;height:24px;border-radius:7px;background:linear-gradient(145deg,#4fc3f7,#0288d1);flex:none}
+.dk small{display:block;font-family:'Share Tech Mono',monospace;font-size:6.2px;letter-spacing:.14em;color:#9fb6d6}
+.dk .b1 b{font-size:11.5px}
+.dk .ikon{display:flex;gap:4px;margin-top:6px;align-items:center}
+.ik{min-width:23px;height:23px;border:1px solid rgba(255,255,255,.28);border-radius:6px;display:grid;place-items:center;color:#fff;font-size:8px;font-weight:700;position:relative}
+.ik svg{width:12px;height:12px}
+.ik .angka{position:absolute;top:-4px;right:-4px;background:var(--a-bahaya);color:#fff;border-radius:8px;font-size:7px;padding:0 3px;line-height:1.5}
+.ik.sorot,.cip.sorot,.tab.sorot,.tmb.sorot{box-shadow:0 0 0 2px var(--jingga)}
+.siapa{margin-left:auto;font-size:8px;font-weight:600;border:1px solid rgba(255,255,255,.28);border-radius:6px;padding:3px 6px}
+.rel{display:flex;flex-wrap:wrap;gap:4px;padding:6px 8px;background:var(--a-panel);border-bottom:1px solid var(--a-garis)}
+.cip{font-size:8px;font-weight:600;padding:3px 7px;border-radius:10px;border:1px solid var(--a-garis);color:var(--a-redup);background:#fff;white-space:nowrap}
+.cip.aktif{background:var(--a-aksen);border-color:var(--a-aksen);color:#fff}
+.cip i{font-style:normal;background:var(--a-bahaya);color:#fff;border-radius:7px;padding:0 4px;margin-left:3px;font-size:7px}
+.badan{padding:8px;display:flex;flex-direction:column;gap:7px}
+.judul{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13.5px;line-height:1.1}
+.ket{font-size:8.5px;color:var(--a-redup)}
+.kt{background:var(--a-panel);border:1px solid var(--a-garis);border-radius:9px;padding:7px 8px}
+.kt .t{font-size:7px;letter-spacing:.12em;color:var(--a-redup);font-weight:700;text-transform:uppercase}
+.kt .n{font-family:'Rajdhani',sans-serif;font-size:17px;font-weight:700;line-height:1.1}
+.dua{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.lc{display:inline-block;font-size:7.5px;font-weight:700;padding:1px 6px;border-radius:8px;background:#e7eef7;color:var(--a-redup)}
+.lc.ok{background:#dff4e9;color:var(--a-ok)} .lc.awas{background:#fbefd9;color:var(--a-awas)} .lc.bahaya{background:#fbe1e1;color:var(--a-bahaya)} .lc.biru{background:#dcefff;color:var(--a-aksen)}
+.tmb{display:inline-flex;align-items:center;justify-content:center;gap:4px;font-size:9px;font-weight:700;padding:5px 9px;border-radius:7px;background:var(--a-aksen);color:#fff;white-space:nowrap}
+.tmb.garis{background:#fff;color:var(--a-teks);border:1px solid var(--a-garis)}
+.tmb.hijau{background:var(--a-ok)} .tmb.lebar{display:flex;width:100%}
+.baris{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.dorong{margin-left:auto}
+.lbl{font-size:7px;letter-spacing:.1em;color:var(--a-redup);font-weight:700;text-transform:uppercase;margin-bottom:2px}
+.isian{min-height:22px;border:1px solid var(--a-garis);border-radius:6px;background:#fff;padding:3px 7px;display:flex;align-items:center;font-size:9.5px}
+.isian.tinggi{min-height:44px;align-items:flex-start}
+.isian.mono{font-family:'Share Tech Mono',monospace}
+/* layar masuk */
+.masuk{position:absolute;inset:0;background:radial-gradient(120% 60% at 50% 0%,#0f2447,#04070f);padding:20px 14px;color:#f2f6ff}
+.merek{font-family:Georgia,serif;font-style:italic;font-weight:800;font-size:30px;line-height:1;margin:16px 0 4px;background:linear-gradient(180deg,#ffd257,#f6971d 62%,#e07d10);-webkit-background-clip:text;background-clip:text;color:transparent}
+.masuk .sub{font-size:8px;color:#f6c063;margin-bottom:14px}
+.masuk .kartu{border:1px solid var(--garis);border-radius:10px;background:rgba(10,20,40,.8);padding:12px}
+.masuk .lbl{color:#8ea3c4}
+.masuk .isian{background:rgba(0,0,0,.3);border-color:var(--garis);color:#f2f6ff;font-family:'Share Tech Mono',monospace}
+.masuk .tmb{margin-top:10px;background:var(--sian);color:var(--sian-gelap);letter-spacing:.18em;padding:8px}
+.masuk .kaki{margin-top:8px;font-size:8.5px;color:var(--sian);text-decoration:underline}
+/* e-logbook */
+.ek{background:#0b1b33;color:#fff;padding:8px 9px}
+.ek .jdl{display:flex;justify-content:space-between;align-items:flex-start;gap:6px}
+.ek .jdl b{font-size:10.5px;line-height:1.2}
+.ek .jam{font-family:'Share Tech Mono',monospace;font-size:10px;text-align:right;color:#7fe3d2;white-space:nowrap}
+.ek .jam small{letter-spacing:0;color:#9fb6d6;font-size:6.5px}
+.ek .alat{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap}
+.ek .al{font-size:7.5px;font-weight:600;border:1px solid rgba(255,255,255,.28);border-radius:6px;padding:3px 6px}
+.tabs{display:flex;flex-wrap:wrap;gap:3px;padding:5px 7px;background:var(--a-panel);border-bottom:1px solid var(--a-garis)}
+.tab{font-size:7px;font-weight:700;padding:3px 6px;border-radius:5px;color:var(--a-redup);border:1px solid var(--a-garis);white-space:nowrap}
+.tab.aktif{background:#0b1b33;color:#fff;border-color:#0b1b33}
+.catat{background:var(--a-panel);border:1px solid var(--a-garis);border-left:3px solid var(--a-aksen);border-radius:8px;padding:7px 8px}
+.catat .atas{display:flex;gap:5px;align-items:center;font-size:8px;color:var(--a-redup);margin-bottom:3px;flex-wrap:wrap}
+.catat p{margin:0;font-size:9.5px}
+.catat .aksi{display:flex;gap:4px;margin-top:6px}
+.mini{font-size:8.5px;border:1px solid var(--a-garis);border-radius:5px;padding:2px 6px;background:#fff}
+/* modal */
+.modal{position:absolute;inset:0;z-index:20;background:rgba(8,15,30,.5);display:flex;align-items:flex-end;opacity:0;pointer-events:none;transition:opacity .3s}
+.modal .lembar{width:100%;max-height:94%;background:var(--a-panel);border-radius:14px 14px 0 0;padding:10px 10px 12px;display:flex;flex-direction:column;gap:6px;transform:translateY(30px);transition:transform .35s}
+.modal.buka{opacity:1} .modal.buka .lembar{transform:none}
+.modal h4{margin:0;font-family:'Rajdhani',sans-serif;font-size:13.5px;display:flex;justify-content:space-between}
+.modal h4 span{color:var(--a-redup);font-family:'Barlow',sans-serif;font-size:11px}
+.ttd{height:44px;border:1px dashed #9fb0c8;border-radius:7px;background:#fafcff;position:relative;display:grid;place-items:center}
+.ttd svg{height:34px;width:70%}
+.ttd path{fill:none;stroke:#0d2b55;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:420;stroke-dashoffset:420;transition:stroke-dashoffset 1.4s ease}
+.ttd.jadi path{stroke-dashoffset:0}
+.ttd .petunjuk{position:absolute;left:7px;bottom:3px;font-size:7px;color:var(--a-redup)}
+.sembunyi{display:none!important}
+.muncul{animation:muncul .45s ease 1}
+@keyframes muncul{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.toast{position:absolute;left:10px;right:10px;bottom:12px;z-index:25;background:#103a2a;color:#d6f7e6;border-radius:9px;padding:7px 9px;font-size:9px;opacity:0;transform:translateY(8px);transition:all .3s}
+.toast.buka{opacity:1;transform:none}
+/* tabel jadwal */
+.jdw{width:100%;border-collapse:collapse;font-size:7.5px;background:#fff}
+.jdw th,.jdw td{border:1px solid var(--a-garis);padding:3px 2px;text-align:center}
+.jdw th{background:#eef3f9;font-weight:700}
+.jdw td:first-child,.jdw th:first-child{text-align:left;padding-left:4px;white-space:nowrap}
+.jdw .kini{background:#dcefff;box-shadow:inset 0 0 0 1px var(--a-aksen)}
+.jdw .saya td{background:#fff7e6;font-weight:700}
+.jdw .saya td.kini{background:#cfe6ff}
+.kode{font-family:'Share Tech Mono',monospace;font-weight:700}
+.daftar{display:flex;flex-direction:column;gap:4px}
+.daftar div{display:grid;grid-template-columns:44px 1fr;gap:6px;font-size:8.5px;align-items:baseline;background:#fff;border:1px solid var(--a-garis);border-radius:6px;padding:3px 6px}
+/* status daily check */
+.cek{display:grid;grid-template-columns:1fr auto;gap:4px 6px;align-items:center;font-size:9px}
+.st{font-size:8px;font-weight:700;padding:2px 8px;border-radius:9px;background:#dff4e9;color:var(--a-ok);min-width:58px;text-align:center}
+.st.alarm{background:#fbefd9;color:var(--a-awas)} .st.ggn{background:#fbe1e1;color:var(--a-bahaya)}
+/* layar kunci */
+.kunci{position:absolute;inset:0;background:radial-gradient(160% 70% at 50% 0%,#1d3f73,#0a1630 45%,#040812);color:#fff}
+.kunci .jam{position:absolute;top:34px;left:0;right:0;text-align:center}
+.kunci .jam b{display:block;font-size:46px;font-weight:600;line-height:1}
+.kunci .jam span{font-size:10px}
+.notif{margin:0 8px 6px;background:rgba(236,242,252,.95);color:#101828;border-radius:13px;padding:7px 9px;font-size:9.5px}
+.notif .atas{display:flex;gap:5px;align-items:center;font-size:8px;color:#51607a;margin-bottom:2px}
+.notif .atas i{width:13px;height:13px;border-radius:4px;background:linear-gradient(145deg,#ffd257,#e07d10);display:block}
+.notif .atas em{margin-left:auto;font-style:normal}
+.notif b{display:block;font-size:10px}
+.tumpuk{position:absolute;left:0;right:0;top:112px}
+/* stiker QR */
+.qr{width:74px;height:74px;margin:0 auto;background:
+  linear-gradient(#111,#111) 0 0/22px 22px no-repeat,linear-gradient(#111,#111) 100% 0/22px 22px no-repeat,linear-gradient(#111,#111) 0 100%/22px 22px no-repeat,
+  repeating-conic-gradient(#111 0 25%,#fff 0 50%) 50%/11px 11px;border:5px solid #fff;outline:1px solid var(--a-garis)}
+.bidik{position:relative;height:150px;border-radius:10px;background:#101a2b;display:grid;place-items:center;overflow:hidden}
+.bidik:after{content:"";position:absolute;inset:26px 60px;border:2px solid var(--sian);border-radius:10px}
+.pilih{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.pilih>span{color:var(--redup);font-size:14px;margin-right:2px}
+.pilih button{font:600 14px 'Barlow',sans-serif;padding:9px 16px;border-radius:22px;border:1px solid var(--garis);background:var(--kartu);color:var(--teks);cursor:pointer}
+.pilih button[aria-pressed="true"]{background:var(--sian);color:var(--sian-gelap);border-color:var(--sian)}
+.pilih button:focus-visible{outline:2px solid var(--jingga);outline-offset:3px}
+/* kotak TTD QR */
+.ttdq{min-height:44px;border-radius:7px;background:#0d1626;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:9.5px;padding:4px;text-align:center}
+.ttdq small{font-size:7.5px;color:#9fb0c8;font-family:'Share Tech Mono',monospace}
+.ttdq.jadi b{color:#6ee7a8}
+.qr{position:relative;flex:none}
+.qr.logo:after{content:"";position:absolute;left:50%;top:50%;width:22%;height:22%;transform:translate(-50%,-50%);border-radius:4px;background:linear-gradient(145deg,#ffd257,#e07d10);box-shadow:0 0 0 3px #fff}
+.qr.kecil{width:46px;height:46px;border-width:3px;background-size:22px 22px,22px 22px,22px 22px,7px 7px;background:
+  linear-gradient(#111,#111) 0 0/14px 14px no-repeat,linear-gradient(#111,#111) 100% 0/14px 14px no-repeat,linear-gradient(#111,#111) 0 100%/14px 14px no-repeat,
+  repeating-conic-gradient(#111 0 25%,#fff 0 50%) 50%/7px 7px}
+.ttd-blok{display:flex;gap:8px;margin-top:5px}
+.ttd-blok>div{flex:1;border:1px solid var(--a-garis);border-radius:7px;padding:5px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:8px;text-align:center;min-height:78px}
+.ttd-blok .kosong{width:46px;height:46px;border:1px dashed #9fb0c8;border-radius:5px;display:grid;place-items:center;color:var(--a-redup);font-size:7px}
+/* ======== tampilan PC / laptop ======== */
+.panggung.pc{grid-template-columns:minmax(0,1.75fr) minmax(0,1fr);gap:30px}
+@media (max-width:920px){.panggung.pc{grid-template-columns:1fr;justify-items:stretch}}
+.pc .kolom-hp{align-items:stretch}
+.pc .hp{width:100%;max-width:780px;aspect-ratio:16/10.6;border-radius:14px;padding:10px;margin:0 auto 14px;background:linear-gradient(145deg,#2a3448,#0b111c)}
+.pc .hp:after{content:"";position:absolute;left:-5%;right:-5%;bottom:-15px;height:15px;border-radius:2px 2px 16px 16px;background:linear-gradient(#4a5568,#1b2232)}
+.pc .layar{border-radius:5px}
+.pc .status{height:28px;padding:0 10px;align-items:center;justify-content:flex-start;gap:10px;background:#dfe5ee;color:#334}
+.pc .status .titik{letter-spacing:3px;color:#9aa5b4;font-size:9px}
+.pc .status .url{flex:1;max-width:60%;background:#fff;border-radius:12px;padding:3px 12px;font-weight:500;font-size:10px;color:#333}
+.pc .isi{inset:28px 0 0;zoom:1.28}
+.pc .putar-besar{border-radius:5px}
+.pc .kemajuan{width:100%;max-width:780px;margin:0 auto}
+.pc .kontrol{justify-content:center}
+.pc .modal{align-items:center;justify-content:center}
+.pc .modal .lembar{width:64%;border-radius:12px;max-height:94%;transform:scale(.97)}
+.pc .modal.buka .lembar{transform:none}
+.pc .dk{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.pc .dk .ikon{margin-top:0}
+.pc .kunci{background:linear-gradient(160deg,#1e3a5f,#0b1324)}
+.pc .kunci .jam{display:none}
+.pc .tumpuk{top:auto;bottom:8px;left:auto;right:8px;width:44%}
+.pc .bidik{height:118px}
+.pc .bidik:after{inset:16px 38%}
+@media (prefers-reduced-motion:reduce){*{transition-duration:.01s!important;animation-duration:.01s!important;animation-iteration-count:1!important}}
+</style>
+</head>
+<body>
+<div class="bungkus">
+  <header>
+    <div class="alis">VIDEO TUTORIAL · AVENGERS UNTUK TEKNISI</div>
+    <h1>Cara memakai fitur Avengers, langkah demi langkah</h1>
+    <p>Delapan bab pendek, masing-masing sekitar setengah sampai satu menit. Pilih tampilan <b>HP</b> atau <b>PC / Laptop</b>, pilih bab, lalu putar. Bab berikutnya menyambung sendiri. Versi aplikasi 2.11.
+       Pasang di HP dan mengaktifkan notifikasi punya tutorialnya sendiri: <a href="../../public/contoh/tutorial-hp.html">Avengers di HP, Pasang dan Notif</a>.
+       Uraian lengkapnya ada di <a href="manual-teknisi.html">Buku Manual Teknisi</a>.</p>
+  </header>
+
+  <div class="pilih" role="group" aria-label="Jenis perangkat"><span>Tampilan:</span><button type="button" id="pHp" aria-pressed="true">📱 HP</button><button type="button" id="pPc" aria-pressed="false">💻 PC / Laptop</button></div>
+  <div class="bab" id="bab" role="group" aria-label="Daftar bab"></div>
+
+  <section class="panggung" id="panggung">
+    <div class="kolom-hp">
+      <div class="hp"><div class="layar" id="layar">
+        <div class="status" id="status"><span id="jamSt">09:45</span><span>▮▮▮ 78%</span></div>
+        <div class="isi" id="isi"></div>
+        <div class="jari" id="jari"></div>
+        <button class="putar-besar" id="putarBesar" type="button"><span><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="#35e0c4"/><path d="M26 20l18 12-18 12z" fill="#04231e"/></svg>Putar tutorial</span></button>
+      </div></div>
+      <div class="kemajuan" id="kemajuan"></div>
+      <div class="kontrol">
+        <button type="button" id="bMundur" aria-label="Langkah sebelumnya"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M3 2h2v12H3zM14 2v12L6 8z"/></svg></button>
+        <button type="button" id="bPutar" class="utama" aria-label="Putar"><svg id="ikPutar" width="18" height="18" viewBox="0 0 18 18" fill="currentColor"><path d="M4 2l12 7-12 7z"/></svg></button>
+        <button type="button" id="bMaju" aria-label="Langkah berikutnya"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M11 2h2v12h-2zM2 2v12l8-6z"/></svg></button>
+      </div>
+    </div>
+    <div class="keterangan" aria-live="polite">
+      <div class="nomor" id="nomor"></div>
+      <h2 id="judul"></h2>
+      <p class="narasi" id="narasi"></p>
+      <div class="tip" id="tip" hidden></div>
+    </div>
+  </section>
+
+  <p class="catatan">Ini simulasi, bukan tangkapan layar asli. Nama, NIK, unit, dan jam di sini hanya contoh, dan tata letak di HP Anda bisa sedikit berbeda.
+     Tombol yang tidak muncul di akun Anda biasanya berarti peran akun itu memang tidak punya hak tersebut. Ingin dijadikan berkas video (MP4)? Putar halaman ini layar penuh lalu rekam dengan perekam layar HP atau PC.</p>
+</div>
+
+<script>
+(function(){
+  const $ = (id) => document.getElementById(id);
+  const isi = $('isi'), layar = $('layar'), jari = $('jari');
+  const q = (sel) => isi.querySelector(sel);
+
+  /* ---------- potongan layar yang dipakai berulang ---------- */
+  const IK = {
+    buku:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>',
+    lonceng:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>',
+    tema:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>',
+    profil:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+    keluar:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 17l5-5-5-5"/><path d="M20 12H9"/><path d="M12 20H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h6"/></svg>'
+  };
+  const REL = ['Beranda','Trouble Semua Unit','NOTAM','Dinas Hari Ini','Kotak Masuk','Database Unit'];
+  function dash(aktif, lonceng){
+    return `<div class="dk"><div class="b1"><div class="logo"></div><div><small>PERUM LPPNPI · CABANG JATSC</small><b>Dashboard Fasilitas Teknik</b></div></div>
+      <div class="ikon"><div class="ik" id="ikBuku">${IK.buku}</div><div class="ik" id="ikLonceng">${IK.lonceng}${lonceng?`<span class="angka">${lonceng}</span>`:''}</div>
+      <div class="ik" id="ikEn">EN</div><div class="ik" id="ikTema">${IK.tema}</div><div class="ik" id="ikProfil">${IK.profil}</div><div class="ik" id="ikKeluar">${IK.keluar}</div>
+      <div class="siapa">Andi Pratama</div></div></div>
+      <div class="rel">${REL.map((r,i)=>`<span class="cip${r===aktif?' aktif':''}" id="rel${i}">${r}${r==='Trouble Semua Unit'?'<i>2</i>':''}${r==='Kotak Masuk'&&lonceng?`<i>${lonceng}</i>`:''}</span>`).join('')}</div>`;
+  }
+  const TABS = ['📋 LOGBOOK FASILITAS','🖥 DAILY CHECK','🔧 PREVENTIVE MAINTENANCE','📄 FORM','⚠ ISU / UPDATE ISSUE','📊 REKAP & MATRIK'];
+  function elog(aktif){
+    return `<div class="ek"><div class="jdl"><div><small style="font-size:6.2px;letter-spacing:.14em;color:#9fb6d6;font-family:'Share Tech Mono',monospace">PERUM LPPNPI · CABANG JATSC</small><br><b>E-Logbook · Unit Radtel</b></div>
+      <div class="jam">02:45:10<br><small>13 OKT 2026 UTC</small></div></div>
+      <div class="alat"><span class="al" id="alDash">← Dashboard Fasilitas Teknik</span><span class="al">Keluar</span></div></div>
+      <div class="tabs">${TABS.map((t,i)=>`<span class="tab${i===aktif?' aktif':''}" id="tab${i}">${t}</span>`).join('')}</div>`;
+  }
+  const TTDQ = (id) => `<div class="ttdq" id="${id}"><b>Tekan untuk tanda tangan</b><small>jadi kode QR: unit, nama, dan NIK akun Anda</small></div>`;
+  const TTDQ_JADI = '<b>✓ Ditandatangani</b><small>tekan lagi untuk membatalkan</small>';
+  const TTDQ_SUDAH = `<div class="ttdq jadi">${TTDQ_JADI}</div>`;
+  const kartuCatatan = (extra='') => `<div class="catat" id="kartu1"><div class="atas"><b>13 OKT 2026</b><span>02:10 UTC</span><span class="lc biru">Pagi</span><span class="lc">New JATSC</span>${extra}</div>
+      <p>Pengecekan VCS Garex lewat TMCS, CWP03 alarm headset. Headset diganti, normal kembali.</p>
+      <div class="ket" style="margin-top:3px">diinput oleh Andi Pratama</div>
+      <div class="aksi"><span class="mini">👁 Detail</span><span class="mini" id="tIsu">⚠</span></div></div>`;
+
+  /* ---------- isi tiap bab ---------- */
+  const BAB = [
+  { judul:'Masuk dan kenali layarnya', ringkas:'login, menu, pindah ke E-Logbook', langkah:[
+    { j:'Buka teknik-avengers.com, lalu masuk', n:'Ketik NIK atau username dan password Anda, lalu tekan MASUK. Belum punya akun? Tekan “Belum punya akun? Daftar” di bawah tombol.',
+      tip:'Akun baru belum bisa dipakai sampai diaktifkan administrator atau admin unit Anda.', dur:7000,
+      html:()=>`<div class="masuk"><div class="merek">AVENGERS</div><div class="sub">Advanced Engineer Electronic Reporting System</div>
+        <div class="kartu"><div class="lbl">NIK / USERNAME</div><div class="isian" id="kNik"></div><div class="lbl" style="margin-top:7px">PASSWORD</div><div class="isian" id="kPass"></div>
+        <div class="tmb lebar" id="tMasuk">MASUK</div><div class="kaki">Belum punya akun? Daftar</div></div></div>`,
+      aksi:[[500,'ketik','#kNik','10012345'],[2300,'ketik','#kPass','••••••••'],[4200,'tap','#tMasuk']] },
+    { j:'Inilah Beranda', n:'Sesudah masuk Anda mendarat di Beranda: kartu peralatan tiap unit, panel Perlu Perhatian, trouble yang belum selesai, dan siapa yang berdinas hari ini. Bagian ini sama untuk semua akun.', dur:7500,
+      html:()=>dash('Beranda',2)+`<div class="badan"><div class="judul">Peralatan Teknik New JATSC</div>
+        <div class="dua"><div class="kt"><div class="t">Radtel</div><div class="n">12 alat</div><span class="lc ok">normal</span></div><div class="kt"><div class="t">Radkom</div><div class="n">18 alat</div><span class="lc awas">1 trouble</span></div></div>
+        <div class="kt muncul"><div class="t">Perlu Perhatian</div><div style="font-size:9px;margin-top:2px">DS Test · Radtel · <span class="lc awas">jatuh tempo hari ini</span></div></div>
+        <div class="kt"><div class="t">Trouble belum selesai</div><div style="font-size:9px;margin-top:2px">CWP03 alarm headset · <span class="lc bahaya">3 hr 4 jam 12 mnt</span></div></div></div>`,
+      aksi:[] },
+    { j:'Deretan ikon di kepala halaman', n:'Dari kiri: buku membuka E-Logbook, lonceng berisi pemberitahuan milik Anda, EN mengganti bahasa, bulan mengganti tema terang atau gelap, orang membuka Profil, dan panah untuk Keluar.',
+      tip:'Selalu tekan Keluar kalau memakai HP atau komputer bersama.', dur:9000,
+      html:()=>dash('Beranda',2)+`<div class="badan"><div class="kt"><div class="t">Ikon di kepala</div><div class="daftar" style="margin-top:4px">
+        <div><b>Buku</b><span>buka E-Logbook</span></div><div><b>Lonceng</b><span>pemberitahuan untuk saya</span></div><div><b>EN</b><span>ganti bahasa</span></div><div><b>Bulan</b><span>tema terang / gelap</span></div><div><b>Orang</b><span>Profil dan notifikasi HP</span></div><div><b>Panah</b><span>Keluar</span></div></div></div></div>`,
+      aksi:[[600,'sorot','#ikBuku'],[1900,'sorot','#ikLonceng'],[3200,'sorot','#ikEn'],[4500,'sorot','#ikTema'],[5800,'sorot','#ikProfil'],[7100,'sorot','#ikKeluar']] },
+    { j:'Menu utama', n:'Di bawah kepala ada menu: Beranda, Trouble Semua Unit, NOTAM, Dinas Hari Ini, Kotak Masuk, dan Database Unit. Angka merah menunjukkan yang perlu dilihat. Coba buka Dinas Hari Ini.', dur:6500,
+      html:()=>dash('Beranda',2)+`<div class="badan"><div class="judul">Peralatan Teknik New JATSC</div><div class="ket">pilih menu di atas untuk berpindah layar</div></div>`,
+      aksi:[[3400,'tap','#rel3']] },
+    { j:'Dinas Hari Ini', n:'Siapa yang berdinas di tiap unit hari ini, lengkap dengan jamnya dalam UTC dan WIB. Yang sedang bertugas saat ini ditandai.', dur:6500,
+      html:()=>dash('Dinas Hari Ini',2)+`<div class="badan"><div class="judul">Dinas Hari Ini — Semua Unit</div>
+        <div class="kt"><div class="baris"><b>Radtel</b><span class="lc ok dorong">SEDANG DINAS</span></div><div class="ket">PSN · 00:00–12:00 UTC · 07.00–19.00 WIB</div><div style="font-size:9.5px;margin-top:2px">Andi Pratama, Sari Dewi</div></div>
+        <div class="kt"><div class="baris"><b>Radtel</b><span class="lc dorong">nanti</span></div><div class="ket">MN · 12:00–00:00 UTC · 19.00–07.00 WIB</div><div style="font-size:9.5px;margin-top:2px">Budi Santoso</div></div></div>`,
+      aksi:[] },
+    { j:'Pindah ke E-Logbook', n:'Tekan ikon buku. E-Logbook terbuka dengan akun yang sama, tanpa login lagi. Untuk pulang, tekan “← Dashboard Fasilitas Teknik” di kepala E-Logbook.', dur:8500,
+      html:()=>dash('Dinas Hari Ini',2)+`<div class="badan"><div class="judul">Dinas Hari Ini — Semua Unit</div></div>`,
+      aksi:[[900,'tap','#ikBuku'],[1500,'ganti',()=>elog(0)+`<div class="badan"><div class="baris"><div><div class="judul">Buku Catatan Fasilitas</div><div class="ket">jam di kanan atas selalu UTC, dari jam server</div></div></div>${kartuCatatan()}</div>`],[5200,'sorot','#alDash']] }
+  ]},
+
+  { judul:'Jadwal dinas dan kodenya', ringkas:'lihat jadwal bulan ini, arti kode', langkah:[
+    { j:'Buka Database Unit, pilih unit', n:'Tekan Database Unit, lalu pilih unit Anda. Unit lain tetap bisa dibuka untuk melihat jadwal dinasnya saja.', dur:6500,
+      html:()=>dash('Beranda')+`<div class="badan"><div class="judul">Peralatan Teknik New JATSC</div></div>`,
+      aksi:[[900,'tap','#rel5'],[1500,'ganti',()=>dash('Database Unit')+`<div class="badan"><div class="judul">Database Unit</div><div class="baris"><span class="cip" id="uRadtel">Radtel</span><span class="cip">Radkom 🔒</span><span class="cip">PPABN 🔒</span></div><div class="ket">Jadwal dinas unit lain: hanya untuk dilihat</div></div>`],[3800,'tap','#uRadtel']] },
+    { j:'Subtab Jadwal Dinas', n:'Di dalam unit ada beberapa subtab. Tekan Jadwal Dinas: satu baris per orang, satu kolom per tanggal. Kolom hari ini diberi tanda, dan baris Anda mudah dicari.', dur:8500,
+      html:()=>dash('Database Unit')+`<div class="badan"><div class="baris"><span class="cip">Peralatan</span><span class="cip">Sparepart</span><span class="cip" id="sDinas">Jadwal Dinas</span><span class="cip">Kegiatan Berkala</span><span class="cip">Personel</span></div><div id="wadah"></div></div>`,
+      aksi:[[900,'tap','#sDinas'],[1400,'kelas','#sDinas','aktif'],[1500,'isi','#wadah',`<div class="ket" style="margin-bottom:4px">Oktober 2026 · bulan berjalan</div><table class="jdw muncul"><tr><th>Nama</th><th>11</th><th>12</th><th class="kini">13</th><th>14</th><th>15</th></tr>
+        <tr class="saya"><td>Andi P.</td><td class="kode">MN</td><td>-</td><td class="kini kode">PSN</td><td class="kode">PSN</td><td class="kode">MN</td></tr>
+        <tr><td>Sari D.</td><td class="kode">PSN</td><td class="kode">MN</td><td class="kini kode">PSN</td><td>-</td><td class="kode">PSJ</td></tr>
+        <tr><td>Budi S.</td><td>-</td><td class="kode">PSJ</td><td class="kini kode">MN</td><td class="kode">MN</td><td>-</td></tr></table>`]] },
+    { j:'Arti kode dinas', n:'Huruf terakhir menyebut gedung: J untuk JATSC, N untuk New JATSC. PS berarti pagi sampai siang, M berarti malam. P1, S1, dan M1 dipakai kalau hari itu dibagi tiga rombongan.',
+      tip:'SPKL di depan kode berarti lembur dengan surat perintah. Jamnya mengikuti kode dasarnya.', dur:9000,
+      html:()=>dash('Database Unit')+`<div class="badan"><div class="judul">Kode dinas</div><div class="daftar">
+        <div><b class="kode">PSJ / PSN</b><span>07.00–19.00 WIB (00–12 UTC)</span></div><div><b class="kode">MJ / MN</b><span>19.00–07.00 WIB (12–00 UTC)</span></div>
+        <div><b class="kode">P1</b><span>07.00–14.00 WIB</span></div><div><b class="kode">S1</b><span>14.00–20.00 WIB</span></div><div><b class="kode">M1</b><span>20.00–07.00 WIB</span></div>
+        <div><b class="kode">SPKL…</b><span>lembur, jam ikut kode dasarnya</span></div></div></div>`,
+      aksi:[] },
+    { j:'HP mengingatkan sebelum dinas', hp:true, n:'Kalau notifikasi HP sudah aktif, satu jam sebelum dinas Anda mulai HP berbunyi. Kalau daftar dinas diubah, Anda juga dikabari tanggal dan kode yang berubah.', dur:7000,
+      html:()=>`<div class="kunci"><div class="jam"><b>06:00</b><span>Selasa, 13 Oktober</span></div><div class="tumpuk"><div class="notif muncul"><div class="atas"><i></i>Avengers<em>sekarang</em></div><b>🕖 Pengingat dinas</b>Dinas PSN Anda mulai pukul 07.00 WIB di New JATSC.</div>
+        <div class="notif sembunyi" id="n2"><div class="atas"><i></i>Avengers<em>10.15</em></div><b>📅 Daftar dinas diperbarui</b>Radtel · 15 Okt: MN menjadi PSN.</div></div></div>`,
+      aksi:[[3600,'lepas','#n2','sembunyi'],[3600,'kelas','#n2','muncul']] }
+  ]},
+
+  { judul:'Mengisi Logbook Fasilitas', ringkas:'tambah catatan, lampiran, TTD', langkah:[
+    { j:'Tekan + Tambah Catatan', n:'Di E-Logbook, pastikan Anda berada di tab LOGBOOK FASILITAS dan unit yang benar. Lalu tekan + Tambah Catatan.', dur:5500,
+      html:()=>elog(0)+`<div class="badan"><div class="baris"><div class="judul">Buku Catatan Fasilitas</div><span class="tmb dorong" id="tTambah">+ Tambah Catatan</span></div><div class="ket">Setiap catatan tersimpan langsung ke database server.</div></div>`,
+      aksi:[[2600,'tap','#tTambah']] },
+    { j:'Tanggal, jam, dinas, lokasi', n:'Tanggal dan jam sudah terisi otomatis dalam UTC dari jam server. Periksa, lalu pilih Dinas / Shift dan Lokasi gedungnya: JATSC atau New JATSC.',
+      tip:'Jam di E-Logbook selalu UTC. WIB dikurangi 7 jam: 09.10 WIB ditulis 02:10.', dur:8000,
+      html:()=>elog(0)+`<div class="modal buka"><div class="lembar"><h4>Tambah Catatan Logbook <span>✕</span></h4>
+        <div class="dua"><div><div class="lbl">Tanggal</div><div class="isian mono">13/10/2026</div></div><div><div class="lbl">Jam (UTC)</div><div class="isian mono">02:10</div></div></div>
+        <div class="dua"><div><div class="lbl">Dinas / Shift</div><div class="isian" id="fDinas">— pilih —</div></div><div><div class="lbl">Lokasi</div><div class="isian" id="fLok">New JATSC</div></div></div>
+        <div class="lbl">Uraian Pekerjaan / Kejadian</div><div class="isian tinggi"></div></div></div>`,
+      aksi:[[2500,'tap','#fDinas'],[3000,'isi','#fDinas','Pagi'],[5000,'sorot','#fLok']] },
+    { j:'Tulis uraiannya', n:'Tulis apa yang dikerjakan atau apa yang terjadi, hasilnya, dan sisa pekerjaannya kalau ada. Tulis sejelas mungkin, karena catatan inilah yang dibaca rombongan berikutnya.', dur:9000,
+      html:()=>elog(0)+`<div class="modal buka"><div class="lembar"><h4>Tambah Catatan Logbook <span>✕</span></h4>
+        <div class="dua"><div><div class="lbl">Dinas / Shift</div><div class="isian">Pagi</div></div><div><div class="lbl">Lokasi</div><div class="isian">New JATSC</div></div></div>
+        <div class="lbl">Uraian Pekerjaan / Kejadian</div><div class="isian tinggi" id="fUraian"></div>
+        <div class="lbl">Lampiran — Hasil Scan / Foto (opsional)</div><div class="isian" id="fLamp" style="color:var(--a-redup)">Pilih berkas…</div></div></div>`,
+      aksi:[[600,'ketik','#fUraian','Pengecekan VCS Garex lewat TMCS, CWP03 alarm headset. Headset diganti, normal kembali.',4200]] },
+    { j:'Lampirkan foto atau hasil scan', n:'Boleh melampirkan sampai 6 berkas, masing-masing paling besar 8 MB: JPG, PNG, WEBP, atau PDF. Foto besar dikecilkan otomatis sebelum dikirim.', dur:6500,
+      html:()=>elog(0)+`<div class="modal buka"><div class="lembar"><h4>Tambah Catatan Logbook <span>✕</span></h4>
+        <div class="lbl">Uraian Pekerjaan / Kejadian</div><div class="isian tinggi">Pengecekan VCS Garex lewat TMCS, CWP03 alarm headset. Headset diganti, normal kembali.</div>
+        <div class="lbl">Lampiran — Hasil Scan / Foto (opsional)</div><div class="isian" id="fLamp" style="color:var(--a-redup)">Pilih berkas…</div><div id="lampList"></div>
+        <div class="ket">Maksimal 6 berkas, 8 MB per berkas.</div></div></div>`,
+      aksi:[[1600,'tap','#fLamp'],[2300,'isi','#lampList','<div class="baris muncul" style="margin-top:4px"><span class="lc biru">📷 headset-cwp03.jpg</span><span class="lc">412 KB</span></div>']] },
+    { j:'Nama teknisi dan tanda tangan QR', n:'Nama Anda sudah tercantum sebagai Teknisi Pelaksana; tekan + Nama kalau dikerjakan berdua. Lalu tekan kotak TTD Teknisi bertuliskan “Tekan untuk tanda tangan”. Kotaknya berubah menjadi ✓ Ditandatangani.',
+      tip:'Tanda tangan tersimpan sebagai kode QR berisi unit, nama, dan NIK akun Anda. Salah tekan? Tekan lagi untuk membatalkan.', dur:8500,
+      html:()=>elog(0)+`<div class="modal buka"><div class="lembar"><h4>Tambah Catatan Logbook <span>✕</span></h4>
+        <div class="baris"><div class="lbl" style="margin:0">Nama Teknisi Pelaksana</div><span class="tmb garis dorong">+ Nama</span></div><div class="isian">Andi Pratama</div>
+        <div class="lbl">TTD Teknisi</div>${TTDQ('ttd1')}</div></div>`,
+      aksi:[[3000,'tap','#ttd1'],[3500,'kelas','#ttd1','jadi'],[3500,'isi','#ttd1',TTDQ_JADI]] },
+    { j:'Pilih Manager Teknik, lalu simpan', n:'Di kolom Manager Teknik, pilih nama Manager Teknik dari daftar. Tanda tangannya dibubuhkan belakangan lewat kotak masuk akunnya. Tekan Simpan Catatan: ia langsung dikabari ada lembar yang menunggu.',
+      tip:'Manager Teknik sedang digantikan PH? Tetap pilih Manager Teknik-nya; sistem ikut mengantarkan lembar itu ke PH. Nama PH tidak perlu diketik.', dur:9500,
+      html:()=>elog(0)+`<div class="modal buka"><div class="lembar"><h4>Tambah Catatan Logbook <span>✕</span></h4>
+        <div class="lbl">TTD Teknisi</div>${TTDQ_SUDAH}
+        <div class="lbl">Manager Teknik (nama)</div><div class="isian" id="fPj">— pilih Manager Teknik — ▾</div>
+        <div class="ket">TTD Manager Teknik dibubuhkan belakangan lewat kotak masuk akun yang dituju.</div>
+        <div class="baris" style="margin-top:4px"><span class="tmb garis">Batal</span><span class="tmb dorong" id="tSimpan">💾 Simpan Catatan</span></div></div></div>`,
+      aksi:[[1500,'tap','#fPj'],[2100,'isi','#fPj','Rina Kusuma ▾'],[6200,'tap','#tSimpan']] },
+    { j:'Catatan tersimpan', n:'Catatan muncul di daftar paling atas. Tombol di kartunya: Detail untuk melihat lengkap, dan tanda seru untuk membuat isu dari catatan itu. Mencetak dilakukan lewat tombol Cetak Logbook di atas daftar.',
+      tip:'Begitu Manager Teknik menandatangani, HP Anda dikabari. Kalau 30 menit sesudah dinas selesai belum juga ditandatangani, Anda juga diingatkan.', dur:8500,
+      html:()=>elog(0)+`<div class="badan"><div class="baris"><div class="judul">Buku Catatan Fasilitas</div><span class="tmb dorong">+ Tambah Catatan</span></div><div class="muncul">${kartuCatatan('<span class="lc awas">menunggu TTD</span>')}</div></div><div class="toast" id="ts">Catatan tersimpan.</div>`,
+      aksi:[[400,'kelas','#ts','buka'],[3000,'lepas','#ts','buka']] }
+  ]},
+
+  { judul:'Mengisi Daily Check', ringkas:'form harian per unit', langkah:[
+    { j:'Tab DAILY CHECK, tekan + Form Baru', n:'Buka tab DAILY CHECK. Riwayat lembar yang sudah diisi tampil lebih dulu. Untuk mengisi lembar hari ini tekan + Form Baru.', dur:6500,
+      html:()=>elog(0)+`<div class="badan"><div class="judul">Buku Catatan Fasilitas</div></div>`,
+      aksi:[[800,'tap','#tab1'],[1400,'ganti',()=>elog(1)+`<div class="badan"><div class="baris"><div><div class="judul">Daily Check</div><div class="ket">riwayat lembar tersimpan</div></div><span class="tmb dorong" id="tForm">+ Form Baru</span></div>
+        <div class="kt"><div class="baris"><b>12 OKT 2026 · Malam</b><span class="lc ok dorong">sudah TTD</span></div><div class="ket">Sari Dewi · New JATSC</div></div></div>`],[4200,'tap','#tForm']] },
+    { j:'Klik status tiap butir', n:'Setiap butir pemeriksaan dimulai dari Normal. Klik kotaknya untuk menggantinya: Normal, lalu Alarm atau Perlu Pantau, lalu Gangguan. Isi keterangannya kalau tidak normal.',
+      tip:'Unit dengan beberapa lembar (misalnya Radtel JATSC dan New JATSC, atau Listrik: STS, MDS, Beban, UPS) memilih lembarnya lewat subtab di atas form.', dur:9000,
+      html:()=>elog(1)+`<div class="modal buka"><div class="lembar"><h4>Daily Check <span>✕</span></h4><div class="ket">Klik status untuk mengubah kondisi: Normal → Alarm → Gangguan.</div>
+        <div class="cek"><span>Server TMCS</span><span class="st">Normal</span><span>CWP 01 – 12</span><span class="st" id="st2">Normal</span><span>Recording Neptuno</span><span class="st">Normal</span><span>Suhu ruang MER</span><span class="st">Normal</span></div>
+        <div class="lbl" style="margin-top:4px">Keterangan</div><div class="isian" id="dcKet"></div></div></div>`,
+      aksi:[[2200,'tap','#st2'],[2600,'isi','#st2','Alarm'],[2600,'kelas','#st2','alarm'],[4400,'ketik','#dcKet','CWP03 alarm headset',1600]] },
+    { j:'Tanda tangan dan simpan', n:'Di bagian bawah form: tekan kotak TTD Teknisi, pilih Manager Teknik di “Mengetahui — Manager Teknik”, lalu tekan Simpan Daily Check.', dur:8000,
+      html:()=>elog(1)+`<div class="modal buka"><div class="lembar"><h4>Daily Check <span>✕</span></h4>
+        <div class="lbl">Nama Teknisi Pelaksana</div><div class="isian">Andi Pratama</div><div class="lbl">TTD Teknisi</div>${TTDQ('ttd2')}
+        <div class="lbl">Mengetahui — Manager Teknik</div><div class="isian" id="dcMt">— pilih Manager Teknik — ▾</div>
+        <div class="baris" style="margin-top:4px"><span class="tmb garis">Batal</span><span class="tmb dorong" id="tSimpanDc">💾 Simpan Daily Check</span></div></div></div>`,
+      aksi:[[1300,'tap','#ttd2'],[1800,'kelas','#ttd2','jadi'],[1800,'isi','#ttd2',TTDQ_JADI],[3300,'tap','#dcMt'],[3800,'isi','#dcMt','Rina Kusuma ▾'],[5800,'tap','#tSimpanDc']] },
+    { j:'Lihat lagi atau cetak dari riwayat', n:'Lembar yang tersimpan muncul di riwayat. Dari situ bisa dibuka detailnya atau dicetak dengan tombol printer. Cetak ditolak selama tanda tangannya belum lengkap.', dur:7000,
+      html:()=>elog(1)+`<div class="badan"><div class="baris"><div class="judul">Daily Check</div><span class="tmb dorong">+ Form Baru</span></div>
+        <div class="kt muncul"><div class="baris"><b>13 OKT 2026 · Pagi</b><span class="lc awas dorong">menunggu TTD</span></div><div class="ket">Andi Pratama · New JATSC · 1 alarm</div><div class="aksi baris" style="margin-top:5px"><span class="mini">👁 Detail</span><span class="mini">🖨</span></div></div>
+        <div class="kt"><div class="baris"><b>12 OKT 2026 · Malam</b><span class="lc ok dorong">sudah TTD</span></div><div class="ket">Sari Dewi · New JATSC</div></div></div>`,
+      aksi:[] }
+  ]},
+
+  { judul:'Melaporkan isu (trouble)', ringkas:'dari catatan logbook, sampai ditutup', langkah:[
+    { j:'Tekan ⚠ di kartu catatan', n:'Gangguan biasanya sudah ditulis di logbook. Supaya tidak mengetik ulang, tekan tombol ⚠ di kartu catatannya.', dur:5500,
+      html:()=>elog(0)+`<div class="badan"><div class="baris"><div class="judul">Buku Catatan Fasilitas</div><span class="tmb dorong">+ Tambah Catatan</span></div>${kartuCatatan()}</div>`,
+      aksi:[[2400,'tap','#tIsu']] },
+    { j:'Form isu sudah terisi', n:'Layar pindah ke tab Isu dan form Tambah Isu terbuka dengan jenis, keterangan, lokasi, tanggal dan jam report, serta lampiran dari catatan tadi. Periksa dan betulkan seperlunya, lalu tekan Simpan Isu.',
+      tip:'Bisa juga dari awal: tab ISU / UPDATE ISSUE, lalu + Tambah Isu. “Dilaporkan Oleh” selalu akun yang sedang login.', dur:9500,
+      html:()=>elog(4)+`<div class="modal buka"><div class="lembar"><h4>Tambah Isu <span>✕</span></h4><div class="ket">Diisi dari catatan logbook 13 OKT 2026 02:10 UTC. Isinya masih bisa disunting.</div>
+        <div class="lbl">Jenis Issue</div><div class="isian">CWP03 alarm headset</div><div class="lbl">Keterangan</div><div class="isian tinggi">Pengecekan VCS Garex lewat TMCS… Sumber: Logbook Fasilitas 13 OKT 2026</div>
+        <div class="dua"><div><div class="lbl">Lokasi</div><div class="isian">New JATSC</div></div><div><div class="lbl">Jam Report (UTC)</div><div class="isian mono">02:10</div></div></div>
+        <div class="lbl">Dilaporkan Oleh</div><div class="isian" style="opacity:.7">Andi Pratama</div>
+        <div class="baris" style="margin-top:4px"><span class="tmb garis">Batal</span><span class="tmb dorong" id="tSimpanIsu">💾 Simpan Isu</span></div></div></div>`,
+      aksi:[[6000,'tap','#tSimpanIsu']] },
+    { j:'Isu tercatat Open', n:'Isu baru selalu berstatus Open dan muncul di tabel Isu. Di Dashboard, isu itu tampil di Trouble Semua Unit lengkap dengan umurnya, supaya unit lain dan pimpinan ikut tahu.', dur:8000,
+      html:()=>elog(4)+`<div class="badan"><div class="judul">Update Issue</div><div class="kt muncul"><div class="baris"><b>CWP03 alarm headset</b><span class="lc bahaya dorong" id="stIsu">Open ▾</span></div><div class="ket">New JATSC · report 13 OKT 2026 02:10 UTC · Andi Pratama</div></div>
+        <div class="kt sembunyi" id="diDash"><div class="t">Di Dashboard · Trouble Semua Unit</div><div style="font-size:9px;margin-top:2px">Radtel · CWP03 alarm headset · <span class="lc bahaya">umur 35 mnt</span></div></div></div>`,
+      aksi:[[3600,'lepas','#diDash','sembunyi'],[3600,'kelas','#diDash','muncul']] },
+    { j:'Menutup isu', n:'Kalau gangguan sudah beres, ubah statusnya ke Closed lewat pilihan di kolom Status. Anda diminta mengisi keterangan penutupan dan boleh melampirkan bukti. Isu itu lalu hilang dari papan Trouble.',
+      tip:'Mengubah atau menghapus isi isu hanya bisa administrator atau admin unit. Membuka kembali isu yang sudah Closed hanya administrator.', dur:9000,
+      html:()=>elog(4)+`<div class="badan"><div class="judul">Update Issue</div><div class="kt"><div class="baris"><b>CWP03 alarm headset</b><span class="lc bahaya dorong" id="stIsu">Open ▾</span></div><div class="ket">New JATSC · report 13 OKT 2026 02:10 UTC</div></div></div>
+        <div class="modal" id="mTutup"><div class="lembar"><h4>Tutup Isu <span>✕</span></h4><div class="lbl">Keterangan penutupan</div><div class="isian tinggi" id="fTutup"></div>
+        <div class="lbl">Foto / Dokumen Saat Selesai (opsional)</div><div class="isian" style="color:var(--a-redup)">Pilih berkas…</div><span class="tmb hijau lebar" id="tTutup">Tutup isu</span></div></div>`,
+      aksi:[[1200,'tap','#stIsu'],[1800,'kelas','#mTutup','buka'],[2400,'ketik','#fTutup','Headset CWP03 diganti unit baru, alarm hilang.',2400],[6000,'tap','#tTutup'],[6500,'lepas','#mTutup','buka'],[6500,'isi','#stIsu','Closed'],[6500,'tukar','#stIsu','bahaya','ok']] }
+  ]},
+
+  { judul:'Kegiatan berkala dan Kotak Masuk', ringkas:'pekerjaan rutin yang jatuh ke Anda', langkah:[
+    { j:'Lonceng: pekerjaan Anda hari ini', n:'Angka di lonceng menghitung pemberitahuan untuk Anda: kegiatan berkala yang jatuh tempo pada hari Anda berdinas, dan lembar Anda yang belum ditandatangani Manager Teknik. Tekan loncengnya.', dur:7000,
+      html:()=>dash('Beranda',1)+`<div class="badan"><div class="judul">Peralatan Teknik New JATSC</div><div class="kt sembunyi" id="panelL"><div class="t">Untuk Anda</div><div style="font-size:9.5px;margin-top:3px"><b>Pengecekan DS (DS Test)</b><br><span class="ket">Radtel · mingguan · jatuh tempo hari ini</span></div></div></div>`,
+      aksi:[[2200,'tap','#ikLonceng'],[2700,'lepas','#panelL','sembunyi'],[2700,'kelas','#panelL','muncul']] },
+    { j:'Kotak Masuk: seluruh periode', n:'Kotak Masuk memuat semua kegiatan berkala periode berjalan, dikelompokkan per tanggal. Saring “Untuk saya” untuk melihat yang jatuh pada jadwal dinas Anda.', dur:7500,
+      html:()=>dash('Kotak Masuk',1)+`<div class="badan"><div class="judul">Kotak Masuk</div><div class="baris"><span class="cip aktif">Untuk saya (2)</span><span class="cip">Semua unit saya (3)</span></div>
+        <div class="ket">Selasa, 13 Okt 2026</div><div class="kt"><div class="baris"><b>Pengecekan DS (DS Test)</b><span class="lc awas dorong">belum</span></div><div class="ket">Radtel · untuk: Andi Pratama, Sari Dewi</div><div class="baris" style="margin-top:5px"><span class="tmb" id="tBukaDs">Isi DS Test</span><span class="tmb garis">Buka kegiatannya</span></div></div>
+        <div class="kt"><div class="baris"><b>Bersihkan filter rak server</b><span class="lc awas dorong">belum</span></div><div class="ket">Radtel · bulanan</div><div class="baris" style="margin-top:5px"><span class="tmb garis" id="tTandai">Tandai selesai</span></div></div></div>`,
+      aksi:[] },
+    { j:'Dua cara menyelesaikan', n:'Pekerjaan biasa cukup ditekan Tandai selesai. Pekerjaan yang punya lembar di E-Logbook, seperti DS Test, Daily Check, atau Monitoring, tidak bisa dicentang tangan: tekan tombol “Isi …”-nya, isi lembarnya, dan tandanya berubah sendiri.', dur:9500,
+      html:()=>dash('Kotak Masuk',1)+`<div class="badan"><div class="judul">Kotak Masuk</div>
+        <div class="kt"><div class="baris"><b>Pengecekan DS (DS Test)</b><span class="lc awas dorong" id="l1">belum</span></div><div class="ket">tandanya datang dari lembar DS Test</div><div class="baris" style="margin-top:5px"><span class="tmb" id="tBukaDs">Isi DS Test</span></div></div>
+        <div class="kt"><div class="baris"><b>Bersihkan filter rak server</b><span class="lc awas dorong" id="l2">belum</span></div><div class="ket">ditandai di sini</div><div class="baris" style="margin-top:5px"><span class="tmb garis" id="tTandai">Tandai selesai</span></div></div></div>`,
+      aksi:[[2400,'tap','#tTandai'],[2900,'isi','#l2','sudah dikerjakan'],[2900,'tukar','#l2','awas','ok'],[5600,'tap','#tBukaDs'],[6300,'isi','#l1','lembar terisi'],[6300,'tukar','#l1','awas','ok']] },
+    { j:'Kalau belum dikerjakan, HP mengingatkan', hp:true, n:'Satu jam sesudah dinas Anda mulai, HP mengirim daftar kegiatan berkala yang belum dikerjakan. Begitu semuanya beres, angka di lonceng dan Kotak Masuk kembali kosong.', dur:6500,
+      html:()=>`<div class="kunci"><div class="jam"><b>08:00</b><span>Selasa, 13 Oktober</span></div><div class="tumpuk"><div class="notif muncul"><div class="atas"><i></i>Avengers<em>sekarang</em></div><b>📋 Kegiatan berkala</b>Radtel: 2 kegiatan hari ini belum dikerjakan.</div></div></div>`,
+      aksi:[] }
+  ]},
+
+  { judul:'Tanda tangan QR', ringkas:'tekan sekali, jadi kode QR', langkah:[
+    { j:'Tanda tangan cukup ditekan', n:'Tanda tangan tidak lagi digambar. Di setiap formulir, tekan kotak TTD bertuliskan “Tekan untuk tanda tangan”. Identitasnya diambil dari akun yang sedang masuk.', dur:7000,
+      html:()=>elog(0)+`<div class="modal buka"><div class="lembar"><h4>Tambah Catatan Logbook <span>✕</span></h4><div class="lbl">Nama Teknisi Pelaksana</div><div class="isian">Andi Pratama</div>
+        <div class="lbl">TTD Teknisi</div>${TTDQ('ttd3')}</div></div>`,
+      aksi:[[2600,'tap','#ttd3'],[3100,'kelas','#ttd3','jadi'],[3100,'isi','#ttd3',TTDQ_JADI]] },
+    { j:'Isi kode QR-nya', n:'Tanda tangan Anda tersimpan sebagai kode QR. Isinya: Perum LPPNPI Cabang JATSC, unit Anda, nama lengkap, dan NIK. Di tengahnya ada lambang Avengers.',
+      tip:'Yang tercetak adalah nama dan NIK akun Anda. Kalau ada yang salah, minta admin unit atau administrator membetulkan akun Anda.', dur:8500,
+      html:()=>elog(0)+`<div class="badan"><div class="kt muncul"><div class="t">Tanda tangan QR</div><div class="baris" style="margin-top:6px;align-items:flex-start;flex-wrap:nowrap"><div class="qr logo"></div>
+        <div class="daftar" style="flex:1"><div><b>Kop</b><span>Perum LPPNPI Cabang JATSC</span></div><div><b>Unit</b><span>Radtel</span></div><div><b>Nama</b><span>Andi Pratama</span></div><div><b>NIK</b><span>10012345</span></div></div></div></div></div>`,
+      aksi:[] },
+    { j:'Manager Teknik menandatangani dari kotak masuknya', n:'Lembar yang Anda tujukan masuk ke kotak masuk Manager Teknik, atau PH-nya kalau ia sedang digantikan. Begitu ia menandatangani, QR-nya ikut terpasang di lembar dan Anda dikabari.', dur:8500,
+      html:()=>elog(0)+`<div class="badan"><div class="catat"><div class="atas"><b>13 OKT 2026</b><span>02:10 UTC</span><span class="lc biru">Pagi</span><span class="lc awas" id="lcTtd">menunggu TTD</span></div>
+        <p>Pengecekan VCS Garex lewat TMCS, CWP03 alarm headset. Headset diganti, normal kembali.</p>
+        <div class="ttd-blok"><div><b>Andi Pratama</b><div class="qr logo kecil"></div><span class="ket">Teknisi</span></div><div><b>Rina Kusuma</b><div id="qrMt"><div class="kosong">belum</div></div><span class="ket">Manager Teknik</span></div></div></div></div>`,
+      aksi:[[3800,'isi','#qrMt','<div class="qr logo kecil muncul"></div>'],[3800,'isi','#lcTtd','sudah TTD'],[3800,'tukar','#lcTtd','awas','ok']] },
+    { j:'Memeriksa QR dengan kamera HP', n:'Di layar, QR bisa diketuk untuk diperbesar. Di lembar cetak, QR bisa dipindai kamera HP: yang terbaca kop, unit atau jabatan, nama, dan NIK penanda tangan.', dur:8000,
+      html:()=>`<div class="badan" style="padding-top:14px"><div class="judul">Kamera HP</div><div class="bidik"><div class="qr logo"></div></div><div id="hasilPindai"></div></div>`,
+      aksi:[[2800,'isi','#hasilPindai',`<div class="kt muncul" style="margin-top:6px"><div class="t">Hasil pindai</div><div class="daftar" style="margin-top:4px"><div><b>Kop</b><span>Perum LPPNPI Cabang JATSC</span></div><div><b>Jabatan</b><span>Manager Teknik</span></div><div><b>Nama</b><span>Rina Kusuma</span></div><div><b>NIK</b><span>10054321</span></div></div></div>`]] }
+  ]},
+
+  { judul:'Sejarah peralatan dan stiker QR', ringkas:'riwayat tiap alat, pindai dari HP', langkah:[
+    { j:'Buka kartu alatnya', n:'Di Dashboard buka Database Unit, pilih unit, subtab Peralatan. Klik kartu alat untuk membuka identitas dan sejarahnya.', dur:6000,
+      html:()=>dash('Database Unit')+`<div class="badan"><div class="baris"><span class="cip aktif">Peralatan</span><span class="cip">Sparepart</span><span class="cip">Jadwal Dinas</span></div>
+        <div class="dua"><div class="kt" id="alat1"><div class="t">VCS</div><b>Garex 300</b><div class="ket">MER Lt. 2</div></div><div class="kt"><div class="t">Recorder</div><b>Neptuno</b><div class="ket">MER Lt. 2</div></div></div><div class="ket">klik kartu untuk membuka sejarah dan identitasnya</div></div>`,
+      aksi:[[2600,'tap','#alat1']] },
+    { j:'Tulis kejadian baru', n:'Tekan Tulis: daftar kejadian berubah menjadi tabel yang bisa disunting. Tekan Tambah kejadian, isi tanggal, kejadian, dan rinciannya, pilih penanggung jawab (dialah yang menandatangani), lalu Simpan.', dur:11000,
+      html:()=>dash('Database Unit')+`<div class="modal buka"><div class="lembar"><h4>Sejarah — VSCS Garex 300 <span>✕</span></h4><div class="baris"><span class="ket">terbaru di atas</span><span class="tmb garis dorong" id="tTulis">Tulis</span></div>
+        <div id="formSj" class="sembunyi"><div class="baris"><span class="ket">yang paling baru naik sendiri ke atas</span><span class="tmb garis dorong" id="tTambahSj">Tambah kejadian</span></div>
+          <div id="barisBaru" class="sembunyi" style="margin-top:4px"><div class="dua"><div><div class="lbl">Tanggal</div><div class="isian mono">13/10/2026</div></div><div><div class="lbl">Kejadian</div><div class="isian" id="sjJudul"></div></div></div>
+          <div class="lbl" style="margin-top:4px">Rincian</div><div class="isian tinggi" id="sjKet"></div>
+          <div class="lbl" style="margin-top:4px">Penanggung jawab</div><div class="isian" id="sjPj">— pilih — ▾</div></div>
+          <div class="baris" style="margin-top:5px"><span class="tmb garis">Batal</span><span class="tmb dorong" id="tSimpanSj">Simpan</span></div></div>
+        <div class="kt" id="sjLama"><div class="baris"><b>2 SEP 2026</b><span class="lc ok dorong">disetujui</span></div><div class="ket">Kalibrasi tahunan modul audio</div></div></div></div>`,
+      aksi:[[900,'tap','#tTulis'],[1400,'lepas','#formSj','sembunyi'],[1400,'kelas','#sjLama','sembunyi'],[2300,'tap','#tTambahSj'],[2800,'lepas','#barisBaru','sembunyi'],
+            [3200,'ketik','#sjJudul','Penggantian headset CWP03',1500],[5000,'ketik','#sjKet','Headset lama putus kabel, diganti unit baru. Normal.',2200],[7600,'tap','#sjPj'],[8100,'isi','#sjPj','Rina Kusuma ▾'],[9600,'tap','#tSimpanSj']] },
+    { j:'Menunggu tanda tangan', n:'Kejadian baru bertanda MENUNGGU TTD sampai penanggung jawabnya menyetujui. Anggota unit dikabari lewat notifikasi bahwa riwayat peralatan diperbarui.',
+      tip:'Mengubah baris yang sudah disetujui akan meminta tanda tangan ulang. Tombol Cetak di panel Sejarah mencetak riwayat alat ini saja.', dur:7000,
+      html:()=>dash('Database Unit')+`<div class="modal buka"><div class="lembar"><h4>Sejarah · Garex 300 <span>✕</span></h4>
+        <div class="kt muncul"><div class="baris"><b>13 OKT 2026</b><span class="lc awas dorong" id="lSj">MENUNGGU TTD</span></div><div class="ket">Penggantian headset CWP03 · Andi Pratama</div></div>
+        <div class="kt"><div class="baris"><b>2 SEP 2026</b><span class="lc ok dorong">disetujui</span></div><div class="ket">Kalibrasi tahunan modul audio</div></div></div></div>`,
+      aksi:[[4200,'isi','#lSj','disetujui'],[4200,'tukar','#lSj','awas','ok']] },
+    { j:'Pindai stiker QR di alat', n:'Alat yang sudah ditempeli stiker QR bisa dipindai dengan kamera HP. Halaman sejarah alat itu langsung terbuka, tampil seperti lembar cetaknya.', dur:8000,
+      html:()=>`<div class="badan" style="padding-top:14px"><div class="judul">Kamera HP</div><div class="bidik"><div class="qr"></div></div><div class="ket" style="text-align:center">pindai untuk sejarah alat</div><div id="hasilQr"></div></div>`,
+      aksi:[[2800,'isi','#hasilQr',`<div class="kt muncul" style="margin-top:6px"><div class="t">Sejarah Peralatan</div><b>VCS Garex 300 · Radtel</b><div class="daftar" style="margin-top:4px"><div><b>13 OKT</b><span>Penggantian headset CWP03</span></div><div><b>2 SEP</b><span>Kalibrasi tahunan modul audio</span></div></div></div>`]] }
+  ]}
+  ];
+
+  /* ---------- mesin pemutar ---------- */
+  let b = 0, idx = 0, t = 0, jalan = false, antre = [], akhir = 0, pc = false;
+  const pg = $('panggung');
+  const kem = $('kemajuan'), babEl = $('bab');
+  // Langkah bertanda hp:true (notifikasi di layar kunci HP) dilewati di tampilan PC.
+  const langkah = () => BAB[b].langkah.filter(a => !(pc && a.hp));
+  // Di PC: tekan/ketuk jadi klik — kecuali di dalam tanda kutip, yang menyebut tulisan di layar apa adanya.
+  const kata = (x) => !pc || !x ? x : x.split(/(“[^”]*”)/).map((p, i) => i % 2 ? p :
+    p.replace(/\bTekan\b/g, 'Klik').replace(/\btekan\b/g, 'klik').replace(/\bKetuk\b/g, 'Klik').replace(/\bketuk\b/g, 'klik').replace(/ dengan jari/g, '')).join('');
+
+  function tap(sel){
+    const el = q(sel); if(!el) return;
+    const a = layar.getBoundingClientRect(), r = el.getBoundingClientRect();
+    jari.style.left = (r.left - a.left + r.width/2) + 'px'; jari.style.top = (r.top - a.top + r.height/2) + 'px';
+    jari.classList.remove('tekan'); void jari.offsetWidth; jari.classList.add('tekan');
+  }
+  function cue(ms, fn){ antre.push({ at: ms, fn }); antre.sort((x,y)=>x.at-y.at); }
+  function pasang([ms, jenis, sel, x, y]){
+    if(jenis === 'tap') cue(ms, ()=>tap(sel));
+    else if(jenis === 'ketik'){ const teks = x, lama = y || teks.length*110;
+      cue(ms, ()=>{ const el = q(sel); if(el) el.textContent = ''; });
+      [...teks].forEach((c,i)=>cue(ms + lama*i/teks.length, ()=>{ const el = q(sel); if(el) el.textContent += c; })); }
+    else if(jenis === 'kelas') cue(ms, ()=>{ const el = q(sel); if(el) el.classList.add(x); });
+    else if(jenis === 'lepas') cue(ms, ()=>{ const el = q(sel); if(el) el.classList.remove(x); });
+    else if(jenis === 'tukar') cue(ms, ()=>{ const el = q(sel); if(el){ el.classList.remove(x); el.classList.add(y); } });
+    else if(jenis === 'isi') cue(ms, ()=>{ const el = q(sel); if(el) el.innerHTML = x; });
+    else if(jenis === 'sorot') cue(ms, ()=>{ isi.querySelectorAll('.sorot').forEach(e=>e.classList.remove('sorot')); const el = q(sel); if(el) el.classList.add('sorot'); });
+    else if(jenis === 'ganti') cue(ms, ()=>{ isi.innerHTML = sel(); });
+  }
+  function bangunBab(){
+    babEl.innerHTML = '';
+    BAB.forEach((x,i)=>{ const btn = document.createElement('button'); btn.type = 'button';
+      btn.innerHTML = `<span class="no">${String(i+1).padStart(2,'0')}</span><b>${x.judul}</b><small>${x.ringkas}</small>`;
+      btn.onclick = ()=>{ pilihBab(i); main(); }; babEl.appendChild(btn); });
+  }
+  function bangunKemajuan(){
+    kem.innerHTML = '';
+    langkah().forEach((a,i)=>{ const btn = document.createElement('button'); btn.type='button'; btn.setAttribute('aria-label','Langkah '+(i+1)+': '+a.j); btn.innerHTML='<i></i>'; btn.onclick=()=>{ ke(i); main(); }; kem.appendChild(btn); });
+  }
+  function pilihBab(i){
+    b = Math.max(0, Math.min(BAB.length-1, i));
+    [...babEl.children].forEach((el,k)=>el.setAttribute('aria-pressed', String(k===b)));
+    bangunKemajuan(); ke(0);
+  }
+  function ke(i){
+    idx = Math.max(0, Math.min(langkah().length-1, i)); t = 0; antre = [];
+    jari.classList.remove('tekan');
+    const a = langkah()[idx];
+    $('nomor').textContent = 'BAB ' + (b+1) + ' · LANGKAH ' + (idx+1) + ' / ' + langkah().length;
+    $('judul').textContent = kata(a.j); $('narasi').textContent = kata(a.n);
+    $('tip').hidden = !a.tip; $('tip').textContent = a.tip ? '💡 ' + kata(a.tip) : '';
+    isi.innerHTML = a.html(); a.aksi.forEach(pasang); gambar();
+  }
+  function gambar(){ [...kem.querySelectorAll('i')].forEach((el,i)=>{ el.style.width = i<idx ? '100%' : i>idx ? '0%' : Math.min(100, t/langkah()[idx].dur*100)+'%'; }); }
+  function jalankan(){ while(antre.length && antre[0].at <= t) antre.shift().fn(); }
+  function detak(ts){
+    if(!jalan) return;
+    t += Math.min(100, ts - (akhir || ts)); akhir = ts; jalankan(); gambar();
+    if(t >= langkah()[idx].dur){
+      if(idx < langkah().length-1) ke(idx+1);
+      else if(b < BAB.length-1) pilihBab(b+1);
+      else { jeda(); return; }
+    }
+    requestAnimationFrame(detak);
+  }
+  const IK_PUTAR = '<path d="M4 2l12 7-12 7z"/>', IK_JEDA = '<path d="M4 2h3.5v14H4zM10.5 2H14v14h-3.5z"/>';
+  function main(){
+    if(jalan) return;
+    if(b === BAB.length-1 && idx === langkah().length-1 && t >= langkah()[idx].dur) pilihBab(0);
+    jalan = true; akhir = 0; $('putarBesar').hidden = true; $('ikPutar').innerHTML = IK_JEDA; $('bPutar').setAttribute('aria-label','Jeda');
+    jalankan(); requestAnimationFrame(detak);
+  }
+  function jeda(){ jalan = false; $('ikPutar').innerHTML = IK_PUTAR; $('bPutar').setAttribute('aria-label','Putar'); }
+  $('putarBesar').onclick = main;
+  $('bPutar').onclick = () => jalan ? jeda() : main();
+  $('bMundur').onclick = () => { if(idx === 0 && b > 0){ pilihBab(b-1); ke(langkah().length-1); } else ke(idx-1); if(jalan) jalankan(); };
+  $('bMaju').onclick = () => { if(idx === langkah().length-1 && b < BAB.length-1) pilihBab(b+1); else ke(idx+1); if(jalan) jalankan(); };
+  document.addEventListener('keydown', (e)=>{ if(e.target.closest('button,a,input')) return;
+    if(e.key === ' '){ e.preventDefault(); jalan ? jeda() : main(); } else if(e.key === 'ArrowRight') $('bMaju').click(); else if(e.key === 'ArrowLeft') $('bMundur').click(); });
+
+  const ST_HP = $('status').innerHTML, ST_PC = '<span class="titik">● ● ●</span><span class="url">🔒 teknik-avengers.com</span>';
+  function pilihPerangkat(jadiPc, babKe){
+    jeda(); pc = jadiPc;
+    pg.classList.toggle('pc', pc);
+    $('status').innerHTML = pc ? ST_PC : ST_HP;
+    $('pHp').setAttribute('aria-pressed', String(!pc)); $('pPc').setAttribute('aria-pressed', String(pc));
+    pilihBab(babKe == null ? b : babKe); $('putarBesar').hidden = false;
+  }
+  $('pHp').onclick = () => pilihPerangkat(false);
+  $('pPc').onclick = () => pilihPerangkat(true);
+
+  /* ?bab=3 membuka bab itu, ?alat=pc membuka tampilan PC — dipakai tautan dari buku manual */
+  bangunBab();
+  const par = new URLSearchParams(location.search), minta = parseInt(par.get('bab'), 10);
+  pilihPerangkat(par.get('alat') === 'pc', minta >= 1 && minta <= BAB.length ? minta - 1 : 0);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,728 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Buku Manual Avengers untuk Teknisi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Barlow:wght@400;500;600;700&family=Share+Tech+Mono&display=swap">
+<style>
+:root{
+  --kertas:#f6f8fb; --lembar:#fff; --tinta:#14213a; --redup:#56657e; --garis:#d6deea;
+  --biru:#0b6fb0; --biru-tua:#0b1b33; --jingga:#c56a00; --sian:#0d8f7c;
+  --ok:#16865a; --awas:#a86400; --bahaya:#c23030;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--kertas);color:var(--tinta);font-family:'Barlow','Segoe UI',system-ui,sans-serif;font-size:16px;line-height:1.6}
+a{color:var(--biru)}
+.tata{display:grid;grid-template-columns:270px minmax(0,1fr);max-width:1180px;margin:0 auto}
+/* daftar isi */
+nav.isi{position:sticky;top:0;align-self:start;height:100vh;overflow:auto;padding:22px 14px 30px 18px;border-right:1px solid var(--garis);font-size:14px}
+nav.isi .merek{font-family:Georgia,serif;font-style:italic;font-weight:800;font-size:24px;color:var(--jingga);line-height:1}
+nav.isi small{display:block;color:var(--redup);margin:2px 0 14px}
+nav.isi ol{list-style:none;margin:0;padding:0;counter-reset:bab}
+nav.isi li{counter-increment:bab}
+nav.isi li a{display:grid;grid-template-columns:26px 1fr;gap:4px;padding:5px 6px;border-radius:7px;color:var(--tinta);text-decoration:none;line-height:1.3}
+nav.isi li a:before{content:counter(bab,decimal-leading-zero);font-family:'Share Tech Mono',monospace;color:var(--jingga);font-size:12.5px;padding-top:1px}
+nav.isi li a:hover{background:#e9eff7}
+nav.isi .alat{margin-top:16px;display:flex;flex-direction:column;gap:6px}
+.tb{display:inline-flex;justify-content:center;align-items:center;gap:6px;font:600 14px 'Barlow',sans-serif;padding:8px 12px;border-radius:8px;border:1px solid var(--garis);background:var(--lembar);color:var(--tinta);cursor:pointer;text-decoration:none}
+.tb.utama{background:var(--biru-tua);border-color:var(--biru-tua);color:#fff}
+main{padding:0 clamp(16px,4vw,44px) 60px;min-width:0}
+/* sampul */
+.sampul{margin:26px 0 30px;border-radius:18px;padding:clamp(26px,5vw,54px);color:#f2f6ff;background:radial-gradient(900px 420px at 85% -20%,#1d4a8a 0%,transparent 60%),linear-gradient(160deg,#0b1b33,#04070f)}
+.sampul .alis{font-family:'Share Tech Mono',monospace;font-size:12.5px;letter-spacing:.24em;color:#f6b25a}
+.sampul .nama{font-family:Georgia,serif;font-style:italic;font-weight:800;font-size:clamp(46px,9vw,84px);line-height:1;margin:14px 0 4px;background:linear-gradient(180deg,#ffd257,#f6971d 62%,#e07d10);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sampul .pjg{color:#f6c063;font-weight:600;margin-bottom:22px}
+.sampul h1{font-family:'Rajdhani',sans-serif;font-size:clamp(26px,4.4vw,40px);line-height:1.08;margin:0 0 10px;text-wrap:balance}
+.sampul p{margin:0;color:#c6d3ea;max-width:60ch}
+.sampul .kaki{margin-top:26px;display:flex;gap:10px 26px;flex-wrap:wrap;font-family:'Share Tech Mono',monospace;font-size:12.5px;color:#9fb6d6}
+/* bab */
+section.bab{padding-top:14px;margin-top:26px;border-top:2px solid var(--biru-tua)}
+.no-bab{font-family:'Share Tech Mono',monospace;color:var(--jingga);letter-spacing:.2em;font-size:13px}
+h2{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:clamp(26px,3.6vw,34px);line-height:1.1;margin:2px 0 8px;text-wrap:balance}
+h3{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:21px;margin:26px 0 6px}
+p{margin:8px 0;max-width:72ch}
+.pengantar{color:var(--redup);font-size:17px}
+ol.langkah{list-style:none;counter-reset:l;padding:0;margin:12px 0;max-width:74ch}
+ol.langkah>li{counter-increment:l;position:relative;padding:0 0 12px 44px}
+ol.langkah>li:before{content:counter(l);position:absolute;left:0;top:0;width:30px;height:30px;border-radius:50%;background:var(--biru-tua);color:#fff;display:grid;place-items:center;font-weight:700;font-size:14.5px}
+ol.langkah>li:after{content:"";position:absolute;left:14.5px;top:32px;bottom:2px;width:1px;background:var(--garis)}
+ol.langkah>li:last-child:after{display:none}
+ul{max-width:72ch;padding-left:22px;margin:8px 0}
+li{margin:3px 0}
+kbd,.tmb{display:inline-block;font:600 .86em 'Barlow',sans-serif;padding:1px 8px;border-radius:6px;border:1px solid #b9c6d8;background:#eef3f9;color:var(--tinta);white-space:nowrap}
+.kode{font-family:'Share Tech Mono',monospace;font-weight:700}
+.kotak{border:1px solid var(--garis);border-left:4px solid var(--biru);background:var(--lembar);border-radius:10px;padding:10px 14px;margin:14px 0;max-width:74ch}
+.kotak.tip{border-left-color:var(--sian)} .kotak.awas{border-left-color:var(--jingga);background:#fffaf1} .kotak.bahaya{border-left-color:var(--bahaya);background:#fff6f6}
+.kotak b:first-child{display:block;font-family:'Rajdhani',sans-serif;font-size:17px;letter-spacing:.02em}
+.kotak p{margin:4px 0}
+.gulir{overflow-x:auto;margin:12px 0;border:1px solid var(--garis);border-radius:10px;background:var(--lembar);max-width:100%}
+table{border-collapse:collapse;width:100%;font-size:15px}
+th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--garis);vertical-align:top}
+th{background:#eef3f9;font-weight:700;font-size:13.5px;letter-spacing:.03em;white-space:nowrap}
+tr:last-child td{border-bottom:0}
+td.t,th.t{text-align:center}
+.ya{color:var(--ok);font-weight:700} .tdk{color:var(--bahaya);font-weight:700}
+.tonton{display:inline-flex;align-items:center;gap:8px;margin:6px 0 2px;padding:6px 12px 6px 8px;border-radius:20px;background:#e3f4f1;color:#0a5e52;font-weight:600;font-size:14.5px;text-decoration:none;border:1px solid #b9e2db}
+.tonton:before{content:"";width:0;height:0;border-left:10px solid #0d8f7c;border-top:6px solid transparent;border-bottom:6px solid transparent;margin-left:4px}
+figure.potret{margin:14px 0;max-width:74ch}
+figure.potret img{display:block;max-width:100%;border:1px solid var(--garis);border-radius:10px;box-shadow:0 8px 22px -14px rgba(10,30,60,.5)}
+figure.potret figcaption{font-size:13.5px;color:var(--redup);margin-top:5px}
+/* skema kepala halaman */
+.skema{border:1px solid var(--garis);border-radius:12px;overflow:hidden;max-width:560px;margin:14px 0;background:var(--lembar)}
+.skema .atas{background:linear-gradient(180deg,#0b1b33,#12305a);color:#fff;padding:12px 14px}
+.skema .atas b{font-size:15px}
+.skema .atas small{display:block;font-family:'Share Tech Mono',monospace;font-size:9.5px;letter-spacing:.14em;color:#9fb6d6}
+.skema .ikon{display:flex;gap:7px;margin-top:10px;flex-wrap:wrap}
+.skema .ik{width:36px;height:36px;border:1px solid rgba(255,255,255,.35);border-radius:9px;display:grid;place-items:center;position:relative;font-weight:700;font-size:12px}
+.skema .ik svg{width:17px;height:17px}
+.skema .ik i{position:absolute;bottom:-9px;left:50%;transform:translateX(-50%);width:17px;height:17px;border-radius:50%;background:#f6971d;color:#1c1203;font:700 11px/17px 'Barlow',sans-serif;text-align:center}
+.skema .rel{display:flex;gap:6px;flex-wrap:wrap;padding:14px 12px 10px;border-bottom:1px solid var(--garis)}
+.skema .rel span{font-size:12.5px;font-weight:600;padding:3px 10px;border-radius:12px;border:1px solid var(--garis);color:var(--redup)}
+.skema .rel span.aktif{background:var(--biru);border-color:var(--biru);color:#fff}
+.skema ol{margin:0;padding:10px 14px 12px 34px;font-size:14.5px}
+.ringkas{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin:14px 0}
+.ringkas div{background:var(--lembar);border:1px solid var(--garis);border-radius:12px;padding:12px 14px}
+.ringkas b{display:block;font-family:'Rajdhani',sans-serif;font-size:18px}
+.ringkas span{font-family:'Share Tech Mono',monospace;color:var(--jingga);font-size:12.5px;letter-spacing:.14em}
+.ringkas p{margin:4px 0 0;font-size:14.5px;color:var(--redup)}
+footer{margin-top:40px;padding-top:14px;border-top:1px solid var(--garis);color:var(--redup);font-size:13.5px}
+@media (max-width:860px){
+  .tata{grid-template-columns:1fr}
+  nav.isi{position:static;height:auto;border-right:0;border-bottom:1px solid var(--garis)}
+  nav.isi ol{columns:2;column-gap:10px}
+}
+@media (max-width:520px){nav.isi ol{columns:1}}
+@page{size:A4;margin:16mm 15mm}
+@media print{
+  body{background:#fff;font-size:11pt}
+  .tata{display:block;max-width:none}
+  nav.isi{position:static;height:auto;border:0;padding:0 0 8mm;page-break-after:always}
+  nav.isi .alat,.tonton{display:none}
+  nav.isi ol{columns:2}
+  main{padding:0}
+  .sampul{margin:0 0 8mm;-webkit-print-color-adjust:exact;print-color-adjust:exact;page-break-after:always;min-height:230mm;display:flex;flex-direction:column;justify-content:center}
+  .skema .atas,.kotak,th,ol.langkah>li:before{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  section.bab{page-break-before:always;margin-top:0;border-top:0;padding-top:0}
+  h3{page-break-after:avoid}
+  ol.langkah>li,.kotak,.gulir,figure.potret,.skema{page-break-inside:avoid}
+  a{color:inherit;text-decoration:none}
+}
+</style>
+</head>
+<body>
+<div class="tata">
+
+<nav class="isi" aria-label="Daftar isi">
+  <div class="merek">AVENGERS</div>
+  <small>Buku Manual Teknisi · v2.11</small>
+  <ol>
+    <li><a href="#kenalan">Kenalan dengan Avengers</a></li>
+    <li><a href="#mulai">Mulai: akun, masuk, keluar</a></li>
+    <li><a href="#hp">Pasang di HP dan notifikasi</a></li>
+    <li><a href="#layar">Mengenal layar Dashboard</a></li>
+    <li><a href="#dinas">Jadwal dinas</a></li>
+    <li><a href="#berkala">Kegiatan berkala dan Kotak Masuk</a></li>
+    <li><a href="#unit">Database Unit</a></li>
+    <li><a href="#elogbook">Masuk ke E-Logbook</a></li>
+    <li><a href="#logbook">Logbook Fasilitas</a></li>
+    <li><a href="#dc">Daily Check</a></li>
+    <li><a href="#pm">Preventive Maintenance</a></li>
+    <li><a href="#form">Form: LTK, BAPB, Monitoring</a></li>
+    <li><a href="#isu">Isu dan papan Trouble</a></li>
+    <li><a href="#ttd">Tanda tangan QR</a></li>
+    <li><a href="#cetak">Mencetak dan Rekap</a></li>
+    <li><a href="#notif">Daftar notifikasi</a></li>
+    <li><a href="#masalah">Kalau ada masalah</a></li>
+    <li><a href="#harian">Ringkasan satu dinas</a></li>
+  </ol>
+  <div class="alat">
+    <a class="tb utama" href="video-tutorial.html">▶ Video tutorial (HP)</a>
+    <a class="tb utama" href="video-tutorial.html?alat=pc">▶ Video tutorial (PC / Laptop)</a>
+    <button class="tb" type="button" onclick="window.print()">🖨 Cetak / simpan PDF</button>
+  </div>
+</nav>
+
+<main>
+
+<div class="sampul">
+  <div class="alis">PERUM LPPNPI · CABANG JATSC · FASILITAS TEKNIK</div>
+  <div class="nama">AVENGERS</div>
+  <div class="pjg">Advanced Engineer Electronic Reporting System</div>
+  <h1>Buku Manual untuk Teknisi</h1>
+  <p>Cara memakai Dashboard Fasilitas Teknik dan E-Logbook dalam pekerjaan dinas sehari-hari: dari masuk, melihat jadwal, mengisi logbook dan daily check, melaporkan isu, sampai tanda tangan dan cetak.</p>
+  <div class="kaki"><span>teknik-avengers.com</span><span>Versi aplikasi 2.11.0</span><span>Oktober 2026</span></div>
+</div>
+
+<!-- ================================================================== -->
+<section class="bab" id="kenalan">
+  <div class="no-bab">BAB 01</div>
+  <h2>Kenalan dengan Avengers</h2>
+  <p class="pengantar">Avengers adalah satu alamat, <b>teknik-avengers.com</b>, yang berisi dua bagian dengan satu akun yang sama. Bisa dibuka dari PC, laptop, maupun HP.</p>
+  <div class="kotak tip"><b>Yang baru di versi 2.10 dan 2.11</b><p>Tanda tangan sekarang berupa <b>kode QR</b>: cukup tekan kotak TTD (<a href="#ttd">Bab 14</a>). Manager Teknik <b>dipilih dari satu daftar</b>, dan PH diurus sistem. Sejarah Peralatan bisa dicetak per alat. Daily check bertambah: Listrik &amp; Mekanik New JATSC dan E-JAATS (FDPS-RDPS). Monitoring Frekuensi dan BAPB punya petak tanda tangan baru.</p></div>
+  <div class="ringkas">
+    <div><span>BAGIAN 1</span><b>Dashboard Fasilitas Teknik</b><p>Papan bersama delapan unit teknik: kondisi peralatan, trouble yang belum selesai, NOTAM, jadwal dinas, kegiatan berkala, personel, sparepart, dokumen, dan sejarah peralatan.</p></div>
+    <div><span>BAGIAN 2</span><b>E-Logbook</b><p>Pencatatan operasional harian tiap unit: Logbook Fasilitas, Daily Check, Preventive Maintenance, formulir LTK dan BAPB, Isu, serta Rekap.</p></div>
+  </div>
+  <p>Anda masuk sekali di Dashboard. E-Logbook dibuka dari dalamnya dengan satu tombol, tanpa login lagi.</p>
+  <p>Gambar layar di buku ini diambil dari PC. Di HP isinya sama, hanya tersusun ke bawah. Video tutorialnya tersedia dalam dua tampilan: <a href="video-tutorial.html">HP</a> dan <a href="video-tutorial.html?alat=pc">PC / Laptop</a>.</p>
+
+  <h3>Apa yang boleh dilakukan teknisi</h3>
+  <div class="gulir"><table>
+    <tr><th>Pekerjaan</th><th class="t">Teknisi</th><th>Keterangan</th></tr>
+    <tr><td>Melihat Beranda, Trouble, NOTAM, dan Dinas Hari Ini semua unit</td><td class="t ya">Ya</td><td>Sama untuk semua akun</td></tr>
+    <tr><td>Melihat jadwal dinas unit mana pun</td><td class="t ya">Ya</td><td>Mengisinya hanya yang ditunjuk</td></tr>
+    <tr><td>Membuka E-Logbook dan Database Unit</td><td class="t ya">Ya</td><td>Hanya unit yang diberikan ke akun Anda</td></tr>
+    <tr><td>Menambah catatan logbook, daily check, lembar preventive, LTK, isu</td><td class="t ya">Ya</td><td>Beserta lampiran foto atau hasil scan</td></tr>
+    <tr><td>Menandai kegiatan berkala sudah dikerjakan</td><td class="t ya">Ya</td><td></td></tr>
+    <tr><td>Mengubah status isu menjadi Closed</td><td class="t ya">Ya</td><td>Membuka kembali isu Closed: administrator</td></tr>
+    <tr><td>Menghapus catatan, daily check, atau isu</td><td class="t tdk">Tidak</td><td>Administrator atau admin unit</td></tr>
+    <tr><td>Menandatangani sebagai Manager Teknik</td><td class="t tdk">Tidak</td><td>Pejabat</td></tr>
+    <tr><td>Mengelola akun dan hak</td><td class="t tdk">Tidak</td><td>Administrator, sebagian oleh admin unit</td></tr>
+  </table></div>
+  <div class="kotak"><b>Tombol tidak muncul?</b><p>Tombol yang tidak tampil di akun Anda hampir selalu berarti peran akun itu tidak punya haknya. Itu bukan kerusakan. Kalau Anda memang perlu hak tersebut, sampaikan ke admin unit atau administrator.</p></div>
+  <p>Sebagian teknisi juga ditunjuk sebagai <b>PIC</b> (Jadwal Dinas, Sparepart, atau ISR). PIC mendapat satu modul tambahan sesuai tugasnya; cara pakainya dijelaskan di lampiran terpisah.</p>
+</section>
+
+<!-- ================================================================== -->
+<section class="bab" id="mulai">
+  <div class="no-bab">BAB 02</div>
+  <h2>Mulai: akun, masuk, keluar</h2>
+  <a class="tonton" href="video-tutorial.html?bab=1">Tonton: Masuk dan kenali layarnya</a>
+
+  <h3>Mendaftar akun baru</h3>
+  <ol class="langkah">
+    <li>Buka <b>teknik-avengers.com</b> di Chrome (Android, PC) atau Safari (iPhone).</li>
+    <li>Di kartu masuk, tekan <span class="tmb">Belum punya akun? Daftar</span>.</li>
+    <li>Isi <b>nama lengkap</b>, <b>username</b> (pakai NIK Anda), dan <b>password</b> dua kali. Password minimal 6 karakter.</li>
+    <li>Kirim pendaftarannya, lalu kabari admin unit Anda. Akun baru <b>belum bisa dipakai</b> sampai diaktifkan dan diberi unit oleh administrator atau admin unit.</li>
+  </ol>
+
+  <h3>Masuk</h3>
+  <ol class="langkah">
+    <li>Ketik <b>NIK / Username</b> dan <b>Password</b>.</li>
+    <li>Tekan <span class="tmb">MASUK</span>. Anda mendarat di Beranda dashboard.</li>
+  </ol>
+  <figure class="potret"><img src="gambar/01-masuk.jpg" alt="Layar masuk Avengers" onerror="this.closest('figure').remove()"><figcaption>Layar masuk. Username terakhir yang berhasil masuk diingat di perangkat itu; password tidak pernah disimpan.</figcaption></figure>
+  <ul>
+    <li>Menyegarkan halaman (F5) tidak mengeluarkan Anda. Menutup tab berarti keluar dari dashboard di tab itu.</li>
+    <li>Salah password delapan kali dalam lima menit membuat percobaan berikutnya ditahan sebentar. Tunggu lima menit, lalu coba lagi.</li>
+  </ul>
+
+  <h3>Keluar</h3>
+  <p>Tekan ikon panah <span class="tmb">Keluar</span> di kanan atas. Keluar dari dashboard juga memutus E-Logbook, dan sebaliknya.</p>
+  <div class="kotak awas"><b>HP atau komputer bersama</b><p>Selalu tekan Keluar sesudah selesai. Catatan dan tanda tangan tercatat atas nama akun yang sedang masuk.</p></div>
+
+  <h3>Lupa atau ingin ganti password</h3>
+  <p>Password lama tidak bisa dilihat siapa pun. Minta admin unit atau administrator menyetel password baru untuk akun Anda, lalu masuk dengan password itu.</p>
+</section>
+
+<!-- ================================================================== -->
+<section class="bab" id="hp">
+  <div class="no-bab">BAB 03</div>
+  <h2>Pasang di HP dan notifikasi</h2>
+  <p class="pengantar">Avengers bisa dipasang seperti aplikasi dan mengirim notifikasi ke HP walau layarnya terkunci. Cukup dilakukan sekali di tiap HP.</p>
+  <a class="tonton" href="../../public/contoh/tutorial-hp.html">Tonton: Avengers di HP, Pasang dan Notif</a>
+
+  <h3>Android (Chrome)</h3>
+  <ol class="langkah">
+    <li>Buka teknik-avengers.com di Chrome, lalu masuk.</li>
+    <li>Di spanduk bawah “Pasang Avengers di HP ini?”, tekan <span class="tmb">Pasang</span>, lalu <span class="tmb">Instal</span>. Spanduk tidak muncul? Tekan ⋮ di kanan atas, pilih <b>Tambahkan ke layar utama</b>.</li>
+    <li>Buka Avengers dari ikonnya di layar utama.</li>
+    <li>Di spanduk “Aktifkan notifikasi di HP ini?”, tekan <span class="tmb">Aktifkan</span>, lalu <span class="tmb">Izinkan</span>.</li>
+  </ol>
+
+  <h3>iPhone (Safari, iOS 16.4 ke atas)</h3>
+  <ol class="langkah">
+    <li>Buka teknik-avengers.com di <b>Safari</b> (bukan Chrome), lalu masuk.</li>
+    <li>Tekan tombol <b>Bagikan</b>, pilih <b>Tambahkan ke Layar Utama</b>, lalu <b>Tambah</b>.</li>
+    <li>Buka Avengers <b>dari ikonnya</b>. Di iPhone, notifikasi hanya bisa diaktifkan dari sini.</li>
+    <li>Tekan <span class="tmb">Aktifkan</span>, lalu <span class="tmb">Izinkan</span>.</li>
+  </ol>
+
+  <h3>Memastikan sudah aktif</h3>
+  <ol class="langkah">
+    <li>Tekan ikon orang (<b>Profil</b>) di kanan atas.</li>
+    <li>Di bagian <b>Notifikasi HP</b> harus tertulis <b>Aktif di HP ini</b>.</li>
+    <li>Tekan <span class="tmb">Kirim notifikasi percobaan</span>. Dalam beberapa detik notifikasi percobaan masuk.</li>
+  </ol>
+  <figure class="potret"><img src="gambar/03-profil.jpg" alt="Jendela Profil Saya" loading="lazy" onerror="this.closest('figure').remove()"><figcaption>Profil Saya. Selama tertulis “Belum aktif di HP ini”, tekan Aktifkan notifikasi.</figcaption></figure>
+  <div class="kotak tip"><b>Lebih dari satu HP</b><p>Satu akun boleh aktif di beberapa HP. Ulangi langkah di atas di tiap HP. Jenis notifikasi yang akan Anda terima ada di <a href="#notif">Bab 16</a>.</p></div>
+</section>
+
+<!-- ================================================================== -->
+<section class="bab" id="layar">
+  <div class="no-bab">BAB 04</div>
+  <h2>Mengenal layar Dashboard</h2>
+  <a class="tonton" href="video-tutorial.html?bab=1">Tonton: Masuk dan kenali layarnya</a>
+
+  <div class="skema" role="img" aria-label="Skema kepala halaman dashboard dengan enam ikon bernomor dan menu utama">
+    <div class="atas"><small>PERUM LPPNPI · CABANG JATSC</small><b>Dashboard Fasilitas Teknik</b>
+      <div class="ikon">
+        <div class="ik"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg><i>1</i></div>
+        <div class="ik"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg><i>2</i></div>
+        <div class="ik">EN<i>3</i></div>
+        <div class="ik"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><i>4</i></div>
+        <div class="ik"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><i>5</i></div>
+        <div class="ik"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 17l5-5-5-5"/><path d="M20 12H9"/><path d="M12 20H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h6"/></svg><i>6</i></div>
+      </div>
+    </div>
+    <div class="rel"><span class="aktif">Beranda</span><span>Trouble Semua Unit</span><span>NOTAM</span><span>Dinas Hari Ini</span><span>Kotak Masuk</span><span>Database Unit</span></div>
+    <ol>
+      <li><b>Buku</b>: membuka E-Logbook.</li>
+      <li><b>Lonceng</b>: pemberitahuan milik akun Anda. Angkanya menghitung yang belum beres.</li>
+      <li><b>EN / ID</b>: mengganti bahasa tampilan.</li>
+      <li><b>Bulan</b>: mengganti tema terang atau gelap. Pilihan disimpan per akun.</li>
+      <li><b>Orang</b>: Profil (nama, username, peran, unit) dan Notifikasi HP.</li>
+      <li><b>Panah</b>: Keluar.</li>
+    </ol>
+  </div>
+  <figure class="potret"><img src="gambar/02-beranda.jpg" alt="Beranda dashboard" onerror="this.closest('figure').remove()"><figcaption>Beranda dashboard.</figcaption></figure>
+
+  <h3>Menu utama</h3>
+  <div class="gulir"><table>
+    <tr><th>Menu</th><th>Isinya</th></tr>
+    <tr><td><b>Beranda</b></td><td>Kartu peralatan tiap unit yang berputar bergiliran (klik kartu untuk membuka unitnya), panel <b>Perlu Perhatian</b>, trouble yang belum selesai, dan siapa yang berdinas hari ini.</td></tr>
+    <tr><td><b>Trouble Semua Unit</b></td><td>Semua isu berstatus Open dan Proses dari seluruh unit, diurutkan dari yang paling lama. Kolom <b>Umur</b> dihitung sampai menit; lewat 14 hari ditandai merah.</td></tr>
+    <tr><td><b>NOTAM</b></td><td>NOTAM yang terbit karena peralatan unit, jam dalam UTC. Klik satu baris untuk membuka unitnya.</td></tr>
+    <tr><td><b>Dinas Hari Ini</b></td><td>Siapa berdinas di tiap unit hari ini, dan pita Cakupan 24 Jam.</td></tr>
+    <tr><td><b>Kotak Masuk</b></td><td>Kegiatan berkala periode berjalan, per tanggal, beserta siapa yang kena. Lihat <a href="#berkala">Bab 6</a>.</td></tr>
+    <tr><td><b>Database Unit</b></td><td>Isi tiap unit: peralatan, sparepart, jadwal dinas, kegiatan berkala, personel, galeri, dokumen. Lihat <a href="#unit">Bab 7</a>.</td></tr>
+  </table></div>
+  <figure class="potret"><img src="gambar/02-trouble.jpg" alt="Layar Trouble Semua Unit" loading="lazy" onerror="this.closest('figure').remove()"><figcaption>Trouble Semua Unit: ringkasan di atas, daftar dengan kolom Umur di bawah.</figcaption></figure>
+  <div class="kotak"><b>Yang sama dan yang berbeda</b><p>Beranda, Trouble, NOTAM, dan Dinas Hari Ini tampil sama untuk semua akun, supaya siapa pun yang masuk dinas tahu apa yang sedang menggantung di unit sebelah. Perbedaan peran baru terasa di Database Unit: unit yang bukan milik Anda bergembok.</p></div>
+</section>
+
+<!-- ================================================================== -->
+<section class="bab" id="dinas">
+  <div class="no-bab">BAB 05</div>
+  <h2>Jadwal dinas</h2>
+  <a class="tonton" href="video-tutorial.html?bab=2">Tonton: Jadwal dinas dan kodenya</a>
+
+  <h3>Melihat jadwal bulan ini</h3>
+  <ol class="langkah">
+    <li>Tekan <span class="tmb">Database Unit</span>, lalu pilih unit Anda. Unit lain bisa dipilih lewat deretan “Jadwal dinas unit lain” untuk melihat jadwalnya saja.</li>
+    <li>Tekan subtab <span class="tmb">Jadwal Dinas</span>.</li>
+    <li>Tabelnya berisi satu baris per orang dan satu kolom per tanggal. Kolom hari ini ditandai, tanggal merah diblok sampai bawah, dan kolom nama tetap di tempat saat tabel digeser ke samping.</li>
+  </ol>
+  <figure class="potret"><img src="gambar/05-jadwal-dinas.jpg" alt="Tabel jadwal dinas" onerror="this.closest('figure').remove()"><figcaption>Tabel Jadwal Dinas satu unit.</figcaption></figure>
+  <p>Baris penanda di atas nama-nama menunjukkan tanggal yang ada kegiatan berkalanya. Jadwal diisi oleh admin unit atau PIC Jadwal Dinas; kalau ada yang keliru, sampaikan ke mereka.</p>
+
+  <h3>Arti kode dinas</h3>
+  <p>Huruf terakhir menyebut gedung: <span class="kode">J</span> = JATSC, <span class="kode">N</span> atau <span class="kode">NJ</span> = New JATSC.</p>
+  <div class="gulir"><table>
+    <tr><th>Kode</th><th>Artinya</th><th>Jam WIB</th><th>Jam UTC</th></tr>
+    <tr><td class="kode">PSJ · PSN</td><td>Pagi sampai siang, di JATSC atau New JATSC</td><td>07.00–19.00</td><td>00:00–12:00</td></tr>
+    <tr><td class="kode">MJ · MN</td><td>Malam, di JATSC atau New JATSC</td><td>19.00–07.00</td><td>12:00–00:00</td></tr>
+    <tr><td class="kode">P1</td><td>Pagi, pada hari yang dibagi tiga rombongan</td><td>07.00–14.00</td><td>00:00–07:00</td></tr>
+    <tr><td class="kode">S1</td><td>Siang, pada hari yang dibagi tiga rombongan</td><td>14.00–20.00</td><td>07:00–13:00</td></tr>
+    <tr><td class="kode">M1</td><td>Malam, pada hari yang dibagi tiga rombongan</td><td>20.00–07.00</td><td>13:00–00:00</td></tr>
+    <tr><td class="kode">P1J · S1J · M1J<br>P1NJ · S1NJ · M1NJ</td><td>P1, S1, M1 dengan keterangan gedung</td><td colspan="2">sama dengan P1, S1, M1</td></tr>
+    <tr><td class="kode">SPKL…</td><td>Lembur dengan surat perintah, misalnya SPKLPSN</td><td colspan="2">mengikuti kode dasarnya</td></tr>
+    <tr><td class="kode">SAKIT</td><td>Sakit. Kode cuti dan libur juga ditulis apa adanya</td><td colspan="2">tidak berdinas</td></tr>
+  </table></div>
+
+  <h3>Dinas Hari Ini</h3>
+  <p>Menu <span class="tmb">Dinas Hari Ini</span> merangkum jadwal hari ini untuk seluruh unit. Kartu bertanda <b>SEDANG DINAS</b> adalah rombongan yang bertugas saat ini. Isinya datang sendiri dari tabel Jadwal Dinas, jadi tidak perlu diisi dua kali.</p>
+  <figure class="potret"><img src="gambar/03-dinas-hari-ini.jpg" alt="Layar Dinas Hari Ini" loading="lazy" onerror="this.closest('figure').remove()"><figcaption>Dinas Hari Ini: satu kartu per kode dinas, jam dalam UTC dan WIB.</figcaption></figure>
+</section>
+
+<!-- ================================================================== -->
+<section class="bab" id="berkala">
+  <div class="no-bab">BAB 06</div>
+  <h2>Kegiatan berkala dan Kotak Masuk</h2>
+  <p class="pengantar">Kegiatan berkala adalah pekerjaan yang berulang: mingguan, bulanan, triwulan, semesteran, atau tahunan. Avengers memberi tahu orang yang berdinas pada hari pekerjaan itu jatuh tempo.</p>
+  <a class="tonton" href="video-tutorial.html?bab=6">Tonton: Kegiatan berkala dan Kotak Masuk</a>
+
+  <h3>Di mana pekerjaan itu muncul</h3>
+  <div class="gulir"><table>
+    <tr><th>Tempat</th><th>Yang ditampilkan</th></tr>
+    <tr><td><b>Lonceng</b></td><td>Daftar “Untuk Anda”: kegiatan berkala yang perlu Anda kerjakan hari ini (kalau nama Anda ada di jadwal dinas hari itu dan shiftnya cocok), dan lembar Anda yang belum ditandatangani Manager Teknik.</td></tr>
+    <tr><td><b>Kotak Masuk</b></td><td>Semua kegiatan <b>periode berjalan</b>, per tanggal, beserta nama yang kena. Saringan: <span class="tmb">Untuk saya</span> atau <span class="tmb">Semua unit saya</span>.</td></tr>
+    <tr><td><b>Beranda</b></td><td>Panel Perlu Perhatian, yang lewat jatuh tempo lebih dulu.</td></tr>
+    <tr><td><b>Tabel Jadwal Dinas</b></td><td>Baris penanda di tanggal yang ada pekerjaannya.</td></tr>
+  </table></div>
+
+  <figure class="potret"><img src="gambar/06-kotak-masuk.jpg" alt="Layar Kotak Masuk" loading="lazy" onerror="this.closest('figure').remove()"><figcaption>Kotak Masuk dengan saringan “Semua unit saya”. Tiap baris menyebut siapa yang berdinas dan tombol untuk mengerjakannya.</figcaption></figure>
+  <figure class="potret"><img src="gambar/06-lonceng.jpg" alt="Panel lonceng Untuk Anda" loading="lazy" onerror="this.closest('figure').remove()"><figcaption>Lonceng “Untuk Anda”: di sini juga terlihat lembar yang belum ditandatangani.</figcaption></figure>
+  <h3>Menandai selesai</h3>
+  <ol class="langkah">
+    <li>Buka <span class="tmb">Kotak Masuk</span>, atau Database Unit lalu subtab <span class="tmb">Kegiatan Berkala</span>.</li>
+    <li><b>Pekerjaan biasa</b>: tekan <span class="tmb">Tandai selesai</span> sesudah dikerjakan.</li>
+    <li><b>Pekerjaan yang punya lembar di E-Logbook</b> (Daily Check, DS Test, Cek Inspection Neptuno, Monitoring, dan sejenisnya): tekan tombol birunya, misalnya <span class="tmb">Isi Daily Check</span> atau <span class="tmb">Isi Cek Inspection Neptuno</span>. Lembarnya terbuka di E-Logbook; begitu lembar tanggal itu tersimpan, tandanya berubah sendiri.</li>
+    <li><span class="tmb">Buka kegiatannya</span> membawa Anda ke kegiatan itu di subtab Kegiatan Berkala unitnya.</li>
+  </ol>
+  <div class="kotak"><b>Kenapa ada yang tidak bisa dicentang</b><p>Kegiatan yang bersumber dari lembar E-Logbook sengaja tidak bisa ditandai dengan tangan. Buktinya adalah lembar kerjanya sendiri, supaya tidak ada dua catatan yang berselisih.</p></div>
+  <p>Tanda selesai berlaku untuk periode berjalan saja. Minggu atau bulan berikutnya pekerjaan itu kembali kosong dengan sendirinya. Lencana di Kotak Masuk hanya menghitung yang tertuju ke Anda dan belum beres.</p>
+</section>
+
+<!-- ================================================================== -->
+<section class="bab" id="unit">
+  <div class="no-bab">BAB 07</div>
+  <h2>Database Unit</h2>
+  <p class="pengantar">Tekan <span class="tmb">Database Unit</span>, pilih unit, lalu pilih subtabnya.</p>
+
+  <div class="gulir"><table>
+    <tr><th>Subtab</th><th>Isinya</th><th>Yang bisa dilakukan teknisi</th></tr>
+    <tr><td><b>Peralatan</b></td><td>Kartu tiap alat, dikelompokkan per grup</td><td>Klik kartu untuk membuka identitas dan sejarahnya. Daftar alatnya sendiri diatur administrator.</td></tr>
+    <tr><td><b>Trouble</b></td><td>Isu unit ini yang belum selesai</td><td>Melihat. Mengisinya dari tab Isu di E-Logbook.</td></tr>
+    <tr><td><b>Sparepart</b></td><td>Stok sparepart unit</td><td>Tampil hanya bagi yang berhak mengisinya.</td></tr>
+    <tr><td><b>ISR</b> · <b>NOTAM</b></td><td>Catatan ISR dan NOTAM yang terbit karena peralatan unit</td><td>Melihat; mengisinya menurut hak akun.</td></tr>
+    <tr><td><b>Jadwal Dinas</b></td><td>Jadwal bulanan</td><td>Melihat. Lihat <a href="#dinas">Bab 5</a>.</td></tr>
+    <tr><td><b>Kegiatan Berkala</b></td><td>Daftar pekerjaan berulang unit</td><td>Menandai selesai. Lihat <a href="#berkala">Bab 6</a>.</td></tr>
+    <tr><td><b>Personel</b></td><td>Lisensi, rating, sertifikat, dan masa berlakunya</td><td>Mengurus data personel unit sendiri.</td></tr>
+    <tr><td><b>E-Logbook</b></td><td>Cuplikan catatan logbook unit</td><td>Melihat. Tombol <b>Buka E-Logbook</b> di kepala unit membuka E-Logbook unit itu.</td></tr>
+    <tr><td><b>Galeri</b> · <b>Dokumen</b></td><td>Foto dokumentasi dan berkas dokumen unit</td><td>Mengunggah dan membuka.</td></tr>
+  </table></div>
+
+  <h3>Sejarah peralatan</h3>
+  <a class="tonton" href="video-tutorial.html?bab=8">Tonton: Sejarah peralatan dan stiker QR</a>
+  <ol class="langkah">
+    <li>Di subtab <span class="tmb">Peralatan</span>, klik kartu alatnya. Panel <b>Sejarah</b> dan <b>Identitas</b> alat itu muncul di bawah deretan kartu.</li>
+    <li>Di panel <b>Sejarah</b>, tekan <span class="tmb">Tulis</span>. Daftar kejadian berubah menjadi tabel yang bisa disunting.</li>
+    <li>Tekan <span class="tmb">Tambah kejadian</span> untuk baris baru.</li>
+    <li>Isi <b>Tanggal</b>, <b>Kejadian</b> (misalnya “Penggantian antena VHF #3”), <b>Rincian</b> (apa yang dikerjakan, hasilnya, sisa pekerjaannya), dan <b>Keterangan</b> bila perlu.</li>
+    <li>Pilih <b>Penanggung jawab</b> untuk kejadian itu. Dialah yang menandatanganinya.</li>
+    <li>Tekan <span class="tmb">Simpan</span>. Tanda tangan Anda sebagai teknisi pelaksana dipasang dari akun Anda.</li>
+  </ol>
+  <figure class="potret"><img src="gambar/07-sejarah.jpg" alt="Panel Sejarah dan Identitas alat" loading="lazy" onerror="this.closest('figure').remove()"><figcaption>Kartu alat, panel Sejarah (terbaru di atas) dengan tombol Tulis, dan panel Identitas.</figcaption></figure>
+  <figure class="potret"><img src="gambar/07-sejarah-tulis.jpg" alt="Sejarah dalam mode Tulis" loading="lazy" onerror="this.closest('figure').remove()"><figcaption>Sesudah Tulis ditekan: tiap kejadian jadi baris yang bisa disunting, dengan pilihan Penanggung jawab.</figcaption></figure>
+  <p>Kejadian baru bertanda <b>MENUNGGU TTD</b> sampai penanggung jawab menyetujui. Mengubah baris yang sudah disetujui akan meminta tanda tangan ulang.</p>
+  <div class="kotak tip"><b>Cetak dan stiker QR</b><p>Tombol <span class="tmb">Cetak</span> di panel Sejarah mencetak riwayat alat itu saja (induk beserta sub-unitnya). Tombol <span class="tmb">QR</span> di panel Identitas, atau <span class="tmb">QR semua alat</span>, mencetak stiker QR. Alat yang sudah ditempeli stiker bisa dipindai kamera HP; halaman sejarah alat itu langsung terbuka, tampil seperti lembar cetaknya.</p></div>
+
+  <h3>Lisensi yang hampir habis</h3>
+  <p>Peringatan menyala <b>dua bulan</b> sebelum lisensi, rating, atau sertifikat habis. Peringatan itu muncul di Beranda dan di lonceng akun pemiliknya. Pastikan baris personel Anda terhubung dengan akun Anda supaya peringatannya sampai.</p>
+</section>
+
+<!-- ================================================================== -->
+<section class="bab" id="elogbook">
+  <div class="no-bab">BAB 08</div>
+  <h2>Masuk ke E-Logbook</h2>
+  <ol class="langkah">
+    <li>Di Dashboard, tekan ikon <b>buku</b> di kanan atas. E-Logbook terbuka di tab yang sama, dengan akun yang sama.</li>
+    <li>Kalau akun Anda memegang lebih dari satu unit, pilih unitnya di kotak <b>Unit</b>. Unit yang terakhir Anda pilih diingat.</li>
+    <li>Pilih tab pekerjaan yang akan diisi.</li>
+    <li>Untuk kembali, tekan <span class="tmb">← Dashboard Fasilitas Teknik</span>.</li>
+  </ol>
+  <figure class="potret"><img src="gambar/08-elogbook.jpg" alt="Halaman E-Logbook" onerror="this.closest('figure').remove()"><figcaption>Kepala E-Logbook dan deretan tabnya.</figcaption></figure>
+
+  <div class="gulir"><table>
+    <tr><th>Tab</th><th>Untuk apa</th></tr>
+    <tr><td>📋 <b>LOGBOOK FASILITAS</b></td><td>Buku catatan kejadian dan pekerjaan selama dinas</td></tr>
+    <tr><td>🖥 <b>DAILY CHECK</b></td><td>Lembar pemeriksaan harian peralatan</td></tr>
+    <tr><td>🔧 <b>PREVENTIVE MAINTENANCE</b></td><td>Lembar pemeliharaan terjadwal: DS Test, meter reading, weekly check, dan lainnya</td></tr>
+    <tr><td>📄 <b>FORM</b></td><td>Formulir resmi: LTK, BAPB, dan Monitoring Frekuensi</td></tr>
+    <tr><td>⚠ <b>ISU / UPDATE ISSUE</b></td><td>Daftar gangguan yang sedang ditangani</td></tr>
+    <tr><td>📊 <b>REKAP &amp; MATRIK</b></td><td>Rekap kejadian yang pernah dialami unit dan siapa yang menanganinya</td></tr>
+  </table></div>
+  <p>Tab dan subtab menyesuaikan unit. Tab yang formulirnya tidak ada di unit Anda memang tidak ditampilkan.</p>
+
+  <div class="kotak awas"><b>Semua jam di E-Logbook adalah UTC</b>
+    <p>Jam di kanan atas dan jam yang terisi otomatis di form berasal dari <b>jam server dalam UTC</b>, bukan jam HP atau PC Anda. Rumusnya: <b>UTC = WIB − 7 jam</b>. Pukul 09.10 WIB ditulis 02:10; pukul 03.00 WIB ditulis 20:00 tanggal sebelumnya.</p></div>
+
+  <h3>Alat di kepala E-Logbook</h3>
+  <ul>
+    <li>Pilihan <b>orientasi kertas</b> (Otomatis, Portrait, Landscape) untuk mencetak.</li>
+    <li>Tombol tema 🌙 dan bahasa.</li>
+  </ul>
+</section>
+
+<!-- ================================================================== -->
+<section class="bab" id="logbook">
+  <div class="no-bab">BAB 09</div>
+  <h2>Logbook Fasilitas</h2>
+  <a class="tonton" href="video-tutorial.html?bab=3">Tonton: Mengisi Logbook Fasilitas</a>
+
+  <h3>Menambah catatan</h3>
+  <ol class="langkah">
+    <li>Di tab <b>LOGBOOK FASILITAS</b>, tekan <span class="tmb">+ Tambah Catatan</span>.</li>
+    <li>Periksa <b>Tanggal</b> dan <b>Jam Mulai (UTC)</b>. Keduanya sudah terisi otomatis; ubah kalau kejadiannya bukan saat ini. Isi <b>Jam Selesai (UTC)</b> kalau pekerjaannya sudah selesai.</li>
+    <li>Pilih <b>Dinas / Shift</b> dan <b>Lokasi</b> (JATSC atau New JATSC). Lokasi terakhir diingat di perangkat itu. Unit Radkom juga mengisi <b>Frekuensi</b>.</li>
+    <li>Tulis <b>Uraian Pekerjaan / Kejadian</b>: apa yang dikerjakan atau terjadi, hasilnya, dan sisa pekerjaannya.</li>
+    <li>Kalau catatan ini berdasar lembar lain (BAPB, LTK, atau kegiatan berkala), tekan <span class="tmb">+ Tautkan Dokumen</span> dan pilih lembarnya.</li>
+    <li>Kalau perlu, tambahkan <b>Lampiran</b> (lihat di bawah).</li>
+    <li>Periksa <b>Nama Teknisi Pelaksana</b>. Tekan <span class="tmb">+ Nama</span> kalau dikerjakan lebih dari satu orang.</li>
+    <li>Tekan kotak <b>TTD Teknisi</b> (“Tekan untuk tanda tangan”). Kotak berubah menjadi <b>✓ Ditandatangani</b>. Lihat <a href="#ttd">Bab 14</a>.</li>
+    <li>Di <b>Manager Teknik (nama)</b>, pilih Manager Teknik dari daftar. Tanda tangannya dibubuhkan belakangan lewat kotak masuk akunnya.</li>
+    <li>Tekan <span class="tmb">💾 Simpan Catatan</span>.</li>
+  </ol>
+  <figure class="potret"><img src="gambar/09-tambah-catatan-penuh.jpg" alt="Form Tambah Catatan Logbook" onerror="this.closest('figure').remove()"><figcaption>Form Tambah Catatan Logbook, sebelum diisi.</figcaption></figure>
+  <figure class="potret"><img src="gambar/09-ttd-qr.jpg" alt="Bagian bawah form catatan" loading="lazy" onerror="this.closest('figure').remove()"><figcaption>Bagian bawah form: kotak TTD sudah ditekan, Manager Teknik sudah dipilih.</figcaption></figure>
+  <div class="kotak"><b>Manager Teknik sedang tidak di tempat?</b><p>Tetap pilih Manager Teknik-nya. Kalau ia sedang digantikan PH (Pelaksana Harian), sistem ikut mengantarkan lembar itu ke PH-nya. Nama PH tidak perlu diketik.</p></div>
+  <p>Saat menambah nama dengan <span class="tmb">+ Nama</span>, nama rekan muncul sebagai saran. Rekan dari unit lain ditandai nama unitnya, misalnya “Budi (Radtel)”.</p>
+  <p>Catatan langsung tersimpan di server dan muncul paling atas. Pejabat yang dituju dikabari ada lembar yang menunggu tanda tangannya, dan Anda dikabari begitu ia menandatangani.</p>
+
+  <h3>Lampiran foto atau hasil scan</h3>
+  <ul>
+    <li>Paling banyak <b>6 berkas</b> per catatan, masing-masing paling besar <b>8 MB</b>.</li>
+    <li>Jenis yang diterima: <b>JPG, PNG, WEBP, PDF</b>.</li>
+    <li>Foto besar dikecilkan otomatis sebelum dikirim. PDF tidak diubah.</li>
+  </ul>
+
+  <h3>Tombol di kartu catatan</h3>
+  <div class="gulir"><table>
+    <tr><th>Tombol</th><th>Gunanya</th></tr>
+    <tr><td>👁 <b>Detail</b></td><td>Melihat catatan lengkap beserta tanda tangan dan lampirannya</td></tr>
+    <tr><td>⚠ <b>Buat Isu</b></td><td>Meneruskan catatan menjadi isu tanpa mengetik ulang. Lihat <a href="#isu">Bab 13</a></td></tr>
+    <tr><td>✎ <b>Sunting</b></td><td>Membetulkan catatan. Tampil hanya pada catatan yang masih boleh Anda ubah</td></tr>
+  </table></div>
+
+  <h3>Mencari catatan lama</h3>
+  <p>Daftar menampilkan <b>seminggu terakhir</b>. Untuk yang lebih lama, pakai baris saringan di atas daftar: rentang tanggal, Dinas / Shift, Lokasi, dan kotak <b>Cari kata</b> (uraian, nama teknisi, penanggung jawab, frekuensi). Tekan <span class="tmb">↺ Tampilkan Semua</span> untuk menampilkan seluruh catatan.</p>
+</section>
+
+<!-- ================================================================== -->
+<section class="bab" id="dc">
+  <div class="no-bab">BAB 10</div>
+  <h2>Daily Check</h2>
+  <a class="tonton" href="video-tutorial.html?bab=4">Tonton: Mengisi Daily Check</a>
+  <ol class="langkah">
+    <li>Buka tab <b>DAILY CHECK</b>. Riwayat lembar seminggu terakhir tampil lebih dulu.</li>
+    <li>Tekan <span class="tmb">+ Form Baru</span>.</li>
+    <li>Kalau unit Anda punya lebih dari satu lembar, pilih lembarnya di subtab atas form (lihat tabel di bawah).</li>
+    <li>Periksa tanggal dan dinasnya.</li>
+    <li>Semua butir berawal dari centang hijau (Normal). <b>Klik kotaknya</b> untuk mengganti kondisi: <b>Normal → Alarm / Perlu Pantau → Gangguan</b>. Butir yang berupa angka (suhu, tegangan, beban) diisi nilainya.</li>
+    <li>Isi keterangan untuk butir yang tidak normal. Lampirkan foto bila perlu.</li>
+    <li>Di bagian bawah form: periksa nama teknisi, tekan kotak <b>TTD Teknisi</b>, pilih Manager Teknik di <b>Mengetahui — Manager Teknik</b>, lalu tekan <span class="tmb">💾 Simpan Daily Check</span>.</li>
+  </ol>
+  <figure class="potret"><img src="gambar/10-daily-check.jpg" alt="Riwayat Daily Check" loading="lazy" onerror="this.closest('figure').remove()"><figcaption>Tab Daily Check: riwayat lembar, dengan ringkasan “semua normal” atau jumlah gangguan.</figcaption></figure>
+  <figure class="potret"><img src="gambar/10-daily-check-form.jpg" alt="Form Daily Check" onerror="this.closest('figure').remove()"><figcaption>Form Daily Check unit Radtel: subtab lokasi di atas, tiap kotak centang bisa diklik.</figcaption></figure>
+  <figure class="potret"><img src="gambar/10-daily-check-bawah.jpg" alt="Bagian bawah form Daily Check" loading="lazy" onerror="this.closest('figure').remove()"><figcaption>Bagian bawah form Daily Check: catatan tambahan, TTD Teknisi, Manager Teknik, lampiran, dan tombol simpan.</figcaption></figure>
+
+  <div class="gulir"><table>
+    <tr><th>Unit</th><th>Lembar Daily Check</th></tr>
+    <tr><td>Radtel</td><td>VCS Garex 300, dipisah New JATSC dan JATSC</td></tr>
+    <tr><td>Radkom</td><td>Daily Check Unit Radkom New JATSC</td></tr>
+    <tr><td>PPABN / Navigasi</td><td>ILS empat runway dan DVOR/DME dua site</td></tr>
+    <tr><td>Pengamatan</td><td>Radar CKG 3 dan Fasilitas Pengamatan</td></tr>
+    <tr><td>AMSS-ADPS</td><td>AMHS, AADPS, D-ATIS</td></tr>
+    <tr><td>Listrik &amp; Mekanik</td><td>JATSC: STS, MDS, Beban Listrik, UPS · NEW JATSC: MDS, UPS, Chiller-Pompa-AHU</td></tr>
+    <tr><td>FDPS-RDPS</td><td>NEW JATSC: NEW-JAATS · JATSC: E-JAATS software dan hardware</td></tr>
+    <tr><td>Gedung &amp; Keamanan</td><td>Toilet &amp; Mushalla, Lift &amp; Akses Door, per gedung</td></tr>
+  </table></div>
+  <div class="kotak tip"><b>Menemukan gangguan saat daily check?</b><p>Tandai butirnya Alarm atau Gangguan, tulis rinciannya di Logbook Fasilitas, lalu buat isunya dari catatan itu. Dengan begitu gangguan muncul di papan Trouble semua unit.</p></div>
+</section>
+
+<!-- ================================================================== -->
+<section class="bab" id="pm">
+  <div class="no-bab">BAB 11</div>
+  <h2>Preventive Maintenance</h2>
+  <p class="pengantar">Lembar pemeliharaan terjadwal. Satu tab berisi beberapa subtab, satu subtab untuk satu jenis pekerjaan.</p>
+  <ol class="langkah">
+    <li>Buka tab <b>PREVENTIVE MAINTENANCE</b>, lalu pilih subtab pekerjaannya.</li>
+    <li>Tekan <span class="tmb">+ Form Baru</span> di subtab itu untuk membuka lembar baru.</li>
+    <li>Isi butir-butirnya. Sebagian isian (frekuensi, merk, alamat) sudah terisi dari lembar bakunya dan bisa Anda timpa.</li>
+    <li>Lampirkan dokumen bila perlu, tekan kotak TTD, pilih Manager Teknik, lalu simpan.</li>
+  </ol>
+  <figure class="potret"><img src="gambar/11-preventive.jpg" alt="Tab Preventive Maintenance" loading="lazy" onerror="this.closest('figure').remove()"><figcaption>Tab Preventive Maintenance unit Radtel dengan subtab tiap pekerjaan.</figcaption></figure>
+  <div class="gulir"><table>
+    <tr><th>Unit</th><th>Subtab yang tersedia</th></tr>
+    <tr><td>Radtel</td><td>DS Test · Maintenance Radio · Cek Inspection Neptuno · Change Over CPU Gatevox · Cleaning CWP · Restart CWP</td></tr>
+    <tr><td>Pengamatan</td><td>Weekly Check: CKG 3 · SMR T1 · SMR T3</td></tr>
+    <tr><td>PPABN / Navigasi</td><td>Ground Check · Meter Reading</td></tr>
+    <tr><td>Listrik &amp; Mekanik</td><td>Panel Distribusi · Maint STS · Maint UPS · Chiller · AHU · Genset · Grounding &amp; Petir</td></tr>
+    <tr><td>Radkom</td><td>Mingguan · Bulanan · Radio R&amp;S TX · Radio R&amp;S RX · Battery · TX VHF · Antena VHF</td></tr>
+  </table></div>
+  <ul>
+    <li>Lembar masih bisa <b>disunting</b> lewat tombol ✎ selama belum ditandatangani Manager Teknik.</li>
+    <li>Lembar yang terhubung dengan kegiatan berkala (misalnya DS Test) otomatis menandai kegiatan itu selesai di Dashboard.</li>
+  </ul>
+</section>
+
+<!-- ================================================================== -->
+<section class="bab" id="form">
+  <div class="no-bab">BAB 12</div>
+  <h2>Form: LTK, BAPB, Monitoring</h2>
+  <p class="pengantar">Tab <b>FORM</b> berisi formulir resmi. Pilih subtabnya.</p>
+  <div class="gulir"><table>
+    <tr><th>Subtab</th><th>Kapan dipakai</th></tr>
+    <tr><td>🛠 <b>LTK</b></td><td>Laporan Terjadinya Kerusakan: dibuat ketika ada kerusakan, berisi laporan kerusakan dan kegiatan perbaikannya. Ditandatangani Manager Teknik.</td></tr>
+    <tr><td>📦 <b>BAPB</b></td><td>Berita Acara Pemasangan Barang: nomor berita acara, daftar barang yang terpasang, dan tiga tanda tangan: <b>Penerima Barang</b> (unit, jabatan, nama, dan NIK diketik; ada saran unit dan jabatan), <b>Manager Teknik</b> (dipilih), dan petugas pemasangan. Bisa dilampiri dokumen.</td></tr>
+    <tr><td>📶 <b>MONITORING FREKUENSI</b></td><td>Khusus unit Radkom. Tiga petak tanda tangan: <b>Manager Operasi</b> (pilih unit ACC, APP, TOWER, atau ADC dan jabatannya; NIK boleh diketik), <b>Manager Teknik</b>, dan teknisi. TTD Manager Operasi bisa dibubuhkan di form atau menyusul dari jendela detail.</td></tr>
+  </table></div>
+  <p>Cara mengisinya sama dengan lembar lain: tekan tombol buat (<span class="tmb">+ Buat LTK</span>, <span class="tmb">+ Buat BAPB</span>), isi, lampirkan, tekan kotak TTD, pilih Manager Teknik, simpan. Daftar menampilkan 7 hari terakhir; tekan ↺ Tampilkan Semua untuk yang lebih lama. LTK dan BAPB yang sudah tersimpan bisa ditautkan ke catatan logbook lewat <span class="tmb">+ Tautkan Dokumen</span>.</p>
+</section>
+
+<!-- ================================================================== -->
+<section class="bab" id="isu">
+  <div class="no-bab">BAB 13</div>
+  <h2>Isu dan papan Trouble</h2>
+  <p class="pengantar">Isu adalah gangguan yang perlu dipantau sampai selesai. Setiap isu Open otomatis tampil di <b>Trouble Semua Unit</b> pada Dashboard.</p>
+  <a class="tonton" href="video-tutorial.html?bab=5">Tonton: Melaporkan isu (trouble)</a>
+
+  <h3>Cara tercepat: dari catatan logbook</h3>
+  <ol class="langkah">
+    <li>Di kartu catatan logbook, tekan <span class="tmb">⚠</span> (atau <span class="tmb">⚠ Buat Isu</span> di jendela Detail).</li>
+    <li>Form <b>Tambah Isu</b> terbuka dan sudah terisi: Jenis Issue, Keterangan, Lokasi, Tanggal dan Jam Report, serta lampiran catatan itu sebagai bukti saat kejadian.</li>
+    <li>Periksa dan betulkan seperlunya, lalu tekan <span class="tmb">💾 Simpan Isu</span>.</li>
+  </ol>
+
+  <h3>Membuat isu dari awal</h3>
+  <ol class="langkah">
+    <li>Buka tab <b>ISU / UPDATE ISSUE</b>, tekan <span class="tmb">+ Tambah Isu</span>.</li>
+    <li>Isi <b>Jenis Issue</b> (judul singkat), <b>Keterangan</b>, <b>Lokasi</b>, <b>Tanggal</b>, dan <b>Jam Report (UTC)</b>.</li>
+    <li>Lampirkan <b>Foto / Dokumen Saat Kejadian</b> bila ada (maksimal 6 berkas, 8 MB per berkas).</li>
+    <li>Tekan <span class="tmb">💾 Simpan Isu</span>. “Dilaporkan Oleh” otomatis akun yang sedang masuk.</li>
+  </ol>
+  <figure class="potret"><img src="gambar/13-isu.jpg" alt="Tabel Isu" onerror="this.closest('figure').remove()"><figcaption>Tabel Isu di E-Logbook.</figcaption></figure>
+
+  <h3>Menutup isu</h3>
+  <ol class="langkah">
+    <li>Di tabel Isu, ubah pilihan di kolom <b>Status</b> menjadi <b>Closed</b>.</li>
+    <li>Isi <b>keterangan penutupan</b>, dan lampirkan bukti saat selesai bila ada.</li>
+    <li>Simpan. Isu hilang dari papan Trouble.</li>
+  </ol>
+  <div class="kotak"><b>Batasnya</b><p>Isu baru selalu berstatus Open. Mengubah jenis, keterangan, lokasi, atau pelapor, serta menghapus isu, hanya bisa dilakukan administrator atau admin unit. Membuka kembali isu yang sudah Closed hanya bisa administrator. Kalau ada yang perlu dikoreksi, sampaikan ke mereka.</p></div>
+
+  <h3>Membaca papan Trouble di Dashboard</h3>
+  <ul>
+    <li>Diurutkan dari yang paling lama menggantung.</li>
+    <li>Kolom <b>Umur</b> dihitung dari Tanggal dan Jam Report sampai menit, misalnya “32 hr 10 jam 5 mnt”.</li>
+    <li>Yang lewat <b>14 hari</b> ditandai merah.</li>
+  </ul>
+</section>
+
+<!-- ================================================================== -->
+<section class="bab" id="ttd">
+  <div class="no-bab">BAB 14</div>
+  <h2>Tanda tangan QR</h2>
+  <p class="pengantar">Sejak versi 2.10, tanda tangan tidak lagi digambar. Menandatangani cukup dengan <b>menekan kotak TTD</b> selagi Anda masuk; tanda tangan tersimpan sebagai <b>kode QR</b> atas nama akun Anda.</p>
+  <a class="tonton" href="video-tutorial.html?bab=7">Tonton: Tanda tangan QR</a>
+
+  <h3>Menandatangani lembar</h3>
+  <ol class="langkah">
+    <li>Isi lembarnya seperti biasa.</li>
+    <li>Tekan kotak <b>TTD Teknisi</b> yang bertuliskan <b>“Tekan untuk tanda tangan”</b>.</li>
+    <li>Kotak berubah menjadi <b>✓ Ditandatangani</b>. Salah tekan? Tekan sekali lagi untuk membatalkan, selama lembar belum disimpan.</li>
+    <li>Pilih Manager Teknik yang dituju, lalu simpan lembarnya.</li>
+  </ol>
+  <figure class="potret"><img src="gambar/09-ttd-qr.jpg" alt="Kotak TTD Teknisi sesudah ditekan" loading="lazy" onerror="this.closest('figure').remove()"><figcaption>Kotak TTD Teknisi sesudah ditekan, dan Manager Teknik yang dipilih dari daftar.</figcaption></figure>
+
+  <h3>Isi kode QR</h3>
+  <div class="gulir"><table>
+    <tr><th>Baris</th><th>Isinya</th></tr>
+    <tr><td>Kop</td><td>Perum LPPNPI Cabang JATSC</td></tr>
+    <tr><td>Unit atau jabatan</td><td>Unit Anda. Untuk pejabat: jabatannya, misalnya Manager Teknik</td></tr>
+    <tr><td>Nama</td><td>Nama lengkap akun yang menandatangani</td></tr>
+    <tr><td>NIK</td><td>NIK akun itu</td></tr>
+  </table></div>
+  <ul>
+    <li>Di tengah QR ada lambang Avengers. Di layar, QR bisa diketuk untuk diperbesar.</li>
+    <li>Dipindai dengan kamera HP, QR terbaca baris-baris di atas.</li>
+    <li>Identitasnya diambil dari akun yang sedang masuk, bukan diketik. Karena itu tidak ada yang bisa menandatangani atas nama orang lain.</li>
+    <li>Tanda tangan goresan pada lembar-lembar lama sudah diubah menjadi QR.</li>
+  </ul>
+  <div class="kotak awas"><b>Periksa nama dan NIK akun Anda</b><p>Yang tercetak di QR adalah nama dan NIK akun Anda. Buka Profil (ikon orang) untuk melihatnya. Kalau ada yang salah, minta admin unit atau administrator membetulkannya sebelum Anda menandatangani lembar.</p></div>
+
+  <h3>Alur tanda tangan satu lembar</h3>
+  <ol class="langkah">
+    <li><b>Anda</b> mengisi lembar, menekan kotak TTD, memilih Manager Teknik, lalu menyimpan.</li>
+    <li><b>Manager Teknik</b> menerima notifikasi “Perlu tanda tangan” dan lembarnya masuk ke kotak masuk TTD miliknya. Kalau ia sedang digantikan <b>PH (Pelaksana Harian)</b>, lembarnya juga sampai ke PH itu.</li>
+    <li>Pejabat memeriksa lalu menandatangani. <b>Anda</b> menerima notifikasi “Sudah ditandatangani”.</li>
+    <li>Kalau <b>30 menit sesudah dinas selesai</b> lembar belum ditandatangani, Anda menerima notifikasi “Belum ditandatangani”, dan lembarnya tercantum di lonceng Dashboard. Ingatkan pejabatnya.</li>
+  </ol>
+  <div class="gulir"><table>
+    <tr><th>Formulir</th><th>Petak pihak lain</th></tr>
+    <tr><td>Logbook Fasilitas · Daily Check · Preventive · LTK</td><td>Manager Teknik, dipilih dari daftar</td></tr>
+    <tr><td>Monitoring Frekuensi</td><td>Manager Operasi (unit dan jabatan dipilih) dan Manager Teknik</td></tr>
+    <tr><td>BAPB</td><td>Penerima Barang (unit, jabatan, nama, NIK diketik) dan Manager Teknik</td></tr>
+    <tr><td>Sejarah Peralatan</td><td>Penanggung jawab yang dipilih per kejadian</td></tr>
+  </table></div>
+  <div class="kotak"><b>Tanda tangan PH</b><p>Lembar yang ditandatangani PH memuat nama PH beserta keterangan Manager Teknik yang digantikannya, misalnya “Nama PH (PH Manager Teknik Nama MT)”, dan QR-nya menyebut jabatan “PH Manager Teknik”. Teknisi tidak perlu mengetik nama PH.</p></div>
+</section>
+
+<!-- ================================================================== -->
+<section class="bab" id="cetak">
+  <div class="no-bab">BAB 15</div>
+  <h2>Mencetak dan Rekap</h2>
+
+  <h3>Mencetak</h3>
+  <div class="gulir"><table>
+    <tr><th>Tombol</th><th>Hasilnya</th></tr>
+    <tr><td>🖨 <b>Cetak Logbook</b></td><td>Tabel logbook menurut rentang tanggal, Dinas, dan Lokasi yang sedang dipilih di saringan</td></tr>
+    <tr><td>🖨 di riwayat Daily Check atau lembar lain</td><td>Lembar itu, dalam bentuk formulir bakunya</td></tr>
+    <tr><td>🖨 <b>Cetak Daftar Isu</b></td><td>Tabel isu menurut rentang tanggal report dan status</td></tr>
+    <tr><td>👁 <b>Lihat Saja</b></td><td>Pratinjau lembar tanpa mencetak</td></tr>
+  </table></div>
+  <ul>
+    <li>Untuk mencetak <b>satu hari</b>, isi tanggal “dari” dan “sampai” dengan tanggal yang sama. Tambahkan saringan Dinas untuk cetak per shift.</li>
+    <li>Lampiran ikut tercetak di halaman sesudah tabel. Gambar ditempel; PDF hanya didaftar namanya.</li>
+    <li>Orientasi kertas diatur di kepala E-Logbook: Otomatis, Portrait, atau Landscape.</li>
+    <li>Di dialog cetak peramban, pilih printer, atau <b>Simpan sebagai PDF</b> untuk mendapat berkas PDF.</li>
+    <li>Tanda tangan tercetak sebagai kode QR. Setiap cetakan membawa tanda sumber “teknik-avengers.com”.</li>
+  </ul>
+  <div class="kotak awas"><b>Belum bisa dicetak?</b><p>Cetak ditolak selama masih ada lembar atau catatan di rentang itu yang tanda tangannya belum lengkap. Lengkapi dulu tanda tangannya; lonceng di Dashboard menyebut lembar mana yang belum. Hanya administrator yang bisa mencetak lebih dulu untuk memeriksa lembar.</p></div>
+
+  <h3>Rekap &amp; Matrik</h3>
+  <p>Tab <b>REKAP &amp; MATRIK</b> merangkum kejadian yang pernah dialami unit dari Logbook, LTK, dan Isu: jenis kejadian per periode, dan siapa yang sudah pernah menanganinya. Pilih <b>Per minggu</b> atau <b>Per bulan</b>, atur rentangnya (tombol cepat: Bulan ini, 3 bulan, 1 tahun), dan klik satu sel untuk melihat catatan di baliknya. <span class="tmb">🖨 Cetak Rekap</span> mencetaknya.</p>
+  <p>Daily check dan monitoring tidak ikut dihitung, karena isinya pemeriksaan terjadwal, bukan kejadian.</p>
+  <figure class="potret"><img src="gambar/15-rekap.jpg" alt="Tab Rekap dan Matrik" loading="lazy" onerror="this.closest('figure').remove()"><figcaption>Rekap &amp; Matrik unit untuk rentang yang dipilih.</figcaption></figure>
+</section>
+
+<!-- ================================================================== -->
+<section class="bab" id="notif">
+  <div class="no-bab">BAB 16</div>
+  <h2>Daftar notifikasi</h2>
+  <p class="pengantar">Notifikasi HP berlaku sesudah Anda mengaktifkannya (<a href="#hp">Bab 3</a>). Ketuk notifikasi mana pun untuk membuka Avengers di tempat yang dimaksud.</p>
+  <div class="gulir"><table>
+    <tr><th>Notifikasi</th><th>Dikirim ke</th><th>Kapan</th></tr>
+    <tr><td>🕖 <b>Pengingat dinas</b></td><td>Anda</td><td>Satu jam sebelum dinas Anda mulai</td></tr>
+    <tr><td>📋 <b>Kegiatan berkala</b></td><td>Yang berdinas</td><td>Satu jam sesudah dinas mulai, berisi daftar yang belum dikerjakan</td></tr>
+    <tr><td>📅 <b>Daftar dinas diperbarui</b></td><td>Orang satu unit</td><td>Tiap daftar dinas disimpan dengan perubahan. Menyebut tanggal dan kode yang berubah</td></tr>
+    <tr><td>🛠️ <b>Riwayat peralatan diperbarui</b></td><td>Anggota unit</td><td>Tiap sejarah alat ditambah, diubah, atau dihapus</td></tr>
+    <tr><td>✅ <b>Sudah ditandatangani</b></td><td>Teknisi pengirim</td><td>Begitu pejabat membubuhkan tanda tangan</td></tr>
+    <tr><td>⏰ <b>Belum ditandatangani</b></td><td>Teknisi pengirim</td><td>30 menit sesudah dinas selesai</td></tr>
+    <tr><td>🔔 <b>Perlu tanda tangan</b></td><td>Pejabat yang dituju (atau PH-nya)</td><td>Begitu lembar disimpan</td></tr>
+  </table></div>
+  <p>Selain itu, <b>lonceng</b> di Dashboard menampung pemberitahuan milik Anda (kegiatan berkala hari ini dan lisensi yang hampir habis) walau notifikasi HP tidak diaktifkan.</p>
+</section>
+
+<!-- ================================================================== -->
+<section class="bab" id="masalah">
+  <div class="no-bab">BAB 17</div>
+  <h2>Kalau ada masalah</h2>
+  <div class="gulir"><table>
+    <tr><th>Gejala</th><th>Yang dilakukan</th></tr>
+    <tr><td>“Username atau password salah”</td><td>Periksa huruf besar-kecil dan NIK. Kalau baru mendaftar, akun mungkin belum diaktifkan. Hubungi admin unit.</td></tr>
+    <tr><td>Masuk berhasil, tetapi unit bergembok atau E-Logbook kosong</td><td>Akun belum diberi unit. Minta admin unit atau administrator menetapkannya.</td></tr>
+    <tr><td>Kartu masuk menyebut server tidak terjawab</td><td>Periksa internet Anda, lalu coba lagi beberapa menit kemudian. Kalau tetap, kabari administrator.</td></tr>
+    <tr><td>Tampilan masih versi lama sesudah ada pembaruan</td><td>PC: tekan <kbd>Ctrl</kbd>+<kbd>F5</kbd>. HP: tutup Avengers sepenuhnya lalu buka lagi.</td></tr>
+    <tr><td>Tombol Pasang atau Aktifkan notifikasi tidak muncul</td><td>Tutup tab atau aplikasi Avengers lalu buka lagi. iPhone: harus dibuka dari ikon di Layar Utama dan iOS 16.4 ke atas.</td></tr>
+    <tr><td>Notifikasi tidak berbunyi</td><td>Periksa mode senyap dan izin notifikasi Avengers di setelan HP. Di Profil, pastikan tertulis “Aktif di HP ini”, lalu kirim notifikasi percobaan.</td></tr>
+    <tr><td>“Notifikasi diblokir di HP ini”</td><td>Buka setelan situs atau aplikasi Avengers di HP, izinkan Notifikasi, lalu tekan Aktifkan lagi.</td></tr>
+    <tr><td>Lampiran ditolak</td><td>Pastikan jenisnya JPG, PNG, WEBP, atau PDF, ukurannya di bawah 8 MB, dan jumlahnya tidak lebih dari 6.</td></tr>
+    <tr><td>Jam catatan tampak “salah”</td><td>E-Logbook memakai UTC. Kurangi 7 jam dari WIB.</td></tr>
+    <tr><td>Nama atau NIK di QR tanda tangan salah</td><td>QR mengambil nama dan NIK dari akun. Minta admin unit atau administrator membetulkan akun Anda.</td></tr>
+    <tr><td>Manager Teknik yang dituju tidak ada di daftar</td><td>Daftar berisi akun pejabat yang aktif. Kabari administrator.</td></tr>
+    <tr><td>Salah isi sesudah tersimpan</td><td>Pakai ✎ Sunting kalau tombolnya ada. Kalau tidak ada, minta admin unit atau administrator membetulkan.</td></tr>
+    <tr><td>Kegiatan berkala tidak bisa ditandai selesai</td><td>Kegiatan itu bersumber dari lembar E-Logbook. Isi lembarnya lewat tombol “Isi …”-nya.</td></tr>
+    <tr><td>Lembar tidak bisa dicetak</td><td>Masih ada tanda tangan yang belum lengkap. Lihat lonceng untuk tahu lembar mana, lalu lengkapi atau ingatkan pejabatnya.</td></tr>
+  </table></div>
+  <p>Untuk hal lain, hubungi admin unit Anda lebih dulu. Admin unit meneruskan ke administrator bila perlu.</p>
+</section>
+
+<!-- ================================================================== -->
+<section class="bab" id="harian">
+  <div class="no-bab">BAB 18</div>
+  <h2>Ringkasan satu dinas</h2>
+  <p class="pengantar">Urutan yang biasa dijalani teknisi dari awal sampai akhir dinas.</p>
+  <ol class="langkah">
+    <li><b>Sebelum dinas.</b> HP mengingatkan satu jam sebelumnya. Buka Avengers, lihat <b>Trouble Semua Unit</b> dan catatan logbook rombongan sebelumnya.</li>
+    <li><b>Awal dinas.</b> Buka E-Logbook, isi <b>Daily Check</b>.</li>
+    <li><b>Lihat lonceng dan Kotak Masuk.</b> Kerjakan kegiatan berkala yang jatuh ke Anda hari ini, lalu tandai selesai atau isi lembarnya.</li>
+    <li><b>Selama dinas.</b> Catat setiap pekerjaan dan kejadian di <b>Logbook Fasilitas</b>, lengkap dengan lampiran, TTD QR, dan Manager Teknik yang dituju.</li>
+    <li><b>Ada gangguan.</b> Buat <b>isu</b> dari catatannya. Kalau terjadi kerusakan, buat <b>LTK</b>. Tulis riwayatnya di <b>Sejarah Peralatan</b> alat itu.</li>
+    <li><b>Gangguan selesai.</b> Ubah status isunya menjadi <b>Closed</b> dengan keterangan penutupan.</li>
+    <li><b>Akhir dinas.</b> Lihat lonceng: pastikan tidak ada lembar Anda yang belum ditandatangani. Tekan <b>Keluar</b> kalau memakai perangkat bersama.</li>
+  </ol>
+  <footer>
+    Buku ini disusun dari Avengers versi 2.11.0 (15 Oktober 2026). Nama tombol ditulis seperti yang tampil di layar berbahasa Indonesia. Kalau tampilan di perangkat Anda berbeda dari buku ini, yang berlaku adalah tampilan aplikasinya. Gambar layar diambil dari server uji dengan akun uji; nama, NIK, dan tanda tangan orang di dalamnya sudah disamarkan.
+  </footer>
+</section>
+
+</main>
+</div>
+</body>
+</html>
