@@ -151,6 +151,16 @@ table.jdw.sunting td.jdw-sel.jdw-pratinjau{outline:1px dashed var(--accent);outl
 .jdw-alat .ket{font-size:11.5px;color:var(--muted);margin-right:4px;}
 .jdw-alat .btn.kecil{font-family:var(--font-mono);min-width:38px;}
 #jdwKetik{font-family:var(--font-mono);color:var(--accent);}
+/* Saran kode di bawah sel yang sedang diketik (jdwPasangExcel). */
+.jdw-saran{position:fixed;z-index:60;min-width:150px;max-height:240px;overflow-y:auto;padding:4px;
+  background:var(--panel);border:1px solid var(--line);border-radius:9px;box-shadow:var(--bayang);}
+.jdw-saran[hidden]{display:none;}
+.jdw-saran button{display:flex;align-items:baseline;gap:9px;width:100%;padding:5px 8px;border:0;
+  border-radius:6px;background:none;color:var(--text);font:inherit;font-size:12.5px;text-align:left;cursor:pointer;}
+.jdw-saran button b{font-family:var(--font-mono);min-width:38px;}
+.jdw-saran button span{color:var(--muted);font-size:11.5px;}
+.jdw-saran button:hover,.jdw-saran button.aktif{background:var(--panel-2);}
+.jdw-saran button.aktif{box-shadow:inset 2px 0 0 var(--accent);}
 /* Total dinas sebulan per orang, di kanan tabel saat menyunting. */
 table.jdw td.jdw-rekap,table.jdw th.jdw-rekap{min-width:30px;color:var(--text);font-weight:600;
   background:var(--zebra);}

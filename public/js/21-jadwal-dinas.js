@@ -606,13 +606,15 @@ function jdwIsi(unit){
       '<b>Seperti Excel:</b> klik lalu seret untuk memblok beberapa sel (atau Shift+klik). Tarik '
       + '<b>kotak kecil di pojok kanan bawah</b> blok untuk mengulang isinya ke samping atau ke bawah — '
       + 'blok <b>PS M L L</b> lalu tarik sampai akhir bulan, polanya berulang sendiri. Ketik kodenya '
-      + 'langsung di keyboard, <b>Delete</b> mengosongkan, panah berpindah sel, <b>Ctrl+C / Ctrl+V</b> '
+      + 'langsung di keyboard — huruf pertama sudah memunculkan saran kode di bawah sel (ketik <b>S</b>, '
+      + 'muncul S, S1, …), pilih dengan panah atas/bawah lalu Enter, atau klik. <b>Delete</b> mengosongkan, panah berpindah sel, <b>Ctrl+C / Ctrl+V</b> '
       + 'menyalin dan menempel (juga dari Excel), <b>Ctrl+Z</b> mengurungkan. Di HP: ketuk sel, tarik '
       + 'kotak pojoknya, atau pakai tombol kode di atas.',
       '<b>Like Excel:</b> click and drag to select several cells (or Shift+click). Drag the <b>small '
       + 'square at the bottom-right corner</b> of the selection to repeat it sideways or down — select '
       + '<b>PS M L L</b> and drag to the end of the month, the pattern repeats itself. Type a code on the '
-      + 'keyboard, <b>Delete</b> clears, arrows move, <b>Ctrl+C / Ctrl+V</b> copy and paste (also from '
+      + 'keyboard — the first letter already lists matching codes under the cell (type <b>S</b> to see S, '
+      + 'S1, …); pick with up/down and Enter, or click. <b>Delete</b> clears, arrows move, <b>Ctrl+C / Ctrl+V</b> copy and paste (also from '
       + 'Excel), <b>Ctrl+Z</b> undoes. On a phone: tap a cell, drag its corner square, or use the code '
       + 'buttons above.')}</div>`;
 
@@ -659,6 +661,7 @@ function jdwIsi(unit){
 function jdwGambar(){
   const kotak = el('s-dinas');
   if(!kotak || !unitDibuka) return;
+  document.querySelectorAll('.jdw-saran').forEach(x=>x.remove());   // saran kode milik tabel lama
   kotak.innerHTML = jdwIsi(unitDibuka);
   jdwPasang(unitDibuka);
 }
@@ -723,8 +726,10 @@ function jdwLengketKepala(){
 // Dihitung langsung di tiap gulir, tanpa requestAnimationFrame: tiga ukuran dan
 // satu tulisan gaya itu murah, dan rAF yang tertunda meninggalkan kepala di
 // posisi basi.
-window.addEventListener('scroll', jdwLengketKepala, { passive:true });
-window.addEventListener('resize', ()=>{ jdwAturLengket(); jdwLengketKepala(); });
+// Saran kode (jdwPasangExcel) ikut menempel ke selnya selama halaman digulir.
+let jdwLetakSaran = null;
+window.addEventListener('scroll', ()=>{ jdwLengketKepala(); if(jdwLetakSaran) jdwLetakSaran(); }, { passive:true });
+window.addEventListener('resize', ()=>{ jdwAturLengket(); jdwLengketKepala(); if(jdwLetakSaran) jdwLetakSaran(); });
 
 /** Pasang pendengar untuk isi yang barusan digambar. */
 function jdwPasang(unit){
@@ -1046,7 +1051,60 @@ function jdwPasangExcel(kotak, unit){
   const kode = infoUnit(unit).dinas || [];
   let ketik = '';
   const ketikEl = kotak.querySelector('#jdwKetik');
-  const tampilKetik = ()=>{ if(ketikEl) ketikEl.textContent = ketik ? T('Ketik: ','Typing: ') + ketik + ' ↵' : ''; };
+
+  /* Saran kode di bawah sel, seperti saran nama teman di E-Logbook: huruf
+     pertama sudah memperlihatkan kode mana saja yang diawali ketikan itu —
+     ketik S, muncul S, S1, SJ… dengan nama shiftnya. Dulu hanya ada tulisan
+     kecil "Ketik: S ↵" di bilah alat, dan orang tidak tahu kode apa yang
+     ditunggu. Kotaknya ditaruh di body (position:fixed) supaya tidak
+     terpotong .jdw-gulir yang menggulir mendatar; sisa gambaran sebelumnya
+     dibuang dulu karena jdwGambar memasang ulang semuanya. */
+  let sorot = 0;
+  document.querySelectorAll('.jdw-saran').forEach(x=>x.remove());
+  const saranEl = document.createElement('div');
+  saranEl.className = 'jdw-saran';
+  saranEl.hidden = true;
+  document.body.appendChild(saranEl);
+  // Yang persis sama dengan ketikan di depan, sisanya menurut urutan kode unit.
+  const calonKetik = ()=>{
+    const t = ketik.toUpperCase();
+    if(!t) return [];
+    const calon = kode.filter(k=>String(k).toUpperCase().startsWith(t));
+    const pas = calon.filter(k=>String(k).toUpperCase() === t);
+    return [...pas, ...calon.filter(k=>!pas.includes(k))];
+  };
+  const letakSaran = ()=>{
+    if(saranEl.hidden || !JDW.pilih) return;
+    const td = kotak.querySelector(`td.jdw-sel[data-baris="${JDW.pilih.r0}"][data-hari="${JDW.pilih.h0}"]`);
+    if(!td || !td.isConnected){ saranEl.hidden = true; return; }
+    const r = td.getBoundingClientRect();
+    const tinggi = saranEl.offsetHeight, lebar = saranEl.offsetWidth;
+    const bawah = r.bottom + 3 + tinggi <= window.innerHeight;
+    saranEl.style.top = Math.max(4, bawah ? r.bottom + 3 : r.top - 3 - tinggi) + 'px';
+    saranEl.style.left = Math.max(4, Math.min(r.left, window.innerWidth - lebar - 4)) + 'px';
+  };
+  jdwLetakSaran = letakSaran;
+  const tampilKetik = ()=>{
+    if(ketikEl) ketikEl.textContent = ketik ? T('Ketik: ','Typing: ') + ketik + ' ↵' : '';
+    const calon = calonKetik();
+    if(!calon.length || document.activeElement !== gulir){ saranEl.hidden = true; return; }
+    sorot = Math.max(0, Math.min(sorot, calon.length - 1));
+    saranEl.innerHTML = calon.map((k, i)=>`<button type="button" data-kode="${esc(k)}"${
+        i === sorot ? ' class="aktif"' : ''}><b style="color:${warnaShift(k, 'var(--text)')}">${esc(k)}</b>${
+        SHIFT[k] && SHIFT[k].nama ? `<span>${esc(SHIFT[k].nama)}</span>` : ''}</button>`).join('');
+    saranEl.hidden = false;
+    letakSaran();
+  };
+  // Klik saran tidak boleh memindah fokus dari tabel: tanpa preventDefault
+  // gulir kehilangan fokus dan saran keburu tertutup sebelum kliknya sampai.
+  saranEl.addEventListener('pointerdown', (e)=>{
+    e.preventDefault();
+    const b = e.target.closest && e.target.closest('button[data-kode]');
+    if(b) isiKetik(b.dataset.kode);
+  });
+  gulir.addEventListener('blur', ()=>{ saranEl.hidden = true; });
+  gulir.addEventListener('focus', tampilKetik);
+  gulir.addEventListener('scroll', letakSaran, { passive:true });
 
   const selDari = (x, y)=>{
     const t = document.elementFromPoint(x, y);
@@ -1148,18 +1206,23 @@ function jdwPasangExcel(kotak, unit){
   };
   // Kode yang sudah pasti (tidak ada kode lain yang diawali ketikan ini)
   // langsung dipakai; yang masih bisa bercabang menunggu Enter.
-  const pakaiKetik = (paksa)=>{
-    const t = ketik.toUpperCase();
-    const calon = kode.filter(k=>String(k).toUpperCase().startsWith(t));
-    const pas = kode.find(k=>String(k).toUpperCase() === t);
-    const pilihan = pas && (paksa || calon.length === 1) ? pas : (paksa && calon.length === 1 ? calon[0] : null);
-    if(!pilihan) return false;
+  const isiKetik = (pilihan)=>{
     const g = jdwRentang();
     const tunggal = g && g.r0 === g.r1 && g.h0 === g.h1;
     jdwIsiBlok(kotak, pilihan);
-    ketik = ''; tampilKetik();
+    ketik = ''; sorot = 0; tampilKetik();
     // Satu sel: lanjut ke tanggal berikutnya, jadi sebaris bisa diketik terus.
     if(tunggal) pindah(0, 1, false);
+  };
+  // Enter/Tab memakai saran yang disorot (yang persis sama ada di urutan
+  // pertama, jadi tanpa panah hasilnya sama dengan dulu).
+  const pakaiKetik = (paksa)=>{
+    const t = ketik.toUpperCase();
+    const calon = calonKetik();
+    const pas = calon.length === 1 && String(calon[0]).toUpperCase() === t ? calon[0] : null;
+    const pilihan = paksa ? (calon[sorot] || null) : pas;
+    if(!pilihan) return false;
+    isiKetik(pilihan);
     return true;
   };
 
@@ -1167,13 +1230,22 @@ function jdwPasangExcel(kotak, unit){
     if(e.target !== gulir || !jdwRentang()) return;
     const ctrl = e.ctrlKey || e.metaKey;
     const panah = { ArrowUp:[-1,0], ArrowDown:[1,0], ArrowLeft:[0,-1], ArrowRight:[0,1] }[e.key];
+    // Selama saran terbuka, panah atas/bawah memilih saran, bukan pindah sel.
+    if(ketik && !saranEl.hidden && (e.key === 'ArrowUp' || e.key === 'ArrowDown')){
+      e.preventDefault();
+      const n = calonKetik().length;
+      sorot = (sorot + (e.key === 'ArrowDown' ? 1 : -1) + n) % n;
+      tampilKetik();
+      return;
+    }
     if(panah){ e.preventDefault(); ketik = ''; tampilKetik(); pindah(panah[0], panah[1], e.shiftKey); return; }
     if(ctrl && (e.key === 'z' || e.key === 'Z')){ e.preventDefault(); jdwUrungkan(); return; }
     if(ctrl) return;   // Ctrl+C / Ctrl+V lewat peristiwa copy/paste di bawah
     if(e.key === 'Delete' || (e.key === 'Backspace' && !ketik)){
-      e.preventDefault(); jdwIsiBlok(kotak, ''); return;
+      // Delete juga membatalkan ketikan yang menggantung (dan menutup sarannya).
+      e.preventDefault(); ketik = ''; sorot = 0; tampilKetik(); jdwIsiBlok(kotak, ''); return;
     }
-    if(e.key === 'Backspace'){ e.preventDefault(); ketik = ketik.slice(0, -1); tampilKetik(); return; }
+    if(e.key === 'Backspace'){ e.preventDefault(); ketik = ketik.slice(0, -1); sorot = 0; tampilKetik(); return; }
     if(e.key === 'Escape'){ ketik = ''; tampilKetik(); return; }
     if(e.key === 'Enter' || e.key === 'Tab'){
       if(ketik){
@@ -1190,6 +1262,7 @@ function jdwPasangExcel(kotak, unit){
       ketik += e.key.toUpperCase();
       // Ketikan yang tak mungkin jadi kode apa pun dimulai ulang dari huruf ini.
       if(!kode.some(k=>String(k).toUpperCase().startsWith(ketik))) ketik = e.key.toUpperCase();
+      sorot = 0;
       tampilKetik();
       pakaiKetik(false);
     }
