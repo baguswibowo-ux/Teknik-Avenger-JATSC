@@ -74,7 +74,7 @@ const {
   listBapb, insertBapb, updateBapb, removeBapb, suntingLampiranBapb,
   listLampiranCatatan, suntingLampiranCatatan, JENIS_LAMPIRAN_CATATAN,
   getUserByUsername, verifyPassword, createUser, countUsers, hapusUser,
-  jenisTtdSah, unitCatatan, unitHapus, pemilikLembarForm, tandaTanganiCatatan, batalkanTtdCatatan, listPejabatAktif, listPejabatUnit, listTeknisiUnit, listTeknisiUnitLain, listAkunAktif, listPemantauDinas, listPengurusDinas, getInboxTtd,
+  jenisTtdSah, unitCatatan, unitHapus, pemilikLembarForm, tandaTanganiCatatan, batalkanTtdCatatan, listPejabatAktif, listPejabatUnit, listCalonMf, listTeknisiUnit, listTeknisiUnitLain, listAkunAktif, listPemantauDinas, listPengurusDinas, getInboxTtd,
   getTtdTersimpan, simpanTtdTersimpan, hapusTtdTersimpan, pilihTtdTersimpanAktif, rekapMentah,
   listUsers, setPassword, setAktif, setRole, setNama, setUsername, setIdentitasTtdAkun, identitasTtdAkun, unitMilikUser, ROLE_VALID, SEMUA_UNIT, jumlahAdminAktif,
   UNIT, KODE_UNIT, unitSah, unitUntukUser, setUnitUser,
@@ -1829,6 +1829,10 @@ const API = {
      ada pejabat yang mencentang unit itu di Kelola Akun; kartu cetak menjatuh
      balik ke listPejabatAktif() di bawah. */
   listPejabatUnit: async (unitKode) => listPejabatUnit(String(unitKode || '')),
+
+  /* Calon Manager Fasilitas untuk tombol Atur di panel Sejarah dashboard:
+     administrator + pejabat aktif yang mencentang unit itu saja. */
+  listCalonMf: async (unitKode) => listCalonMf(String(unitKode || '')),
 
   /* Semua pejabat aktif — pintasan buat pemanggil yang butuh daftarnya lepas
      dari unit (mis. kartu cetak dashboard yang jatuh balik saat listPejabatUnit

@@ -232,7 +232,8 @@ function sjrPanel(unit, alat){
    Satu orang per unit; nama dan TTD tersimpannya dicetak sebagai "Mengetahui,
    Manager Fasilitas <unit>" di bawah tiap alat pada lembar Sejarah Peralatan
    (sjrMfBlokHtml di 36-cetak.js). Yang menetapkan: administrator atau admin
-   unit itu. Calonnya akun pejabat unit itu. */
+   unit itu. Calonnya administrator / pejabat / pejabat non-operasional yang
+   mencentang unit itu di Kelola Akun (Unit logbook) — tanpa jatuh balik. */
 const sjrBolehAturMf = () => !!akun && SJR.bisaTulis && (akun.role === 'admin' || akun.superadmin === true
   || (akun.role === 'adminunit' && bolehSuntingDb('sejarah')));
 
@@ -255,7 +256,8 @@ function sjrMfBaris(unit){
         ${m && !ada ? `<option value="${esc(m.username)}" selected>${esc(m.nama || m.username)}</option>` : ''}
         ${calon.map(p=>`<option value="${esc(p.username)}"${m && m.username === p.username ? ' selected' : ''}>${esc(p.nama)}</option>`).join('')}
       </select>
-      ${calon.length ? '' : `<div class="ket" style="margin-top:5px">${T('Belum ada akun pejabat di unit ini.','No officer accounts in this unit yet.')}</div>`}`,
+      ${calon.length ? '' : `<div class="ket" style="margin-top:5px">${T('Belum ada akun yang mencentang unit ini. Centang unitnya di Kelola Akun → Unit logbook pada akun Manager Fasilitas (peran Administrator, Pejabat, atau Pejabat Non-Operasional).',
+          'No account has ticked this unit yet. Tick it under Manage Accounts → Logbook units on the Facility Manager account (Administrator, Officer, or Non-Operational Officer role).')}</div>`}`,
       `<button class="btn garis" id="sjrMfBatal">${T('Batal','Cancel')}</button>
        <button class="btn" id="sjrMfSimpan">${T('Simpan','Save')}</button>`);
   }
@@ -269,14 +271,11 @@ function sjrMfBaris(unit){
     sjrBolehAturMf() ? `<button class="btn garis" id="sjrMfAtur">${T('Atur','Set')}</button>` : '');
 }
 
-/** Calon Manager Fasilitas: akun pejabat unit itu; kalau unitnya belum punya,
-    seluruh pejabat aktif. */
+/** Calon Manager Fasilitas: administrator / pejabat yang mencentang unit itu. */
 async function sjrMfCalon(unit){
-  const rapikan = (d)=>(Array.isArray(d) ? d : []).filter(p=>p && p.username)
+  const d = await srvApi('listCalonMf', unit).catch(()=>[]);
+  return (Array.isArray(d) ? d : []).filter(p=>p && p.username)
     .map(p=>({ username: String(p.username).toLowerCase(), nama: p.nama || p.username }));
-  let calon = rapikan(await srvApi('listPejabatUnit', unit).catch(()=>[]));
-  if(!calon.length) calon = rapikan(await srvApi('listPejabatAktif').catch(()=>[]));
-  return calon;
 }
 
 function sjrMfPasang(unit){

@@ -3416,6 +3416,23 @@ export function listPengurusDinas() {
 }
 
 /**
+ * Calon Manager Fasilitas ("Mengetahui" di lembar Sejarah Peralatan dashboard):
+ * administrator, pejabat, dan pejabat non-operasional aktif yang MENCENTANG
+ * unit itu di Kelola Akun. Tanpa jatuh balik: yang tidak mencentang tidak
+ * pernah muncul (permintaan Bagus, 15 Okt 2026).
+ */
+export function listCalonMf(unitKode) {
+  const kode = String(unitKode || '').trim();
+  if (!kode) return [];
+  return db.prepare(`
+    SELECT u.username, u.nama
+      FROM users u
+     WHERE u.aktif = 1 AND u.role IN ('admin', 'pejabat', 'pejabatnonop')
+       AND EXISTS (SELECT 1 FROM user_unit uu WHERE uu.user_id = u.id AND uu.unit = ?)
+     ORDER BY u.nama COLLATE NOCASE`).all(kode);
+}
+
+/**
  * Pejabat aktif yang sudah opt-in ke satu unit (mencentangnya di Kelola Akun).
  * Dipakai kartu cetak dashboard untuk menaruh nama Manajer Teknik bidang itu
  * pada kolom tanda tangan kanan. Kalau tidak ada satu pun yang opt-in, kartu
