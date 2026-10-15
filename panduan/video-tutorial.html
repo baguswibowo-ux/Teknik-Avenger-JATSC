@@ -215,16 +215,20 @@ header a{color:var(--sian)}
 .pc .tumpuk{top:auto;bottom:8px;left:auto;right:8px;width:44%}
 .pc .bidik{height:118px}
 .pc .bidik:after{inset:16px 38%}
+.logo-kepala{display:block;max-height:64px;max-width:100%;margin-bottom:10px;object-fit:contain}
+.logo-panggung{position:absolute;right:10px;bottom:10px;z-index:35;max-width:22%;max-height:34px;object-fit:contain;opacity:.92;pointer-events:none}
+.gambar-langkah{display:block;margin-top:14px;max-width:100%;max-height:300px;border-radius:10px;border:1px solid var(--garis);object-fit:contain;background:#fff}
 @media (prefers-reduced-motion:reduce){*{transition-duration:.01s!important;animation-duration:.01s!important;animation-iteration-count:1!important}}
 </style>
 </head>
-<body>
+<body data-panduan="video">
 <div class="bungkus">
   <header>
+    <img class="logo-panduan logo-kepala" src="/panduan/logo" alt="Logo" hidden onload="this.hidden=false">
     <div class="alis">VIDEO TUTORIAL · AVENGERS UNTUK TEKNISI</div>
     <h1>Cara memakai fitur Avengers, langkah demi langkah</h1>
     <p>Delapan bab pendek, masing-masing sekitar setengah sampai satu menit. Pilih tampilan <b>HP</b> atau <b>PC / Laptop</b>, pilih bab, lalu putar. Bab berikutnya menyambung sendiri. Versi aplikasi 2.11.
-       Pasang di HP dan mengaktifkan notifikasi punya tutorialnya sendiri: <a href="../../public/contoh/tutorial-hp.html">Avengers di HP, Pasang dan Notif</a>.
+       Pasang di HP dan mengaktifkan notifikasi punya tutorialnya sendiri: <a href="tutorial-hp.html">Avengers di HP, Pasang dan Notif</a>.
        Uraian lengkapnya ada di <a href="manual-teknisi.html">Buku Manual Teknisi</a>.</p>
   </header>
 
@@ -236,6 +240,7 @@ header a{color:var(--sian)}
       <div class="hp"><div class="layar" id="layar">
         <div class="status" id="status"><span id="jamSt">09:45</span><span>▮▮▮ 78%</span></div>
         <div class="isi" id="isi"></div>
+        <img class="logo-panduan logo-panggung" src="/panduan/logo" alt="" hidden onload="this.hidden=false">
         <div class="jari" id="jari"></div>
         <button class="putar-besar" id="putarBesar" type="button"><span><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="#35e0c4"/><path d="M26 20l18 12-18 12z" fill="#04231e"/></svg>Putar tutorial</span></button>
       </div></div>
@@ -251,6 +256,7 @@ header a{color:var(--sian)}
       <h2 id="judul"></h2>
       <p class="narasi" id="narasi"></p>
       <div class="tip" id="tip" hidden></div>
+      <img class="gambar-langkah" id="gambarLangkah" alt="" hidden>
     </div>
   </section>
 
@@ -508,6 +514,22 @@ header a{color:var(--sian)}
   ]}
   ];
 
+  /* ---------- teks asli & suntingan (dari /panduan/api/video) ---------- */
+  BAB.forEach(x => { x._asli = { judul: x.judul, ringkas: x.ringkas }; x.langkah.forEach(a => { a._asli = { j: a.j, n: a.n, tip: a.tip, gambar: '' }; }); });
+  function terapkan(d){
+    d = d || {};
+    BAB.forEach((x, bi) => {
+      const ub = (d.bab || {})[bi] || {};
+      x.judul = ub.judul || x._asli.judul; x.ringkas = ub.ringkas || x._asli.ringkas;
+      x.langkah.forEach((a, li) => {
+        const ul = (d.langkah || {})[bi + '-' + li] || {};
+        a.j = ul.j || a._asli.j; a.n = ul.n || a._asli.n;
+        a.tip = ul.tip != null ? ul.tip : a._asli.tip;
+        a.gambar = ul.gambar || '';
+      });
+    });
+  }
+
   /* ---------- mesin pemutar ---------- */
   let b = 0, idx = 0, t = 0, jalan = false, antre = [], akhir = 0, pc = false;
   const pg = $('panggung');
@@ -559,6 +581,7 @@ header a{color:var(--sian)}
     $('nomor').textContent = 'BAB ' + (b+1) + ' · LANGKAH ' + (idx+1) + ' / ' + langkah().length;
     $('judul').textContent = kata(a.j); $('narasi').textContent = kata(a.n);
     $('tip').hidden = !a.tip; $('tip').textContent = a.tip ? '💡 ' + kata(a.tip) : '';
+    const gl = $('gambarLangkah'); if(a.gambar){ gl.src = a.gambar; gl.hidden = false; } else { gl.hidden = true; gl.removeAttribute('src'); }
     isi.innerHTML = a.html(); a.aksi.forEach(pasang); gambar();
   }
   function gambar(){ [...kem.querySelectorAll('i')].forEach((el,i)=>{ el.style.width = i<idx ? '100%' : i>idx ? '0%' : Math.min(100, t/langkah()[idx].dur*100)+'%'; }); }
@@ -604,7 +627,21 @@ header a{color:var(--sian)}
   // juga lewat tanda pagar (#bab3, #pc, #pc-bab3): alamat bertanda tanya tidak selalu sampai
   const par = new URLSearchParams(location.search), pagar = location.hash.slice(1);
   const minta = parseInt(par.get('bab'), 10) || parseInt((pagar.match(/bab(\d+)/) || [])[1], 10);
+  window.PANDUAN = {
+    BAB, terapkan, jeda: () => jeda(),
+    kini: () => ({ b, i: BAB[b].langkah.indexOf(langkah()[idx]) }),
+    segarkan: () => { const i = idx; bangunBab(); [...babEl.children].forEach((el, k) => el.setAttribute('aria-pressed', String(k === b))); bangunKemajuan(); ke(i); }
+  };
+  if(location.pathname.startsWith('/panduan/')){
+    fetch('/panduan/api/video', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : null)
+      .then(d => { if(d){ terapkan(d); window.PANDUAN.suntingan = d; window.PANDUAN.segarkan(); } }).catch(() => {});
+  }
   pilihPerangkat(par.get('alat') === 'pc' || /(^|-)pc(-|$)/.test(pagar), minta >= 1 && minta <= BAB.length ? minta - 1 : 0);
+  // Tautan bertanda pagar di halaman yang sama (#bab5, #pc-bab2) tidak memuat ulang halaman.
+  window.addEventListener('hashchange', () => {
+    const h = location.hash.slice(1), n = parseInt((h.match(/bab(\d+)/) || [])[1], 10);
+    pilihPerangkat(/(^|-)pc(-|$)/.test(h), n >= 1 && n <= BAB.length ? n - 1 : b);
+  });
 })();
 </script>
 </body>

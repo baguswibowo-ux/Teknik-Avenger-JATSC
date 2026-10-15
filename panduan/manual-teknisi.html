@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Barlow:wght@400;500;600;700&family=Share+Tech+Mono&display=swap">
 <style>
+[hidden]{display:none!important}
 :root{
   --kertas:#f6f8fb; --lembar:#fff; --tinta:#14213a; --redup:#56657e; --garis:#d6deea;
   --biru:#0b6fb0; --biru-tua:#0b1b33; --jingga:#c56a00; --sian:#0d8f7c;
@@ -32,6 +33,9 @@ nav.isi .alat{margin-top:16px;display:flex;flex-direction:column;gap:6px}
 main{padding:0 clamp(16px,4vw,44px) 60px;min-width:0}
 /* sampul */
 .sampul{margin:26px 0 30px;border-radius:18px;padding:clamp(26px,5vw,54px);color:#f2f6ff;background:radial-gradient(900px 420px at 85% -20%,#1d4a8a 0%,transparent 60%),linear-gradient(160deg,#0b1b33,#04070f)}
+.logo-panduan{display:block;max-width:100%;object-fit:contain}
+.logo-nav{max-height:56px;margin-bottom:8px}
+.logo-sampul{max-height:84px;margin-bottom:14px}
 .sampul .alis{font-family:'Share Tech Mono',monospace;font-size:12.5px;letter-spacing:.24em;color:#f6b25a}
 .sampul .nama{font-family:Georgia,serif;font-style:italic;font-weight:800;font-size:clamp(46px,9vw,84px);line-height:1;margin:14px 0 4px;background:linear-gradient(180deg,#ffd257,#f6971d 62%,#e07d10);-webkit-background-clip:text;background-clip:text;color:transparent}
 .sampul .pjg{color:#f6c063;font-weight:600;margin-bottom:22px}
@@ -112,32 +116,14 @@ footer{margin-top:40px;padding-top:14px;border-top:1px solid var(--garis);color:
 }
 </style>
 </head>
-<body>
+<body data-panduan="manual">
 <div class="tata">
 
 <nav class="isi" aria-label="Daftar isi">
+  <img class="logo-panduan logo-nav" src="/panduan/logo" alt="Logo" hidden onload="this.hidden=false">
   <div class="merek">AVENGERS</div>
   <small>Buku Manual Teknisi · v2.11</small>
-  <ol>
-    <li><a href="#kenalan">Kenalan dengan Avengers</a></li>
-    <li><a href="#mulai">Mulai: akun, masuk, keluar</a></li>
-    <li><a href="#hp">Pasang di HP dan notifikasi</a></li>
-    <li><a href="#layar">Mengenal layar Dashboard</a></li>
-    <li><a href="#dinas">Jadwal dinas</a></li>
-    <li><a href="#berkala">Kegiatan berkala dan Kotak Masuk</a></li>
-    <li><a href="#unit">Database Unit</a></li>
-    <li><a href="#elogbook">Masuk ke E-Logbook</a></li>
-    <li><a href="#logbook">Logbook Fasilitas</a></li>
-    <li><a href="#dc">Daily Check</a></li>
-    <li><a href="#pm">Preventive Maintenance</a></li>
-    <li><a href="#form">Form: LTK, BAPB, Monitoring</a></li>
-    <li><a href="#isu">Isu dan papan Trouble</a></li>
-    <li><a href="#ttd">Tanda tangan QR</a></li>
-    <li><a href="#cetak">Mencetak dan Rekap</a></li>
-    <li><a href="#notif">Daftar notifikasi</a></li>
-    <li><a href="#masalah">Kalau ada masalah</a></li>
-    <li><a href="#harian">Ringkasan satu dinas</a></li>
-  </ol>
+  <ol id="daftarIsi"></ol>
   <div class="alat">
     <a class="tb utama" href="video-tutorial.html">▶ Video tutorial (HP)</a>
     <a class="tb utama" href="video-tutorial.html#pc">▶ Video tutorial (PC / Laptop)</a>
@@ -148,6 +134,7 @@ footer{margin-top:40px;padding-top:14px;border-top:1px solid var(--garis);color:
 <main>
 
 <div class="sampul">
+  <img class="logo-panduan logo-sampul" src="/panduan/logo" alt="Logo" hidden onload="this.hidden=false">
   <div class="alis">PERUM LPPNPI · CABANG JATSC · FASILITAS TEKNIK</div>
   <div class="nama">AVENGERS</div>
   <div class="pjg">Advanced Engineer Electronic Reporting System</div>
@@ -224,7 +211,7 @@ footer{margin-top:40px;padding-top:14px;border-top:1px solid var(--garis);color:
   <div class="no-bab">BAB 03</div>
   <h2>Pasang di HP dan notifikasi</h2>
   <p class="pengantar">Avengers bisa dipasang seperti aplikasi dan mengirim notifikasi ke HP walau layarnya terkunci. Cukup dilakukan sekali di tiap HP.</p>
-  <a class="tonton" href="../../public/contoh/tutorial-hp.html">Tonton: Avengers di HP, Pasang dan Notif</a>
+  <a class="tonton" href="tutorial-hp.html">Tonton: Avengers di HP, Pasang dan Notif</a>
 
   <h3>Android (Chrome)</h3>
   <ol class="langkah">
@@ -724,5 +711,20 @@ footer{margin-top:40px;padding-top:14px;border-top:1px solid var(--garis);color:
 
 </main>
 </div>
+<script>
+/* Daftar isi dan nomor bab dibangun dari bagian-bagian yang ada, supaya bab
+   yang ditambah atau dipindah lewat penyunting langsung ikut. */
+function segarkanDaftarIsi(){
+  const ol = document.getElementById('daftarIsi'); if(!ol) return;
+  ol.innerHTML = '';
+  document.querySelectorAll('main section.bab').forEach((s, i) => {
+    const no = s.querySelector('.no-bab'); if(no) no.textContent = 'BAB ' + String(i + 1).padStart(2, '0');
+    const h = s.querySelector('h2'); if(!h || !s.id) return;
+    const li = document.createElement('li'), a = document.createElement('a');
+    a.href = '#' + s.id; a.textContent = h.textContent.trim(); li.appendChild(a); ol.appendChild(li);
+  });
+}
+segarkanDaftarIsi();
+</script>
 </body>
 </html>

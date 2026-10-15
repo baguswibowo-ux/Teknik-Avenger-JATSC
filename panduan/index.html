@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Panduan Avengers Teknisi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Barlow:wght@400;500;600;700&family=Share+Tech+Mono&display=swap">
+<style>
+[hidden]{display:none!important}
+/* Tata letak: satu kolom sempit; tiga kartu panduan, lalu daftar bab video yang bisa langsung dibuka */
+:root{
+  --latar:#f3f6fa; --panel:#ffffff; --tinta:#14213a; --redup:#5a6984; --garis:#d6deea;
+  --aksen:#0b6fb0; --jingga:#b86200; --sorot:#e7f0fa;
+  --f-judul:'Rajdhani','Barlow',system-ui,sans-serif; --f-isi:'Barlow','Segoe UI',system-ui,sans-serif; --f-kode:'Share Tech Mono',ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --latar:#070c16; --panel:#101a2b; --tinta:#eaf0fa; --redup:#97a8c4; --garis:#24324a; --aksen:#4cb4f0; --jingga:#f6a14a; --sorot:#16253c; color-scheme:dark } }
+:root[data-theme="dark"]{ --latar:#070c16; --panel:#101a2b; --tinta:#eaf0fa; --redup:#97a8c4; --garis:#24324a; --aksen:#4cb4f0; --jingga:#f6a14a; --sorot:#16253c; color-scheme:dark }
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--latar);color:var(--tinta);font-family:var(--f-isi);font-size:16px;line-height:1.55;padding-inline:16px;padding-block:28px 48px}
+.bungkus{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:28px}
+.alis{font-family:var(--f-kode);font-size:12.5px;letter-spacing:.22em;color:var(--jingga)}
+h1{font-family:var(--f-judul);font-weight:700;font-size:clamp(30px,6vw,42px);line-height:1.05;margin:6px 0 10px;text-wrap:balance}
+header p{margin:0;color:var(--redup);max-width:62ch}
+.kartu{display:grid;gap:12px}
+.kartu a{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 16px;align-items:start;padding:16px 18px;border:1px solid var(--garis);border-radius:12px;background:var(--panel);color:inherit;text-decoration:none}
+.kartu a:hover{border-color:var(--aksen);background:var(--sorot)}
+.kartu a:focus-visible,.bab a:focus-visible{outline:2px solid var(--jingga);outline-offset:2px}
+.kartu .jenis{grid-row:span 2;font-family:var(--f-kode);font-size:12px;letter-spacing:.14em;color:var(--aksen);padding-top:4px;min-width:62px}
+.kartu b{font-family:var(--f-judul);font-size:22px;line-height:1.15}
+.kartu span.ket{color:var(--redup);font-size:15px}
+h2{font-family:var(--f-judul);font-size:22px;margin:0 0 4px}
+.sub{color:var(--redup);margin:0 0 12px;font-size:15px}
+.bab{display:grid;grid-template-columns:minmax(0,1fr) auto auto;border:1px solid var(--garis);border-radius:12px;background:var(--panel);overflow:hidden}
+.bab>div{display:contents}
+.bab span,.bab a{padding:10px 14px;border-top:1px solid var(--garis)}
+.bab>div:first-child span,.bab>div:first-child a{border-top:0}
+.bab span{min-width:0}
+.bab span i{font-style:normal;font-family:var(--f-kode);color:var(--jingga);margin-right:10px;font-variant-numeric:tabular-nums}
+.bab a{color:var(--aksen);font-weight:600;text-decoration:none;white-space:nowrap;font-size:14.5px}
+.bab a:hover{text-decoration:underline}
+.pulang{display:inline-block;margin-bottom:14px;color:var(--aksen);font-weight:600;text-decoration:none}
+.logo-panduan{display:block;max-height:72px;max-width:100%;object-fit:contain;margin-bottom:10px}
+.catatan{border-top:1px solid var(--garis);padding-top:14px;color:var(--redup);font-size:14px;max-width:66ch}
+@media (max-width:460px){ .bab a{padding-inline:10px} .bab span{padding-inline:12px} }
+</style>
+
+</head>
+<body>
+<div class="bungkus">
+  <header>
+    <a class="pulang" href="/">← Dashboard Fasilitas Teknik</a>
+    <img class="logo-panduan" src="/panduan/logo" alt="Logo" hidden onload="this.hidden=false">
+    <div class="alis">AVENGERS · v2.11.0 · TEKNISI</div>
+    <h1>Panduan Avengers untuk Teknisi</h1>
+    <p>Buku manual dan video tutorial cara memakai Dashboard Fasilitas Teknik dan E-Logbook di teknik-avengers.com. Bisa dibuka dari PC, laptop, maupun HP.</p>
+  </header>
+
+  <nav class="kartu" aria-label="Panduan">
+    <a href="manual-teknisi.html"><span class="jenis">BUKU</span><b>Buku Manual Teknisi</b><span class="ket">18 bab, dari daftar akun sampai ringkasan satu dinas, dengan gambar layar asli.</span></a>
+    <a href="video-tutorial.html"><span class="jenis">VIDEO</span><b>Video tutorial · tampilan HP</b><span class="ket">8 bab animasi langkah demi langkah, berjalan sendiri.</span></a>
+    <a href="video-tutorial.html#pc"><span class="jenis">VIDEO</span><b>Video tutorial · tampilan PC / Laptop</b><span class="ket">Bab yang sama dalam bingkai laptop dan browser.</span></a>
+    <a href="tutorial-hp.html"><span class="jenis">HP</span><b>Pasang Avengers di HP dan aktifkan notifikasi</b><span class="ket">Android dan iPhone, lalu kenali jenis notifikasinya.</span></a>
+  </nav>
+
+  <section>
+    <h2>Langsung ke bab video</h2>
+    <p class="sub">Pilih tampilan yang sesuai perangkat yang dipakai.</p>
+    <div class="bab">
+      <div><span><i>01</i>Masuk dan kenali layarnya</span><a href="video-tutorial.html#bab1">HP</a><a href="video-tutorial.html#pc-bab1">PC</a></div>
+      <div><span><i>02</i>Jadwal dinas dan kodenya</span><a href="video-tutorial.html#bab2">HP</a><a href="video-tutorial.html#pc-bab2">PC</a></div>
+      <div><span><i>03</i>Mengisi Logbook Fasilitas</span><a href="video-tutorial.html#bab3">HP</a><a href="video-tutorial.html#pc-bab3">PC</a></div>
+      <div><span><i>04</i>Mengisi Daily Check</span><a href="video-tutorial.html#bab4">HP</a><a href="video-tutorial.html#pc-bab4">PC</a></div>
+      <div><span><i>05</i>Melaporkan isu (trouble)</span><a href="video-tutorial.html#bab5">HP</a><a href="video-tutorial.html#pc-bab5">PC</a></div>
+      <div><span><i>06</i>Kegiatan berkala dan Kotak Masuk</span><a href="video-tutorial.html#bab6">HP</a><a href="video-tutorial.html#pc-bab6">PC</a></div>
+      <div><span><i>07</i>Tanda tangan QR</span><a href="video-tutorial.html#bab7">HP</a><a href="video-tutorial.html#pc-bab7">PC</a></div>
+      <div><span><i>08</i>Sejarah peralatan dan stiker QR</span><a href="video-tutorial.html#bab8">HP</a><a href="video-tutorial.html#pc-bab8">PC</a></div>
+    </div>
+  </section>
+
+  <p class="catatan">Gambar layar diambil dari server uji dengan akun uji; nama, NIK, tanda tangan, dan QR orang sungguhan sudah disamarkan. Video adalah simulasi, bukan rekaman layar asli. Administrator bisa menyunting manual dan video lewat tombol ✎ Sunting di kanan bawah halamannya.</p>
+</div>
+
+</body>
+</html>

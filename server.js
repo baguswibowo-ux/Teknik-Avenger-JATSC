@@ -39,6 +39,7 @@ import {
 import { selisihJadwal, penerimaDafdin, selisihSejarah, namaBulan } from './kabar-perubahan.js';
 import { htmlKePdf, susunDokumen, pdfTersedia } from './cetak-pdf.js';
 import { svgQr } from './qr-kode/svg.js';
+import { pasangPanduan } from './panduan.js';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import {
@@ -5381,6 +5382,9 @@ function kirimIndex(req, res, next) {
   res.send(html);
 }
 app.get(['/', '/index.html', '/index'], kirimIndex);
+
+/* Panduan teknisi (manual + video) di /panduan/ — hanya sesudah masuk; rinciannya di panduan.js. */
+pasangPanduan(app, { ROOT, DATA_DIR, siapa, catat });
 
 /* Berkas statis.
  *
