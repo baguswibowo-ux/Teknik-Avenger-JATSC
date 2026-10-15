@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Buku Manual Manager Teknik</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Barlow:wght@400;500;600;700&family=Share+Tech+Mono&display=swap">
+<link rel="stylesheet" href="manual.css">
+</head>
+<body data-panduan="manual" data-halaman="manual-pejabat.html">
+<div class="tata">
+
+<nav class="isi" aria-label="Daftar isi">
+  <img class="logo-panduan logo-nav" src="/panduan/logo" alt="Logo" hidden onload="this.hidden=false">
+  <div class="merek">AVENGERS</div>
+  <small>Buku Manual Manager Teknik / Pejabat · v2.12</small>
+  <ol id="daftarIsi"></ol>
+  <div class="alat">
+    <a class="tb" href="./">← Semua panduan</a>
+    <a class="tb" href="manual-teknisi.html">Buku Manual Teknisi</a>
+    <button class="tb" type="button" onclick="window.print()">🖨 Cetak / simpan PDF</button>
+  </div>
+</nav>
+
+<main>
+
+<div class="sampul">
+  <img class="logo-panduan logo-sampul" src="/panduan/logo" alt="Logo" hidden onload="this.hidden=false">
+  <div class="alis">PERUM LPPNPI · CABANG JATSC · FASILITAS TEKNIK</div>
+  <div class="nama">AVENGERS</div>
+  <div class="pjg">Advanced Engineer Electronic Reporting System</div>
+  <h1>Buku Manual Manager Teknik</h1>
+  <p>Menandatangani lembar E-Logbook dan riwayat peralatan, menyetujui permintaan cetak, meneruskan ke Deputy GM Teknik, dan menunjuk PH.</p>
+  <div class="kaki"><span>teknik-avengers.com/panduan</span><span>Versi aplikasi 2.12.1</span><span>Khusus Manager Teknik / Pejabat</span></div>
+</div>
+
+<section class="bab" id="peran">
+  <div class="no-bab">BAB 01</div>
+  <h2>Peran Manager Teknik</h2>
+
+  <p class="pengantar">Akun pejabat melihat <b>seluruh unit</b> dan menandatangani. Pejabat tidak menulis catatan, daily check, atau isu; yang mengisinya teknisi.</p>
+  <div class="gulir"><table>
+    <tr><th>Pekerjaan</th><th>Di mana</th></tr>
+    <tr><td>Menandatangani lembar E-Logbook (Logbook, Daily Check, Preventive, LTK, Monitoring, BAPB)</td><td>E-Logbook → 🔔 kotak masuk TTD, atau Dashboard → Kotak Masuk</td></tr>
+    <tr><td>Menyetujui riwayat peralatan</td><td>Dashboard → Kotak Masuk</td></tr>
+    <tr><td>Menyetujui permintaan cetak: jadwal dinas, PUM per Grup, sparepart, rekap stok opname, sejarah peralatan</td><td>Dashboard → Kotak Masuk</td></tr>
+    <tr><td>Menunjuk PH saat tidak di tempat</td><td>E-Logbook → 🧑‍💼 PH</td></tr>
+    <tr><td>Membaca seluruh unit, rekap, dan mencetak</td><td>Dashboard dan E-Logbook</td></tr>
+  </table></div>
+  <div class="kotak awas"><b>Periksa nama, NIK, dan jabatan akun Anda</b><p>Tanda tangan Anda berupa kode QR yang memuat jabatan (misalnya Manager Teknik), nama, dan NIK akun. Kalau ada yang salah, minta administrator membetulkannya di Kelola Akun sebelum menandatangani.</p></div>
+</section>
+
+<section class="bab" id="kotak-masuk">
+  <div class="no-bab">BAB 02</div>
+  <h2>Lembar yang menunggu tanda tangan Anda</h2>
+
+  <p class="pengantar">Begitu teknisi menyimpan lembar dan memilih Anda sebagai Manager Teknik, HP Anda menerima notifikasi <b>“🔔 Perlu tanda tangan Anda”</b>. Lembarnya bisa dibuka dari dua pintu.</p>
+  <div class="gulir"><table>
+    <tr><th>Pintu</th><th>Isinya</th></tr>
+    <tr><td>E-Logbook → tombol <b>🔔</b> di kepala halaman</td><td>Jendela <b>Menunggu TTD Anda</b>: semua lembar E-Logbook yang menunggu Anda, lintas unit. Angka di tombolnya menghitung yang belum beres.</td></tr>
+    <tr><td>Dashboard → <b>Kotak Masuk</b></td><td>Seksi <b>Menunggu Tanda Tangan Anda — E-Logbook</b> (tombol <span class="tmb">Buka &amp; TTD</span>), <b>Riwayat Peralatan — Menunggu Tanda Tangan Anda</b>, dan <b>Permintaan Cetak untuk Anda</b>.</td></tr>
+  </table></div>
+  <p>Kalau lembar belum Anda tandatangani 30 menit sesudah dinas teknisinya selesai, teknisi pengirim diingatkan lewat notifikasi “Belum ditandatangani”.</p>
+</section>
+
+<section class="bab" id="ttd-elogbook">
+  <div class="no-bab">BAB 03</div>
+  <h2>Menandatangani lembar E-Logbook</h2>
+
+  <ol class="langkah">
+    <li>Buka lembarnya dari kotak masuk TTD. Jendela detail lembar terbuka.</li>
+    <li>Periksa isinya: uraian, butir pemeriksaan, lampiran, dan tanda tangan teknisi.</li>
+    <li>Di petak tanda tangan Anda yang masih kosong, tekan <span class="tmb">✍ Bubuhkan TTD</span>.</li>
+    <li>Di jendela <b>Bubuhkan Tanda Tangan</b>, tekan kotak <b>“Tekan untuk tanda tangan”</b>, lalu <span class="tmb">✅ Setujui &amp; Bubuhkan</span>.</li>
+  </ol>
+  <ul>
+    <li>Tanda tangan Anda tersimpan sebagai kode QR akun Anda; teknisi pengirimnya langsung dikabari “Sudah ditandatangani”.</li>
+    <li>Petak yang sudah ditandatangani tidak bisa ditimpa siapa pun.</li>
+    <li>Lembar preventive yang sudah Anda tandatangani tidak bisa lagi disunting teknisinya. Kalau tanda tangan perlu diulang karena keliru, administrator atau admin unit bisa membatalkannya (“minta TTD ulang”), dan lembarnya kembali ke kotak masuk Anda.</li>
+  </ul>
+  <div class="gulir"><table>
+    <tr><th>Formulir</th><th>Petak Anda</th></tr>
+    <tr><td>Logbook Fasilitas</td><td>Manager Teknik / Penanggung Jawab</td></tr>
+    <tr><td>Daily Check · DS Test dan lembar preventive · LTK</td><td>Mengetahui: Manager Teknik</td></tr>
+    <tr><td>Monitoring Frekuensi</td><td>Manager Teknik (Manager Operasi menandatangani petaknya sendiri)</td></tr>
+    <tr><td>BAPB</td><td>Manager Teknik (Penerima Barang dan petugas pemasangan punya petak sendiri)</td></tr>
+  </table></div>
+</section>
+
+<section class="bab" id="riwayat">
+  <div class="no-bab">BAB 04</div>
+  <h2>Menyetujui riwayat peralatan</h2>
+
+  <p class="pengantar">Teknisi yang menulis kejadian di Sejarah Peralatan memilih penanggung jawab untuk tiap kejadian. Kalau itu Anda, kejadiannya bertanda <b>MENUNGGU TTD</b>.</p>
+  <ol class="langkah">
+    <li>Buka Dashboard → <span class="tmb">Kotak Masuk</span>, seksi <b>Riwayat Peralatan — Menunggu Tanda Tangan Anda</b>.</li>
+    <li>Periksa kejadiannya: alat, tanggal, rincian, dan teknisi pelaksana.</li>
+    <li>Tekan <span class="tmb">Setujui &amp; TTD</span> di baris itu, atau <span class="tmb">Setujui semua</span> untuk seluruh daftar.</li>
+  </ol>
+  <p>Kalau isi baris yang sudah disetujui diubah teknisi, baris itu kembali meminta tanda tangan Anda.</p>
+</section>
+
+<section class="bab" id="cetak">
+  <div class="no-bab">BAB 05</div>
+  <h2>Menyetujui permintaan cetak</h2>
+
+  <p class="pengantar">Lembar resmi dari Dashboard (jadwal dinas, daftar sparepart, rekap stok opname, sejarah peralatan) dikirim pengurus unit kepada Anda untuk ditandatangani sebelum dicetak.</p>
+  <ol class="langkah">
+    <li>Buka Dashboard → <span class="tmb">Kotak Masuk</span>, seksi <b>Permintaan Cetak untuk Anda</b>, lalu buka permintaannya.</li>
+    <li>Periksa pratinjau lembar dan catatan dari pembuatnya.</li>
+    <li>Pilih jalannya: <br><span class="tmb">Setujui &amp; Kirim</span>: TTD Anda dibubuhkan, lalu permintaan diteruskan ke Deputy GM Teknik yang Anda pilih di <b>Pilih Deputy Manager Teknik</b> untuk tanda tangan “Mengetahui”.<br><span class="tmb">Setujui &amp; Cetak</span>: selesai tanpa Deputy (misalnya mendesak); lembar langsung siap dicetak.</li>
+    <li>Kalau lembarnya keliru, tolak permintaan itu supaya pembuatnya memperbaiki dan mengirim ulang.</li>
+  </ol>
+  <p>Sesudah jadwal dinas disetujui Deputy, Anda (sebagai penanda tangan) dan pengurus jadwal unit itu menerima notifikasi <b>“✅ Jadwal Dinas disetujui Deputy”</b>. Lembar final dicetak dari Kotak Masuk lewat <span class="tmb">Cetak lagi</span>.</p>
+</section>
+
+<section class="bab" id="pum">
+  <div class="no-bab">BAB 06</div>
+  <h2>PUM per Grup</h2>
+
+  <p class="pengantar">PIC Jadwal Dinas mengirim jadwal semua unit yang dibagi per grup sebagai <b>satu paket</b>. Di Kotak Masuk paket itu tampil sebagai satu kartu.</p>
+  <ol class="langkah">
+    <li>Buka kartu paketnya. Kelima lembar grup tampil untuk diperiksa.</li>
+    <li>Pilih Deputy GM Teknik penerima.</li>
+    <li>Setujui: TTD Anda dibubuhkan sekali di semua grup, lalu paketnya terkirim ke Deputy.</li>
+    <li>Deputy menyetujui sekali untuk semua grup. Hasilnya dicetak lewat <span class="tmb">Cetak semua grup (1 berkas)</span>: satu berkas, satu halaman per grup.</li>
+  </ol>
+</section>
+
+<section class="bab" id="ph">
+  <div class="no-bab">BAB 07</div>
+  <h2>Menunjuk PH (Pelaksana Harian)</h2>
+
+  <p class="pengantar">Saat Anda tidak di tempat, tunjuk PH supaya lembar yang ditujukan kepada Anda tetap ditandatangani. Teknisi tetap memilih nama Anda; sistem yang mengantarkannya ke PH.</p>
+  <ol class="langkah">
+    <li>Di kepala E-Logbook, tekan <span class="tmb">🧑‍💼 PH</span>.</li>
+    <li>Ketik nama PH lalu pilih dari daftar yang muncul.</li>
+    <li>Isi tanggal mulai dan tanggal selesai, lalu simpan.</li>
+    <li>Untuk mengakhiri lebih cepat, tekan <span class="tmb">Akhiri sekarang</span>.</li>
+  </ol>
+  <ul>
+    <li>Selama masa itu, lembar untuk Anda juga muncul di kotak masuk TTD milik PH. PH menandatangani dari akunnya sendiri.</li>
+    <li>Pada lembar, nama PH tercetak dengan keterangan Manager Teknik yang digantikan, misalnya “Nama PH (PH Manager Teknik Nama Anda)”. QR-nya menyebut jabatan “PH Manager Teknik”.</li>
+    <li><b>PH susulan:</b> untuk lembar lama yang belum ditandatangani karena waktu itu PH yang dinas, isi tanggal mulai dan selesai di masa lalu, tepat tanggal lembarnya. PH hanya menerima lembar tanggal itu, dan penunjukannya berlaku 14 hari.</li>
+  </ul>
+</section>
+
+<section class="bab" id="baca">
+  <div class="no-bab">BAB 08</div>
+  <h2>Membaca seluruh unit</h2>
+
+  <ul>
+    <li><b>Dashboard</b>: semua unit terbuka untuk dilihat, termasuk jadwal dinas, trouble, NOTAM, personel, dan sejarah peralatan.</li>
+    <li><b>E-Logbook</b>: pilih unit di kotak <b>Unit</b>. Tab <b>Rekap &amp; Matrik</b> merangkum kejadian dan siapa yang menanganinya.</li>
+    <li>Cetak lembar E-Logbook yang sudah lengkap tanda tangannya lewat tombol cetak di tiap tab.</li>
+    <li>Notifikasi “Daftar dinas diperbarui” dikirim kepada Manager Teknik untuk semua unit.</li>
+  </ul>
+</section>
+
+<section class="bab" id="masalah">
+  <div class="no-bab">BAB 09</div>
+  <h2>Kalau ada masalah</h2>
+
+  <div class="gulir"><table>
+    <tr><th>Gejala</th><th>Yang dilakukan</th></tr>
+    <tr><td>Lembar tidak muncul di kotak masuk saya</td><td>Teknisi belum memilih nama Anda sebagai Manager Teknik, atau lembarnya sudah ditandatangani PH Anda.</td></tr>
+    <tr><td>Nama, NIK, atau jabatan di QR saya salah</td><td>Minta administrator membetulkannya di Kelola Akun.</td></tr>
+    <tr><td>Tanda tangan saya terbubuh di lembar yang keliru</td><td>Minta administrator atau admin unit unit itu melakukan “minta TTD ulang”.</td></tr>
+    <tr><td>Deputy yang dituju tidak ada di daftar</td><td>Akun Deputy belum ada atau nonaktif. Kabari administrator.</td></tr>
+    <tr><td>PH tidak menerima lembar</td><td>Periksa tanggal mulai dan selesai PH; lembar di luar masa itu tidak diantarkan.</td></tr>
+  </table></div>
+  <p>Hal lain: hubungi administrator.</p>
+</section>
+
+<footer>
+  Disusun dari Avengers versi 2.12.1 (Oktober 2026). Manual ini hanya bisa dibuka pemegang peran Manager Teknik / Pejabat dan administrator. Gambar layar diambil dari server uji; nama, NIK, dan tanda tangan orang di dalamnya disamarkan.
+</footer>
+
+</main>
+</div>
+<script>
+function segarkanDaftarIsi(){
+  const ol = document.getElementById('daftarIsi'); if(!ol) return;
+  ol.innerHTML = '';
+  document.querySelectorAll('main section.bab').forEach((s, i) => {
+    const no = s.querySelector('.no-bab'); if(no) no.textContent = 'BAB ' + String(i + 1).padStart(2, '0');
+    const h = s.querySelector('h2'); if(!h || !s.id) return;
+    const li = document.createElement('li'), a = document.createElement('a');
+    a.href = '#' + s.id; a.textContent = h.textContent.trim(); li.appendChild(a); ol.appendChild(li);
+  });
+}
+segarkanDaftarIsi();
+</script>
+</body>
+</html>

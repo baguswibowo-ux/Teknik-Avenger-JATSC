@@ -97,7 +97,8 @@ fetch('/panduan/api/saya', { credentials: 'same-origin' }).then(r => r.ok ? r.js
   const ket = { 'manual-adminunit.html': 'Akun dan PIC unit, hak modul, jadwal dinas, isi Database Unit, pekerjaan admin di E-Logbook.',
     'manual-pic-dinas.html': 'Menyusun, mengimpor, mencetak, dan mengirim jadwal dinas untuk ditandatangani.',
     'manual-pic-sparepart.html': 'Daftar dan impor sparepart, foto label, rekap stok opname.',
-    'manual-pic-isr.html': 'Izin Stasiun Radio, isi dari PDF ISR, lampiran, masa berlaku.' };
+    'manual-pic-isr.html': 'Izin Stasiun Radio, isi dari PDF ISR, lampiran, masa berlaku.',
+    'manual-pejabat.html': 'Tanda tangan QR dari kotak masuk, persetujuan cetak dan PUM per Grup, penunjukan PH.' };
   const wadah = document.getElementById('kartuPeran');
   daftar.forEach(m => {
     const a = document.createElement('a'); a.href = m.halaman;
