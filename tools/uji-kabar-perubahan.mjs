@@ -183,6 +183,10 @@ test('penerima jadwal dinas disetujui Deputy', () => {
   assert.deepEqual(
     penerimaDinasDisetujui({ pengurus, unit: 'radtel', semuaUnit: true, pengirim: 'gabriela', kecuali: ['deputy'] }).sort(),
     ['admin1', 'au.listrik', 'au.radtel', 'gabriela', 'pic.radtel', 'super']);
+  // Manager Teknik yang TTD ikut; MT lain tidak.
+  assert.deepEqual(
+    penerimaDinasDisetujui({ pengurus: [], unit: 'radtel', pengirim: 'pic.radtel', juga: ['Deny'], kecuali: ['ary'] }).sort(),
+    ['deny', 'pic.radtel']);
   // Pengirim di luar daftar pengurus tetap dikabari.
   assert.ok(penerimaDinasDisetujui({ pengurus: [], unit: 'radtel', pengirim: 'Teknisi1' }).includes('teknisi1'));
 });
