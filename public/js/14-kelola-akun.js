@@ -376,14 +376,16 @@ function gambarAkun(){
   const tampil = USERS.filter(akunLolosSaring);
 
   const saya = String(akun.user || '').toLowerCase();
+  // Nomor urut bersambung melewati kelompok peran: angka terakhir = jumlah akun yang tampil.
+  let no = 0;
   el('tblAkun').innerHTML =
-    `<thead><tr><th>Username</th><th>${T('Nama','Name')}</th><th>${T('Peran','Role')}</th>
+    `<thead><tr><th class="no-urut">No</th><th>Username</th><th>${T('Nama','Name')}</th><th>${T('Peran','Role')}</th>
       <th>${T('Unit logbook','Logbook units')}</th>
       <th>Status</th><th>Login</th><th></th></tr></thead><tbody>` +
-    (tampil.length ? '' : `<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:22px">${
+    (tampil.length ? '' : `<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:22px">${
       T('Tidak ada akun yang cocok dengan saringan ini.','No account matches this filter.')}</td></tr>`) +
     kelompokAkun(tampil).map(([role, anggota])=>
-      `<tr class="kelompok-akun"><td colspan="7">${esc(peranTampil(role))}
+      `<tr class="kelompok-akun"><td colspan="8">${esc(peranTampil(role))}
         <span class="jumlah">${anggota.length} ${T('akun','accounts')}</span></td></tr>` +
     anggota.map(u=>{
       const semua = SEMUA_UNIT_PERAN.includes(u.role);
@@ -393,6 +395,7 @@ function gambarAkun(){
           ? u.unit.map(k=>`<span class="pil">${esc(namaUnit(k))}</span>`).join('')
           : `<span class="pil awas">${T('belum ada unit','no unit yet')}</span>`;
       return `<tr class="${u.aktif ? '' : 'akun-mati'}">
+        <td class="no-urut">${++no}</td>
         <td class="mono">${esc(u.username)}${u.username.toLowerCase() === saya
           ? ` <span class="pil">${T('Anda','You')}</span>` : ''}</td>
         <td>${esc(u.nama || '—')}</td>
@@ -473,11 +476,12 @@ function gambarAktivasiUnit(){
       ? a.username.localeCompare(b.username)
       : (a.aktif ? 1 : -1));
 
+  let no = 0;   // bersambung melewati kelompok peran, seperti Daftar Akun
   tbl.innerHTML =
-    `<thead><tr><th>Username</th><th>${T('Nama','Name')}</th>
+    `<thead><tr><th class="no-urut">No</th><th>Username</th><th>${T('Nama','Name')}</th>
       <th>${T('Peran','Role')}</th>
       <th>${T('Unit logbook','Logbook units')}</th><th>Status</th><th>Login</th><th></th></tr></thead><tbody>` +
-    (baris.length ? '' : `<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:22px">${
+    (baris.length ? '' : `<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:22px">${
       USERS.length
         ? T('Belum ada akun teknisi di unit Anda.','No technician accounts in your unit yet.')
         : (muatUsersGalat
@@ -486,7 +490,7 @@ function gambarAktivasiUnit(){
     // Dikelompokkan per peran seperti Daftar Akun, supaya siapa PIC unit
     // terbaca sekilas. Urutan di dalam kelompok tetap: nonaktif di atas.
     kelompokAkun(baris).map(([role, anggota])=>
-      `<tr class="kelompok-akun"><td colspan="7">${esc(peranTampil(role))}
+      `<tr class="kelompok-akun"><td colspan="8">${esc(peranTampil(role))}
         <span class="jumlah">${anggota.length} ${T('akun','accounts')}</span></td></tr>` +
     anggota.map(u=>{
       const unit = (u.unit || []).map(k=>`<span class="pil">${esc(namaUnit(k))}</span>`).join('');
@@ -494,6 +498,7 @@ function gambarAktivasiUnit(){
       const label = u.aktif ? T('Nonaktifkan','Deactivate') : T('Aktifkan','Activate');
       const kelas = u.aktif ? 'btn garis kecil' : 'btn kecil';
       return `<tr class="${u.aktif ? '' : 'akun-mati'}">
+        <td class="no-urut">${++no}</td>
         <td class="mono">${esc(u.username)}</td>
         <td>${esc(u.nama || '—')}</td>
         <td><span class="pil ${esc(u.role)}">${esc(peranTampil(u.role))}</span></td>
