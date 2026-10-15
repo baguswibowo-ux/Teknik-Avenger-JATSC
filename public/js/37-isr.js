@@ -90,7 +90,9 @@ function panelIsrHtml(unit){
     <span class="ket">${daftar.length} ${T('izin terdaftar','licences registered')}${
       awas ? ` · <b style="color:var(--warn)">${awas} ${T('perlu diperhatikan','need attention')}</b>` : ''}</span>
     <span class="tombol">${boleh
-      ? `<button class="btn kecil" data-isr-tambah>${T('Tambah ISR','Add licence')}</button>` : ''}</span>
+      ? `<button class="btn garis kecil" data-isr-pdf title="${T('Isian terisi sendiri dari PDF ISR SDPPI/DJID',
+          'Fields fill themselves from the SDPPI/DJID licence PDF')}">${T('Tambah dari PDF','Add from PDF')}</button>
+         <button class="btn kecil" data-isr-tambah>${T('Tambah ISR','Add licence')}</button>` : ''}</span>
   </div>`;
 
   if(!daftar.length){
@@ -108,12 +110,18 @@ function panelIsrHtml(unit){
     const masa = (r.mulai || r.habis)
       ? `${r.mulai ? tglRingkas(r.mulai) : '—'} – ${r.habis ? tglRingkas(r.habis) : '—'}`
       : '—';
-    const nL = isrLampiran(r.id).length;
+    // Lampiran tampil sebagai tautan di bawah nama, untuk SEMUA yang membuka
+    // tabel ini — bukan hanya di kartu Ubah. Akun yang hanya boleh melihat ISR
+    // tidak punya tombol Ubah, dan PDF izin justru yang paling ingin mereka
+    // buka. Mengambil berkasnya cukup sudah masuk (GET /dokumen/:unit/:id).
+    const lampiran = isrLampiran(r.id);
     return `<tr>
       <td class="mono" style="color:var(--muted);text-align:right">${i+1}</td>
-      <td>${esc(r.nama || '—')}${nL
-        ? ` <span class="mono" style="color:var(--muted);font-size:11px" title="${
-            T('berkas lampiran','attached files')}">📎${nL}</span>` : ''}</td>
+      <td>${esc(r.nama || '—')}${lampiran.length
+        ? `<div style="display:flex;flex-direction:column;gap:2px;margin-top:3px">${lampiran.map(b=>
+            `<a href="${esc(b.url || `/dokumen/${unit}/${b.id}`)}" target="_blank" rel="noopener" title="${esc(b.nama)}"
+              style="font-size:11.5px;color:var(--accent);text-decoration:none;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📄 ${
+              esc(b.nama)}</a>`).join('')}</div>` : ''}</td>
       <td><span class="mono">${esc(r.nomor || '—')}</span></td>
       <td><span class="mono">${esc(r.frek || '—')}</span></td>
       <td>${esc(r.kelas || '—')}</td>
@@ -176,6 +184,7 @@ function bukaIsr(row){
     </div>` : '';
 
   el('badanIsr').innerHTML = `
+    ${isrKotakPdf()}
     ${isrIsian('iNama', T('Nama Stasiun / Perangkat','Station / Device'), row && row.nama,
         'text', T('Nama stasiun radio atau perangkatnya, mis. <span class="mono">VHF A/G 118.75</span>.',
                   'The radio station or device name, e.g. <span class="mono">VHF A/G 118.75</span>.'))}
@@ -200,6 +209,7 @@ function bukaIsr(row){
   el('btnHapusIsr')?.addEventListener('click', hapusIsr);
   isrGambarLampiran();
   el('isrTambahBerkas')?.addEventListener('change', isrUnggahLampiran);
+  el('isrPdf')?.addEventListener('change', isrIsiDariPdf);
   el('lapisIsr').classList.add('buka');
   el('iNama').focus();
 }
@@ -286,19 +296,25 @@ async function isrUnggahLampiran(e){
   const input = e.target;
   const berkas = [...(input.files || [])];
   if(!berkas.length) return;
+  input.disabled = true;
+  try{ await isrLampirkan(berkas); }
+  finally{ input.value = ''; input.disabled = false; }
+}
 
+/** Lampirkan berkas ke ISR yang sedang dibuka: ditahan di isrTunda untuk
+    baris baru, diunggah seketika untuk baris yang sudah tersimpan. Dipakai
+    tombol "Tambah berkas" dan "Isi dari PDF ISR". */
+async function isrLampirkan(berkas){
   // Baris baru: tahan dulu, unggah saat kartu disimpan (id-nya belum ada).
   if(!isrDibuka){
     for(const f of berkas){
       if(f.size > BRK_BATAS){ pesan(T(`"${f.name}" lebih dari 25 MB — dilewati.`, `"${f.name}" is over 25 MB — skipped.`)); continue; }
       isrTunda.push(f);
     }
-    input.value = '';
     isrGambarLampiran();
     return;
   }
 
-  input.disabled = true;
   let sukses = 0;
   for(const f of berkas){
     if(f.size > BRK_BATAS){
@@ -312,13 +328,101 @@ async function isrUnggahLampiran(e){
       pesan(T(`Gagal mengunggah "${f.name}": `, `Could not upload "${f.name}": `) + (err && err.message || err));
     }
   }
-  input.value = ''; input.disabled = false;
   if(sukses){
     await dokMuat();
     isrGambarLampiran();
     gambarUnit();       // segarkan lencana 📎 di tabel di belakang kartu
     // kartu ISR digambar ulang oleh gambarUnit? tidak — kartu terpisah dari #isiUnit.
     pesan(T(`${sukses} berkas dilampirkan.`, `${sukses} file(s) attached.`));
+  }
+}
+
+/* ---------- Isi dari PDF ISR ----------
+   PDF ISR terbitan SDPPI/DJID dibaca di peramban (public/isr-pdf.mjs, dimuat
+   saat pertama dipakai) dan isiannya dituang ke kartu. Tidak langsung
+   disimpan: tebakannya ditampilkan dulu, orangnya memeriksa, lalu menekan
+   Simpan seperti biasa. PDF-nya sekalian jadi lampiran baris itu — di kartu
+   Ubah, ini jalan memperbarui ISR yang diperpanjang. */
+
+function isrKotakPdf(){
+  const lampir = KEMAMPUAN.dokumenTulis && bolehSuntingDb('dokumen');
+  return `<div class="isian" style="border-bottom:1px dashed var(--line);padding-bottom:12px">
+    <label class="btn garis kecil" style="display:inline-block;cursor:pointer">
+      📄 ${T('Isi dari PDF ISR','Fill from licence PDF')}
+      <input type="file" id="isrPdf" accept=".pdf,application/pdf" hidden>
+    </label>
+    <div class="bantu" id="isrPdfKet" style="margin-top:6px">${T(
+      'Pilih PDF ISR dari SDPPI/DJID — isian di bawah terisi sendiri',
+      'Choose the SDPPI/DJID licence PDF — the fields below fill themselves')}${lampir
+      ? T(' dan PDF-nya ikut jadi lampiran', ' and the PDF is attached') : ''}. ${
+      T('Periksa lagi sebelum menyimpan.','Check them before saving.')}</div>
+  </div>`;
+}
+
+async function isrIsiDariPdf(e){
+  const input = e.target;
+  const f = input.files && input.files[0];
+  input.value = '';
+  if(!f) return;
+  const ket = el('isrPdfKet');
+  const lapor = (html, warna) => { if(ket){ ket.innerHTML = html; ket.style.color = warna || ''; } };
+  if(!/\.pdf$/i.test(f.name) && f.type !== 'application/pdf'){
+    lapor(T('Itu bukan berkas PDF.','That is not a PDF file.'), 'var(--fail)');
+    return;
+  }
+
+  input.disabled = true;
+  lapor(T('Membaca PDF... (pertama kali memuat pembacanya dulu, ±1,8 MB)',
+          'Reading the PDF... (the first time loads the reader, ~1.8 MB)'));
+  try{
+    const modul = await import(new URL('isr-pdf.mjs', location.href).href);
+    const { isi, adaTeks } = await modul.bacaPdfIsr(f);
+    if(!isi){
+      lapor(adaTeks
+        ? T('PDF ini tidak dikenali sebagai cetakan ISR SDPPI/DJID — silakan isi manual.',
+            'This PDF is not recognised as an SDPPI/DJID licence — please fill it in by hand.')
+        : T('PDF ini tidak berisi teks (hasil pindai?) — silakan isi manual.',
+            'This PDF has no text (a scan?) — please fill it in by hand.'), 'var(--warn)');
+      return;
+    }
+
+    const peta = { iNama:'nama', iNomor:'nomor', iFrek:'frek', iKelas:'kelas',
+                   iLokasi:'lokasi', iMulai:'mulai', iHabis:'habis', iKet:'ket' };
+    for(const [id, k] of Object.entries(peta)){
+      const inp = el(id);
+      if(!inp || !isi[k]) continue;
+      inp.value = isi[k];
+      inp.style.boxShadow = '0 0 0 1px var(--accent)';   // tanda: isian ini dari PDF
+      inp.addEventListener('input', ()=>{ inp.style.boxShadow = ''; }, { once:true });
+    }
+
+    // Lampirkan PDF-nya, kecuali berkas yang sama sudah ada di daftar lampiran.
+    let dilampir = false;
+    if(KEMAMPUAN.dokumenTulis && bolehSuntingDb('dokumen')){
+      const sudah = isrDibuka
+        ? isrLampiran(isrDibuka.id).some(b=>b.nama === f.name)
+        : isrTunda.some(t=>t.name === f.name && t.size === f.size);
+      if(!sudah){ await isrLampirkan([f]); dilampir = true; }
+    }
+
+    const kosong = Object.entries(peta).filter(([,k])=>!isi[k] && k !== 'kelas').map(([id])=>
+      (document.querySelector(`label[for="${id}"]`) || {}).textContent).filter(Boolean);
+    const kembar = isi.nomor && (ISR[unitDibuka] || []).find(r=>
+      r.nomor === isi.nomor && (!isrDibuka || r.id !== isrDibuka.id));
+    lapor(`${T('Terbaca','Read')}: <b>${esc(isi.nomor || '—')}</b>${isi.habis
+        ? ` · ${T('berlaku s/d','valid until')} <b>${esc(tglRingkas(isi.habis))}</b>` : ''}${
+      dilampir ? ' · ' + T('PDF dilampirkan','PDF attached') : ''}. ${
+      T('Isian bergaris biru diambil dari PDF — periksa lagi, lalu simpan.',
+        'Fields outlined in blue came from the PDF — check them, then save.')}${
+      kosong.length ? `<br><span style="color:var(--warn)">${T('Tidak terbaca','Not found')}: ${esc(kosong.join(', '))}.</span>` : ''}${
+      kembar ? `<br><b style="color:var(--warn)">${T(
+        `No. ISR ini sudah terdaftar sebagai "${esc(kembar.nama)}" — barangkali yang dimaksud mengubah baris itu.`,
+        `This licence number is already listed as "${esc(kembar.nama)}" — perhaps you meant to edit that row.`)}</b>` : ''}`);
+  }catch(err){
+    console.warn('[isr] PDF gagal dibaca:', err);
+    lapor(T('Gagal membaca PDF: ','Could not read the PDF: ') + esc(err && err.message || String(err)), 'var(--fail)');
+  }finally{
+    input.disabled = false;
   }
 }
 
@@ -447,6 +551,9 @@ async function hapusIsr(){
 el('isiUnit').addEventListener('click', e=>{
   const tambah = e.target.closest('[data-isr-tambah]');
   if(tambah){ bukaIsr(null); return; }
+  // Langsung membuka pemilih berkas — masih di dalam klik yang sama, jadi
+  // peramban mengizinkannya.
+  if(e.target.closest('[data-isr-pdf]')){ bukaIsr(null); el('isrPdf')?.click(); return; }
   const ubah = e.target.closest('[data-isr-ubah]');
   if(ubah){
     const row = (ISR[unitDibuka] || []).find(x=>x.id === ubah.dataset.isrUbah);
