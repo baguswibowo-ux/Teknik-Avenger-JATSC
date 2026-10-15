@@ -14,7 +14,7 @@
 <nav class="isi" aria-label="Daftar isi">
   <img class="logo-panduan logo-nav" src="/panduan/logo" alt="Logo" hidden onload="this.hidden=false">
   <div class="merek">AVENGERS</div>
-  <small>Buku Manual Admin Unit · v2.12</small>
+  <small>Buku Manual Admin Unit · v2.13</small>
   <ol id="daftarIsi"></ol>
   <div class="alat">
     <a class="tb" href="./">← Semua panduan</a>
@@ -32,7 +32,7 @@
   <div class="pjg">Advanced Engineer Electronic Reporting System</div>
   <h1>Buku Manual Admin Unit</h1>
   <p>Mengurus unit Anda: akun dan PIC, hak modul, jadwal dinas, isi Database Unit, dan pekerjaan admin di E-Logbook.</p>
-  <div class="kaki"><span>teknik-avengers.com/panduan</span><span>Versi aplikasi 2.12.1</span><span>Khusus Admin Unit</span></div>
+  <div class="kaki"><span>teknik-avengers.com/panduan</span><span>Versi aplikasi 2.13.0</span><span>Khusus Admin Unit</span></div>
 </div>
 
 <section class="bab" id="peran">
@@ -47,6 +47,7 @@
     <tr><td>Menunjuk orang lewat kolom “Ditunjuk” di hak modul</td><td><span class="ya">Ya</span></td><td>Hanya orang di unit Anda</td></tr>
     <tr><td>Menyunting dan mencetak jadwal dinas unit</td><td><span class="ya">Ya</span></td><td></td></tr>
     <tr><td>Menyunting dan menghapus isi Database Unit</td><td><span class="ya">Ya</span></td><td>Kecuali Daftar Peralatan (bawaannya administrator)</td></tr>
+    <tr><td>Menetapkan Manager Fasilitas unit untuk lembar Sejarah Peralatan</td><td><span class="ya">Ya</span></td><td>Tombol Atur di panel Sejarah</td></tr>
     <tr><td>Mengubah/menghapus isu dan catatan E-Logbook unit, minta TTD ulang</td><td><span class="ya">Ya</span></td><td>Membuka kembali isu Closed: administrator</td></tr>
     <tr><td>Membaca log aktivitas</td><td><span class="ya">Ya</span></td><td>Unit Anda saja</td></tr>
     <tr><td>Memberi peran Admin Unit, PIC semua unit, pejabat, administrator</td><td><span class="tdk">Tidak</span></td><td>Administrator</td></tr>
@@ -191,12 +192,30 @@
     <tr><td>ISR · NOTAM</td><td>Izin stasiun radio dan NOTAM teknik unit.</td></tr>
     <tr><td>Dokumen · Galeri</td><td>Berkas dan foto unit; menghapusnya hanya admin unit dan administrator.</td></tr>
     <tr><td>Logo unit</td><td>Gambar pengenal unit di kepala layar unit.</td></tr>
-    <tr><td>Peralatan</td><td>Daftar induk alat: bawaannya hanya administrator. Sejarah tiap alat tetap bisa ditulis. Manager Fasilitas unit Anda (pihak <b>Mengetahui</b> di lembar Sejarah Peralatan) ditetapkan lewat tombol <span class="tmb">Atur</span> di baris <b>Mengetahui — Manager Fasilitas</b> pada panel Sejarah; nama dan TTD tersimpannya tercetak di bawah tiap alat.</td></tr>
+    <tr><td>Peralatan</td><td>Daftar induk alat: bawaannya hanya administrator. Sejarah tiap alat tetap bisa ditulis.</td></tr>
   </table></div>
 </section>
 
-<section class="bab" id="berkala">
+<section class="bab" id="manager-fasilitas">
   <div class="no-bab">BAB 09</div>
+  <h2>Menetapkan Manager Fasilitas</h2>
+
+  <a class="tonton" href="video-tutorial.html#bab11">Tonton: Admin Unit, akun, PIC, hak</a>
+  <p class="pengantar">Lembar cetak Sejarah Peralatan menutup tiap alat dengan blok <b>“Mengetahui, Manager Fasilitas”</b>. Satu unit punya satu Manager Fasilitas; administrator dan admin unit yang menetapkannya.</p>
+  <ol class="langkah">
+    <li>Buka <span class="tmb">Database Unit</span>, pilih unit Anda, subtab <span class="tmb">Peralatan</span>, lalu klik salah satu kartu alat.</li>
+    <li>Di panel <b>Sejarah</b>, cari baris <b>Mengetahui — Manager Fasilitas</b>, lalu tekan <span class="tmb">Atur</span>.</li>
+    <li>Pilih akunnya dari daftar, lalu tekan <span class="tmb">Simpan</span>. Muncul pesan “Manager Fasilitas tersimpan.”</li>
+  </ol>
+  <ul>
+    <li>Calonnya akun administrator, pejabat, atau pejabat non-operasional yang <b>mencentang unit ini</b> di Kelola Akun → <b>Unit logbook</b>. Daftar kosong berarti belum ada akun seperti itu; minta administrator mencentangkan unitnya.</li>
+    <li>Nama dan tanda tangan akun itu tercetak di blok Mengetahui setiap alat unit Anda.</li>
+    <li>Selama belum ditetapkan, barisnya bertuliskan “belum ditetapkan”, dan blok Mengetahui dicetak kosong untuk tanda tangan tangan.</li>
+  </ul>
+</section>
+
+<section class="bab" id="berkala">
+  <div class="no-bab">BAB 10</div>
   <h2>Mengatur kegiatan berkala</h2>
 
   <ol class="langkah">
@@ -211,7 +230,7 @@
 </section>
 
 <section class="bab" id="sparepart">
-  <div class="no-bab">BAB 10</div>
+  <div class="no-bab">BAB 11</div>
   <h2>Daftar sparepart</h2>
 
   <a class="tonton" href="video-tutorial.html#bab13">Tonton: PIC Sparepart</a>
@@ -231,7 +250,7 @@
 </section>
 
 <section class="bab" id="sparepart-impor">
-  <div class="no-bab">BAB 11</div>
+  <div class="no-bab">BAB 12</div>
   <h2>Impor sparepart dari berkas</h2>
 
   <ol class="langkah">
@@ -246,7 +265,7 @@
 </section>
 
 <section class="bab" id="isr">
-  <div class="no-bab">BAB 12</div>
+  <div class="no-bab">BAB 13</div>
   <h2>Izin Stasiun Radio (ISR)</h2>
 
   <a class="tonton" href="video-tutorial.html#bab14">Tonton: PIC ISR</a>
@@ -271,7 +290,7 @@
 </section>
 
 <section class="bab" id="aktivitas">
-  <div class="no-bab">BAB 13</div>
+  <div class="no-bab">BAB 14</div>
   <h2>Log aktivitas</h2>
 
   <p class="pengantar">Menu <span class="tmb">Aktivitas</span>: siapa mengubah apa, kapan, di unit Anda.</p>
@@ -280,7 +299,7 @@
 </section>
 
 <section class="bab" id="elogbook-admin">
-  <div class="no-bab">BAB 14</div>
+  <div class="no-bab">BAB 15</div>
   <h2>Pekerjaan admin di E-Logbook</h2>
 
   <div class="gulir"><table>
@@ -293,7 +312,7 @@
 </section>
 
 <section class="bab" id="masalah">
-  <div class="no-bab">BAB 15</div>
+  <div class="no-bab">BAB 16</div>
   <h2>Kalau ada masalah</h2>
 
   <div class="gulir"><table>
@@ -308,7 +327,7 @@
 </section>
 
 <footer>
-  Disusun dari Avengers versi 2.12.1 (Oktober 2026). Manual ini hanya bisa dibuka pemegang peran Admin Unit dan administrator. Gambar layar diambil dari server uji; nama, NIK, dan tanda tangan orang di dalamnya disamarkan.
+  Disusun dari Avengers versi 2.13.0 (Oktober 2026). Manual ini hanya bisa dibuka pemegang peran Admin Unit dan administrator. Gambar layar diambil dari server uji; nama, NIK, dan tanda tangan orang di dalamnya disamarkan.
 </footer>
 
 </main>

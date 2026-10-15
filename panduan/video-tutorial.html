@@ -228,7 +228,7 @@ header a{color:var(--sian)}
     <img class="logo-panduan logo-kepala" src="/panduan/logo" alt="Logo" hidden onload="this.hidden=false">
     <div class="alis">VIDEO TUTORIAL · AVENGERS UNTUK TEKNISI</div>
     <h1>Cara memakai fitur Avengers, langkah demi langkah</h1>
-    <p>Empat belas bab pendek. Bab 1–8 untuk semua teknisi; bab 9–10 Manager Teknik / officer, bab 11 Admin Unit, bab 12–14 para PIC. masing-masing sekitar setengah sampai satu menit. Pilih tampilan <b>HP</b> atau <b>PC / Laptop</b>, pilih bab, lalu putar. Bab berikutnya menyambung sendiri. Versi aplikasi 2.12.
+    <p>Empat belas bab pendek. Bab 1–8 untuk semua teknisi; bab 9–10 Manager Teknik / officer, bab 11 Admin Unit, bab 12–14 para PIC. masing-masing sekitar setengah sampai satu menit. Pilih tampilan <b>HP</b> atau <b>PC / Laptop</b>, pilih bab, lalu putar. Bab berikutnya menyambung sendiri. Versi aplikasi 2.13.
        Pasang di HP dan mengaktifkan notifikasi punya tutorialnya sendiri: <a href="tutorial-hp.html">Avengers di HP, Pasang dan Notif</a>.
        Uraian lengkapnya ada di <a href="manual-teknisi.html">Buku Manual Teknisi</a>.</p>
   </header>
@@ -583,7 +583,7 @@ header a{color:var(--sian)}
       aksi:[[900,'tap','#alPh'],[1400,'kelas','#mPh','buka'],[2200,'ketik','#phNama','Deny Saputra',1200],[4000,'isi','#phMulai','20/10/2026'],[4800,'isi','#phSelesai','24/10/2026'],[6800,'tap','#tSimpanPh'],[7300,'isi','#stPh','<span class="lc ok muncul">PH aktif 20–24 Okt 2026: Deny Saputra</span>']] }
   ]},
 
-  { judul:'Admin Unit: akun, PIC, hak', ringkas:'untuk admin unit: aktifkan akun, tunjuk PIC, Ditunjuk', langkah:[
+  { judul:'Admin Unit: akun, PIC, hak', ringkas:'untuk admin unit: akun, PIC, Ditunjuk, Manager Fasilitas', langkah:[
     { j:'Aktifkan pendaftar baru', n:'Buka Kelola Akun. Panel Aktivasi Akun Unit memuat akun di unit Anda, dikelompokkan per peran. Pendaftar baru masih nonaktif: pastikan memang orang unit Anda, lalu tekan Aktifkan.', dur:8000,
       html:()=>dash('Kelola Akun',0,'Bagus Wibowo')+`<div class="badan"><div class="judul">Aktivasi Akun Unit · Radtel</div>
         <div class="ket">TEKNISI</div>
@@ -611,6 +611,13 @@ header a{color:var(--sian)}
         <div class="kt sembunyi" id="dafDtj"><div class="baris"><span class="lc biru" id="cFa">☐ Fakhrizal Ahmad</span><span class="lc">☐ Bagus Wibowo</span></div></div>
         <div class="baris"><span class="tmb dorong" id="tHak">Simpan hak</span></div></div>`,
       aksi:[[1600,'tap','#dtj'],[2100,'lepas','#dafDtj','sembunyi'],[3600,'tap','#cFa'],[4000,'isi','#cFa','☑ Fakhrizal Ahmad'],[4000,'isi','#dtj','Fakhrizal Ahmad'],[6200,'tap','#tHak']] },
+    { j:'Tetapkan Manager Fasilitas unit', n:'Lembar cetak Sejarah Peralatan ditutup blok Mengetahui, Manager Fasilitas. Buka kartu alat mana saja di unit Anda, tekan Atur di baris Mengetahui — Manager Fasilitas, pilih akunnya, lalu Simpan.',
+      tip:'Calonnya akun administrator atau pejabat yang mencentang unit ini di Kelola Akun → Unit logbook. Selama belum ditetapkan, blok Mengetahui dicetak kosong untuk tanda tangan tangan.', dur:9500,
+      html:()=>dash('Database Unit',0,'Bagus Wibowo')+`<div class="badan"><div class="kt"><div class="baris"><b>Sejarah — VSCS Garex 300</b><span class="ket dorong">terbaru di atas</span></div>
+        <div class="baris" style="margin-top:5px"><span class="ket">Mengetahui — Manager Fasilitas</span><span class="isian" id="mfNilai" style="flex:1">belum ditetapkan</span><span class="tmb garis" id="tAturMf">Atur</span></div>
+        <div class="baris sembunyi" id="mfSimpan" style="margin-top:5px"><span class="tmb garis">Batal</span><span class="tmb dorong" id="tSimpanMf">Simpan</span></div></div>
+        <div class="kt"><div class="baris"><b>22 AGU 2026</b><span class="lc ok dorong">disetujui</span></div><div class="ket">Migrasi GV 3</div></div></div><div class="toast" id="tsMf">Manager Fasilitas tersimpan.</div>`,
+      aksi:[[2200,'tap','#tAturMf'],[2700,'isi','#mfNilai','— pilih — ▾'],[2700,'lepas','#mfSimpan','sembunyi'],[3800,'tap','#mfNilai'],[4300,'isi','#mfNilai','Arya Gunawan ▾'],[6600,'tap','#tSimpanMf'],[7100,'isi','#mfNilai','Arya Gunawan'],[7100,'kelas','#mfSimpan','sembunyi'],[7100,'kelas','#tsMf','buka']] },
     { j:'Pantau lewat log aktivitas', n:'Menu Aktivitas mencatat siapa mengubah apa dan kapan di unit Anda. Saring menurut modul, orang, atau tanggal.', dur:6500,
       html:()=>dash('Aktivitas',0,'Bagus Wibowo')+`<div class="badan"><div class="judul">Aktivitas — Siapa Mengubah Apa</div>
         <div class="daftar"><div><b>09.12</b><span>Bagus Wibowo · akun · aktifkan Fakhrizal Ahmad</span></div><div><b>09.15</b><span>Bagus Wibowo · hak · Kegiatan Berkala, ditunjuk Fakhrizal Ahmad</span></div><div><b>10.02</b><span>Fakhrizal Ahmad · dinas · Radtel Oktober 2026</span></div></div></div>`,

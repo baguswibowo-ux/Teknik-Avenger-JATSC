@@ -43,6 +43,8 @@ h2{font-family:var(--f-judul);font-size:22px;margin:0 0 4px}
 .bab a:hover{text-decoration:underline}
 .pulang{display:inline-block;margin-bottom:14px;color:var(--aksen);font-weight:600;text-decoration:none}
 .logo-panduan{display:block;max-height:72px;max-width:100%;object-fit:contain;margin-bottom:10px}
+.baru{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:10px;font-size:15.5px;line-height:1.5;max-width:66ch}
+.baru b{color:var(--tinta)}
 .catatan{border-top:1px solid var(--garis);padding-top:14px;color:var(--redup);font-size:14px;max-width:66ch}
 @media (max-width:460px){ .bab a{padding-inline:10px} .bab span{padding-inline:12px} }
 </style>
@@ -53,7 +55,7 @@ h2{font-family:var(--f-judul);font-size:22px;margin:0 0 4px}
   <header>
     <a class="pulang" href="/">← Dashboard Fasilitas Teknik</a>
     <img class="logo-panduan" src="/panduan/logo" alt="Logo" hidden onload="this.hidden=false">
-    <div class="alis">AVENGERS · v2.12.1 · PANDUAN</div>
+    <div class="alis">AVENGERS · v2.13.0 · PANDUAN</div>
     <h1>Panduan Avengers</h1>
     <p>Buku manual dan video tutorial cara memakai Dashboard Fasilitas Teknik dan E-Logbook di teknik-avengers.com, untuk teknisi dan pengurus unit. Bisa dibuka dari PC, laptop, maupun HP.</p>
   </header>
@@ -64,6 +66,17 @@ h2{font-family:var(--f-judul);font-size:22px;margin:0 0 4px}
     <a href="video-tutorial.html#pc"><span class="jenis">VIDEO</span><b>Video tutorial · tampilan PC / Laptop</b><span class="ket">Bab yang sama dalam bingkai laptop dan browser.</span></a>
     <a href="tutorial-hp.html"><span class="jenis">HP</span><b>Pasang Avengers di HP dan aktifkan notifikasi</b><span class="ket">Android dan iPhone, lalu kenali jenis notifikasinya.</span></a>
   </nav>
+
+  <section id="yangBaru">
+    <h2>Yang baru di v2.13.0</h2>
+    <p class="sub">15 Oktober 2026</p>
+    <ul class="baru">
+      <li><b>Sejarah Peralatan: Manager Fasilitas per unit.</b> Lembar cetak menutup tiap alat dengan blok “Mengetahui, Manager Fasilitas” berisi nama dan tanda tangannya. Administrator dan admin unit menetapkannya lewat tombol <b>Atur</b> di panel Sejarah; selama belum ditetapkan, blok itu dicetak kosong untuk tanda tangan tangan.</li>
+      <li><b>Video tutorial per peran.</b> Bab 9–10 untuk Manager Teknik / officer (TTD dan notifikasi HP, persetujuan cetak, PH), bab 11 Admin Unit, bab 12–14 PIC Jadwal Dinas, PIC Sparepart, dan PIC ISR. Semua bisa diputar di tampilan HP maupun PC.</li>
+      <li><b>Manual per peran.</b> Manual Admin Unit, PIC Jadwal Dinas, PIC Sparepart, PIC ISR, dan Manager Teknik, masing-masing untuk pemegang perannya; admin unit dan pejabat bisa membuka semuanya.</li>
+      <li><b>Manual teknisi diperbarui:</b> pendaftaran akun dengan NIK dan unit yang dituju, ikon <b>?</b> Panduan di kepala dashboard, dan contoh nama yang dikenal.</li>
+    </ul>
+  </section>
 
   <section id="manualPeran" hidden>
     <h2>Manual sesuai peran Anda</h2>
