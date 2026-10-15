@@ -294,11 +294,25 @@ async function muatTtdMasuk(){
   }
 }
 
+/* Pilih lalu TTD sekaligus (permintaan Bagus, 16 Okt 2026): pejabat dengan
+   puluhan lembar tidak perlu membuka satu per satu. Yang dibubuhkan sama
+   dengan tombol simpan di jendela TTD E-Logbook — penanda QR akun
+   (PENANDA_QR di E-Logbook js/08-tanda-tangan.js) — lewat tandaTangani yang
+   sama, jadi hak per lembar dan jalur PH tetap diperiksa server di sana.
+   Pilihan disimpan per kunci <jenis>-<id> supaya bertahan saat kotak digambar
+   ulang; yang sudah tidak ada di daftar dibuang sendiri. */
+const TTD_PENANDA_QR = 'qr:akun';
+const TTD_PILIH = new Set();
+const ttdKunci = (it) => `${it.jenis}-${it.id}`;
+
 function ttdMasukKartu(it){
   const tautan = TAUTAN_ELOGBOOK ? `${TAUTAN_ELOGBOOK}#kotak-ttd:::${it.jenis}-${it.id}` : '';
+  const kunci = ttdKunci(it);
   return `<article class="kmk saya">
     <div class="kmk-kiri">
       <div class="kmk-jd">
+        <input type="checkbox" class="ttd-pilih" data-ttd-pilih="${esc(kunci)}"${TTD_PILIH.has(kunci) ? ' checked' : ''}
+          title="${esc(T('Pilih untuk TTD sekaligus','Select to sign together'))}">
         <span class="cip awas">${esc(T('Menunggu TTD','Awaiting signature').toUpperCase())}</span>
         <span class="cip">${esc(String(it.unitNama || it.unit || '-').toUpperCase())}</span>
         ${it.atasNama ? `<span class="cip">PH · ${esc(it.atasNama)}</span>` : ''}
@@ -410,11 +424,70 @@ function pasangAksiSjrTtd(){
 
 function gambarSeksiTtdMasuk(){
   if(!TTD_MASUK.length) return '';
+  const ada = new Set(TTD_MASUK.map(ttdKunci));
+  [...TTD_PILIH].forEach(k=>{ if(!ada.has(k)) TTD_PILIH.delete(k); });
   return `<div class="panel" style="margin-bottom:14px">
     <div class="kepala"><h3>${T('Menunggu Tanda Tangan Anda — E-Logbook','Awaiting Your Signature — E-Logbook')}</h3>
-      <span class="ket">${TTD_MASUK.length} ${T('dokumen','documents')}</span></div>
+      <span style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="ket">${TTD_MASUK.length} ${T('dokumen','documents')}</span>
+        <label class="ket" style="display:inline-flex;gap:5px;align-items:center;cursor:pointer">
+          <input type="checkbox" data-ttd-pilih-semua${TTD_PILIH.size === TTD_MASUK.length ? ' checked' : ''}>${T('Pilih semua','Select all')}</label>
+        <button class="btn kecil" data-ttd-terpilih${TTD_PILIH.size ? '' : ' disabled'}>${ttdTeksTombol()}</button></span></div>
     <div class="badan" style="display:grid;gap:10px">${TTD_MASUK.map(ttdMasukKartu).join('')}</div>
   </div>`;
+}
+const ttdTeksTombol = () => T(`TTD terpilih (${TTD_PILIH.size})`, `Sign selected (${TTD_PILIH.size})`);
+
+/** Satu per satu, bukan serentak: tiap TTD menulis ke basis data dan mengirim
+    notifikasi ke pembuat lembarnya. Yang gagal (mis. sudah ditandatangani
+    orang lain, atau PH-nya sudah lewat) tidak menghentikan sisanya. */
+async function ttdTerpilihKirim(tombol){
+  const butir = TTD_MASUK.filter(it=>TTD_PILIH.has(ttdKunci(it)));
+  if(!butir.length) return;
+  if(!confirm(T(`Tandatangani ${butir.length} dokumen terpilih sekarang?\n\nTTD QR akun Anda dibubuhkan tanpa membuka dokumennya satu per satu.`,
+                `Sign the ${butir.length} selected documents now?\n\nYour account QR signature is applied without opening each document.`))) return;
+  tombol.disabled = true;
+  let ok = 0;
+  const gagal = [];
+  for(const it of butir){
+    tombol.textContent = T(`Menandatangani ${ok + gagal.length + 1}/${butir.length}…`,
+                           `Signing ${ok + gagal.length + 1}/${butir.length}…`);
+    try{
+      await srvApi('tandaTangani', it.jenis, it.id, TTD_PENANDA_QR);
+      TTD_PILIH.delete(ttdKunci(it));
+      ok++;
+    }catch(e){
+      gagal.push(`${it.judul || it.label || it.jenis}${it.tanggal ? ' · ' + it.tanggal : ''}: ${e && e.message || e}`);
+    }
+  }
+  if(gagal.length){
+    console.warn('[kotak] TTD terpilih gagal:', gagal);
+    alert(T(`${ok} dokumen ditandatangani, ${gagal.length} gagal:\n\n`, `${ok} signed, ${gagal.length} failed:\n\n`)
+      + gagal.slice(0, 10).join('\n') + (gagal.length > 10 ? '\n…' : ''));
+  }else{
+    pesan(T(`${ok} dokumen ditandatangani.`, `${ok} documents signed.`));
+  }
+  await muatTtdMasuk();
+  gambarKotakMasuk();
+}
+
+function pasangAksiTtdMasuk(){
+  const tombol = document.querySelector('[data-ttd-terpilih]');
+  const semua = document.querySelector('[data-ttd-pilih-semua]');
+  const kotak = [...document.querySelectorAll('[data-ttd-pilih]')];
+  const segarkan = ()=>{
+    if(tombol){ tombol.textContent = ttdTeksTombol(); tombol.disabled = !TTD_PILIH.size; }
+    if(semua) semua.checked = !!kotak.length && TTD_PILIH.size === kotak.length;
+  };
+  kotak.forEach(c=>c.addEventListener('change', ()=>{
+    if(c.checked) TTD_PILIH.add(c.dataset.ttdPilih); else TTD_PILIH.delete(c.dataset.ttdPilih);
+    segarkan();
+  }));
+  if(semua) semua.addEventListener('change', ()=>{
+    kotak.forEach(c=>{ c.checked = semua.checked;
+      if(semua.checked) TTD_PILIH.add(c.dataset.ttdPilih); else TTD_PILIH.delete(c.dataset.ttdPilih); });
+    segarkan();
+  });
+  if(tombol) tombol.addEventListener('click', ()=>ttdTerpilihKirim(tombol));
 }
 
 let KOTAK_SARING = 'saya';    // 'saya' | 'semua'
@@ -453,6 +526,7 @@ function gambarKotakMasuk(){
     kotakPasang();
     pasangAksiAntrianCetak();
     pasangAksiSjrTtd();
+    pasangAksiTtdMasuk();
     return;
   }
 
@@ -480,6 +554,7 @@ function gambarKotakMasuk(){
   kotakPasang();
   pasangAksiAntrianCetak();
   pasangAksiSjrTtd();
+  pasangAksiTtdMasuk();
 }
 
 /** Satu baris pekerjaan di dalam kelompok tanggalnya. */
