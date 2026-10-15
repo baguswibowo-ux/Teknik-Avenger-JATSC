@@ -1267,17 +1267,22 @@ function htmlPeralatan(){
      (kalau ada) — masing-masing dengan identity + tabel sejarahnya
      sendiri, karena sejarah disimpan per-id (alat.id atau sub.id) di
      server. Sub yang belum punya nama sengaja dilewati. */
-  const seksiAlat = (a, i, judulTambahan)=>`
+  /* Blok "Mengetahui, Manager Fasilitas" menutup tiap alat — sekali per alat
+     induk, di dalam seksi terakhirnya (induk atau sub terakhir) supaya tidak
+     terpisah halaman dari tabelnya. */
+  const mf = sjrMfBlokHtml(CETAK.unit);
+  const seksiAlat = (a, i, judulTambahan, ekor)=>`
     <section class="alat-cetak">
       <h3>${i+1}. ${esc(a.nama || '')}${judulTambahan ? ` — ${esc(judulTambahan)}` : ''}</h3>
       ${spek(a)}
       <div class="alat-cetak-sub">${T('Riwayat Kegiatan','Activity History')}</div>
       ${sejarah(a)}
+      ${ekor}
     </section>`;
 
   return subJudul + rows.map((a,i)=>{
-    const seksi = [seksiAlat(a, i, '')];
     const subs = Array.isArray(a.sub) ? a.sub.filter(s=>s && s.nama) : [];
+    const seksi = [seksiAlat(a, i, '', subs.length ? '' : mf)];
     subs.forEach((s, si)=>{
       // Nomor sub memakai bentuk "1.1", "1.2", dst — supaya jelas siapa
       // parent-nya waktu satu cetakan berisi banyak alat.
@@ -1287,10 +1292,34 @@ function htmlPeralatan(){
           ${spek(s)}
           <div class="alat-cetak-sub">${T('Riwayat Kegiatan','Activity History')}</div>
           ${sejarah(s)}
+          ${si === subs.length - 1 ? mf : ''}
         </section>`);
     });
     return seksi.join('');
   }).join('');
+}
+
+/** "Mengetahui, Manager Fasilitas <unit>" dengan nama dan TTD tersimpan akun
+    yang ditetapkan untuk unit itu (SJR.mf, diatur dari panel Sejarah). Unit
+    yang belum menetapkannya tetap mendapat bloknya, kosong, untuk
+    ditandatangani tangan. */
+function sjrMfBlokHtml(unit){
+  const m = (typeof SJR !== 'undefined' && SJR.mf && SJR.mf[unit]) || null;
+  const u = infoUnit(unit);
+  const user = m && /^[a-z0-9._-]{1,64}$/i.test(m.username || '') ? m.username : '';
+  return `
+    <table class="ttd-blok ttd-blok-tunggal sjr-mf">
+      <tr>
+        <td>
+          <div class="peran-ttd">${T('Mengetahui,','Acknowledged by,')}</div>
+          <div class="jabatan-ttd">${T('Manager Fasilitas','Facility Manager')} ${esc(u.nama || unit)}</div>
+          <div class="kotak-ttd">${user
+            ? `<img src="/ttd-akun/${encodeURIComponent(user)}/gambar" data-perlu-hitam alt="" onerror="this.remove()">`
+            : ''}</div>
+          <div class="nama-ttd"><span>${esc((m && m.nama) || ' ')}</span></div>
+        </td>
+      </tr>
+    </table>`;
 }
 
 /* =======================================================================

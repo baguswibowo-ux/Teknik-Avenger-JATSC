@@ -21,7 +21,9 @@ const SJR = {
   isi: {},            // unit -> { idAlat -> [kejadian] }
   bisaTulis: true,    // simpanan servernya permanen?
   sunting: null,      // { unit, alat, daftar } saat panelnya sedang disunting
-  pj: {}              // unit -> [{ username, nama }] yang boleh jadi penanggung jawab
+  pj: {},             // unit -> [{ username, nama }] yang boleh jadi penanggung jawab
+  mf: {},             // unit -> { username, nama } Manager Fasilitas ("Mengetahui" di lembar)
+  aturMf: null        // { unit, calon } saat pilihan Manager Fasilitas sedang dibuka
 };
 
 const SJR_WARNA = [
@@ -42,6 +44,7 @@ async function sjrMuat(){
     const j = await r.json().catch(()=>null);
     if(!r.ok || !j) throw new Error((j && j.error) || ('server menjawab ' + r.status));
     SJR.isi = j.sejarah || {};
+    SJR.mf = j.mf || {};
     if(typeof j.bisaTulis === 'boolean') SJR.bisaTulis = j.bisaTulis;
   }catch(e){
     console.warn('Sejarah peralatan tidak terbaca:', e && e.message || e);
@@ -212,7 +215,7 @@ function sjrPanel(unit, alat){
     </div></div>`;
   }
 
-  return `<div class="panel">${kepala}<div class="badan">${
+  return `<div class="panel">${kepala}<div class="badan">${sjrMfBaris(unit)}${
     daftar.length
       ? `<div class="riwayat">${daftar.map(sjrButir).join('')}</div>`
       : `<div style="color:var(--muted);font-size:12.5px;line-height:1.7">${
@@ -225,8 +228,81 @@ function sjrPanel(unit, alat){
   </div></div>`;
 }
 
+/* ---------- Manager Fasilitas (Mengetahui) ----------
+   Satu orang per unit; nama dan TTD tersimpannya dicetak sebagai "Mengetahui,
+   Manager Fasilitas <unit>" di bawah tiap alat pada lembar Sejarah Peralatan
+   (sjrMfBlokHtml di 36-cetak.js). Yang menetapkan: administrator atau admin
+   unit itu. Calonnya akun pejabat unit itu. */
+const sjrBolehAturMf = () => !!akun && SJR.bisaTulis && (akun.role === 'admin' || akun.superadmin === true
+  || (akun.role === 'adminunit' && bolehSuntingDb('sejarah')));
+
+function sjrMfBaris(unit){
+  const m = SJR.mf[unit];
+  const label = `<b>${T('Mengetahui — Manager Fasilitas','Acknowledged by — Facility Manager')}:</b>`;
+  if(SJR.aturMf && SJR.aturMf.unit === unit){
+    const calon = SJR.aturMf.calon;
+    const ada = m && calon.some(p=>p.username === m.username);
+    return `<div style="font-size:12.5px;margin:0 0 10px;display:flex;gap:7px;align-items:center;flex-wrap:wrap">${label}
+      <select id="sjrMfPilih" style="min-width:180px">
+        <option value="">${T('— kosongkan —','— none —')}</option>
+        ${m && !ada ? `<option value="${esc(m.username)}" selected>${esc(m.nama || m.username)}</option>` : ''}
+        ${calon.map(p=>`<option value="${esc(p.username)}"${m && m.username === p.username ? ' selected' : ''}>${esc(p.nama)}</option>`).join('')}
+      </select>
+      <button class="btn kecil" id="sjrMfSimpan">${T('Simpan','Save')}</button>
+      <button class="btn garis kecil" id="sjrMfBatal">${T('Batal','Cancel')}</button>
+      ${calon.length ? '' : `<span class="ket">${T('Belum ada akun pejabat di unit ini.','No officer accounts in this unit yet.')}</span>`}
+    </div>`;
+  }
+  return `<div style="font-size:12.5px;margin:0 0 10px;display:flex;gap:7px;align-items:center;flex-wrap:wrap">${label}
+    <span>${m ? esc(m.nama || m.username)
+      : `<span style="color:var(--muted)">${T('belum ditetapkan — dicetak kosong untuk TTD tangan','not set — printed blank for a hand signature')}</span>`}</span>
+    ${sjrBolehAturMf() ? `<button class="btn garis kecil" id="sjrMfAtur">${T('Atur','Set')}</button>` : ''}
+  </div>`;
+}
+
+/** Calon Manager Fasilitas: akun pejabat unit itu; kalau unitnya belum punya,
+    seluruh pejabat aktif. */
+async function sjrMfCalon(unit){
+  const rapikan = (d)=>(Array.isArray(d) ? d : []).filter(p=>p && p.username)
+    .map(p=>({ username: String(p.username).toLowerCase(), nama: p.nama || p.username }));
+  let calon = rapikan(await srvApi('listPejabatUnit', unit).catch(()=>[]));
+  if(!calon.length) calon = rapikan(await srvApi('listPejabatAktif').catch(()=>[]));
+  return calon;
+}
+
+function sjrMfPasang(unit){
+  el('sjrMfAtur')?.addEventListener('click', async (ev)=>{
+    ev.currentTarget.disabled = true;
+    SJR.aturMf = { unit, calon: await sjrMfCalon(unit) };
+    gambarRinciAlat();
+  });
+  el('sjrMfBatal')?.addEventListener('click', ()=>{ SJR.aturMf = null; gambarRinciAlat(); });
+  el('sjrMfSimpan')?.addEventListener('click', async (ev)=>{
+    const tombol = ev.currentTarget;
+    const username = el('sjrMfPilih').value;
+    const p = SJR.aturMf.calon.find(x=>x.username === username) || SJR.mf[unit];
+    tombol.disabled = true;
+    try{
+      const r = await srvFetch(`/sejarah-mf/${encodeURIComponent(unit)}`, {
+        method:'PUT', headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({ username, nama: username && p ? p.nama : '' })
+      }, 15000);
+      const j = await r.json().catch(()=>null);
+      if(!r.ok) throw new Error((j && j.error) || ('server menjawab ' + r.status));
+      if(j.mf) SJR.mf[unit] = j.mf; else delete SJR.mf[unit];
+      SJR.aturMf = null;
+      gambarRinciAlat();
+      pesan(T('Manager Fasilitas tersimpan.','Facility Manager saved.'));
+    }catch(e){
+      tombol.disabled = false;
+      pesan(T('Gagal menyimpan: ','Could not save: ') + (e && e.message || e));
+    }
+  });
+}
+
 /** Pendengar panel Sejarah. Dipanggil sekali tiap gambarRinciAlat(). */
 function sjrPasang(unit, alat){
+  sjrMfPasang(unit);
   /* Cetak alat ini saja. Lembarnya selalu memuat alat INDUK beserta seluruh
      sub-unitnya, jadi dari tab sub pun yang dikirim id induknya. */
   el('sjrCetak')?.addEventListener('click', ()=>{

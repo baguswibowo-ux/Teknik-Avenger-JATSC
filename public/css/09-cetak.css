@@ -707,6 +707,12 @@
 .cetak-lembar .ttd-blok-tunggal td {
   width: 100%;
 }
+/* Mengetahui Manager Fasilitas di bawah tiap alat Sejarah Peralatan —
+   lebih rapat dari blok kaki lembar karena muncul berulang. */
+.cetak-lembar .ttd-blok.sjr-mf { margin-top: 6pt; width: 200pt; }
+.cetak-lembar .ttd-blok.sjr-mf .peran-ttd { margin-bottom: 1pt; }
+.cetak-lembar .ttd-blok.sjr-mf .kotak-ttd { height: 44pt; }
+.cetak-lembar .ttd-blok.sjr-mf .kotak-ttd img { max-height: 40pt; }
 .cetak-lembar .ttd-blok .peran-ttd {
   font-size: 9.5pt;
   margin-bottom: 4pt;

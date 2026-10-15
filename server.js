@@ -2968,7 +2968,54 @@ const namaAlatLengkap = (ketemu, cadangan = '') => (!ketemu ? cadangan
 /** Seluruh sejarah, semua unit. Terbuka seperti daftar peralatannya sendiri —
     yang berdinas perlu tahu apa yang pernah terjadi pada alat di depannya. */
 app.get('/sejarah', async (_req, res) => {
-  res.json({ sejarah: await bacaJson(SEJARAH_JSON, {}), bisaTulis: DINAS_TULIS });
+  res.json({
+    sejarah: await bacaJson(SEJARAH_JSON, {}),
+    mf: await bacaJson(SEJARAH_MF_JSON, {}),
+    bisaTulis: DINAS_TULIS
+  });
+});
+
+/* Manager Fasilitas tiap unit — pihak "Mengetahui" yang dicetak di bawah tiap
+   alat pada lembar Sejarah Peralatan (permintaan Bagus, 15 Okt 2026), dengan
+   nama dan TTD tersimpan akunnya. Satu orang per unit, ditetapkan administrator
+   atau admin unit itu sendiri. Bentuk: { unit: { username, nama, oleh, pada } }. */
+const SEJARAH_MF_JSON = path.join(DATA_DIR, 'sejarah-mf.json');
+
+app.put('/sejarah-mf/:unit', badanDinas, async (req, res) => {
+  const unit = String(req.params.unit || '').toLowerCase();
+  if (!unitSah(unit)) return res.status(400).json({ error: 'Permintaan tidak sah.' });
+  if (!DINAS_TULIS) {
+    return res.status(503).json({ error: 'Manager Fasilitas tidak bisa disimpan di lingkungan ini.' });
+  }
+  const user = await siapa(req);
+  if (!user) return res.status(401).json({ error: 'Masuk dengan akun E-Logbook Anda dulu.' });
+  const peran = peranUser(user);
+  const boleh = peran === 'admin' || user.superadmin || (peran === 'adminunit' && bolehUnit(user, unit));
+  if (!boleh) {
+    return res.status(403).json({ error: 'Hanya administrator atau admin unit ini yang boleh menetapkan Manager Fasilitas.' });
+  }
+  const username = String(req.body?.username || '').trim().toLowerCase();
+  if (username && !usernameSah(username)) return res.status(400).json({ error: 'Akun tidak sah.' });
+  try {
+    const semua = await bacaJson(SEJARAH_MF_JSON, {});
+    if (username) {
+      semua[unit] = {
+        username,
+        nama: String(req.body?.nama || '').trim().slice(0, 80) || username,
+        oleh: String(user.username || '').toLowerCase(),
+        pada: new Date().toISOString()
+      };
+    } else delete semua[unit];
+    await tulisJson(SEJARAH_MF_JSON, semua);
+    await catat(user, {
+      modul: 'sejarah', aksi: 'manager-fasilitas', unit,
+      rincian: username ? `Manager Fasilitas: ${semua[unit].nama}` : 'Manager Fasilitas dikosongkan'
+    });
+    res.json({ ok: true, mf: semua[unit] || null });
+  } catch (e) {
+    console.error('[sejarah-mf] gagal menyimpan:', e);
+    res.status(500).json({ error: 'Gagal menyimpan: ' + (e?.message || e) });
+  }
 });
 
 /**
