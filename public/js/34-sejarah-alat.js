@@ -238,26 +238,35 @@ const sjrBolehAturMf = () => !!akun && SJR.bisaTulis && (akun.role === 'admin' |
 
 function sjrMfBaris(unit){
   const m = SJR.mf[unit];
-  const label = `<b>${T('Mengetahui — Manager Fasilitas','Acknowledged by — Facility Manager')}:</b>`;
+  /* Bentuknya meminjam .brk-atur milik panel Dokumen ("Kaitkan ke
+     peralatan"): label kecil berhuruf kapital di atas, kotak pilihan selebar
+     kolom, tombol di sebelah kanan. */
+  const label = T('Mengetahui — Manager Fasilitas','Acknowledged by — Facility Manager');
+  const bingkai = (isi, tombol)=>`<div class="brk-atur" style="grid-template-columns:minmax(0,1fr) auto;align-items:end">
+      <div><label for="sjrMfPilih">${label}</label>${isi}</div>
+      <div style="display:flex;gap:7px">${tombol}</div>
+    </div>`;
   if(SJR.aturMf && SJR.aturMf.unit === unit){
     const calon = SJR.aturMf.calon;
     const ada = m && calon.some(p=>p.username === m.username);
-    return `<div style="font-size:12.5px;margin:0 0 10px;display:flex;gap:7px;align-items:center;flex-wrap:wrap">${label}
-      <select id="sjrMfPilih" style="min-width:180px">
-        <option value="">${T('— kosongkan —','— none —')}</option>
+    return bingkai(`
+      <select id="sjrMfPilih">
+        <option value="">— ${T('belum ditetapkan','not set')} —</option>
         ${m && !ada ? `<option value="${esc(m.username)}" selected>${esc(m.nama || m.username)}</option>` : ''}
         ${calon.map(p=>`<option value="${esc(p.username)}"${m && m.username === p.username ? ' selected' : ''}>${esc(p.nama)}</option>`).join('')}
       </select>
-      <button class="btn kecil" id="sjrMfSimpan">${T('Simpan','Save')}</button>
-      <button class="btn garis kecil" id="sjrMfBatal">${T('Batal','Cancel')}</button>
-      ${calon.length ? '' : `<span class="ket">${T('Belum ada akun pejabat di unit ini.','No officer accounts in this unit yet.')}</span>`}
-    </div>`;
+      ${calon.length ? '' : `<div class="ket" style="margin-top:5px">${T('Belum ada akun pejabat di unit ini.','No officer accounts in this unit yet.')}</div>`}`,
+      `<button class="btn garis" id="sjrMfBatal">${T('Batal','Cancel')}</button>
+       <button class="btn" id="sjrMfSimpan">${T('Simpan','Save')}</button>`);
   }
-  return `<div style="font-size:12.5px;margin:0 0 10px;display:flex;gap:7px;align-items:center;flex-wrap:wrap">${label}
-    <span>${m ? esc(m.nama || m.username)
-      : `<span style="color:var(--muted)">${T('belum ditetapkan — dicetak kosong untuk TTD tangan','not set — printed blank for a hand signature')}</span>`}</span>
-    ${sjrBolehAturMf() ? `<button class="btn garis kecil" id="sjrMfAtur">${T('Atur','Set')}</button>` : ''}
-  </div>`;
+  /* Keadaan baca: kotak yang sama, tapi terkunci — tampil seperti isian,
+     bukan kalimat, supaya pindah ke mode Atur tidak menggeser apa-apa. */
+  return bingkai(`
+    <select id="sjrMfPilih" disabled style="opacity:1;cursor:default">
+      <option>${m ? esc(m.nama || m.username)
+        : T('— belum ditetapkan · dicetak kosong untuk TTD tangan —','— not set · printed blank for a hand signature —')}</option>
+    </select>`,
+    sjrBolehAturMf() ? `<button class="btn garis" id="sjrMfAtur">${T('Atur','Set')}</button>` : '');
 }
 
 /** Calon Manager Fasilitas: akun pejabat unit itu; kalau unitnya belum punya,
