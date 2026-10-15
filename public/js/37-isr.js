@@ -110,12 +110,18 @@ function panelIsrHtml(unit){
     const masa = (r.mulai || r.habis)
       ? `${r.mulai ? tglRingkas(r.mulai) : '—'} – ${r.habis ? tglRingkas(r.habis) : '—'}`
       : '—';
-    const nL = isrLampiran(r.id).length;
+    // Lampiran tampil sebagai tautan di bawah nama, untuk SEMUA yang membuka
+    // tabel ini — bukan hanya di kartu Ubah. Akun yang hanya boleh melihat ISR
+    // tidak punya tombol Ubah, dan PDF izin justru yang paling ingin mereka
+    // buka. Mengambil berkasnya cukup sudah masuk (GET /dokumen/:unit/:id).
+    const lampiran = isrLampiran(r.id);
     return `<tr>
       <td class="mono" style="color:var(--muted);text-align:right">${i+1}</td>
-      <td>${esc(r.nama || '—')}${nL
-        ? ` <span class="mono" style="color:var(--muted);font-size:11px" title="${
-            T('berkas lampiran','attached files')}">📎${nL}</span>` : ''}</td>
+      <td>${esc(r.nama || '—')}${lampiran.length
+        ? `<div style="display:flex;flex-direction:column;gap:2px;margin-top:3px">${lampiran.map(b=>
+            `<a href="${esc(b.url || `/dokumen/${unit}/${b.id}`)}" target="_blank" rel="noopener" title="${esc(b.nama)}"
+              style="font-size:11.5px;color:var(--accent);text-decoration:none;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📄 ${
+              esc(b.nama)}</a>`).join('')}</div>` : ''}</td>
       <td><span class="mono">${esc(r.nomor || '—')}</span></td>
       <td><span class="mono">${esc(r.frek || '—')}</span></td>
       <td>${esc(r.kelas || '—')}</td>
