@@ -182,13 +182,13 @@
       const salin = main.cloneNode(true);
       salin.querySelectorAll('.sp-alat').forEach(x => x.remove());
       try {
-        await api('PUT', '/panduan/api/manual', { html: salin.innerHTML });
+        await api('PUT', '/panduan/api/manual?halaman=' + encodeURIComponent(document.body.dataset.halaman || 'manual-teknisi.html'), { html: salin.innerHTML });
         selesai(); pesan('Manual tersimpan. Semua orang melihat versi ini sekarang.');
       } catch(e){ pesan(e.message, true); }
     }
     async function kembalikan(){
       if(!confirm('Buang semua suntingan manual dan kembali ke isi bawaan?')) return;
-      try { await api('DELETE', '/panduan/api/manual'); location.reload(); }
+      try { await api('DELETE', '/panduan/api/manual?halaman=' + encodeURIComponent(document.body.dataset.halaman || 'manual-teknisi.html')); location.reload(); }
       catch(e){ pesan(e.message, true); }
     }
   }

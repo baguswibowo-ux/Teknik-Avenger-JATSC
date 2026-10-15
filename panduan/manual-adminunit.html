@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Buku Manual Admin Unit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Barlow:wght@400;500;600;700&family=Share+Tech+Mono&display=swap">
+<link rel="stylesheet" href="manual.css">
+</head>
+<body data-panduan="manual" data-halaman="manual-adminunit.html">
+<div class="tata">
+
+<nav class="isi" aria-label="Daftar isi">
+  <img class="logo-panduan logo-nav" src="/panduan/logo" alt="Logo" hidden onload="this.hidden=false">
+  <div class="merek">AVENGERS</div>
+  <small>Buku Manual Admin Unit · v2.12</small>
+  <ol id="daftarIsi"></ol>
+  <div class="alat">
+    <a class="tb" href="./">← Semua panduan</a>
+    <a class="tb" href="manual-teknisi.html">Buku Manual Teknisi</a>
+    <button class="tb" type="button" onclick="window.print()">🖨 Cetak / simpan PDF</button>
+  </div>
+</nav>
+
+<main>
+
+<div class="sampul">
+  <img class="logo-panduan logo-sampul" src="/panduan/logo" alt="Logo" hidden onload="this.hidden=false">
+  <div class="alis">PERUM LPPNPI · CABANG JATSC · FASILITAS TEKNIK</div>
+  <div class="nama">AVENGERS</div>
+  <div class="pjg">Advanced Engineer Electronic Reporting System</div>
+  <h1>Buku Manual Admin Unit</h1>
+  <p>Mengurus unit Anda: akun dan PIC, hak modul, jadwal dinas, isi Database Unit, dan pekerjaan admin di E-Logbook.</p>
+  <div class="kaki"><span>teknik-avengers.com/panduan</span><span>Versi aplikasi 2.12.1</span><span>Khusus Admin Unit</span></div>
+</div>
+
+<section class="bab" id="peran">
+  <div class="no-bab">BAB 01</div>
+  <h2>Peran Admin Unit</h2>
+
+  <p class="pengantar">Admin Unit mengurus <b>unitnya sendiri</b>: menyunting <b>dan menghapus</b> di unit itu, mengurus akun teknisi dan PIC unitnya, serta membaca log aktivitas unitnya. Semua yang ada di <a href="manual-teknisi.html">Buku Manual Teknisi</a> tetap berlaku.</p>
+  <div class="gulir"><table>
+    <tr><th>Pekerjaan</th><th>Admin Unit</th><th>Keterangan</th></tr>
+    <tr><td>Mengaktifkan, membuat, dan mengubah akun teknisi unit</td><td><span class="ya">Ya</span></td><td>Di panel Aktivasi Akun Unit</td></tr>
+    <tr><td>Menunjuk PIC Jadwal Dinas / Sparepart / ISR <b>Unit</b></td><td><span class="ya">Ya</span></td><td>Untuk orang di unit Anda</td></tr>
+    <tr><td>Menunjuk orang lewat kolom “Ditunjuk” di hak modul</td><td><span class="ya">Ya</span></td><td>Hanya orang di unit Anda</td></tr>
+    <tr><td>Menyunting dan mencetak jadwal dinas unit</td><td><span class="ya">Ya</span></td><td></td></tr>
+    <tr><td>Menyunting dan menghapus isi Database Unit</td><td><span class="ya">Ya</span></td><td>Kecuali Daftar Peralatan (bawaannya administrator)</td></tr>
+    <tr><td>Mengubah/menghapus isu dan catatan E-Logbook unit, minta TTD ulang</td><td><span class="ya">Ya</span></td><td>Membuka kembali isu Closed: administrator</td></tr>
+    <tr><td>Membaca log aktivitas</td><td><span class="ya">Ya</span></td><td>Unit Anda saja</td></tr>
+    <tr><td>Memberi peran Admin Unit, PIC semua unit, pejabat, administrator</td><td><span class="tdk">Tidak</span></td><td>Administrator</td></tr>
+    <tr><td>Mengubah centang hak per peran</td><td><span class="tdk">Tidak</span></td><td>Administrator</td></tr>
+  </table></div>
+</section>
+
+<section class="bab" id="akun">
+  <div class="no-bab">BAB 02</div>
+  <h2>Akun di unit Anda</h2>
+
+  <p class="pengantar">Buka menu <span class="tmb">Kelola Akun</span>. Admin unit melihat panel <b>Aktivasi Akun Unit</b>: akun-akun di unit Anda, dikelompokkan per peran dan bernomor urut.</p>
+  <figure class="potret"><img src="gambar/au-01-akun-unit.jpg" alt="Panel Aktivasi Akun Unit" loading="lazy" onerror="this.closest('figure').remove()"><figcaption>Panel Aktivasi Akun Unit.</figcaption></figure>
+  <div class="gulir"><table>
+    <tr><th>Tombol</th><th>Gunanya</th></tr>
+    <tr><td><span class="tmb">Aktifkan</span> / <span class="tmb">Nonaktifkan</span></td><td>Membuka atau menutup akses akun. Menonaktifkan memutus sesinya, tapi tidak menghapus catatan yang pernah diinput akun itu.</td></tr>
+    <tr><td><span class="tmb">+ Akun baru</span></td><td>Membuat akun teknisi atau PIC unit langsung di unit Anda. Akun baru langsung aktif. Beri tahu orangnya password awalnya.</td></tr>
+    <tr><td><span class="tmb">Ubah</span></td><td>Kartu <b>Ubah teknisi unit</b>: nama, peran, dan ganti password.</td></tr>
+    <tr><td><span class="tmb">Ubah akun saya</span></td><td>Nama, username (NIK), dan password Anda sendiri. Wajib mengisi password lama.</td></tr>
+    <tr><td><span class="tmb">Ganti password</span></td><td>Untuk sesama admin unit di unit yang sama, kalau ia lupa password.</td></tr>
+  </table></div>
+  <div class="kotak "><b>Pendaftar baru</b><p>Orang yang mendaftar lewat halaman masuk belum bisa memakai akunnya sampai diaktifkan. Pastikan ia memang orang unit Anda, lalu aktifkan. Teknisi wajib punya minimal satu unit; tanpa unit ia bisa masuk tapi tidak bisa membuka apa pun.</p></div>
+</section>
+
+<section class="bab" id="pic">
+  <div class="no-bab">BAB 03</div>
+  <h2>Menunjuk PIC unit</h2>
+
+  <p class="pengantar">PIC unit adalah teknisi di unit Anda yang mendapat satu tugas tambahan, khusus untuk unit itu.</p>
+  <div class="gulir"><table>
+    <tr><th>Peran</th><th>Tambahannya</th><th>Manual</th></tr>
+    <tr><td>PIC Jadwal Dinas Unit</td><td>Menyunting jadwal dinas unit, mengirimnya untuk ditandatangani, memantau statusnya</td><td>Manual PIC Jadwal Dinas</td></tr>
+    <tr><td>PIC Sparepart Unit</td><td>Mengisi dan mengimpor sparepart unit</td><td>Manual PIC Sparepart</td></tr>
+    <tr><td>PIC ISR Unit</td><td>Mengisi ISR unit, termasuk dari PDF</td><td>Manual PIC ISR</td></tr>
+  </table></div>
+  <ol class="langkah">
+    <li>Di panel Aktivasi Akun Unit, tekan <span class="tmb">Ubah</span> pada akun teknisinya.</li>
+    <li>Di pilihan <b>Peran</b>, pilih salah satu PIC unit. Untuk mencabutnya, kembalikan ke Teknisi.</li>
+    <li>Simpan. Peran baru berlaku saat orang itu memuat ulang halamannya.</li>
+  </ol>
+  <p>PIC tidak menghapus dan tidak menandatangani. PIC versi <b>semua unit</b> hanya bisa diberikan administrator.</p>
+</section>
+
+<section class="bab" id="hak">
+  <div class="no-bab">BAB 04</div>
+  <h2>Siapa Boleh Mengisi Apa</h2>
+
+  <p class="pengantar">Panel di bawah daftar akun pada <span class="tmb">Kelola Akun</span>. Satu baris per modul; kolomnya peran, ditambah kolom <b>Ditunjuk</b>.</p>
+  <figure class="potret"><img src="gambar/au-02-hak.jpg" alt="Panel Siapa Boleh Mengisi Apa" loading="lazy" onerror="this.closest('figure').remove()"><figcaption>Panel Siapa Boleh Mengisi Apa.</figcaption></figure>
+  <ol class="langkah">
+    <li>Cari modulnya, misalnya Kegiatan Berkala atau Dokumen.</li>
+    <li>Di kolom <b>Ditunjuk</b>, buka daftarnya lalu centang orang di unit Anda yang diberi hak itu di luar perannya.</li>
+    <li>Tekan <span class="tmb">Simpan hak</span>.</li>
+  </ol>
+  <p>Admin unit hanya bisa menunjuk atau mencabut orang di unitnya sendiri; penunjukan untuk unit lain tidak berubah. Centang per peran, modul Daftar Peralatan, dan modul tanda tangan tetap diatur administrator.</p>
+</section>
+
+<section class="bab" id="jadwal-sunting">
+  <div class="no-bab">BAB 05</div>
+  <h2>Menyunting jadwal dinas</h2>
+
+  <p class="pengantar">Jadwal dinas disimpan per unit per bulan. Semua akun bisa melihatnya; yang bisa mengubahnya hanya pengurus jadwal unit itu.</p>
+  <ol class="langkah">
+    <li>Buka <span class="tmb">Database Unit</span>, pilih unit, lalu subtab <span class="tmb">Jadwal Dinas</span>. Pilih bulannya di kotak bulan.</li>
+    <li>Tekan <span class="tmb">Sunting jadwal</span>. Tabel berubah menjadi isian.</li>
+    <li>Klik sel lalu ketik kodenya. Begitu Anda mengetik, saran kode muncul di bawah sel (ketik <span class="kode">S</span>, muncul <span class="kode">S1</span> dan seterusnya). Pilih dengan panah atas/bawah lalu Enter, atau klik. Delete mengosongkan sel.</li>
+    <li>Untuk mengisi banyak sel sekaligus, blok selnya lalu pakai <span class="tmb">Isi sel terpilih</span>, atau tarik pegangan di pojok blok untuk mengulang isinya.</li>
+    <li>Tekan <span class="tmb">Simpan jadwal</span>. <span class="tmb">Urungkan</span> membatalkan langkah terakhir.</li>
+  </ol>
+  <figure class="potret"><img src="gambar/pd-01-jadwal-sunting.jpg" alt="Tabel jadwal dinas dalam mode sunting" loading="lazy" onerror="this.closest('figure').remove()"><figcaption>Mode sunting jadwal dinas.</figcaption></figure>
+  <h3>Orang dan urutan</h3>
+  <ul>
+    <li><span class="tmb">Tambah orang</span> menambah baris. Mengetik <b>NIK</b> langsung mengisi nama dari akunnya.</li>
+    <li>Seret baris ke atas atau ke bawah untuk mengubah urutan.</li>
+    <li>Klik nomor baris untuk menghapusnya: baris itu menjadi <b>judul grup</b>, misalnya “GRUP 1”, dan nomor di bawahnya meneruskan. Klik lagi untuk memberi nomor kembali. Judul grup dipakai Cetak PUM per Grup.</li>
+  </ul>
+  <h3>Mulai bulan baru dengan cepat</h3>
+  <p><span class="tmb">Lanjutkan pola bulan lalu</span> membuat draf bulan ini dari putaran bulan lalu. Huruf gedung J/N ikut; SPKL, cuti, dan DL tidak ikut. Periksa hasilnya sebelum menyimpan.</p>
+  <div class="kotak tip"><b>Siapa yang dikabari</b><p>Setiap kali jadwal disimpan dengan perubahan, orang satu unit menerima notifikasi “Daftar dinas diperbarui” yang menyebut tanggal dan kode yang berubah. Administrator dan Manager Teknik menerimanya untuk semua unit.</p></div>
+</section>
+
+<section class="bab" id="jadwal-impor">
+  <div class="no-bab">BAB 06</div>
+  <h2>Impor jadwal dari berkas</h2>
+
+  <p class="pengantar">Jadwal yang sudah dibuat di Excel tidak perlu diketik ulang.</p>
+  <ol class="langkah">
+    <li>Dalam mode sunting, tekan <span class="tmb">Impor dari berkas</span>.</li>
+    <li>Taruh berkasnya di kotak, atau tekan kotak itu untuk memilih: <b>.xlsx</b>, <b>.csv</b>, <b>.pdf</b>, atau <b>.txt</b>. Bisa juga menyalin blok dari Excel atau PDF yang terbuka lalu menempelkannya di kotak tempel.</li>
+    <li>Periksa pratinjaunya. Kalau perlu, betulkan <b>Kolom nama</b>, <b>Kolom NIK</b>, <b>Kolom peran</b>, dan <b>Baris data mulai</b>.</li>
+    <li>Kode yang tidak dikenali tidak dibuang; ia dibawa apa adanya dan dilaporkan supaya bisa dibetulkan. Pakai <span class="tmb">Samakan kode dinas dengan kode unit ini</span> bila perlu.</li>
+    <li>Tekan <span class="tmb">Masukkan ke jadwal</span>. Hasilnya mengisi draf suntingan, belum tersimpan. Tekan <span class="tmb">Simpan jadwal</span> untuk menyimpannya.</li>
+  </ol>
+  <figure class="potret"><img src="gambar/pd-02-impor.jpg" alt="Kotak impor jadwal dinas" loading="lazy" onerror="this.closest('figure').remove()"><figcaption>Kotak impor jadwal dinas.</figcaption></figure>
+  <ul>
+    <li><b>.xls</b> lama tidak bisa dibaca; simpan ulang sebagai .xlsx.</li>
+    <li>PDF hasil pindaian (gambar) tidak bisa dibaca; pakai berkas Excel-nya atau tempel teksnya.</li>
+  </ul>
+</section>
+
+<section class="bab" id="jadwal-cetak">
+  <div class="no-bab">BAB 07</div>
+  <h2>Cetak dan kirim untuk ditandatangani</h2>
+
+  <p class="pengantar">Lembar jadwal dinas resmi ditandatangani Manager Teknik dan, bila diteruskan, Deputy GM Teknik. Semuanya lewat aplikasi; TTD-nya berupa kode QR.</p>
+  <div class="gulir"><table>
+    <tr><th>Tombol</th><th>Isi lembar</th></tr>
+    <tr><td><span class="tmb">Cetak PUM</span></td><td>Versi untuk PUM: hanya kode PS/M/P/S (P1/S1/M1 tetap terbedakan); SPKL, cuti, dan lainnya dikosongkan.</td></tr>
+    <tr><td><span class="tmb">Cetak Teknik</span></td><td>Versi internal Teknik: seluruh kode tampil apa adanya.</td></tr>
+  </table></div>
+  <ol class="langkah">
+    <li>Di subtab Jadwal Dinas, tekan <span class="tmb">Cetak PUM</span> atau <span class="tmb">Cetak Teknik</span>. Pratinjau lembar dan kartu kirim terbuka.</li>
+    <li>Di <b>Kirim untuk disetujui oleh</b>, pilih Manager Teknik. Tulis catatan bila perlu.</li>
+    <li>Tekan <span class="tmb">Kirim untuk disetujui</span>. Manager Teknik menerima notifikasi “Perlu tanda tangan”.</li>
+    <li>Manager Teknik memeriksa lalu memilih: <span class="tmb">Setujui &amp; Kirim</span> untuk meneruskan ke Deputy GM Teknik, atau <span class="tmb">Setujui &amp; Cetak</span> untuk menyelesaikan tanpa Deputy.</li>
+    <li>Sesudah disetujui, lembar final siap dicetak dari <b>Kotak Masuk</b>. Saat Deputy menyetujui, pengirim dan pengurus jadwal unit itu menerima notifikasi <b>“✅ Jadwal Dinas disetujui Deputy”</b>.</li>
+  </ol>
+  <figure class="potret"><img src="gambar/pd-03-kirim.jpg" alt="Kartu kirim lembar jadwal dinas" loading="lazy" onerror="this.closest('figure').remove()"><figcaption>Pratinjau lembar dan kartu kirim.</figcaption></figure>
+  <h3>Memantau status</h3>
+  <p>Di <span class="tmb">Kotak Masuk</span> ada seksi <b>Jadwal Dinas Unit Anda — Status TTD</b>: seluruh lembar jadwal dinas unit Anda, siapa pun pengirimnya.</p>
+  <div class="gulir"><table>
+    <tr><th>Tanda</th><th>Artinya</th><th>Yang bisa dilakukan</th></tr>
+    <tr><td><span class="kode">MENUNGGU TTD</span></td><td>Belum ditandatangani Manager Teknik atau Deputy</td><td><span class="tmb">Lihat</span> untuk membuka lembarnya</td></tr>
+    <tr><td><span class="kode">DISETUJUI</span></td><td>Sudah lengkap</td><td><span class="tmb">Cetak lagi</span> untuk mencetak atau menyimpan PDF</td></tr>
+  </table></div>
+  <figure class="potret"><img src="gambar/pd-04-status.jpg" alt="Seksi status TTD jadwal dinas di Kotak Masuk" loading="lazy" onerror="this.closest('figure').remove()"><figcaption>Kotak Masuk: status TTD jadwal dinas unit.</figcaption></figure>
+  
+</section>
+
+<section class="bab" id="database">
+  <div class="no-bab">BAB 08</div>
+  <h2>Isi Database Unit</h2>
+
+  <p class="pengantar">Di unit Anda, admin unit bisa menambah, mengubah, <b>dan menghapus</b> baris di subtab Database Unit.</p>
+  <div class="gulir"><table>
+    <tr><th>Subtab</th><th>Pekerjaan admin unit</th></tr>
+    <tr><td>Kegiatan Berkala</td><td>Mengatur daftar pekerjaan berulang (lihat bab berikut).</td></tr>
+    <tr><td>Personel</td><td>Lisensi, rating, sertifikat, dan masa berlakunya; hubungkan tiap baris dengan akun orangnya supaya peringatannya sampai.</td></tr>
+    <tr><td>Sparepart</td><td>Lihat bab Daftar sparepart.</td></tr>
+    <tr><td>ISR · NOTAM</td><td>Izin stasiun radio dan NOTAM teknik unit.</td></tr>
+    <tr><td>Dokumen · Galeri</td><td>Berkas dan foto unit; menghapusnya hanya admin unit dan administrator.</td></tr>
+    <tr><td>Logo unit</td><td>Gambar pengenal unit di kepala layar unit.</td></tr>
+    <tr><td>Peralatan</td><td>Daftar induk alat: bawaannya hanya administrator. Sejarah tiap alat tetap bisa ditulis.</td></tr>
+  </table></div>
+</section>
+
+<section class="bab" id="berkala">
+  <div class="no-bab">BAB 09</div>
+  <h2>Mengatur kegiatan berkala</h2>
+
+  <ol class="langkah">
+    <li>Buka subtab <span class="tmb">Kegiatan Berkala</span> di unit Anda, tekan <span class="tmb">Tambah kegiatan</span> (atau ubah yang ada).</li>
+    <li>Isi nama pekerjaannya dan pilih <b>ulangan</b>: mingguan (hari), bulanan (tanggal 1–28), triwulan atau semesteran (bulan ke- dalam putaran + tanggal), atau tahunan.</li>
+    <li>Pilih <b>Shift</b>: Semua shift, PS, atau Malam. Shift menentukan lonceng siapa yang berbunyi.</li>
+    <li>Pilih <b>Sumber</b> tanda selesai: kosong (ditandai manual) atau lembar E-Logbook (DS Test, Daily Check, Monitoring). Yang bersumber lembar tidak bisa dicentang tangan.</li>
+    <li>Tekan <span class="tmb">Simpan kegiatan</span>.</li>
+  </ol>
+  <figure class="potret"><img src="gambar/au-04-berkala.jpg" alt="Subtab Kegiatan Berkala" loading="lazy" onerror="this.closest('figure').remove()"><figcaption>Subtab Kegiatan Berkala.</figcaption></figure>
+  <p>Tanggal 29–31 sengaja tidak bisa dipilih untuk pekerjaan bulanan, karena Februari tidak punya tanggal itu.</p>
+</section>
+
+<section class="bab" id="sparepart">
+  <div class="no-bab">BAB 10</div>
+  <h2>Daftar sparepart</h2>
+
+  <p class="pengantar">Subtab <span class="tmb">Sparepart</span> hanya tampil bagi yang berhak mengisinya: admin unit, PIC Sparepart, PIC Sparepart Unit, yang ditunjuk di hak akses, administrator, dan pejabat.</p>
+  <figure class="potret"><img src="gambar/ps-01-sparepart.jpg" alt="Subtab Sparepart" loading="lazy" onerror="this.closest('figure').remove()"><figcaption>Subtab Sparepart satu unit.</figcaption></figure>
+  <h3>Menambah dan mengubah</h3>
+  <ol class="langkah">
+    <li>Buka <span class="tmb">Database Unit</span>, pilih unit, subtab <span class="tmb">Sparepart</span>.</li>
+    <li>Tekan <span class="tmb">Tambah sparepart</span>, atau <span class="tmb">Ubah</span> di baris yang ada.</li>
+    <li>Isi kolom mengikuti lembar SAP gudang: <b>Kode material</b>, <b>Nama barang</b>, <b>Kode gudang</b>, tipe/model, satuan, dan <b>Jumlah</b>.</li>
+    <li>Simpan. Setiap kali jumlahnya dinaikkan atau diturunkan, perubahannya tercatat sendiri di <b>Riwayat Pemakaian &amp; Pengadaan</b> di bawah daftar.</li>
+  </ol>
+  <figure class="potret"><img src="gambar/ps-03-ubah.jpg" alt="Kartu ubah sparepart" loading="lazy" onerror="this.closest('figure').remove()"><figcaption>Kartu tambah/ubah sparepart.</figcaption></figure>
+  <h3>Mengisi dari foto label</h3>
+  <p>Kartu sparepart punya kotak <b>Label sparepart</b>. Taruh foto labelnya di situ: kode dan nomor yang terbaca diisikan ke kolom, dengan bingkai biru sebagai tanda “hasil baca, perlu diperiksa”. Isian yang sudah Anda ketik tidak ditimpa. Pembacaannya berjalan di peramban, tanpa mengirim foto ke mana pun.</p>
+  <div class="kotak "><b>Stok menipis</b><p>Ubin <b>Sparepart Minim</b> di Beranda menghitung sparepart yang stoknya di bawah batas.</p></div>
+</section>
+
+<section class="bab" id="sparepart-impor">
+  <div class="no-bab">BAB 11</div>
+  <h2>Impor sparepart dari berkas</h2>
+
+  <ol class="langkah">
+    <li>Di subtab Sparepart, tekan <span class="tmb">Impor dari berkas</span>.</li>
+    <li>Taruh berkasnya (<b>.xlsx</b>, <b>.csv</b>, <b>.pdf</b>, <b>.txt</b>) atau tempel blok dari Excel, sertakan baris judul kolomnya.</li>
+    <li>Pilih lembarnya: <b>lembar daftar sparepart</b> masuk ke daftar; <b>lembar Rekap Pemakaian &amp; Pengadaan</b> masuk ke riwayat, bukan ke daftar.</li>
+    <li>Periksa pemetaan kolom dan pratinjaunya. Baris kosong, kode material kembar, dan baris unit lain dilewati dan disebutkan.</li>
+    <li>Tekan <span class="tmb">Simpan ke daftar sparepart</span>. Bawaannya <b>menambah dan memperbarui</b>: baris dengan kode material yang sama diperbarui, sisanya ditambahkan.</li>
+  </ol>
+  <figure class="potret"><img src="gambar/ps-02-impor.jpg" alt="Kotak impor sparepart" loading="lazy" onerror="this.closest('figure').remove()"><figcaption>Kotak impor sparepart.</figcaption></figure>
+  <div class="kotak awas"><b>Ganti seluruh daftar</b><p>Pilihan “Ganti seluruh daftar unit ini” menghapus sparepart yang tidak ada di berkas. Pilihan ini hanya untuk yang berhak menghapus (administrator dan admin unit).</p></div>
+</section>
+
+<section class="bab" id="isr">
+  <div class="no-bab">BAB 12</div>
+  <h2>Izin Stasiun Radio (ISR)</h2>
+
+  <p class="pengantar">Subtab <span class="tmb">ISR</span> di Database Unit mencatat izin stasiun radio unit beserta masa berlakunya. Izin yang <b>60 hari</b> lagi habis diperingatkan di Beranda dan lonceng.</p>
+  <figure class="potret"><img src="gambar/pi-01-isr.jpg" alt="Subtab ISR" loading="lazy" onerror="this.closest('figure').remove()"><figcaption>Subtab ISR satu unit.</figcaption></figure>
+  <h3>Cara tercepat: dari PDF ISR</h3>
+  <ol class="langkah">
+    <li>Tekan <span class="tmb">Tambah dari PDF</span> di subtab ISR, atau <span class="tmb">Isi dari PDF ISR</span> di dalam kartu ISR.</li>
+    <li>Pilih PDF cetakan ISR dari SDPPI/DJID. Pertama kali dipakai, peramban memuat pembacanya dulu (sekitar 1,8 MB).</li>
+    <li>Isian terisi sendiri: nama stasiun, No. ISR, frekuensi, kelas stasiun, lokasi dan koordinat, tanggal berlaku dan habis, serta perangkat. Isian <b>bergaris biru</b> diambil dari PDF; periksa satu per satu.</li>
+    <li>Simpan. PDF-nya ikut menjadi lampiran izin itu. Kalau No. ISR-nya sudah terdaftar, Anda diperingatkan dulu.</li>
+  </ol>
+  <figure class="potret"><img src="gambar/pi-02-tambah.jpg" alt="Kartu tambah ISR" loading="lazy" onerror="this.closest('figure').remove()"><figcaption>Kartu tambah ISR.</figcaption></figure>
+  <ul>
+    <li>PDF hasil pindaian (tanpa teks) atau yang bukan cetakan ISR SDPPI/DJID tidak bisa dibaca; isi kartunya secara manual.</li>
+    <li>Tanpa PDF: tekan <span class="tmb">Tambah ISR</span> lalu isi kolomnya sendiri. <b>Tgl Habis</b> yang menentukan peringatan; kalau kosong, izin itu tidak pernah diperingatkan.</li>
+  </ul>
+  <h3>Lampiran</h3>
+  <p>Di kartu ISR, <span class="tmb">Tambah berkas</span> melampirkan PDF, gambar, atau dokumen (paling besar 25 MB per berkas). Berkas lampiran tampil sebagai tautan 📄 di bawah nama stasiun, dan bisa dibuka siapa pun yang membuka tabel ISR.</p>
+  <h3>Mengubah dan menghapus</h3>
+  <p><span class="tmb">Ubah</span> membuka kartu ISR untuk disunting. Menghapus izin dan lampirannya hanya bisa dilakukan administrator dan admin unit.</p>
+</section>
+
+<section class="bab" id="aktivitas">
+  <div class="no-bab">BAB 13</div>
+  <h2>Log aktivitas</h2>
+
+  <p class="pengantar">Menu <span class="tmb">Aktivitas</span>: siapa mengubah apa, kapan, di unit Anda.</p>
+  <figure class="potret"><img src="gambar/au-03-aktivitas.jpg" alt="Layar Aktivitas" loading="lazy" onerror="this.closest('figure').remove()"><figcaption>Log aktivitas.</figcaption></figure>
+  <p>Saring dengan <b>Modul</b>, <b>Orang</b>, rentang <b>Dari</b>–<b>Sampai</b>, atau kotak cari. Tekan <span class="tmb">Muat ulang</span> untuk mengambil catatan terbaru.</p>
+</section>
+
+<section class="bab" id="elogbook-admin">
+  <div class="no-bab">BAB 14</div>
+  <h2>Pekerjaan admin di E-Logbook</h2>
+
+  <div class="gulir"><table>
+    <tr><th>Pekerjaan</th><th>Caranya</th></tr>
+    <tr><td>Menghapus catatan, daily check, atau isu yang keliru</td><td>Tombol ✕ di kartu atau baris tabelnya. Tidak bisa dibatalkan.</td></tr>
+    <tr><td>Membetulkan isu (jenis, keterangan, lokasi, pelapor)</td><td>Buka isunya lalu ubah. Membuka kembali isu Closed hanya administrator.</td></tr>
+    <tr><td>TTD pejabat yang terbubuh keliru</td><td><span class="tmb">minta TTD ulang</span> di jendela detail lembarnya. TTD yang keliru dibatalkan dan lembarnya kembali ke kotak masuk pejabat itu untuk ditandatangani ulang olehnya sendiri.</td></tr>
+  </table></div>
+  <div class="kotak awas"><b>Sebelum menghapus</b><p>Hapus hanya yang benar-benar salah input. Kalau isinya cuma perlu dibetulkan, lebih baik minta pengisinya menyunting lewat ✎ selama tombolnya masih tersedia.</p></div>
+</section>
+
+<section class="bab" id="masalah">
+  <div class="no-bab">BAB 15</div>
+  <h2>Kalau ada masalah</h2>
+
+  <div class="gulir"><table>
+    <tr><th>Gejala</th><th>Yang dilakukan</th></tr>
+    <tr><td>Akun teknisi bisa masuk tapi tidak melihat apa pun</td><td>Akun itu belum punya unit. Ubah akunnya dan beri unit Anda.</td></tr>
+    <tr><td>Peran PIC yang saya pilih belum berlaku</td><td>Orang itu perlu memuat ulang halamannya, atau keluar lalu masuk lagi.</td></tr>
+    <tr><td>Tidak bisa memberi peran Admin Unit atau PIC semua unit</td><td>Memang hanya administrator.</td></tr>
+    <tr><td>Tombol Sunting jadwal tidak ada</td><td>Pastikan Anda membuka unit Anda sendiri; unit lain hanya bisa dilihat.</td></tr>
+    <tr><td>Lembar jadwal belum bisa dicetak final</td><td>Belum disetujui. Pantau di Kotak Masuk, seksi Status TTD.</td></tr>
+  </table></div>
+  <p>Hal lain: hubungi administrator.</p>
+</section>
+
+<footer>
+  Disusun dari Avengers versi 2.12.1 (Oktober 2026). Manual ini hanya bisa dibuka pemegang peran Admin Unit dan administrator. Gambar layar diambil dari server uji; nama, NIK, dan tanda tangan orang di dalamnya disamarkan.
+</footer>
+
+</main>
+</div>
+<script>
+function segarkanDaftarIsi(){
+  const ol = document.getElementById('daftarIsi'); if(!ol) return;
+  ol.innerHTML = '';
+  document.querySelectorAll('main section.bab').forEach((s, i) => {
+    const no = s.querySelector('.no-bab'); if(no) no.textContent = 'BAB ' + String(i + 1).padStart(2, '0');
+    const h = s.querySelector('h2'); if(!h || !s.id) return;
+    const li = document.createElement('li'), a = document.createElement('a');
+    a.href = '#' + s.id; a.textContent = h.textContent.trim(); li.appendChild(a); ol.appendChild(li);
+  });
+}
+segarkanDaftarIsi();
+</script>
+</body>
+</html>

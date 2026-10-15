@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Panduan Avengers Teknisi</title>
+<title>Panduan Avengers</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Barlow:wght@400;500;600;700&family=Share+Tech+Mono&display=swap">
 <style>
@@ -53,9 +53,9 @@ h2{font-family:var(--f-judul);font-size:22px;margin:0 0 4px}
   <header>
     <a class="pulang" href="/">← Dashboard Fasilitas Teknik</a>
     <img class="logo-panduan" src="/panduan/logo" alt="Logo" hidden onload="this.hidden=false">
-    <div class="alis">AVENGERS · v2.11.0 · TEKNISI</div>
-    <h1>Panduan Avengers untuk Teknisi</h1>
-    <p>Buku manual dan video tutorial cara memakai Dashboard Fasilitas Teknik dan E-Logbook di teknik-avengers.com. Bisa dibuka dari PC, laptop, maupun HP.</p>
+    <div class="alis">AVENGERS · v2.12.1 · PANDUAN</div>
+    <h1>Panduan Avengers</h1>
+    <p>Buku manual dan video tutorial cara memakai Dashboard Fasilitas Teknik dan E-Logbook di teknik-avengers.com, untuk teknisi dan pengurus unit. Bisa dibuka dari PC, laptop, maupun HP.</p>
   </header>
 
   <nav class="kartu" aria-label="Panduan">
@@ -64,6 +64,12 @@ h2{font-family:var(--f-judul);font-size:22px;margin:0 0 4px}
     <a href="video-tutorial.html#pc"><span class="jenis">VIDEO</span><b>Video tutorial · tampilan PC / Laptop</b><span class="ket">Bab yang sama dalam bingkai laptop dan browser.</span></a>
     <a href="tutorial-hp.html"><span class="jenis">HP</span><b>Pasang Avengers di HP dan aktifkan notifikasi</b><span class="ket">Android dan iPhone, lalu kenali jenis notifikasinya.</span></a>
   </nav>
+
+  <section id="manualPeran" hidden>
+    <h2>Manual sesuai peran Anda</h2>
+    <p class="sub">Hanya tampil untuk akun yang memegang peran itu.</p>
+    <nav class="kartu" id="kartuPeran" aria-label="Manual peran"></nav>
+  </section>
 
   <section>
     <h2>Langsung ke bab video</h2>
@@ -83,5 +89,24 @@ h2{font-family:var(--f-judul);font-size:22px;margin:0 0 4px}
   <p class="catatan">Gambar layar diambil dari server uji dengan akun uji; nama, NIK, tanda tangan, dan QR orang sungguhan sudah disamarkan. Video adalah simulasi, bukan rekaman layar asli. Administrator bisa menyunting manual dan video lewat tombol ✎ Sunting di kanan bawah halamannya.</p>
 </div>
 
+<script>
+/* Manual per peran: server yang memutuskan mana yang boleh dibuka akun ini. */
+fetch('/panduan/api/saya', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : null).then(s => {
+  const daftar = (s && s.manualPeran) || [];
+  if(!daftar.length) return;
+  const ket = { 'manual-adminunit.html': 'Akun dan PIC unit, hak modul, jadwal dinas, isi Database Unit, pekerjaan admin di E-Logbook.',
+    'manual-pic-dinas.html': 'Menyusun, mengimpor, mencetak, dan mengirim jadwal dinas untuk ditandatangani.',
+    'manual-pic-sparepart.html': 'Daftar dan impor sparepart, foto label, rekap stok opname.',
+    'manual-pic-isr.html': 'Izin Stasiun Radio, isi dari PDF ISR, lampiran, masa berlaku.' };
+  const wadah = document.getElementById('kartuPeran');
+  daftar.forEach(m => {
+    const a = document.createElement('a'); a.href = m.halaman;
+    a.innerHTML = '<span class="jenis">PERAN</span><b></b><span class="ket"></span>';
+    a.querySelector('b').textContent = m.judul; a.querySelector('.ket').textContent = ket[m.halaman] || '';
+    wadah.appendChild(a);
+  });
+  document.getElementById('manualPeran').hidden = false;
+}).catch(() => {});
+</script>
 </body>
 </html>

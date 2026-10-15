@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Buku Manual PIC Jadwal Dinas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Barlow:wght@400;500;600;700&family=Share+Tech+Mono&display=swap">
+<link rel="stylesheet" href="manual.css">
+</head>
+<body data-panduan="manual" data-halaman="manual-pic-dinas.html">
+<div class="tata">
+
+<nav class="isi" aria-label="Daftar isi">
+  <img class="logo-panduan logo-nav" src="/panduan/logo" alt="Logo" hidden onload="this.hidden=false">
+  <div class="merek">AVENGERS</div>
+  <small>Buku Manual PIC Jadwal Dinas · v2.12</small>
+  <ol id="daftarIsi"></ol>
+  <div class="alat">
+    <a class="tb" href="./">← Semua panduan</a>
+    <a class="tb" href="manual-teknisi.html">Buku Manual Teknisi</a>
+    <button class="tb" type="button" onclick="window.print()">🖨 Cetak / simpan PDF</button>
+  </div>
+</nav>
+
+<main>
+
+<div class="sampul">
+  <img class="logo-panduan logo-sampul" src="/panduan/logo" alt="Logo" hidden onload="this.hidden=false">
+  <div class="alis">PERUM LPPNPI · CABANG JATSC · FASILITAS TEKNIK</div>
+  <div class="nama">AVENGERS</div>
+  <div class="pjg">Advanced Engineer Electronic Reporting System</div>
+  <h1>Buku Manual PIC Jadwal Dinas</h1>
+  <p>Menyusun jadwal dinas bulanan, mengimpornya dari Excel, mengirimnya untuk ditandatangani, dan memantau sampai disetujui.</p>
+  <div class="kaki"><span>teknik-avengers.com/panduan</span><span>Versi aplikasi 2.12.1</span><span>Khusus PIC Jadwal Dinas</span></div>
+</div>
+
+<section class="bab" id="peran">
+  <div class="no-bab">BAB 01</div>
+  <h2>Peran PIC Jadwal Dinas</h2>
+
+  <p class="pengantar">PIC Jadwal Dinas adalah teknisi yang mendapat tugas mengurus jadwal dinas. Di luar tugas itu ia tetap teknisi di unitnya; <a href="manual-teknisi.html">Buku Manual Teknisi</a> tetap berlaku.</p>
+  <div class="gulir"><table>
+    <tr><th></th><th>PIC Jadwal Dinas Unit</th><th>PIC Jadwal Dinas (semua unit)</th></tr>
+    <tr><td>Menyunting jadwal dinas</td><td>Unit yang dicentang untuknya</td><td>Semua unit</td></tr>
+    <tr><td>Cetak dan kirim untuk ditandatangani</td><td><span class="ya">Ya</span></td><td><span class="ya">Ya</span></td></tr>
+    <tr><td>Memantau status TTD di Kotak Masuk</td><td>Unitnya</td><td>Semua unit</td></tr>
+    <tr><td>Cetak PUM per Grup (paket semua unit)</td><td><span class="tdk">Tidak</span></td><td><span class="ya">Ya</span></td></tr>
+    <tr><td>Menghapus atau menandatangani</td><td><span class="tdk">Tidak</span></td><td><span class="tdk">Tidak</span></td></tr>
+  </table></div>
+  <p>Kode dinas dan artinya ada di Buku Manual Teknisi, bab Jadwal dinas.</p>
+</section>
+
+<section class="bab" id="jadwal-sunting">
+  <div class="no-bab">BAB 02</div>
+  <h2>Menyunting jadwal dinas</h2>
+
+  <p class="pengantar">Jadwal dinas disimpan per unit per bulan. Semua akun bisa melihatnya; yang bisa mengubahnya hanya pengurus jadwal unit itu.</p>
+  <ol class="langkah">
+    <li>Buka <span class="tmb">Database Unit</span>, pilih unit, lalu subtab <span class="tmb">Jadwal Dinas</span>. Pilih bulannya di kotak bulan.</li>
+    <li>Tekan <span class="tmb">Sunting jadwal</span>. Tabel berubah menjadi isian.</li>
+    <li>Klik sel lalu ketik kodenya. Begitu Anda mengetik, saran kode muncul di bawah sel (ketik <span class="kode">S</span>, muncul <span class="kode">S1</span> dan seterusnya). Pilih dengan panah atas/bawah lalu Enter, atau klik. Delete mengosongkan sel.</li>
+    <li>Untuk mengisi banyak sel sekaligus, blok selnya lalu pakai <span class="tmb">Isi sel terpilih</span>, atau tarik pegangan di pojok blok untuk mengulang isinya.</li>
+    <li>Tekan <span class="tmb">Simpan jadwal</span>. <span class="tmb">Urungkan</span> membatalkan langkah terakhir.</li>
+  </ol>
+  <figure class="potret"><img src="gambar/pd-01-jadwal-sunting.jpg" alt="Tabel jadwal dinas dalam mode sunting" loading="lazy" onerror="this.closest('figure').remove()"><figcaption>Mode sunting jadwal dinas.</figcaption></figure>
+  <h3>Orang dan urutan</h3>
+  <ul>
+    <li><span class="tmb">Tambah orang</span> menambah baris. Mengetik <b>NIK</b> langsung mengisi nama dari akunnya.</li>
+    <li>Seret baris ke atas atau ke bawah untuk mengubah urutan.</li>
+    <li>Klik nomor baris untuk menghapusnya: baris itu menjadi <b>judul grup</b>, misalnya “GRUP 1”, dan nomor di bawahnya meneruskan. Klik lagi untuk memberi nomor kembali. Judul grup dipakai Cetak PUM per Grup.</li>
+  </ul>
+  <h3>Mulai bulan baru dengan cepat</h3>
+  <p><span class="tmb">Lanjutkan pola bulan lalu</span> membuat draf bulan ini dari putaran bulan lalu. Huruf gedung J/N ikut; SPKL, cuti, dan DL tidak ikut. Periksa hasilnya sebelum menyimpan.</p>
+  <div class="kotak tip"><b>Siapa yang dikabari</b><p>Setiap kali jadwal disimpan dengan perubahan, orang satu unit menerima notifikasi “Daftar dinas diperbarui” yang menyebut tanggal dan kode yang berubah. Administrator dan Manager Teknik menerimanya untuk semua unit.</p></div>
+</section>
+
+<section class="bab" id="jadwal-impor">
+  <div class="no-bab">BAB 03</div>
+  <h2>Impor jadwal dari berkas</h2>
+
+  <p class="pengantar">Jadwal yang sudah dibuat di Excel tidak perlu diketik ulang.</p>
+  <ol class="langkah">
+    <li>Dalam mode sunting, tekan <span class="tmb">Impor dari berkas</span>.</li>
+    <li>Taruh berkasnya di kotak, atau tekan kotak itu untuk memilih: <b>.xlsx</b>, <b>.csv</b>, <b>.pdf</b>, atau <b>.txt</b>. Bisa juga menyalin blok dari Excel atau PDF yang terbuka lalu menempelkannya di kotak tempel.</li>
+    <li>Periksa pratinjaunya. Kalau perlu, betulkan <b>Kolom nama</b>, <b>Kolom NIK</b>, <b>Kolom peran</b>, dan <b>Baris data mulai</b>.</li>
+    <li>Kode yang tidak dikenali tidak dibuang; ia dibawa apa adanya dan dilaporkan supaya bisa dibetulkan. Pakai <span class="tmb">Samakan kode dinas dengan kode unit ini</span> bila perlu.</li>
+    <li>Tekan <span class="tmb">Masukkan ke jadwal</span>. Hasilnya mengisi draf suntingan, belum tersimpan. Tekan <span class="tmb">Simpan jadwal</span> untuk menyimpannya.</li>
+  </ol>
+  <figure class="potret"><img src="gambar/pd-02-impor.jpg" alt="Kotak impor jadwal dinas" loading="lazy" onerror="this.closest('figure').remove()"><figcaption>Kotak impor jadwal dinas.</figcaption></figure>
+  <ul>
+    <li><b>.xls</b> lama tidak bisa dibaca; simpan ulang sebagai .xlsx.</li>
+    <li>PDF hasil pindaian (gambar) tidak bisa dibaca; pakai berkas Excel-nya atau tempel teksnya.</li>
+  </ul>
+</section>
+
+<section class="bab" id="jadwal-cetak">
+  <div class="no-bab">BAB 04</div>
+  <h2>Cetak dan kirim untuk ditandatangani</h2>
+
+  <p class="pengantar">Lembar jadwal dinas resmi ditandatangani Manager Teknik dan, bila diteruskan, Deputy GM Teknik. Semuanya lewat aplikasi; TTD-nya berupa kode QR.</p>
+  <div class="gulir"><table>
+    <tr><th>Tombol</th><th>Isi lembar</th></tr>
+    <tr><td><span class="tmb">Cetak PUM</span></td><td>Versi untuk PUM: hanya kode PS/M/P/S (P1/S1/M1 tetap terbedakan); SPKL, cuti, dan lainnya dikosongkan.</td></tr>
+    <tr><td><span class="tmb">Cetak Teknik</span></td><td>Versi internal Teknik: seluruh kode tampil apa adanya.</td></tr>
+  </table></div>
+  <ol class="langkah">
+    <li>Di subtab Jadwal Dinas, tekan <span class="tmb">Cetak PUM</span> atau <span class="tmb">Cetak Teknik</span>. Pratinjau lembar dan kartu kirim terbuka.</li>
+    <li>Di <b>Kirim untuk disetujui oleh</b>, pilih Manager Teknik. Tulis catatan bila perlu.</li>
+    <li>Tekan <span class="tmb">Kirim untuk disetujui</span>. Manager Teknik menerima notifikasi “Perlu tanda tangan”.</li>
+    <li>Manager Teknik memeriksa lalu memilih: <span class="tmb">Setujui &amp; Kirim</span> untuk meneruskan ke Deputy GM Teknik, atau <span class="tmb">Setujui &amp; Cetak</span> untuk menyelesaikan tanpa Deputy.</li>
+    <li>Sesudah disetujui, lembar final siap dicetak dari <b>Kotak Masuk</b>. Saat Deputy menyetujui, pengirim dan pengurus jadwal unit itu menerima notifikasi <b>“✅ Jadwal Dinas disetujui Deputy”</b>.</li>
+  </ol>
+  <figure class="potret"><img src="gambar/pd-03-kirim.jpg" alt="Kartu kirim lembar jadwal dinas" loading="lazy" onerror="this.closest('figure').remove()"><figcaption>Pratinjau lembar dan kartu kirim.</figcaption></figure>
+  <h3>Memantau status</h3>
+  <p>Di <span class="tmb">Kotak Masuk</span> ada seksi <b>Jadwal Dinas Unit Anda — Status TTD</b>: seluruh lembar jadwal dinas unit Anda, siapa pun pengirimnya.</p>
+  <div class="gulir"><table>
+    <tr><th>Tanda</th><th>Artinya</th><th>Yang bisa dilakukan</th></tr>
+    <tr><td><span class="kode">MENUNGGU TTD</span></td><td>Belum ditandatangani Manager Teknik atau Deputy</td><td><span class="tmb">Lihat</span> untuk membuka lembarnya</td></tr>
+    <tr><td><span class="kode">DISETUJUI</span></td><td>Sudah lengkap</td><td><span class="tmb">Cetak lagi</span> untuk mencetak atau menyimpan PDF</td></tr>
+  </table></div>
+  <figure class="potret"><img src="gambar/pd-04-status.jpg" alt="Seksi status TTD jadwal dinas di Kotak Masuk" loading="lazy" onerror="this.closest('figure').remove()"><figcaption>Kotak Masuk: status TTD jadwal dinas unit.</figcaption></figure>
+  <h3>PUM per Grup (PIC Jadwal Dinas semua unit)</h3>
+  <p>Untuk pembagian dinas per grup lintas unit, satu paket menggantikan lembar per unit.</p>
+  <ol class="langkah">
+    <li>Pastikan tiap unit sudah memberi judul grup (“GRUP 1”, “GRUP 2”, …) di jadwalnya bulan itu, dengan cara menghapus nomor baris judul.</li>
+    <li>Tekan <span class="tmb">Cetak PUM per Grup</span>. Semua unit digabung, satu lembar per grup.</li>
+    <li>Pilih Manager Teknik, lalu kirim. Seluruh grup terkirim sebagai <b>satu paket</b>.</li>
+    <li>Manager Teknik menandatangani sekali untuk semua grup, lalu dialah yang memilih Deputy GM Teknik dan mengirim paketnya.</li>
+    <li>Sesudah Deputy menyetujui, buka paketnya di Kotak Masuk dan tekan <span class="tmb">Cetak semua grup (1 berkas)</span>: satu berkas, satu halaman per grup.</li>
+  </ol>
+</section>
+
+<section class="bab" id="masalah">
+  <div class="no-bab">BAB 05</div>
+  <h2>Kalau ada masalah</h2>
+
+  <div class="gulir"><table>
+    <tr><th>Gejala</th><th>Yang dilakukan</th></tr>
+    <tr><td>Tombol Sunting jadwal tidak ada</td><td>Unit itu bukan unit Anda (PIC unit), atau peran Anda belum berlaku. Muat ulang halaman.</td></tr>
+    <tr><td>Kode yang saya ketik ditolak atau dilaporkan asing</td><td>Pakai kode yang ditawarkan saran. PS dan M polos sengaja tidak ditawarkan karena belum menyebut gedung.</td></tr>
+    <tr><td>Impor tidak membaca orang</td><td>Betulkan Kolom nama dan Baris data mulai di pratinjau.</td></tr>
+    <tr><td>Manager Teknik tidak ada di daftar kirim</td><td>Daftar berisi akun pejabat yang aktif. Kabari administrator.</td></tr>
+    <tr><td>Cetak PUM per Grup kosong</td><td>Belum ada judul grup di jadwal unit-unit bulan itu.</td></tr>
+  </table></div>
+  <p>Hal lain: hubungi administrator.</p>
+</section>
+
+<footer>
+  Disusun dari Avengers versi 2.12.1 (Oktober 2026). Manual ini hanya bisa dibuka pemegang peran PIC Jadwal Dinas dan administrator. Gambar layar diambil dari server uji; nama, NIK, dan tanda tangan orang di dalamnya disamarkan.
+</footer>
+
+</main>
+</div>
+<script>
+function segarkanDaftarIsi(){
+  const ol = document.getElementById('daftarIsi'); if(!ol) return;
+  ol.innerHTML = '';
+  document.querySelectorAll('main section.bab').forEach((s, i) => {
+    const no = s.querySelector('.no-bab'); if(no) no.textContent = 'BAB ' + String(i + 1).padStart(2, '0');
+    const h = s.querySelector('h2'); if(!h || !s.id) return;
+    const li = document.createElement('li'), a = document.createElement('a');
+    a.href = '#' + s.id; a.textContent = h.textContent.trim(); li.appendChild(a); ol.appendChild(li);
+  });
+}
+segarkanDaftarIsi();
+</script>
+</body>
+</html>

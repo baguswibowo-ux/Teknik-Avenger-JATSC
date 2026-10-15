@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Buku Manual PIC Sparepart</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Barlow:wght@400;500;600;700&family=Share+Tech+Mono&display=swap">
+<link rel="stylesheet" href="manual.css">
+</head>
+<body data-panduan="manual" data-halaman="manual-pic-sparepart.html">
+<div class="tata">
+
+<nav class="isi" aria-label="Daftar isi">
+  <img class="logo-panduan logo-nav" src="/panduan/logo" alt="Logo" hidden onload="this.hidden=false">
+  <div class="merek">AVENGERS</div>
+  <small>Buku Manual PIC Sparepart · v2.12</small>
+  <ol id="daftarIsi"></ol>
+  <div class="alat">
+    <a class="tb" href="./">← Semua panduan</a>
+    <a class="tb" href="manual-teknisi.html">Buku Manual Teknisi</a>
+    <button class="tb" type="button" onclick="window.print()">🖨 Cetak / simpan PDF</button>
+  </div>
+</nav>
+
+<main>
+
+<div class="sampul">
+  <img class="logo-panduan logo-sampul" src="/panduan/logo" alt="Logo" hidden onload="this.hidden=false">
+  <div class="alis">PERUM LPPNPI · CABANG JATSC · FASILITAS TEKNIK</div>
+  <div class="nama">AVENGERS</div>
+  <div class="pjg">Advanced Engineer Electronic Reporting System</div>
+  <h1>Buku Manual PIC Sparepart</h1>
+  <p>Mencatat sparepart unit, mengimpornya dari Excel atau foto label, dan menyiapkan rekap stok opname.</p>
+  <div class="kaki"><span>teknik-avengers.com/panduan</span><span>Versi aplikasi 2.12.1</span><span>Khusus PIC Sparepart</span></div>
+</div>
+
+<section class="bab" id="peran">
+  <div class="no-bab">BAB 01</div>
+  <h2>Peran PIC Sparepart</h2>
+
+  <p class="pengantar">PIC Sparepart adalah teknisi yang mendapat tugas mengurus sparepart. Di luar tugas itu ia tetap teknisi di unitnya; <a href="manual-teknisi.html">Buku Manual Teknisi</a> tetap berlaku.</p>
+  <div class="gulir"><table>
+    <tr><th></th><th>PIC Sparepart Unit</th><th>PIC Sparepart (semua unit)</th></tr>
+    <tr><td>Mengisi dan mengimpor sparepart</td><td>Unit yang dicentang untuknya</td><td>Semua unit</td></tr>
+    <tr><td>Cetak daftar sparepart untuk ditandatangani</td><td><span class="ya">Ya</span></td><td><span class="ya">Ya</span></td></tr>
+    <tr><td>Rekap stok opname semua unit</td><td><span class="tdk">Tidak</span></td><td><span class="ya">Ya</span></td></tr>
+    <tr><td>Menghapus atau menandatangani</td><td><span class="tdk">Tidak</span></td><td><span class="tdk">Tidak</span></td></tr>
+  </table></div>
+</section>
+
+<section class="bab" id="sparepart">
+  <div class="no-bab">BAB 02</div>
+  <h2>Daftar sparepart</h2>
+
+  <p class="pengantar">Subtab <span class="tmb">Sparepart</span> hanya tampil bagi yang berhak mengisinya: admin unit, PIC Sparepart, PIC Sparepart Unit, yang ditunjuk di hak akses, administrator, dan pejabat.</p>
+  <figure class="potret"><img src="gambar/ps-01-sparepart.jpg" alt="Subtab Sparepart" loading="lazy" onerror="this.closest('figure').remove()"><figcaption>Subtab Sparepart satu unit.</figcaption></figure>
+  <h3>Menambah dan mengubah</h3>
+  <ol class="langkah">
+    <li>Buka <span class="tmb">Database Unit</span>, pilih unit, subtab <span class="tmb">Sparepart</span>.</li>
+    <li>Tekan <span class="tmb">Tambah sparepart</span>, atau <span class="tmb">Ubah</span> di baris yang ada.</li>
+    <li>Isi kolom mengikuti lembar SAP gudang: <b>Kode material</b>, <b>Nama barang</b>, <b>Kode gudang</b>, tipe/model, satuan, dan <b>Jumlah</b>.</li>
+    <li>Simpan. Setiap kali jumlahnya dinaikkan atau diturunkan, perubahannya tercatat sendiri di <b>Riwayat Pemakaian &amp; Pengadaan</b> di bawah daftar.</li>
+  </ol>
+  <figure class="potret"><img src="gambar/ps-03-ubah.jpg" alt="Kartu ubah sparepart" loading="lazy" onerror="this.closest('figure').remove()"><figcaption>Kartu tambah/ubah sparepart.</figcaption></figure>
+  <h3>Mengisi dari foto label</h3>
+  <p>Kartu sparepart punya kotak <b>Label sparepart</b>. Taruh foto labelnya di situ: kode dan nomor yang terbaca diisikan ke kolom, dengan bingkai biru sebagai tanda “hasil baca, perlu diperiksa”. Isian yang sudah Anda ketik tidak ditimpa. Pembacaannya berjalan di peramban, tanpa mengirim foto ke mana pun.</p>
+  <div class="kotak "><b>Stok menipis</b><p>Ubin <b>Sparepart Minim</b> di Beranda menghitung sparepart yang stoknya di bawah batas.</p></div>
+</section>
+
+<section class="bab" id="sparepart-impor">
+  <div class="no-bab">BAB 03</div>
+  <h2>Impor sparepart dari berkas</h2>
+
+  <ol class="langkah">
+    <li>Di subtab Sparepart, tekan <span class="tmb">Impor dari berkas</span>.</li>
+    <li>Taruh berkasnya (<b>.xlsx</b>, <b>.csv</b>, <b>.pdf</b>, <b>.txt</b>) atau tempel blok dari Excel, sertakan baris judul kolomnya.</li>
+    <li>Pilih lembarnya: <b>lembar daftar sparepart</b> masuk ke daftar; <b>lembar Rekap Pemakaian &amp; Pengadaan</b> masuk ke riwayat, bukan ke daftar.</li>
+    <li>Periksa pemetaan kolom dan pratinjaunya. Baris kosong, kode material kembar, dan baris unit lain dilewati dan disebutkan.</li>
+    <li>Tekan <span class="tmb">Simpan ke daftar sparepart</span>. Bawaannya <b>menambah dan memperbarui</b>: baris dengan kode material yang sama diperbarui, sisanya ditambahkan.</li>
+  </ol>
+  <figure class="potret"><img src="gambar/ps-02-impor.jpg" alt="Kotak impor sparepart" loading="lazy" onerror="this.closest('figure').remove()"><figcaption>Kotak impor sparepart.</figcaption></figure>
+  <div class="kotak awas"><b>Ganti seluruh daftar</b><p>Pilihan “Ganti seluruh daftar unit ini” menghapus sparepart yang tidak ada di berkas. Pilihan ini hanya untuk yang berhak menghapus (administrator dan admin unit).</p></div>
+</section>
+
+<section class="bab" id="sparepart-cetak">
+  <div class="no-bab">BAB 04</div>
+  <h2>Cetak dan rekap stok opname</h2>
+
+  <p><span class="tmb">Cetak</span> di subtab Sparepart menyiapkan lembar daftar sparepart unit. Lembar itu dikirim ke pejabat untuk ditandatangani dengan kartu kirim yang sama seperti jadwal dinas: pilih pejabatnya, kirim, lalu pantau di Kotak Masuk.</p>
+  <h3>Rekap stok opname semua unit</h3>
+  <p>Khusus PIC Sparepart (semua unit) dan administrator.</p>
+  <ol class="langkah">
+    <li>Tekan <span class="tmb">Rekap semua unit</span> di subtab Sparepart. Isinya stok opname seluruh unit bulan ini, dibekukan saat dikirim.</li>
+    <li>Pilih pejabat penerima, lalu kirim.</li>
+    <li>Sekali pejabat menyetujui, kartu di Kotak Masuk menawarkan <span class="tmb">Cetak / Simpan PDF</span> dan <span class="tmb">Unduh Excel</span>.</li>
+  </ol>
+  <p>Berkas Excel membawa gambar TTD pejabat. Gambar itu bisa dihapus kalau lembarnya hendak ditandatangani basah.</p>
+</section>
+
+<section class="bab" id="masalah">
+  <div class="no-bab">BAB 05</div>
+  <h2>Kalau ada masalah</h2>
+
+  <div class="gulir"><table>
+    <tr><th>Gejala</th><th>Yang dilakukan</th></tr>
+    <tr><td>Subtab Sparepart tidak ada</td><td>Unit itu bukan unit tugas Anda, atau peran Anda belum berlaku. Muat ulang halaman.</td></tr>
+    <tr><td>Impor tidak membaca baris</td><td>Betulkan kolom nama dan kolom kode material di pratinjau; sertakan baris judul kolom saat menempel.</td></tr>
+    <tr><td>Foto label salah baca</td><td>Isian bergaris biru boleh diketik ulang. Foto yang tegak dan terang membantu.</td></tr>
+    <tr><td>Tombol Rekap semua unit tidak ada</td><td>Khusus PIC Sparepart semua unit dan administrator.</td></tr>
+  </table></div>
+  <p>Hal lain: hubungi administrator.</p>
+</section>
+
+<footer>
+  Disusun dari Avengers versi 2.12.1 (Oktober 2026). Manual ini hanya bisa dibuka pemegang peran PIC Sparepart dan administrator. Gambar layar diambil dari server uji; nama, NIK, dan tanda tangan orang di dalamnya disamarkan.
+</footer>
+
+</main>
+</div>
+<script>
+function segarkanDaftarIsi(){
+  const ol = document.getElementById('daftarIsi'); if(!ol) return;
+  ol.innerHTML = '';
+  document.querySelectorAll('main section.bab').forEach((s, i) => {
+    const no = s.querySelector('.no-bab'); if(no) no.textContent = 'BAB ' + String(i + 1).padStart(2, '0');
+    const h = s.querySelector('h2'); if(!h || !s.id) return;
+    const li = document.createElement('li'), a = document.createElement('a');
+    a.href = '#' + s.id; a.textContent = h.textContent.trim(); li.appendChild(a); ol.appendChild(li);
+  });
+}
+segarkanDaftarIsi();
+</script>
+</body>
+</html>

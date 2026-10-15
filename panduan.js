@@ -29,8 +29,34 @@ const HALAMAN = {
   'manual-teknisi.html': 'manual-teknisi.html',
   'video-tutorial.html': 'video-tutorial.html',
   'tutorial-hp.html':    'tutorial-hp.html',
-  'sunting.js':          'sunting.js'
+  'manual-adminunit.html':     'manual-adminunit.html',
+  'manual-pic-dinas.html':     'manual-pic-dinas.html',
+  'manual-pic-sparepart.html': 'manual-pic-sparepart.html',
+  'manual-pic-isr.html':       'manual-pic-isr.html'
 };
+
+/* Manual per peran (permintaan Bagus, 15 Okt 2026): hanya pemegang peran itu
+   yang bisa membukanya — termasuk gambar-gambarnya — ditambah administrator.
+   Manual teknisi, video, dan tutorial HP terbuka untuk semua yang sudah masuk. */
+export const MANUAL_PERAN = {
+  'manual-adminunit.html':     { judul: 'Manual Admin Unit',       peran: ['adminunit'],                         awalan: 'au-' },
+  'manual-pic-dinas.html':     { judul: 'Manual PIC Jadwal Dinas', peran: ['pic-dinas', 'pic-dinas-unit'],       awalan: 'pd-' },
+  'manual-pic-sparepart.html': { judul: 'Manual PIC Sparepart',    peran: ['pic-sparepart', 'pic-sparepart-unit'], awalan: 'ps-' },
+  'manual-pic-isr.html':       { judul: 'Manual PIC ISR',          peran: ['pic-isr', 'pic-isr-unit'],           awalan: 'pi-' }
+};
+const adminPenuh = (u) => !!u && (u.role === 'admin' || u.superadmin === true);
+/** Boleh membuka satu halaman / gambar panduan? */
+export function bolehBuka(u, nama) {
+  if (!u) return false;
+  const m = MANUAL_PERAN[nama];
+  return !m || adminPenuh(u) || m.peran.includes(String(u.role || '').toLowerCase());
+}
+/** Manual peran milik sebuah gambar menurut awalan namanya (au-, pd-, ps-, pi-). */
+const manualDariGambar = (nama) => Object.keys(MANUAL_PERAN).find(k => nama.startsWith(MANUAL_PERAN[k].awalan));
+/** Berkas suntingan di data/panduan/ untuk satu manual. Manual teknisi memakai
+    nama lamanya, manual.html, supaya suntingan yang sudah ada tetap terbaca. */
+const berkasUbah = (nama) => nama === 'manual-teknisi.html' ? 'manual.html' : nama;
+const MANUAL_SUNTING = new Set(['manual-teknisi.html', ...Object.keys(MANUAL_PERAN)]);
 const GAMBAR_EXT  = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
 const LOGO_EXT    = new Set(['.png', '.jpg', '.jpeg', '.webp']);   // tanpa .svg: svg bisa membawa skrip
 const GAMBAR_BATAS = 6 * 1024 * 1024;
@@ -42,7 +68,7 @@ const namaGambarSah = (n) => /^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/.test(String(n 
 /** Penyunting: administrator (dan super-admin). Sengaja tidak lewat hak.json —
     panduan dibaca seluruh kantor, dan satu centang yang keliru di matriks hak
     cukup untuk mengubah buku semua orang. */
-const bolehSunting = (u) => !!u && (u.role === 'admin' || u.superadmin === true);
+const bolehSunting = (u) => adminPenuh(u);
 
 /**
  * Pembersih HTML suntingan. Yang menyunting memang administrator, tetapi isi
@@ -90,7 +116,7 @@ export function pasangPanduan(app, { ROOT, DATA_DIR, siapa, catat }) {
   const DIR_BAWAAN = path.join(ROOT, 'panduan');
   const DIR_DATA   = path.join(DATA_DIR, 'panduan');
   const DIR_GAMBAR = path.join(DIR_DATA, 'gambar');
-  const MANUAL_UBAH = path.join(DIR_DATA, 'manual.html');
+  const jalurUbah = (nama) => path.join(DIR_DATA, berkasUbah(nama));
   const VIDEO_JSON  = path.join(DIR_DATA, 'video.json');
   const LOGO_JSON   = path.join(DIR_DATA, 'logo.json');
   const badan = express.json({ limit: '12mb' });
@@ -118,23 +144,38 @@ a{display:inline-block;margin-top:10px;background:#0b1b33;color:#fff;padding:9px
 <body><div><h1>Masuk dulu</h1><p>Panduan Avengers hanya bisa dibuka sesudah masuk dengan akun Avengers Anda. Masuk di halaman utama, lalu buka lagi alamat panduan ini.</p>
 <a href="/">Ke halaman masuk</a></div></body></html>`;
 
+  const halamanTerlarang = (judul, peran) => `<!doctype html><html lang="id"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>Panduan Avengers</title>
+<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f3f6fa;color:#14213a;font:16px/1.5 system-ui,sans-serif;padding:16px}
+div{max-width:440px;background:#fff;border:1px solid #d6deea;border-radius:12px;padding:22px}h1{font-size:22px;margin:0 0 8px}
+a{display:inline-block;margin-top:10px;background:#0b1b33;color:#fff;padding:9px 16px;border-radius:8px;text-decoration:none;font-weight:600}</style></head>
+<body><div><h1>${judul} bukan untuk peran akun ini</h1><p>Manual ini hanya bisa dibuka oleh ${peran} dan administrator. Kalau Anda memang memegang tugas itu, minta administrator atau admin unit menetapkan peran akun Anda.</p>
+<a href="/panduan/">Kembali ke Panduan</a></div></body></html>`;
+  const sebutPeran = { 'adminunit': 'Admin Unit', 'pic-dinas': 'PIC Jadwal Dinas', 'pic-dinas-unit': 'PIC Jadwal Dinas Unit',
+    'pic-sparepart': 'PIC Sparepart', 'pic-sparepart-unit': 'PIC Sparepart Unit', 'pic-isr': 'PIC ISR', 'pic-isr-unit': 'PIC ISR Unit' };
+
   /** Halaman HTML: bawaan dari repo, isi manual diganti suntingan kalau ada,
       dan skrip penyunting disisipkan untuk semua (ia sendiri yang bertanya
       apakah akun ini boleh menyunting). */
   async function kirimHalaman(req, res, nama) {
     const user = await pemakai(req);
     if (!user) return res.status(401).type('html').set('Cache-Control', 'no-store').send(halamanMasuk);
+    if (!bolehBuka(user, nama)) {
+      const m = MANUAL_PERAN[nama];
+      return res.status(403).type('html').set('Cache-Control', 'no-store')
+        .send(halamanTerlarang(m.judul, m.peran.map(p => sebutPeran[p] || p).join(' / ')));
+    }
     let html;
     try { html = await fs.readFile(path.join(DIR_BAWAAN, HALAMAN[nama]), 'utf8'); }
     catch { return res.status(404).send('Halaman panduan tidak ditemukan.'); }
-    if (nama === 'manual-teknisi.html') {
-      const ubah = await bacaBiner(MANUAL_UBAH);
+    if (MANUAL_SUNTING.has(nama)) {
+      const ubah = await bacaBiner(jalurUbah(nama));
       if (ubah) {
         const isi = ubah.buf.toString('utf8');
         html = html.replace(/<main>[\s\S]*<\/main>/, () => '<main>' + isi + '</main>');
       }
     }
-    if (nama === 'manual-teknisi.html' || nama === 'video-tutorial.html') {
+    if (MANUAL_SUNTING.has(nama) || nama === 'video-tutorial.html') {
       html = html.replace('</body>', '<script src="/panduan/sunting.js" defer></script>\n</body>');
     }
     res.type('html').set('Cache-Control', 'no-cache').send(html);
@@ -147,21 +188,28 @@ a{display:inline-block;margin-top:10px;background:#0b1b33;color:#fff;padding:9px
     if (!jalur.endsWith('/')) return res.redirect(301, '/panduan/' + (tanya ? '?' + tanya : ''));
     return kirimHalaman(req, res, 'index.html');
   });
-  app.get(['/panduan/manual-teknisi.html', '/panduan/video-tutorial.html', '/panduan/tutorial-hp.html', '/panduan/index.html'],
+  app.get(Object.keys(HALAMAN).map(n => '/panduan/' + n),
     (req, res) => kirimHalaman(req, res, path.basename(req.path)));
 
-  app.get('/panduan/sunting.js', async (_req, res) => {
+  /* Skrip penyunting dan gaya bersama manual: berkas apa adanya, tanpa data. */
+  const ASET = { 'sunting.js': 'application/javascript; charset=utf-8', 'manual.css': 'text/css; charset=utf-8' };
+  app.get(Object.keys(ASET).map(n => '/panduan/' + n), async (req, res) => {
+    const nama = path.basename(req.path);
     try {
-      const isi = await fs.readFile(path.join(DIR_BAWAAN, 'sunting.js'), 'utf8');
-      res.type('application/javascript; charset=utf-8').set('Cache-Control', 'no-cache').send(isi);
+      const isi = await fs.readFile(path.join(DIR_BAWAAN, nama), 'utf8');
+      res.type(ASET[nama]).set('Cache-Control', 'no-cache').send(isi);
     } catch { res.status(404).end(); }
   });
 
-  /* Gambar: sisipan dari data/ dulu, lalu bawaan dari repo. */
+  /* Gambar: sisipan dari data/ dulu, lalu bawaan dari repo. Gambar manual peran
+     (awalan au-, pd-, ps-, pi-) hanya untuk peran manual itu. */
   app.get('/panduan/gambar/:nama', async (req, res) => {
-    if (!(await pemakai(req))) return res.status(401).end();
+    const user = await pemakai(req);
+    if (!user) return res.status(401).end();
     const nama = req.params.nama;
     if (!namaGambarSah(nama)) return res.status(404).end();
+    const milik = manualDariGambar(nama);
+    if (milik && !bolehBuka(user, milik)) return res.status(403).end();
     const g = (await bacaBiner(path.join(DIR_GAMBAR, nama))) || (await bacaBiner(path.join(DIR_BAWAAN, 'gambar', nama)));
     if (!g) return res.status(404).end();
     res.type(g.mime).set('Cache-Control', 'private, max-age=86400').send(g.buf);
@@ -178,7 +226,9 @@ a{display:inline-block;margin-top:10px;background:#0b1b33;color:#fff;padding:9px
   app.get('/panduan/api/saya', async (req, res) => {
     const user = await pemakai(req);
     res.set('Cache-Control', 'no-store').json({ masuk: !!user, bolehSunting: bolehSunting(user),
-      adaSuntinganManual: !!(await bacaBiner(MANUAL_UBAH)) });
+      // manual peran yang boleh dibuka akun ini — halaman depan hanya menampilkan ini
+      manualPeran: Object.keys(MANUAL_PERAN).filter(n => bolehBuka(user, n))
+        .map(n => ({ halaman: n, judul: MANUAL_PERAN[n].judul })) });
   });
 
   app.get('/panduan/api/video', async (req, res) => {
@@ -194,20 +244,30 @@ a{display:inline-block;margin-top:10px;background:#0b1b33;color:#fff;padding:9px
     return user;
   }
 
+  /** ?halaman=manual-adminunit.html dst.; tanpa halaman = manual teknisi. */
+  const halamanSunting = (req) => {
+    const n = String(req.query?.halaman || 'manual-teknisi.html');
+    return MANUAL_SUNTING.has(n) ? n : null;
+  };
+
   app.put('/panduan/api/manual', badan, async (req, res) => {
     const user = await penyunting(req, res); if (!user) return;
+    const nama = halamanSunting(req);
+    if (!nama) return res.status(400).json({ error: 'Manual tidak dikenal.' });
     const html = bersihkanHtml(req.body?.html);
     if (!html.trim()) return res.status(400).json({ error: 'Isi manual kosong. Tidak disimpan.' });
     if (Buffer.byteLength(html) > MANUAL_BATAS) return res.status(413).json({ error: 'Isi manual terlalu besar.' });
-    await tulisBiner(MANUAL_UBAH, Buffer.from(html, 'utf8'));
-    await catat(user, { modul: 'panduan', aksi: 'ubah', rincian: 'manual teknisi' });
+    await tulisBiner(jalurUbah(nama), Buffer.from(html, 'utf8'));
+    await catat(user, { modul: 'panduan', aksi: 'ubah', rincian: nama });
     res.json({ ok: true });
   });
 
   app.delete('/panduan/api/manual', async (req, res) => {
     const user = await penyunting(req, res); if (!user) return;
-    await hapusBiner(MANUAL_UBAH);
-    await catat(user, { modul: 'panduan', aksi: 'kembalikan', rincian: 'manual teknisi ke bawaan' });
+    const nama = halamanSunting(req);
+    if (!nama) return res.status(400).json({ error: 'Manual tidak dikenal.' });
+    await hapusBiner(jalurUbah(nama));
+    await catat(user, { modul: 'panduan', aksi: 'kembalikan', rincian: nama + ' ke bawaan' });
     res.json({ ok: true });
   });
 

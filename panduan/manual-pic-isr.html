@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Buku Manual PIC ISR</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Barlow:wght@400;500;600;700&family=Share+Tech+Mono&display=swap">
+<link rel="stylesheet" href="manual.css">
+</head>
+<body data-panduan="manual" data-halaman="manual-pic-isr.html">
+<div class="tata">
+
+<nav class="isi" aria-label="Daftar isi">
+  <img class="logo-panduan logo-nav" src="/panduan/logo" alt="Logo" hidden onload="this.hidden=false">
+  <div class="merek">AVENGERS</div>
+  <small>Buku Manual PIC ISR · v2.12</small>
+  <ol id="daftarIsi"></ol>
+  <div class="alat">
+    <a class="tb" href="./">← Semua panduan</a>
+    <a class="tb" href="manual-teknisi.html">Buku Manual Teknisi</a>
+    <button class="tb" type="button" onclick="window.print()">🖨 Cetak / simpan PDF</button>
+  </div>
+</nav>
+
+<main>
+
+<div class="sampul">
+  <img class="logo-panduan logo-sampul" src="/panduan/logo" alt="Logo" hidden onload="this.hidden=false">
+  <div class="alis">PERUM LPPNPI · CABANG JATSC · FASILITAS TEKNIK</div>
+  <div class="nama">AVENGERS</div>
+  <div class="pjg">Advanced Engineer Electronic Reporting System</div>
+  <h1>Buku Manual PIC ISR</h1>
+  <p>Mencatat Izin Stasiun Radio unit, mengisinya langsung dari PDF ISR, dan menjaga masa berlakunya.</p>
+  <div class="kaki"><span>teknik-avengers.com/panduan</span><span>Versi aplikasi 2.12.1</span><span>Khusus PIC ISR</span></div>
+</div>
+
+<section class="bab" id="peran">
+  <div class="no-bab">BAB 01</div>
+  <h2>Peran PIC ISR</h2>
+
+  <p class="pengantar">PIC ISR adalah teknisi yang mendapat tugas mengurus Izin Stasiun Radio. Di luar tugas itu ia tetap teknisi di unitnya; <a href="manual-teknisi.html">Buku Manual Teknisi</a> tetap berlaku.</p>
+  <div class="gulir"><table>
+    <tr><th></th><th>PIC ISR Unit</th><th>PIC ISR (semua unit)</th></tr>
+    <tr><td>Menambah dan mengubah ISR</td><td>Unit yang dicentang untuknya</td><td>Semua unit</td></tr>
+    <tr><td>Mengisi dari PDF ISR dan melampirkan berkas</td><td><span class="ya">Ya</span></td><td><span class="ya">Ya</span></td></tr>
+    <tr><td>Menghapus izin</td><td><span class="tdk">Tidak</span></td><td><span class="tdk">Tidak</span></td></tr>
+  </table></div>
+</section>
+
+<section class="bab" id="isr">
+  <div class="no-bab">BAB 02</div>
+  <h2>Izin Stasiun Radio (ISR)</h2>
+
+  <p class="pengantar">Subtab <span class="tmb">ISR</span> di Database Unit mencatat izin stasiun radio unit beserta masa berlakunya. Izin yang <b>60 hari</b> lagi habis diperingatkan di Beranda dan lonceng.</p>
+  <figure class="potret"><img src="gambar/pi-01-isr.jpg" alt="Subtab ISR" loading="lazy" onerror="this.closest('figure').remove()"><figcaption>Subtab ISR satu unit.</figcaption></figure>
+  <h3>Cara tercepat: dari PDF ISR</h3>
+  <ol class="langkah">
+    <li>Tekan <span class="tmb">Tambah dari PDF</span> di subtab ISR, atau <span class="tmb">Isi dari PDF ISR</span> di dalam kartu ISR.</li>
+    <li>Pilih PDF cetakan ISR dari SDPPI/DJID. Pertama kali dipakai, peramban memuat pembacanya dulu (sekitar 1,8 MB).</li>
+    <li>Isian terisi sendiri: nama stasiun, No. ISR, frekuensi, kelas stasiun, lokasi dan koordinat, tanggal berlaku dan habis, serta perangkat. Isian <b>bergaris biru</b> diambil dari PDF; periksa satu per satu.</li>
+    <li>Simpan. PDF-nya ikut menjadi lampiran izin itu. Kalau No. ISR-nya sudah terdaftar, Anda diperingatkan dulu.</li>
+  </ol>
+  <figure class="potret"><img src="gambar/pi-02-tambah.jpg" alt="Kartu tambah ISR" loading="lazy" onerror="this.closest('figure').remove()"><figcaption>Kartu tambah ISR.</figcaption></figure>
+  <ul>
+    <li>PDF hasil pindaian (tanpa teks) atau yang bukan cetakan ISR SDPPI/DJID tidak bisa dibaca; isi kartunya secara manual.</li>
+    <li>Tanpa PDF: tekan <span class="tmb">Tambah ISR</span> lalu isi kolomnya sendiri. <b>Tgl Habis</b> yang menentukan peringatan; kalau kosong, izin itu tidak pernah diperingatkan.</li>
+  </ul>
+  <h3>Lampiran</h3>
+  <p>Di kartu ISR, <span class="tmb">Tambah berkas</span> melampirkan PDF, gambar, atau dokumen (paling besar 25 MB per berkas). Berkas lampiran tampil sebagai tautan 📄 di bawah nama stasiun, dan bisa dibuka siapa pun yang membuka tabel ISR.</p>
+  <h3>Mengubah dan menghapus</h3>
+  <p><span class="tmb">Ubah</span> membuka kartu ISR untuk disunting. Menghapus izin dan lampirannya hanya bisa dilakukan administrator dan admin unit.</p>
+</section>
+
+<section class="bab" id="masalah">
+  <div class="no-bab">BAB 03</div>
+  <h2>Kalau ada masalah</h2>
+
+  <div class="gulir"><table>
+    <tr><th>Gejala</th><th>Yang dilakukan</th></tr>
+    <tr><td>PDF tidak terbaca</td><td>PDF hasil pindaian atau bukan cetakan ISR SDPPI/DJID. Isi kartunya manual, lalu lampirkan PDF-nya lewat Tambah berkas.</td></tr>
+    <tr><td>Peringatan masa berlaku tidak muncul</td><td>Tgl Habis belum diisi.</td></tr>
+    <tr><td>Tombol Tambah ISR tidak ada</td><td>Unit itu bukan unit tugas Anda, atau peran Anda belum berlaku. Muat ulang halaman.</td></tr>
+    <tr><td>Izin perlu dihapus</td><td>Minta admin unit atau administrator.</td></tr>
+  </table></div>
+  <p>Hal lain: hubungi administrator.</p>
+</section>
+
+<footer>
+  Disusun dari Avengers versi 2.12.1 (Oktober 2026). Manual ini hanya bisa dibuka pemegang peran PIC ISR dan administrator. Gambar layar diambil dari server uji; nama, NIK, dan tanda tangan orang di dalamnya disamarkan.
+</footer>
+
+</main>
+</div>
+<script>
+function segarkanDaftarIsi(){
+  const ol = document.getElementById('daftarIsi'); if(!ol) return;
+  ol.innerHTML = '';
+  document.querySelectorAll('main section.bab').forEach((s, i) => {
+    const no = s.querySelector('.no-bab'); if(no) no.textContent = 'BAB ' + String(i + 1).padStart(2, '0');
+    const h = s.querySelector('h2'); if(!h || !s.id) return;
+    const li = document.createElement('li'), a = document.createElement('a');
+    a.href = '#' + s.id; a.textContent = h.textContent.trim(); li.appendChild(a); ol.appendChild(li);
+  });
+}
+segarkanDaftarIsi();
+</script>
+</body>
+</html>
