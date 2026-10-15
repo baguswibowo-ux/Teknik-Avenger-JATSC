@@ -5762,7 +5762,7 @@ async function kabariSejarah({ unit, alat, sebelum, sesudah, user, kecuali = [] 
 }
 
 /** Deputy GM Teknik baru menyetujui Jadwal Dinas (satu lembar unit, atau satu
-    paket PUM per Grup): kabari pengirimnya, administrator, PIC Jadwal Dinas,
+    paket PUM per Grup): kabari pengirimnya, Manager Teknik yang TTD, administrator, PIC Jadwal Dinas,
     serta admin unit + PIC Jadwal Dinas Unit unit itu (paket: semua unit) —
     lembar finalnya ada di Kotak Masuk mereka. Siapa saja: penerimaDinasDisetujui.
     Seperti kabar lain, tidak ditunggu dan tidak pernah melempar. */
@@ -5774,7 +5774,7 @@ async function kabariDinasDisetujui({ b, grup = 0, oleh = '' }) {
     const d = await jawab.json();
     const semuaUnit = !!(b.snapshot && b.snapshot.gabungan);
     const penerima = penerimaDinasDisetujui({
-      pengurus: d?.pengurus, unit: b.unit, semuaUnit, pengirim: b.pembuatUser, kecuali: [oleh]
+      pengurus: d?.pengurus, unit: b.unit, semuaUnit, pengirim: b.pembuatUser, juga: [b.pejabatUser], kecuali: [oleh]
     });
     const namaUnit = semuaUnit ? 'Semua unit'
       : ((Array.isArray(d?.unit) ? d.unit : []).find((u) => u.kode === b.unit) || {}).nama || b.unit;

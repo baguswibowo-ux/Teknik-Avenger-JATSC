@@ -157,13 +157,15 @@ export const namaBulan = (bulan) => {
  * Penerima kabar "Jadwal Dinas disetujui Deputy" (permintaan Bagus 15 Okt
  * 2026): administrator dan super-admin, PIC Jadwal Dinas semua unit, admin
  * unit dan PIC Jadwal Dinas Unit yang memegang unit lembarnya, dan
- * pengirimnya. PUM per Grup (`semuaUnit`) berisi semua unit, jadi admin unit
- * dan PIC unit mana pun ikut. Deputy yang baru menyetujui tidak dikabari.
+ * pengirimnya, serta Manager Teknik yang menandatangani lembar itu (`juga`;
+ * Bagus memilih MT yang TTD saja, bukan semua MT). PUM per Grup
+ * (`semuaUnit`) berisi semua unit, jadi admin unit dan PIC unit mana pun ikut.
+ * Deputy yang baru menyetujui tidak dikabari.
  *
  * `pengurus` = [{ username, role, superadmin, unit:[kode] }] dari E-Logbook
  * (/internal/daftar?pengurus=1). Hasilnya username unik, huruf kecil.
  */
-export function penerimaDinasDisetujui({ pengurus, unit, semuaUnit = false, pengirim = '', kecuali = [] }) {
+export function penerimaDinasDisetujui({ pengurus, unit, semuaUnit = false, pengirim = '', juga = [], kecuali = [] }) {
   const lewati = new Set(kecuali.map((x) => String(x || '').toLowerCase()).filter(Boolean));
   const hasil = new Set();
   const tambah = (u) => {
@@ -180,5 +182,6 @@ export function penerimaDinasDisetujui({ pengurus, unit, semuaUnit = false, peng
     }
   }
   tambah(pengirim);
+  for (const u of juga) tambah(u);
   return [...hasil];
 }
