@@ -230,7 +230,7 @@ function sjrPanel(unit, alat){
 
 /* ---------- Manager Fasilitas (Mengetahui) ----------
    Satu orang per unit; nama dan TTD tersimpannya dicetak sebagai "Mengetahui,
-   Manager Fasilitas <unit>" di bawah tiap alat pada lembar Sejarah Peralatan
+   Manager Fasilitas" di bawah tiap alat pada lembar Sejarah Peralatan
    (sjrMfBlokHtml di 36-cetak.js). Yang menetapkan: administrator atau admin
    unit itu. Calonnya administrator / pejabat / pejabat non-operasional yang
    mencentang unit itu di Kelola Akun (Unit logbook) — tanpa jatuh balik. */

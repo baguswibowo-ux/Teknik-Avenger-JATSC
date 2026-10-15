@@ -1299,20 +1299,20 @@ function htmlPeralatan(){
   }).join('');
 }
 
-/** "Mengetahui, Manager Fasilitas <unit>" dengan nama dan TTD tersimpan akun
-    yang ditetapkan untuk unit itu (SJR.mf, diatur dari panel Sejarah). Unit
-    yang belum menetapkannya tetap mendapat bloknya, kosong, untuk
-    ditandatangani tangan. */
+/** "Mengetahui, Manager Fasilitas" dengan nama dan TTD tersimpan akun yang
+    ditetapkan untuk unit itu (SJR.mf, diatur dari panel Sejarah). Nama unit
+    sengaja tidak ditulis di belakang jabatannya — jabatan lengkap terbaca saat
+    QR TTD-nya dipindai. Unit yang belum menetapkannya tetap mendapat bloknya,
+    kosong, untuk ditandatangani tangan. */
 function sjrMfBlokHtml(unit){
   const m = (typeof SJR !== 'undefined' && SJR.mf && SJR.mf[unit]) || null;
-  const u = infoUnit(unit);
   const user = m && /^[a-z0-9._-]{1,64}$/i.test(m.username || '') ? m.username : '';
   return `
     <table class="ttd-blok ttd-blok-tunggal sjr-mf">
       <tr>
         <td>
           <div class="peran-ttd">${T('Mengetahui,','Acknowledged by,')}</div>
-          <div class="jabatan-ttd">${T('Manager Fasilitas','Facility Manager')} ${esc(u.nama || unit)}</div>
+          <div class="jabatan-ttd">${T('Manager Fasilitas','Facility Manager')}</div>
           <div class="kotak-ttd">${user
             ? `<img src="/ttd-akun/${encodeURIComponent(user)}/gambar" data-perlu-hitam alt="" onerror="this.remove()">`
             : ''}</div>
