@@ -227,7 +227,7 @@ header a{color:var(--sian)}
     <img class="logo-panduan logo-kepala" src="/panduan/logo" alt="Logo" hidden onload="this.hidden=false">
     <div class="alis">VIDEO TUTORIAL · AVENGERS UNTUK TEKNISI</div>
     <h1>Cara memakai fitur Avengers, langkah demi langkah</h1>
-    <p>Delapan bab pendek, masing-masing sekitar setengah sampai satu menit. Pilih tampilan <b>HP</b> atau <b>PC / Laptop</b>, pilih bab, lalu putar. Bab berikutnya menyambung sendiri. Versi aplikasi 2.12.
+    <p>Sepuluh bab pendek (bab 9 dan 10 untuk Manager Teknik / officer), masing-masing sekitar setengah sampai satu menit. Pilih tampilan <b>HP</b> atau <b>PC / Laptop</b>, pilih bab, lalu putar. Bab berikutnya menyambung sendiri. Versi aplikasi 2.12.
        Pasang di HP dan mengaktifkan notifikasi punya tutorialnya sendiri: <a href="tutorial-hp.html">Avengers di HP, Pasang dan Notif</a>.
        Uraian lengkapnya ada di <a href="manual-teknisi.html">Buku Manual Teknisi</a>.</p>
   </header>
@@ -279,11 +279,11 @@ header a{color:var(--sian)}
     keluar:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 17l5-5-5-5"/><path d="M20 12H9"/><path d="M12 20H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h6"/></svg>'
   };
   const REL = ['Beranda','Trouble Semua Unit','NOTAM','Dinas Hari Ini','Kotak Masuk','Database Unit'];
-  function dash(aktif, lonceng){
+  function dash(aktif, lonceng, siapa){
     return `<div class="dk"><div class="b1"><div class="logo"></div><div><small>PERUM LPPNPI · CABANG JATSC</small><b>Dashboard Fasilitas Teknik</b></div></div>
       <div class="ikon"><div class="ik" id="ikBuku">${IK.buku}</div><div class="ik" id="ikLonceng">${IK.lonceng}${lonceng?`<span class="angka">${lonceng}</span>`:''}</div>
-      <div class="ik" id="ikEn">EN</div><div class="ik" id="ikTema">${IK.tema}</div><div class="ik" id="ikProfil">${IK.profil}</div><div class="ik" id="ikKeluar">${IK.keluar}</div>
-      <div class="siapa">Andi Pratama</div></div></div>
+      <div class="ik" id="ikPanduan">?</div><div class="ik" id="ikEn">EN</div><div class="ik" id="ikTema">${IK.tema}</div><div class="ik" id="ikProfil">${IK.profil}</div><div class="ik" id="ikKeluar">${IK.keluar}</div>
+      <div class="siapa">${siapa || 'Andi Pratama'}</div></div></div>
       <div class="rel">${REL.map((r,i)=>`<span class="cip${r===aktif?' aktif':''}" id="rel${i}">${r}${r==='Trouble Semua Unit'?'<i>2</i>':''}${r==='Kotak Masuk'&&lonceng?`<i>${lonceng}</i>`:''}</span>`).join('')}</div>`;
   }
   const TABS = ['📋 LOGBOOK FASILITAS','🖥 DAILY CHECK','🔧 PREVENTIVE MAINTENANCE','📄 FORM','⚠ ISU / UPDATE ISSUE','📊 REKAP & MATRIK'];
@@ -293,6 +293,7 @@ header a{color:var(--sian)}
       <div class="alat"><span class="al" id="alDash">← Dashboard Fasilitas Teknik</span><span class="al">Keluar</span></div></div>
       <div class="tabs">${TABS.map((t,i)=>`<span class="tab${i===aktif?' aktif':''}" id="tab${i}">${t}</span>`).join('')}</div>`;
   }
+  const elogPj = (aktif, angka) => elog(aktif).split('<span class="al" id="alDash">').join(`<span class="al" id="alInbox">🔔 ${angka}</span><span class="al" id="alPh">🧑‍💼 PH</span><span class="al" id="alDash">`);
   const TTDQ = (id) => `<div class="ttdq" id="${id}"><b>Tekan untuk tanda tangan</b><small>jadi kode QR: unit, nama, dan NIK akun Anda</small></div>`;
   const TTDQ_JADI = '<b>✓ Ditandatangani</b><small>tekan lagi untuk membatalkan</small>';
   const TTDQ_SUDAH = `<div class="ttdq jadi">${TTDQ_JADI}</div>`;
@@ -316,11 +317,11 @@ header a{color:var(--sian)}
         <div class="kt muncul"><div class="t">Perlu Perhatian</div><div style="font-size:9px;margin-top:2px">DS Test · Radtel · <span class="lc awas">jatuh tempo hari ini</span></div></div>
         <div class="kt"><div class="t">Trouble belum selesai</div><div style="font-size:9px;margin-top:2px">CWP03 alarm headset · <span class="lc bahaya">3 hr 4 jam 12 mnt</span></div></div></div>`,
       aksi:[] },
-    { j:'Deretan ikon di kepala halaman', n:'Dari kiri: buku membuka E-Logbook, lonceng berisi pemberitahuan milik Anda, EN mengganti bahasa, bulan mengganti tema terang atau gelap, orang membuka Profil, dan panah untuk Keluar.',
-      tip:'Selalu tekan Keluar kalau memakai HP atau komputer bersama.', dur:9000,
+    { j:'Deretan ikon di kepala halaman', n:'Dari kiri: buku membuka E-Logbook, lonceng berisi pemberitahuan milik Anda, tanda tanya membuka Panduan, EN mengganti bahasa, bulan mengganti tema terang atau gelap, orang membuka Profil, dan panah untuk Keluar.',
+      tip:'Selalu tekan Keluar kalau memakai HP atau komputer bersama.', dur:9500,
       html:()=>dash('Beranda',2)+`<div class="badan"><div class="kt"><div class="t">Ikon di kepala</div><div class="daftar" style="margin-top:4px">
-        <div><b>Buku</b><span>buka E-Logbook</span></div><div><b>Lonceng</b><span>pemberitahuan untuk saya</span></div><div><b>EN</b><span>ganti bahasa</span></div><div><b>Bulan</b><span>tema terang / gelap</span></div><div><b>Orang</b><span>Profil dan notifikasi HP</span></div><div><b>Panah</b><span>Keluar</span></div></div></div></div>`,
-      aksi:[[600,'sorot','#ikBuku'],[1900,'sorot','#ikLonceng'],[3200,'sorot','#ikEn'],[4500,'sorot','#ikTema'],[5800,'sorot','#ikProfil'],[7100,'sorot','#ikKeluar']] },
+        <div><b>Buku</b><span>buka E-Logbook</span></div><div><b>Lonceng</b><span>pemberitahuan untuk saya</span></div><div><b>?</b><span>Panduan dan video</span></div><div><b>EN</b><span>ganti bahasa</span></div><div><b>Bulan</b><span>tema terang / gelap</span></div><div><b>Orang</b><span>Profil dan notifikasi HP</span></div><div><b>Panah</b><span>Keluar</span></div></div></div></div>`,
+      aksi:[[600,'sorot','#ikBuku'],[1800,'sorot','#ikLonceng'],[3000,'sorot','#ikPanduan'],[4200,'sorot','#ikEn'],[5400,'sorot','#ikTema'],[6600,'sorot','#ikProfil'],[7800,'sorot','#ikKeluar']] },
     { j:'Menu utama', n:'Di bawah kepala ada menu: Beranda, Trouble Semua Unit, NOTAM, Dinas Hari Ini, Kotak Masuk, dan Database Unit. Angka merah menunjukkan yang perlu dilihat. Coba buka Dinas Hari Ini.', dur:6500,
       html:()=>dash('Beranda',2)+`<div class="badan"><div class="judul">Peralatan Teknik New JATSC</div><div class="ket">pilih menu di atas untuk berpindah layar</div></div>`,
       aksi:[[3400,'tap','#rel3']] },
@@ -511,6 +512,74 @@ header a{color:var(--sian)}
     { j:'Pindai stiker QR di alat', n:'Alat yang sudah ditempeli stiker QR bisa dipindai dengan kamera HP. Halaman sejarah alat itu langsung terbuka, tampil seperti lembar cetaknya.', dur:8000,
       html:()=>`<div class="badan" style="padding-top:14px"><div class="judul">Kamera HP</div><div class="bidik"><div class="qr"></div></div><div class="ket" style="text-align:center">pindai untuk sejarah alat</div><div id="hasilQr"></div></div>`,
       aksi:[[2800,'isi','#hasilQr',`<div class="kt muncul" style="margin-top:6px"><div class="t">Sejarah Peralatan</div><b>VCS Garex 300 · Radtel</b><div class="daftar" style="margin-top:4px"><div><b>13 OKT</b><span>Penggantian headset CWP03</span></div><div><b>2 SEP</b><span>Kalibrasi tahunan modul audio</span></div></div></div>`]] }
+  ]},
+
+  { judul:'Manager Teknik: TTD dan notif HP', ringkas:'untuk officer: notif, kotak masuk, Bubuhkan TTD', langkah:[
+    { j:'Aktifkan notifikasi di HP Anda', n:'Supaya lembar yang menunggu tanda tangan langsung terasa, aktifkan notifikasi sekali di tiap HP. Tekan ikon orang (Profil), lalu Aktifkan notifikasi dan pilih Izinkan.',
+      tip:'Di iPhone, pasang Avengers ke Layar Utama dulu lewat Safari, lalu buka dari ikonnya. Tutorial pasang di HP ada di halaman Panduan.', dur:8000,
+      html:()=>dash('Beranda',3,'Rina Kusuma')+`<div class="modal" id="mProfil"><div class="lembar"><h4>Profil Saya <span>✕</span></h4>
+        <div class="daftar"><div><b>Nama</b><span>Rina Kusuma</span></div><div><b>Peran</b><span>Pejabat / Manager</span></div></div>
+        <div class="lbl" style="margin-top:6px">📱 Notifikasi HP</div><div class="baris"><span class="lc" id="stNotif">Belum aktif di HP ini</span></div>
+        <div class="baris" style="margin-top:4px"><span class="tmb" id="tAktif">Aktifkan notifikasi</span><span class="tmb garis">Pasang Avengers di HP ini</span></div></div></div>`,
+      aksi:[[900,'tap','#ikProfil'],[1400,'kelas','#mProfil','buka'],[3600,'tap','#tAktif'],[4300,'isi','#stNotif','Aktif di HP ini'],[4300,'kelas','#stNotif','ok']] },
+    { j:'Notif masuk: perlu tanda tangan Anda', hp:true, n:'Begitu teknisi menyimpan lembar dan memilih Anda sebagai Manager Teknik, HP berbunyi walau layar terkunci. Ketuk notifnya untuk membuka Avengers.', dur:7000,
+      html:()=>`<div class="kunci"><div class="jam"><b>09:10</b><span>Kamis, 15 Oktober</span></div><div class="tumpuk"><div class="notif muncul" id="nTtd"><div class="atas"><i></i>Avengers<em>sekarang</em></div><b>🔔 Perlu tanda tangan Anda</b>Logbook Fasilitas · Radtel · 15 Okt 2026 · dikirim oleh Andi Pratama</div></div></div>`,
+      aksi:[[4200,'tap','#nTtd']] },
+    { j:'Buka kotak masuk TTD', n:'Di E-Logbook, tombol 🔔 di kepala halaman menghitung lembar yang menunggu Anda, lintas unit. Tekan, lalu pilih lembarnya.',
+      tip:'Lembar yang sama juga ada di Dashboard → Kotak Masuk, seksi “Menunggu Tanda Tangan Anda — E-Logbook”, lewat tombol Buka & TTD.', dur:8000,
+      html:()=>elogPj(0,2)+`<div class="badan"><div class="judul">Buku Catatan Fasilitas</div></div>
+        <div class="modal" id="mInbox"><div class="lembar"><h4>Menunggu TTD Anda <span>✕</span></h4>
+        <div class="kt" id="itemTtd"><div class="baris"><b>Logbook Fasilitas</b><span class="lc awas dorong">menunggu</span></div><div class="ket">Radtel · 15 Okt 2026 · Andi Pratama</div></div>
+        <div class="kt"><div class="baris"><b>Daily Check</b><span class="lc awas dorong">menunggu</span></div><div class="ket">Radtel · 15 Okt 2026 · Dinas Pagi</div></div></div></div>`,
+      aksi:[[1000,'tap','#alInbox'],[1500,'kelas','#mInbox','buka'],[4500,'tap','#itemTtd']] },
+    { j:'Periksa lembarnya, lalu Bubuhkan TTD', n:'Jendela detail lembar terbuka. Periksa uraian, lampiran, dan tanda tangan teknisi. Di petak Manager Teknik yang masih kosong, tekan ✍ Bubuhkan TTD.', dur:8000,
+      html:()=>elogPj(0,2)+`<div class="modal buka"><div class="lembar"><h4>Detail Catatan Logbook <span>✕</span></h4>
+        <div class="ket">15 OKT 2026 · 02:10 UTC · Dinas Pagi · New JATSC</div>
+        <p style="margin:0;font-size:9.5px">Pengecekan VCS Garex lewat TMCS, CWP03 alarm headset. Headset diganti, normal kembali.</p>
+        <div class="ttd-blok"><div><b>Andi Pratama</b><div class="qr logo kecil"></div><span class="ket">Teknisi</span></div>
+        <div><b>Rina Kusuma</b><div class="kosong">belum</div><span class="tmb" id="tBubuh" style="font-size:8px;padding:4px 7px">✍ Bubuhkan TTD</span></div></div></div></div>`,
+      aksi:[[4800,'tap','#tBubuh']] },
+    { j:'Tekan kotak, lalu Setujui & Bubuhkan', n:'Di jendela Bubuhkan Tanda Tangan, tekan kotak “Tekan untuk tanda tangan”. Tanda tangan Anda jadi kode QR berisi jabatan, nama, dan NIK akun Anda. Lalu tekan Setujui & Bubuhkan.',
+      tip:'Petak yang sudah ditandatangani tidak bisa ditimpa siapa pun.', dur:9000,
+      html:()=>elogPj(0,2)+`<div class="modal buka"><div class="lembar"><h4>Bubuhkan Tanda Tangan <span>✕</span></h4>
+        <div class="ket">Tanda tangan untuk: Manager Teknik — Rina Kusuma</div>${TTDQ('ttdMt')}
+        <div class="baris" style="margin-top:4px"><span class="tmb garis">Batal</span><span class="tmb hijau dorong" id="tSetujui">✅ Setujui &amp; Bubuhkan</span></div></div></div><div class="toast" id="tsMt">Tanda tangan dibubuhkan.</div>`,
+      aksi:[[2200,'tap','#ttdMt'],[2700,'kelas','#ttdMt','jadi'],[2700,'isi','#ttdMt',TTDQ_JADI],[5600,'tap','#tSetujui'],[6100,'kelas','#tsMt','buka']] },
+    { j:'Selesai: teknisi langsung dikabari', n:'QR Anda terpasang di lembar, dan teknisi pengirimnya menerima notifikasi “Sudah ditandatangani”. Lembar berikutnya tinggal dikerjakan dengan cara yang sama.', dur:7000,
+      html:()=>elogPj(0,1)+`<div class="badan"><div class="catat"><div class="atas"><b>15 OKT 2026</b><span>02:10 UTC</span><span class="lc biru">Pagi</span><span class="lc ok">sudah TTD</span></div>
+        <p>Pengecekan VCS Garex lewat TMCS, CWP03 alarm headset. Headset diganti, normal kembali.</p>
+        <div class="ttd-blok"><div><b>Andi Pratama</b><div class="qr logo kecil"></div><span class="ket">Teknisi</span></div><div><b>Rina Kusuma</b><div class="qr logo kecil muncul"></div><span class="ket">Manager Teknik</span></div></div></div></div>`,
+      aksi:[] }
+  ]},
+
+  { judul:'Manager Teknik: cetak, riwayat, PH', ringkas:'untuk officer: persetujuan cetak, Deputy, PH', langkah:[
+    { j:'Permintaan cetak untuk Anda', n:'Lembar resmi dari Dashboard, seperti jadwal dinas atau rekap sparepart, dikirim pengurus unit kepada Anda. Buka Kotak Masuk, seksi Permintaan Cetak untuk Anda, lalu buka permintaannya.', dur:7500,
+      html:()=>dash('Kotak Masuk',2,'Rina Kusuma')+`<div class="badan"><div class="judul">Kotak Masuk</div><div class="ket">Permintaan Cetak untuk Anda</div>
+        <div class="kt" id="pmCetak"><div class="baris"><span class="lc awas">MENUNGGU TTD ANDA</span><b>Jadwal Dinas · Radtel · Oktober 2026</b></div><div class="ket">Dari: Andi Pratama (PIC Jadwal Dinas)</div></div>
+        <div class="ket">Riwayat Peralatan — Menunggu Tanda Tangan Anda</div>
+        <div class="kt"><div class="baris"><b>VSCS Garex 300</b><span class="ket dorong">13 Okt · Penggantian headset CWP03</span></div></div></div>`,
+      aksi:[[4300,'tap','#pmCetak']] },
+    { j:'Setujui & Kirim ke Deputy, atau Setujui & Cetak', n:'Periksa pratinjau lembarnya. Pilih Deputy GM Teknik lalu tekan Setujui & Kirim: TTD Anda dibubuhkan dan lembar diteruskan ke Deputy. Tanpa Deputy, tekan Setujui & Cetak.',
+      tip:'Sesudah Deputy menyetujui, Anda dan pengurus jadwal unit menerima notifikasi “Jadwal Dinas disetujui Deputy”.', dur:10000,
+      html:()=>dash('Kotak Masuk',2,'Rina Kusuma')+`<div class="modal buka"><div class="lembar"><h4>Detail Permintaan Cetak <span>✕</span></h4>
+        <table class="jdw"><tr><th>Nama</th><th>1</th><th>2</th><th>3</th><th>4</th></tr><tr><td>Andi P.</td><td class="kode">PSN</td><td class="kode">MN</td><td>·</td><td class="kode">PSN</td></tr><tr><td>Sari D.</td><td>·</td><td class="kode">PSJ</td><td class="kode">MJ</td><td>·</td></tr></table>
+        <div class="lbl">Pilih Deputy Manager Teknik</div><div class="isian" id="pilDeputy">— pilih — ▾</div>
+        <div class="baris" style="margin-top:4px"><span class="tmb garis">Setujui &amp; Cetak</span><span class="tmb dorong" id="tKirimDep">Setujui &amp; Kirim</span></div>
+        <div id="stDep"></div></div></div>`,
+      aksi:[[2400,'tap','#pilDeputy'],[2900,'isi','#pilDeputy','Hendra Wijaya (Deputy GM Teknik) ▾'],[5600,'tap','#tKirimDep'],[6200,'isi','#stDep','<span class="lc awas muncul">Menunggu TTD Deputy</span>']] },
+    { j:'Setujui riwayat peralatan', n:'Kejadian di Sejarah Peralatan yang menunjuk Anda sebagai penanggung jawab menunggu di Kotak Masuk. Setujui satu per satu dengan Setujui & TTD, atau sekaligus dengan Setujui semua.', dur:7500,
+      html:()=>dash('Kotak Masuk',1,'Rina Kusuma')+`<div class="badan"><div class="baris"><div class="ket">Riwayat Peralatan — Menunggu Tanda Tangan Anda</div><span class="tmb garis dorong" id="tSemua">Setujui semua</span></div>
+        <div class="kt"><div class="baris"><b>VSCS Garex 300</b><span class="lc awas dorong" id="r1">MENUNGGU TTD</span></div><div class="ket">13 Okt · Penggantian headset CWP03 · Andi Pratama</div></div>
+        <div class="kt"><div class="baris"><b>Recording Neptuno</b><span class="lc awas dorong" id="r2">MENUNGGU TTD</span></div><div class="ket">12 Okt · Ganti power supply · Sari Dewi</div></div></div>`,
+      aksi:[[3600,'tap','#tSemua'],[4200,'isi','#r1','DISETUJUI'],[4200,'tukar','#r1','awas','ok'],[4400,'isi','#r2','DISETUJUI'],[4400,'tukar','#r2','awas','ok']] },
+    { j:'Tidak di tempat? Tunjuk PH', n:'Di kepala E-Logbook tekan 🧑‍💼 PH. Pilih nama PH dari daftar, isi tanggal mulai dan selesai, lalu simpan. Selama masa itu lembar untuk Anda juga sampai ke kotak masuk PH, dan PH menandatanganinya dari akunnya sendiri.',
+      tip:'Untuk lembar lama yang terlewat, isi tanggal di masa lalu: PH hanya menerima lembar tanggal itu, dan penunjukannya berlaku 14 hari.', dur:10000,
+      html:()=>elogPj(0,0)+`<div class="badan"><div class="judul">Buku Catatan Fasilitas</div></div>
+        <div class="modal" id="mPh"><div class="lembar"><h4>PH (Pelaksana Harian) <span>✕</span></h4>
+        <div class="lbl">Nama PH</div><div class="isian" id="phNama"></div>
+        <div class="dua"><div><div class="lbl">Tanggal mulai</div><div class="isian mono" id="phMulai">dd/mm/yyyy</div></div><div><div class="lbl">Tanggal selesai</div><div class="isian mono" id="phSelesai">dd/mm/yyyy</div></div></div>
+        <div class="baris" style="margin-top:4px"><span class="tmb garis">Akhiri sekarang</span><span class="tmb dorong" id="tSimpanPh">Simpan</span></div><div id="stPh"></div></div></div>`,
+      aksi:[[900,'tap','#alPh'],[1400,'kelas','#mPh','buka'],[2200,'ketik','#phNama','Budi Santoso',1200],[4000,'isi','#phMulai','20/10/2026'],[4800,'isi','#phSelesai','24/10/2026'],[6800,'tap','#tSimpanPh'],[7300,'isi','#stPh','<span class="lc ok muncul">PH aktif 20–24 Okt 2026: Budi Santoso</span>']] }
   ]}
   ];
 

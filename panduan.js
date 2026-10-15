@@ -47,13 +47,13 @@ export const MANUAL_PERAN = {
   'manual-pejabat.html':       { judul: 'Manual Manager Teknik',   peran: ['pejabat', 'pejabatnonop'],           awalan: 'mt-' }
 };
 const adminPenuh = (u) => !!u && (u.role === 'admin' || u.superadmin === true);
-/** Boleh membuka satu halaman / gambar panduan? Admin unit membuka semua manual
-    peran (permintaan Bagus): ia yang menunjuk PIC dan mendampingi pejabat unitnya. */
+/** Boleh membuka satu halaman / gambar panduan? Admin unit dan pejabat (Manager
+    Teknik / officer) membuka semua manual peran (permintaan Bagus, 15 Okt 2026). */
 export function bolehBuka(u, nama) {
   if (!u) return false;
   const m = MANUAL_PERAN[nama];
   const peran = String(u.role || '').toLowerCase();
-  return !m || adminPenuh(u) || peran === 'adminunit' || m.peran.includes(peran);
+  return !m || adminPenuh(u) || ['adminunit', 'pejabat', 'pejabatnonop'].includes(peran) || m.peran.includes(peran);
 }
 /** Manual peran milik sebuah gambar menurut awalan namanya (au-, pd-, ps-, pi-). */
 const manualDariGambar = (nama) => Object.keys(MANUAL_PERAN).find(k => nama.startsWith(MANUAL_PERAN[k].awalan));
@@ -153,7 +153,7 @@ a{display:inline-block;margin-top:10px;background:#0b1b33;color:#fff;padding:9px
 <style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f3f6fa;color:#14213a;font:16px/1.5 system-ui,sans-serif;padding:16px}
 div{max-width:440px;background:#fff;border:1px solid #d6deea;border-radius:12px;padding:22px}h1{font-size:22px;margin:0 0 8px}
 a{display:inline-block;margin-top:10px;background:#0b1b33;color:#fff;padding:9px 16px;border-radius:8px;text-decoration:none;font-weight:600}</style></head>
-<body><div><h1>${judul} bukan untuk peran akun ini</h1><p>Manual ini hanya bisa dibuka oleh ${peran}, admin unit, dan administrator. Kalau Anda memang memegang tugas itu, minta administrator atau admin unit menetapkan peran akun Anda.</p>
+<body><div><h1>${judul} bukan untuk peran akun ini</h1><p>Manual ini hanya bisa dibuka oleh ${peran}, admin unit, pejabat, dan administrator. Kalau Anda memang memegang tugas itu, minta administrator atau admin unit menetapkan peran akun Anda.</p>
 <a href="/panduan/">Kembali ke Panduan</a></div></body></html>`;
   const sebutPeran = { 'adminunit': 'Admin Unit', 'pic-dinas': 'PIC Jadwal Dinas', 'pic-dinas-unit': 'PIC Jadwal Dinas Unit',
     'pic-sparepart': 'PIC Sparepart', 'pic-sparepart-unit': 'PIC Sparepart Unit', 'pic-isr': 'PIC ISR', 'pic-isr-unit': 'PIC ISR Unit',
