@@ -152,3 +152,33 @@ export const namaBulan = (bulan) => {
   const [y, m] = String(bulan || '').split('-').map(Number);
   return BULAN_ID[m - 1] ? `${BULAN_ID[m - 1]} ${y}` : String(bulan || '');
 };
+
+/**
+ * Penerima kabar "Jadwal Dinas disetujui Deputy" (permintaan Bagus 15 Okt
+ * 2026): administrator dan super-admin, PIC Jadwal Dinas semua unit, admin
+ * unit dan PIC Jadwal Dinas Unit yang memegang unit lembarnya, dan
+ * pengirimnya. PUM per Grup (`semuaUnit`) berisi semua unit, jadi admin unit
+ * dan PIC unit mana pun ikut. Deputy yang baru menyetujui tidak dikabari.
+ *
+ * `pengurus` = [{ username, role, superadmin, unit:[kode] }] dari E-Logbook
+ * (/internal/daftar?pengurus=1). Hasilnya username unik, huruf kecil.
+ */
+export function penerimaDinasDisetujui({ pengurus, unit, semuaUnit = false, pengirim = '', kecuali = [] }) {
+  const lewati = new Set(kecuali.map((x) => String(x || '').toLowerCase()).filter(Boolean));
+  const hasil = new Set();
+  const tambah = (u) => {
+    const k = String(u || '').trim().toLowerCase();
+    if (k && !lewati.has(k)) hasil.add(k);
+  };
+  const kode = String(unit || '').toLowerCase();
+  for (const a of Array.isArray(pengurus) ? pengurus : []) {
+    if (!a) continue;
+    if (a.superadmin || a.role === 'admin' || a.role === 'pic-dinas') { tambah(a.username); continue; }
+    if (a.role === 'adminunit' || a.role === 'pic-dinas-unit') {
+      const punya = (Array.isArray(a.unit) ? a.unit : []).map((x) => String(x).toLowerCase());
+      if (semuaUnit || punya.includes(kode)) tambah(a.username);
+    }
+  }
+  tambah(pengirim);
+  return [...hasil];
+}

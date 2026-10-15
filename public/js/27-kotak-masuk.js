@@ -195,7 +195,16 @@ function gambarSeksiAntrianCetak(kotak){
   const untuk = antrianRingkasPaket(p.untukSaya);
   const dari  = antrianRingkasPaket(p.dariSaya);
   const unit  = antrianRingkasPaket(p.dinasUnit);
-  if(!untuk.length && !dari.length && !unit.length) return '';
+  /* Administrator: server sudah mengirim `semua`, tapi dulu tidak pernah
+     digambar — administrator hanya melihat yang ia kirim sendiri. Sekarang
+     sisanya tampil di seksi sendiri (hanya lihat/cetak; menghapus tetap lewat
+     bolehHapusArsip). Yang sudah tampil di seksi lain, termasuk anggota paket
+     yang sama, tidak diulang. */
+  const kunci = b=>b.paket || b.id;
+  const tampil = new Set([...(p.untukSaya || []), ...(p.dariSaya || []), ...(p.dinasUnit || [])].map(kunci));
+  const lain  = antrianRingkasPaket((p.semua || []).filter(b=>!tampil.has(kunci(b))))
+    .sort((a,b)=>String(b.tanggalKirim || '').localeCompare(String(a.tanggalKirim || '')));
+  if(!untuk.length && !dari.length && !unit.length && !lain.length) return '';
 
   const seksi = (judul, daftar, kosongPesan, hanyaLihat)=>`
     <div class="panel" style="margin-bottom:14px">
@@ -214,6 +223,9 @@ function gambarSeksiAntrianCetak(kotak){
                        : '')
        + (unit.length ? seksi(T('Jadwal Dinas Unit Anda — Status TTD','Your Unit Duty Rosters — Signature Status'),
                               unit, T('Tidak ada.','None.'), true)
+                       : '')
+       + (lain.length ? seksi(T('Semua Permintaan Cetak (Administrator)','All Print Requests (Administrator)'),
+                              lain, T('Tidak ada.','None.'), true)
                        : '');
 }
 

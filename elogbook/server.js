@@ -74,7 +74,7 @@ const {
   listBapb, insertBapb, updateBapb, removeBapb, suntingLampiranBapb,
   listLampiranCatatan, suntingLampiranCatatan, JENIS_LAMPIRAN_CATATAN,
   getUserByUsername, verifyPassword, createUser, countUsers, hapusUser,
-  jenisTtdSah, unitCatatan, unitHapus, pemilikLembarForm, tandaTanganiCatatan, batalkanTtdCatatan, listPejabatAktif, listPejabatUnit, listTeknisiUnit, listTeknisiUnitLain, listAkunAktif, listPemantauDinas, getInboxTtd,
+  jenisTtdSah, unitCatatan, unitHapus, pemilikLembarForm, tandaTanganiCatatan, batalkanTtdCatatan, listPejabatAktif, listPejabatUnit, listTeknisiUnit, listTeknisiUnitLain, listAkunAktif, listPemantauDinas, listPengurusDinas, getInboxTtd,
   getTtdTersimpan, simpanTtdTersimpan, hapusTtdTersimpan, pilihTtdTersimpanAktif, rekapMentah,
   listUsers, setPassword, setAktif, setRole, setNama, setUsername, setIdentitasTtdAkun, identitasTtdAkun, unitMilikUser, ROLE_VALID, SEMUA_UNIT, jumlahAdminAktif,
   UNIT, KODE_UNIT, unitSah, unitUntukUser, setUnitUser,
@@ -2617,7 +2617,8 @@ app.get('/internal/daftar', hanyaInternal, async (req, res) => {
       akun: await listAkunAktif(),
       unit: (UNIT || []).map((u) => ({ kode: u.kode, nama: u.nama })),
       ...(UNIT.some((u) => u.kode === unit)
-        ? { anggota: await listTeknisiUnit(unit), pemantau: await listPemantauDinas() } : {})
+        ? { anggota: await listTeknisiUnit(unit), pemantau: await listPemantauDinas() } : {}),
+      ...(req.query?.pengurus ? { pengurus: await listPengurusDinas() } : {})
     });
   } catch (err) {
     res.status(500).json({ error: err?.message || String(err) });
