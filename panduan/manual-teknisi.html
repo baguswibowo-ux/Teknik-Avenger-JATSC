@@ -60,7 +60,7 @@ kbd,.tmb{display:inline-block;font:600 .86em 'Barlow',sans-serif;padding:1px 8px
 .kode{font-family:'Share Tech Mono',monospace;font-weight:700}
 .kotak{border:1px solid var(--garis);border-left:4px solid var(--biru);background:var(--lembar);border-radius:10px;padding:10px 14px;margin:14px 0;max-width:74ch}
 .kotak.tip{border-left-color:var(--sian)} .kotak.awas{border-left-color:var(--jingga);background:#fffaf1} .kotak.bahaya{border-left-color:var(--bahaya);background:#fff6f6}
-.kotak b:first-child{display:block;font-family:'Rajdhani',sans-serif;font-size:17px;letter-spacing:.02em}
+.kotak > b:first-child{display:block;font-family:'Rajdhani',sans-serif;font-size:17px;letter-spacing:.02em}
 .kotak p{margin:4px 0}
 .gulir{overflow-x:auto;margin:12px 0;border:1px solid var(--garis);border-radius:10px;background:var(--lembar);max-width:100%}
 table{border-collapse:collapse;width:100%;font-size:15px}
@@ -148,7 +148,14 @@ footer{margin-top:40px;padding-top:14px;border-top:1px solid var(--garis);color:
   <div class="no-bab">BAB 01</div>
   <h2>Kenalan dengan Avengers</h2>
   <p class="pengantar">Avengers adalah satu alamat, <b>teknik-avengers.com</b>, yang berisi dua bagian dengan satu akun yang sama. Bisa dibuka dari PC, laptop, maupun HP.</p>
-  <div class="kotak tip"><b>Yang baru di versi 2.10 sampai 2.12</b><p>Tanda tangan sekarang berupa <b>kode QR</b>: cukup tekan kotak TTD (<a href="#ttd">Bab 14</a>). Manager Teknik <b>dipilih dari satu daftar</b>, dan PH diurus sistem. Sejarah Peralatan bisa dicetak per alat. Daily check bertambah: Listrik &amp; Mekanik New JATSC dan E-JAATS (FDPS-RDPS). Monitoring Frekuensi dan BAPB punya petak tanda tangan baru. PDF izin ISR bisa dibuka langsung dari tabel ISR. Admin unit, PIC, dan Manager Teknik punya buku manual dan video sendiri di halaman Panduan. Lembar cetak Sejarah Peralatan kini ditutup blok “Mengetahui, Manager Fasilitas”.</p></div>
+  <div class="kotak tip"><b>Yang baru belakangan ini</b>
+    <ul>
+      <li><b>v2.12.1:</b> Manager Fasilitas di lembar Sejarah Peralatan; halaman Panduan dengan manual dan video per peran.</li>
+      <li><b>v2.12.0:</b> ISR terisi dari PDF; saran kode saat mengisi jadwal dinas; notifikasi jadwal disetujui Deputy.</li>
+      <li><b>v2.11.0:</b> Manager Teknik dipilih dari satu daftar; Daily Check Listrik New JATSC; petak baru di Monitoring dan BAPB.</li>
+      <li><b>v2.10.0:</b> tanda tangan jadi kode QR (<a href="#ttd">Bab tanda tangan</a>); PUM per Grup; Daily Check E-JAATS.</li>
+    </ul>
+    <p>Daftar lengkapnya, sejak awal proyek 16 Agustus 2026, ada di bab <a href="#riwayat">Riwayat pembaruan</a>.</p></div>
   <div class="ringkas">
     <div><span>BAGIAN 1</span><b>Dashboard Fasilitas Teknik</b><p>Papan bersama delapan unit teknik: kondisi peralatan, trouble yang belum selesai, NOTAM, jadwal dinas, kegiatan berkala, personel, sparepart, dokumen, dan sejarah peralatan.</p></div>
     <div><span>BAGIAN 2</span><b>E-Logbook</b><p>Pencatatan operasional harian tiap unit: Logbook Fasilitas, Daily Check, Preventive Maintenance, formulir LTK dan BAPB, Isu, serta Rekap.</p></div>
@@ -711,6 +718,107 @@ footer{margin-top:40px;padding-top:14px;border-top:1px solid var(--garis);color:
   <footer>
     Buku ini disusun dari Avengers versi 2.12.1 (15 Oktober 2026). Nama tombol ditulis seperti yang tampil di layar berbahasa Indonesia. Kalau tampilan di perangkat Anda berbeda dari buku ini, yang berlaku adalah tampilan aplikasinya. Gambar layar diambil dari server uji dengan akun uji; nama, NIK, dan tanda tangan orang di dalamnya sudah disamarkan.
   </footer>
+</section>
+
+<section class="bab" id="riwayat">
+  <div class="no-bab">BAB</div>
+  <h2>Riwayat pembaruan</h2>
+  <p class="pengantar">Avengers dibangun sejak <b>16 Agustus 2026</b> dan terus diperbarui. Sampai versi 2.12.1 tercatat <b>387 perubahan</b>. Berikut ringkasannya, dari yang terbaru.</p>
+
+  <h3>v2.12.1 · 15 Oktober 2026</h3>
+  <ul>
+    <li><b>Sejarah Peralatan: Manager Fasilitas per unit.</b> Lembar cetak menutup tiap alat dengan blok “Mengetahui, Manager Fasilitas”. Ditetapkan administrator atau admin unit lewat tombol Atur di panel Sejarah.</li>
+    <li><b>Halaman Panduan</b> di teknik-avengers.com/panduan: buku manual teknisi, manual per peran (Admin Unit, PIC Jadwal Dinas, PIC Sparepart, PIC ISR, Manager Teknik), dan video tutorial 14 bab dalam tampilan HP dan PC.</li>
+    <li>Administrator bisa menyunting manual, video, dan logo panduan langsung dari halamannya.</li>
+    <li>Kelola Akun: nomor urut di Daftar Akun dan panel Aktivasi Akun Unit.</li>
+  </ul>
+
+  <h3>v2.12.0 · 15 Oktober 2026</h3>
+  <ul>
+    <li><b>ISR dari PDF:</b> isian ISR terisi sendiri dari PDF cetakan SDPPI/DJID, dan PDF-nya ikut jadi lampiran. Tautan PDF izin tampil di tabel untuk semua yang membuka.</li>
+    <li><b>Jadwal dinas:</b> mengetik kode memunculkan saran di bawah sel (ketik S, muncul S1 dan seterusnya).</li>
+    <li>Jadwal dinas yang disetujui Deputy masuk Kotak Masuk administrator, dan pengurus jadwal serta Manager Teknik penanda tangannya dikabari lewat notifikasi HP.</li>
+    <li>Lembar PUM per Grup terlihat oleh pengurus jadwal di unit mana pun.</li>
+  </ul>
+
+  <h3>v2.11.0 · 14 Oktober 2026</h3>
+  <ul>
+    <li><b>Manager Teknik dipilih dari satu daftar</b> di semua formulir E-Logbook; PH diurus sistem.</li>
+    <li>Nama PH tercetak dengan Manager Teknik yang digantikan, misalnya “Deny Saputra (PH Manager Teknik Arya Gunawan)”, dan QR-nya ikut menyebutnya.</li>
+    <li>Daily Check Listrik &amp; Mekanik <b>New JATSC</b>: MDS, UPS, Chiller-Pompa-AHU.</li>
+    <li>Monitoring Frekuensi: tiga petak tanda tangan, dengan Manager Operasi (unit ACC/APP/TOWER/ADC dan jabatan).</li>
+    <li>BAPB: petak Penerima Barang dengan unit, jabatan, nama, dan NIK.</li>
+    <li>Saran nama teknisi mencakup teknisi unit lain, bertanda nama unitnya.</li>
+    <li>Sejarah Peralatan bisa dicetak per alat; isian Grup Lokasi menawarkan grup yang sudah ada.</li>
+  </ul>
+
+  <h3>v2.10.0 · 14 Oktober 2026</h3>
+  <ul>
+    <li><b>Tanda tangan jadi kode QR:</b> cukup tekan kotak TTD; QR memuat kop, unit atau jabatan, nama, dan NIK. Tanda tangan goresan lama dikonversi menjadi QR.</li>
+    <li><b>PUM per Grup:</b> jadwal semua unit dikirim sepaket, Manager Teknik menandatangani sekali lalu meneruskan ke Deputy, dan hasilnya satu berkas satu halaman per grup.</li>
+    <li><b>PH susulan</b> untuk lembar lama yang terlewat ditandatangani.</li>
+    <li>Daily Check <b>E-JAATS</b> untuk FDPS-RDPS lokasi JATSC.</li>
+    <li>Setiap cetakan membawa tanda sumber “teknik-avengers.com”.</li>
+    <li>Admin unit bisa melihat dan mengganti password sesama admin unit di unitnya.</li>
+  </ul>
+
+  <h3>v2.9.0 · 12 Oktober 2026</h3>
+  <ul>
+    <li><b>Kode dinas baru</b> untuk hari yang dibagi tiga rombongan: P1, S1, M1, per gedung (P1J, P1NJ, …); SPKL mengikuti kode dasarnya; kode SAKIT tersendiri.</li>
+    <li>Jadwal dinas: baris bisa diseret, nomor bisa dihapus untuk judul grup, mengetik NIK mengisi nama dari akunnya, tanggal merah diblok sampai bawah.</li>
+    <li><b>Notifikasi HP</b> baru: daftar dinas diperbarui dan riwayat peralatan diperbarui.</li>
+    <li>Gedung &amp; Keamanan: lembar harian Lift dan Akses Door New JATSC.</li>
+    <li>Cetak jadwal dinas lebih rapi: tanda tangan tidak terpotong, kepala tabel bertinta hitam.</li>
+    <li>Admin unit bisa membuat akun di unitnya dan meminta TTD ulang; isian tanggal dan jam terbaca jelas di HP.</li>
+  </ul>
+
+  <h3>v2.8.0 · 8 Oktober 2026</h3>
+  <ul>
+    <li>Lampiran dokumen di lembar Daily Check, Preventive, Monitoring, dan Daily Check AMHS.</li>
+    <li>Tulisan di atas gambar latar dashboard diberi kotak supaya mudah dibaca; tema tidak berkedip saat halaman dimuat.</li>
+  </ul>
+
+  <h3>v2.7.0 · 8 Oktober 2026</h3>
+  <ul>
+    <li><b>Tema bawaan terang</b>, dan pilihan gelap/terang disimpan per akun.</li>
+    <li>Sejarah Peralatan: tanda tangan penanggung jawab per kejadian, kolom keterangan, cetak langsung; satu stiker QR induk membawa seluruh sub-unit; halaman pindai QR tampil selebar kertas di HP.</li>
+    <li>Subtab Sparepart hanya terlihat oleh yang berhak mengisinya.</li>
+  </ul>
+
+  <h3>v1.0.0 · 7 Oktober 2026</h3>
+  <ul>
+    <li>Nomor versi tampil di kepala dashboard.</li>
+    <li>Peran baru <b>PIC Jadwal Dinas Unit, PIC Sparepart Unit, PIC ISR Unit</b>; admin unit bisa menunjuk PIC unit dan mengubah akunnya sendiri.</li>
+    <li>Administrator bisa mengganti TTD tersimpan pejabat yang salah masuk; Kelola Akun menampilkan siapa yang sedang online dan kapan terakhir aktif.</li>
+    <li>Tombol kode jadwal dinas menempel di atas saat tabel digulir.</li>
+  </ul>
+
+  <h3>September 2026</h3>
+  <ul>
+    <li><b>Pindah ke server sendiri</b> dengan alamat teknik-avengers.com (7 September).</li>
+    <li><b>Notifikasi HP:</b> pengingat sejam sebelum dinas, kegiatan berkala yang belum dikerjakan, lembar perlu tanda tangan dan sudah ditandatangani.</li>
+    <li><b>PH (Pelaksana Harian):</b> pejabat menunjuk wakilnya sampai tanggal tertentu, termasuk lintas unit.</li>
+    <li><b>Kirim PDF:</b> lembar cetak bisa dibagikan sebagai berkas PDF.</li>
+    <li>Halaman jauh lebih cepat: permintaan halaman depan turun dari 55 menjadi 12, dan dashboard tampil seketika saat dimuat ulang.</li>
+    <li>Sparepart mengikuti kolom lembar SAP, dengan riwayat pemakaian dan pengadaan, impor, cetak, serta rekap stok opname semua unit.</li>
+    <li>Kegiatan berkala: tombolnya membuka lembar yang tepat di E-Logbook, dan hanya ditujukan ke yang berdinas.</li>
+    <li>Lembar baru: Daily Check Navigasi (Main/Standby, suhu shelter), Meter Reading ILS dan DVOR/DME, Weekly Check Pengamatan, Preventive Radkom, Daily Check Gedung &amp; Keamanan dan Listrik.</li>
+    <li>Tab FORM untuk LTK dan BAPB, dengan lampiran BAPB.</li>
+    <li>Jadwal dinas semua unit bisa dilihat semua akun; total dinas sebulan per orang; impor membaca kolom NIK.</li>
+    <li>Username akun memakai NIK 8 angka; Kelola Akun dikelompokkan per peran.</li>
+    <li><b>Buat isu dari catatan logbook</b>, dan umur trouble dihitung sampai menit.</li>
+  </ul>
+
+  <h3>Agustus 2026</h3>
+  <ul>
+    <li><b>16 Agustus:</b> awal proyek Dashboard Fasilitas Teknik JATSC, dengan galeri foto unit.</li>
+    <li>Modul dashboard: jadwal dinas, kegiatan berkala, personel dan masa berlaku lisensi, serta hak per modul.</li>
+    <li>Pembaca papan nama peralatan dan label sparepart dari foto, berjalan tanpa internet.</li>
+    <li>Satu pintu masuk: E-Logbook dibuka dari dashboard dengan akun yang sama.</li>
+    <li>Bukti sertifikat personel bisa dilampirkan.</li>
+    <li>Kode dinas SPKL dan libur, bukti saat menutup isu, ganti username, dan tujuan tanda tangan ke pejabat.</li>
+    <li>Checklist preventive pertama: Ground Check LLZ, Weekly Check Pengamatan, Maintenance Radio.</li>
+  </ul>
 </section>
 
 </main>

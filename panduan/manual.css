@@ -51,7 +51,7 @@ kbd,.tmb{display:inline-block;font:600 .86em 'Barlow',sans-serif;padding:1px 8px
 .kode{font-family:'Share Tech Mono',monospace;font-weight:700}
 .kotak{border:1px solid var(--garis);border-left:4px solid var(--biru);background:var(--lembar);border-radius:10px;padding:10px 14px;margin:14px 0;max-width:74ch}
 .kotak.tip{border-left-color:var(--sian)} .kotak.awas{border-left-color:var(--jingga);background:#fffaf1} .kotak.bahaya{border-left-color:var(--bahaya);background:#fff6f6}
-.kotak b:first-child{display:block;font-family:'Rajdhani',sans-serif;font-size:17px;letter-spacing:.02em}
+.kotak > b:first-child{display:block;font-family:'Rajdhani',sans-serif;font-size:17px;letter-spacing:.02em}
 .kotak p{margin:4px 0}
 .gulir{overflow-x:auto;margin:12px 0;border:1px solid var(--garis);border-radius:10px;background:var(--lembar);max-width:100%}
 table{border-collapse:collapse;width:100%;font-size:15px}
