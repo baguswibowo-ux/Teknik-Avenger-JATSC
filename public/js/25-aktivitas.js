@@ -50,6 +50,7 @@ const AKT_MODUL_NAMA = {
   notam:      ['NOTAM','NOTAM'],
   sejarah:    ['Riwayat alat','Equipment history'],
   dokumen:    ['Dokumen','Documents'],
+  panduan:    ['Panduan','User guide'],
   logo:       ['Logo unit','Unit logo'],
   cetak:      ['Permintaan cetak','Print requests'],
   // E-Logbook

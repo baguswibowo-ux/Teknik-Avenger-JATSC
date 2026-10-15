@@ -159,6 +159,37 @@ a{display:inline-block;margin-top:10px;background:#0b1b33;color:#fff;padding:9px
     'pic-sparepart': 'PIC Sparepart', 'pic-sparepart-unit': 'PIC Sparepart Unit', 'pic-isr': 'PIC ISR', 'pic-isr-unit': 'PIC ISR Unit',
     'pejabat': 'Manager Teknik / Pejabat', 'pejabatnonop': 'Pejabat Non-Operasional' };
 
+  /* Manual yang DIBUKA ikut dicatat di log aktivitas, sama seperti dokumen unit
+     (permintaan Bagus, 16 Okt 2026): siapa sudah membaca manual apa. Halaman
+     depan /panduan/ tidak dicatat — ia cuma daftar isi.
+
+     Sekali per orang per halaman per LIHAT_JEDA: muat ulang, pindah bab lewat
+     tautan, atau kembali dari halaman lain beberapa menit kemudian bukan
+     kejadian baru. Ingatannya di memori proses saja — sesudah restart paling
+     jauh satu baris ganda. */
+  const LIHAT_JEDA = 10 * 60 * 1000;
+  const lihatTerakhir = new Map();
+  const JUDUL_LIHAT = {
+    'manual-teknisi.html': 'Manual Teknisi',
+    'video-tutorial.html': 'Video Tutorial',
+    'tutorial-hp.html':    'Tutorial pasang di HP'
+  };
+  async function catatLihat(user, nama) {
+    const judul = JUDUL_LIHAT[nama] || MANUAL_PERAN[nama]?.judul;
+    if (!judul) return;
+    const kini = Date.now();
+    const kunci = `${String(user.username || '').toLowerCase()}|${nama}`;
+    if (kini - (lihatTerakhir.get(kunci) || 0) < LIHAT_JEDA) return;
+    lihatTerakhir.set(kunci, kini);
+    if (lihatTerakhir.size > 5000) {
+      for (const [k, t] of lihatTerakhir) if (kini - t >= LIHAT_JEDA) lihatTerakhir.delete(k);
+    }
+    // Unit pembaca (CSV kalau lebih dari satu) supaya admin unit juga melihat
+    // siapa di unitnya yang sudah membaca; tanpa unit, hanya admin utama.
+    const unit = Array.isArray(user.unit) ? user.unit.map(u => String(u || '').toLowerCase()).filter(Boolean).join(',') : '';
+    await catat(user, { modul: 'panduan', aksi: 'lihat', unit, rincian: judul });
+  }
+
   /** Halaman HTML: bawaan dari repo, isi manual diganti suntingan kalau ada,
       dan skrip penyunting disisipkan untuk semua (ia sendiri yang bertanya
       apakah akun ini boleh menyunting). */
@@ -183,6 +214,7 @@ a{display:inline-block;margin-top:10px;background:#0b1b33;color:#fff;padding:9px
     if (MANUAL_SUNTING.has(nama) || nama === 'video-tutorial.html') {
       html = html.replace('</body>', '<script src="/panduan/sunting.js" defer></script>\n</body>');
     }
+    catatLihat(user, nama).catch(() => { /* aktivitas boleh gagal senyap */ });
     res.type('html').set('Cache-Control', 'no-cache').send(html);
   }
 
