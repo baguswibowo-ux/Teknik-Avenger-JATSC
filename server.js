@@ -34,9 +34,9 @@ import {
   kegiatanUntukDinas, paketDibutuhkan, kunciPengingatBerkala
 } from './pengingat-berkala.js';
 import {
-  pesanDinasMendatang, pesanBerkalaDinas, pesanDafdinBerubah, pesanSejarahBerubah
+  pesanDinasMendatang, pesanBerkalaDinas, pesanDafdinBerubah, pesanSejarahBerubah, pesanDinasDisetujui
 } from './pesan-notif.js';
-import { selisihJadwal, penerimaDafdin, selisihSejarah, namaBulan } from './kabar-perubahan.js';
+import { selisihJadwal, penerimaDafdin, selisihSejarah, namaBulan, penerimaDinasDisetujui } from './kabar-perubahan.js';
 import { htmlKePdf, susunDokumen, pdfTersedia } from './cetak-pdf.js';
 import { svgQr } from './qr-kode/svg.js';
 import { pasangPanduan } from './panduan.js';
@@ -4782,14 +4782,24 @@ app.post('/cetak-antrian/paket/:paket/setujui', badanCetak, async (req, res) => 
       `Jadwal Dinas PUM ${contoh.bulan}: ${paket.jumlah} grup sudah ditandatangani ${contoh.pejabatNama || contoh.pejabatUser} dan menunggu persetujuan Anda.`,
       { tag: 'pum-' + req.params.paket }).catch(() => {});
   }
-  if (!tahapMT.length && contoh.pembuatUser !== saya) {
-    kirimNotifKeAkun(contoh.pembuatUser,
-      `Jadwal Dinas PUM ${contoh.bulan} sudah disetujui ${contoh.deputyNama || contoh.deputyUser}. ${giliran.length} grup siap dicetak dari Kotak Masuk.`,
-      { tag: 'pum-' + req.params.paket }).catch(() => {});
+  // Paket selesai di tangan Deputy: pengirim dan para pengurus dafdin dikabari.
+  if (!tahapMT.length && anggota.every((x) => x.status === 'disetujui')) {
+    kabariDinasDisetujui({ b: contoh, grup: anggota.length, oleh: saya });
   }
 
   res.json({ ok: true, tahap: tahapMT.length ? 'mt' : 'deputy', jumlah: giliran.length, paket, permintaan: anggota });
 });
+
+/** Boleh mengirim Jadwal Dinas di salah satu unit yang dipegangnya (PIC
+    Jadwal Dinas Unit, admin unit, yang ditunjuk 'dinas-cetak'). Dipakai untuk
+    lembar PUM per Grup, yang isinya semua unit. */
+async function bolehKirimDinasSalahSatu(user) {
+  const punya = unitDipegang(user);
+  for (const kode of punya === null ? [''] : punya) {
+    if (await bolehIsi(user, 'dinas-cetak', kode)) return true;
+  }
+  return false;
+}
 
 /** Daftar permintaan untuk user login: yang tertuju ke dia (kalau pejabat)
     dan yang dia kirim sendiri (kalau pembuat). Admin/super-admin melihat
@@ -4851,8 +4861,14 @@ app.get('/cetak-antrian', async (req, res) => {
     for (const kode of new Set(daftar.filter((b) => b.jenis === 'dinas').map((b) => b.unit))) {
       if (kode && await bolehIsi(user, 'dinas-cetak', kode)) unitBolehKirim.add(kode);
     }
+    /* PUM per Grup memuat orang dari SEMUA unit, walau lembarnya tercatat atas
+       satu unit saja (unit yang sedang dibuka pengirimnya). Siapa pun yang
+       boleh mengirim Jadwal Dinas unit mana pun ikut melihatnya. */
+    const bolehGabungan = daftar.some((b) => b.jenis === 'dinas' && b.snapshot && b.snapshot.gabungan)
+      && await bolehKirimDinasSalahSatu(user);
     const sudahTampil = new Set([...untukSaya, ...dariSaya].map((b) => b.id));
-    dinasUnit = daftar.filter((b) => b.jenis === 'dinas' && unitBolehKirim.has(b.unit) && !sudahTampil.has(b.id));
+    dinasUnit = daftar.filter((b) => b.jenis === 'dinas' && !sudahTampil.has(b.id)
+      && (unitBolehKirim.has(b.unit) || (bolehGabungan && b.snapshot && b.snapshot.gabungan)));
   }
 
   res.json({
@@ -4883,6 +4899,7 @@ app.get('/cetak-antrian/:id', async (req, res) => {
              || PERAN_PIC[peranUser(user)] === b.jenis   // PIC dokumen jenis ini
              // Jadwal Dinas se-unit — lihat dinasUnit di GET /cetak-antrian.
              || (b.jenis === 'dinas' && !!b.unit && await bolehIsi(user, 'dinas-cetak', b.unit))
+             || (b.jenis === 'dinas' && b.snapshot && b.snapshot.gabungan && await bolehKirimDinasSalahSatu(user))
              || user.role === 'admin' || user.superadmin === true;
   if (!boleh) return res.status(403).json({ error: 'Anda bukan pihak yang berhak melihat permintaan ini.' });
 
@@ -5014,6 +5031,14 @@ app.post('/cetak-antrian/:id/setujui', badanCetak, async (req, res) => {
     kirimNotifKeAkun(b.deputyUser,
       `Jadwal Dinas PUM ${b.bulan}: ${paket.jumlah} lembar per grup sudah ditandatangani ${b.pejabatNama || b.pejabatUser} dan menunggu tanda tangan Anda.`,
       { tag: 'pum-' + b.paket }).catch(() => {});
+  }
+  if (menungguDeputy && b.jenis === 'dinas') {
+    // Lembar paket bisa juga disetujui satu per satu lewat rute ini: kabari
+    // sekali saja, waktu lembar terakhir paketnya selesai.
+    const sepaket = b.paket ? daftar.filter((x) => x.paket === b.paket) : [b];
+    if (sepaket.every((x) => x.status === 'disetujui')) {
+      kabariDinasDisetujui({ b, grup: b.paket ? sepaket.length : 0, oleh: saya });
+    }
   }
 
   res.json(paket ? { ok: true, permintaan: b, paket } : { ok: true, permintaan: b });
@@ -5733,6 +5758,36 @@ async function kabariSejarah({ unit, alat, sebelum, sesudah, user, kecuali = [] 
     }
   } catch (err) {
     console.warn('[kabar sejarah]', err?.message || err);
+  }
+}
+
+/** Deputy GM Teknik baru menyetujui Jadwal Dinas (satu lembar unit, atau satu
+    paket PUM per Grup): kabari pengirimnya, administrator, PIC Jadwal Dinas,
+    serta admin unit + PIC Jadwal Dinas Unit unit itu (paket: semua unit) —
+    lembar finalnya ada di Kotak Masuk mereka. Siapa saja: penerimaDinasDisetujui.
+    Seperti kabar lain, tidak ditunggu dan tidak pernah melempar. */
+async function kabariDinasDisetujui({ b, grup = 0, oleh = '' }) {
+  if (!TERUS || !b) return;
+  try {
+    const jawab = await fetch(ASAL + '/internal/daftar?pengurus=1', { signal: AbortSignal.timeout(8000) });
+    if (!jawab.ok) throw new Error(`E-Logbook menjawab ${jawab.status} untuk /internal/daftar`);
+    const d = await jawab.json();
+    const semuaUnit = !!(b.snapshot && b.snapshot.gabungan);
+    const penerima = penerimaDinasDisetujui({
+      pengurus: d?.pengurus, unit: b.unit, semuaUnit, pengirim: b.pembuatUser, kecuali: [oleh]
+    });
+    const namaUnit = semuaUnit ? 'Semua unit'
+      : ((Array.isArray(d?.unit) ? d.unit : []).find((u) => u.kode === b.unit) || {}).nama || b.unit;
+    const teks = pesanDinasDisetujui({
+      unit: namaUnit, bulan: b.bulan ? namaBulan(b.bulan) : '', deputy: b.deputyNama || b.deputyUser, grup
+    });
+    const tag = 'dinas-ok-' + (b.paket || b.id);
+    for (const username of penerima) {
+      const hasil = await kirimNotifKeAkun(username, teks, { tag });
+      if (!hasil.aktif) return;            // notifikasi HP mati di server: percuma lanjut
+    }
+  } catch (err) {
+    console.warn('[kabar dinas disetujui]', err?.message || err);
   }
 }
 

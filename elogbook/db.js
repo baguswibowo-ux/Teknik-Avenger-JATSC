@@ -3398,6 +3398,24 @@ export function listPemantauDinas() {
 }
 
 /**
+ * Yang mengurus lembar cetak Jadwal Dinas: administrator (dan super-admin),
+ * PIC Jadwal Dinas semua unit, serta admin unit dan PIC Jadwal Dinas Unit
+ * beserta unit yang dipegangnya. Dashboard memakainya untuk mengabari mereka
+ * begitu Deputy GM Teknik menyetujui sebuah daftar dinas — lembarnya siap
+ * dicetak dari Kotak Masuk. Penyaringan per unit dilakukan dashboard.
+ */
+export function listPengurusDinas() {
+  return db.prepare(`SELECT u.username, u.nama, u.role, u.superadmin,
+                            (SELECT GROUP_CONCAT(uu.unit) FROM user_unit uu WHERE uu.user_id = u.id) AS unit
+                       FROM users u
+                      WHERE u.aktif = 1
+                        AND (u.role IN ('admin', 'pic-dinas', 'adminunit', 'pic-dinas-unit') OR u.superadmin = 1)
+                      ORDER BY u.nama COLLATE NOCASE`).all()
+    .map((r) => ({ username: r.username, nama: r.nama, role: r.role, superadmin: r.superadmin === 1,
+                   unit: String(r.unit || '').split(',').filter(Boolean) }));
+}
+
+/**
  * Pejabat aktif yang sudah opt-in ke satu unit (mencentangnya di Kelola Akun).
  * Dipakai kartu cetak dashboard untuk menaruh nama Manajer Teknik bidang itu
  * pada kolom tanda tangan kanan. Kalau tidak ada satu pun yang opt-in, kartu

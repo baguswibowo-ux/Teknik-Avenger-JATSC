@@ -14,8 +14,8 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { selisihJadwal, penerimaDafdin, selisihSejarah, namaBulan } from '../kabar-perubahan.js';
-import { pesanDafdinBerubah, pesanSejarahBerubah } from '../pesan-notif.js';
+import { selisihJadwal, penerimaDafdin, selisihSejarah, namaBulan, penerimaDinasDisetujui } from '../kabar-perubahan.js';
+import { pesanDafdinBerubah, pesanSejarahBerubah, pesanDinasDisetujui } from '../pesan-notif.js';
 import { pesanUntukPush } from '../webpush.js';
 
 const orang = (nama, nik, hari, peran = 'Teknisi') => ({ nama, peran, nik, hari });
@@ -163,4 +163,33 @@ test('kalimat sejarah', () => {
   }));
   assert.equal(p.judul, '🛠️ Riwayat peralatan diperbarui');
   assert.equal(p.isi, 'VHF TX — Modul 1 · Unit Radtel\nBaru: 2026-10-12 — Modul mati\nDiubah: Kalibrasi\nOleh: Andi');
+});
+
+test('penerima jadwal dinas disetujui Deputy', () => {
+  const pengurus = [
+    { username: 'Admin1', role: 'admin', unit: [] },
+    { username: 'super', role: 'pejabat', superadmin: true, unit: [] },
+    { username: 'gabriela', role: 'pic-dinas', unit: [] },
+    { username: 'au.radtel', role: 'adminunit', unit: ['radtel'] },
+    { username: 'pic.radtel', role: 'pic-dinas-unit', unit: ['radtel', 'radkom'] },
+    { username: 'au.listrik', role: 'adminunit', unit: ['listrikmekanik'] },
+    { username: 'teknisi1', role: 'teknisi', unit: ['radtel'] }
+  ];
+  // Satu unit: admin unit/PIC unit lain tidak ikut, Deputy-nya sendiri tidak.
+  assert.deepEqual(
+    penerimaDinasDisetujui({ pengurus, unit: 'radtel', pengirim: 'pic.radtel', kecuali: ['Super'] }).sort(),
+    ['admin1', 'au.radtel', 'gabriela', 'pic.radtel']);
+  // PUM per Grup: semua unit.
+  assert.deepEqual(
+    penerimaDinasDisetujui({ pengurus, unit: 'radtel', semuaUnit: true, pengirim: 'gabriela', kecuali: ['deputy'] }).sort(),
+    ['admin1', 'au.listrik', 'au.radtel', 'gabriela', 'pic.radtel', 'super']);
+  // Pengirim di luar daftar pengurus tetap dikabari.
+  assert.ok(penerimaDinasDisetujui({ pengurus: [], unit: 'radtel', pengirim: 'Teknisi1' }).includes('teknisi1'));
+});
+
+test('kalimat jadwal dinas disetujui', () => {
+  const p = pesanUntukPush(pesanDinasDisetujui({ unit: 'Semua unit', bulan: 'Oktober 2026', deputy: 'Ary Susetyo', grup: 5 }));
+  assert.equal(p.judul, '✅ Jadwal Dinas disetujui Deputy');
+  assert.match(p.isi, /PUM per Grup \(5 grup\) · Semua unit · Oktober 2026/);
+  assert.match(p.isi, /Disetujui: Ary Susetyo/);
 });

@@ -45,6 +45,18 @@ export function pesanTtdDiganti({ oleh }) {
   return baris.join('\n');
 }
 
+/** Kabar ke pengurus Jadwal Dinas (pengirim, PIC, admin unit, administrator):
+    Deputy GM Teknik sudah menyetujui, lembarnya siap dicetak dari Kotak Masuk.
+    `unit` = nama unit, atau "Semua unit" untuk PUM per Grup; `grup` = jumlah
+    lembar per grup kalau paket. */
+export function pesanDinasDisetujui({ unit, bulan, deputy, grup }) {
+  const baris = ['✅ <b>Jadwal Dinas disetujui Deputy</b>', '',
+    `${esc(grup ? `PUM per Grup (${grup} grup)` : 'Jadwal Dinas')} · ${esc(unit)}${bulan ? ' · ' + esc(bulan) : ''}`];
+  if (deputy) baris.push(`Disetujui: <b>${esc(deputy)}</b>`);
+  baris.push('', 'Lembar final siap dicetak dari <b>Kotak Masuk</b> dashboard.');
+  return baris.join('\n');
+}
+
 /** Pengingat ke pembuat logbook: dinasnya sudah lewat, tanda tangan belum ada. */
 export function pesanBelumTtd({ dokumen, unit, tanggal, dinas, menunggu, menit, cuplikan }) {
   const baris = ['⏰ <b>Dokumen Anda belum ditandatangani</b>', '', `Dokumen: <b>${esc(dokumen)}</b>`];
