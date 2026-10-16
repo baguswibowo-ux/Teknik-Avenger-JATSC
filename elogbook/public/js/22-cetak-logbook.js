@@ -146,6 +146,23 @@ function printLogbook(){
   const dinas = document.getElementById('prDinas').value;
   const lokasi = document.getElementById('prLokasi')?.value || '';
 
+  // Rentangnya menjangkau ke belakang catatan yang termuat (lihat
+  // pastikanEntriesSejak di 11-logbook.js): ambil dulu, lalu ulangi dengan
+  // mode pratinjau yang sama seperti saat tombol ditekan.
+  if(perluMuatEntries(from)){
+    const pratinjau = modePratinjau;
+    toast(T('entriesLamaMemuat'));
+    const unit = unitAktif;
+    pastikanEntriesSejak(from).then(()=>{
+      // Pindah unit di tengah jalan, atau masih kurang: jangan cetak / berputar.
+      if(unit !== unitAktif || perluMuatEntries(from)) return;
+      const lama = modePratinjau;
+      modePratinjau = pratinjau;
+      try{ printLogbook(); } finally { modePratinjau = lama; }
+    }).catch(err => toast(T('entriesLamaGagal') + ' — ' + (err.message || err)));
+    return;
+  }
+
   let list = entries.slice().filter(e=>{
     const d = String(e.tanggal || '').slice(0,10);
     if(from && d < from) return false;

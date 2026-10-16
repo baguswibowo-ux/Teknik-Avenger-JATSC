@@ -1821,6 +1821,24 @@ export function listEntries(unit = 'radtel', limit = 200) {
   const rows = db.prepare(`SELECT * FROM entries WHERE unit = ?
                            ORDER BY tanggal DESC, jam DESC, dibuat_pada DESC LIMIT ?`)
     .all(unit, limit);
+  return entriKeTampilan(rows);
+}
+
+/** Catatan logbook satu unit dalam rentang tanggal (dua ujung ikut; kosong =
+    tak berbatas). Pemuatan layar hanya membawa catatan terbaru, jadi daftar,
+    pencarian, dan cetak memakai ini untuk catatan yang lebih lama — Radtel
+    melewati 200 catatan dalam ±3 minggu (16 Okt 2026: Agustus–September
+    "hilang" dari layar padahal utuh di database). */
+export function listEntriesRentang(unit, dari = '', sampai = '', limit = 5000) {
+  const rows = db.prepare(`SELECT * FROM entries WHERE unit = ?
+                             AND (? = '' OR substr(tanggal, 1, 10) >= ?)
+                             AND (? = '' OR substr(tanggal, 1, 10) <= ?)
+                           ORDER BY tanggal DESC, jam DESC, dibuat_pada DESC LIMIT ?`)
+    .all(unit, dari, dari, sampai, sampai, limit);
+  return entriKeTampilan(rows);
+}
+
+function entriKeTampilan(rows) {
   const nama = petaNamaPengguna();
   const lamp = lampiranUntuk(rows.map((r) => r.id));
   return rows.map((r) => rowToEntry(r, {

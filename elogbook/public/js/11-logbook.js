@@ -168,6 +168,71 @@ function teknisiListOf(r){
     peka huruf besar/kecil dan menelusuri uraian, frekuensi, dinas, lokasi,
     nama teknisi (termasuk daftar), dan nama penanggung jawab. */
 let logbookTampilSemua = false;
+
+/* Pemuatan layar hanya membawa catatan TERBARU (batas server, 200). Unit yang
+   rajin mencatat melewatinya dalam beberapa minggu — Radtel: Agustus–September
+   tampak hilang padahal utuh di database (16 Okt 2026). Jadi begitu saringan
+   menjangkau ke belakang, catatan yang lebih lama diambil dari server lalu
+   digabung ke `entries`.
+
+   entriesLengkapSejak: semua catatan bertanggal >= nilai ini sudah ada di
+   `entries`. '' berarti seluruh riwayat sudah termuat. */
+let entriesLengkapSejak = '';
+let entriesMuatLama = null;   // janji pemuatan yang sedang berjalan
+
+/** Dipanggil 26-init.js sesudah pemuatan layar. */
+function setEntriesTerpotong(terpotong){
+  entriesLengkapSejak = '';
+  entriesMuatLama = null;
+  if(!terpotong || !entries.length) return;
+  // Hari tertua di daftar mungkin baru sebagian; ia ikut diambil ulang nanti.
+  entriesLengkapSejak = entries.reduce((m, e) => {
+    const d = String(e.tanggal || '').slice(0,10);
+    return d && d < m ? d : m;
+  }, '9999-12-31');
+}
+
+/** Perlu mengambil catatan lama untuk menjangkau tanggal `dari` ('' = semua)? */
+function perluMuatEntries(dari){
+  if(!entriesLengkapSejak) return false;
+  return !dari || dari < entriesLengkapSejak;
+}
+
+/** Ambil catatan dari `dari` ('' = paling awal) sampai batas yang sudah
+    termuat, gabungkan tanpa ganda. Pemanggil yang datang selagi pemuatan
+    berjalan menunggu janji yang sama. */
+function pastikanEntriesSejak(dari){
+  if(!perluMuatEntries(dari)) return Promise.resolve(false);
+  if(entriesMuatLama) return entriesMuatLama.then(() => pastikanEntriesSejak(dari));
+  const unit = unitAktif;
+  entriesMuatLama = gsRun('getEntriesRentang', { unit, dari: dari || '', sampai: entriesLengkapSejak })
+    .then(res => {
+      if(unit !== unitAktif) return false;   // sudah pindah unit
+      const ada = new Set(entries.map(e => e.id));
+      const baru = (res && res.entries || []).map(mapEntry).filter(e => !ada.has(e.id));
+      entries = entries.concat(baru).sort((a, b) =>
+        String(b.tanggal || '').localeCompare(String(a.tanggal || '')) ||
+        String(b.jam || '').localeCompare(String(a.jam || '')));
+      entriesLengkapSejak = dari || '';
+      return true;
+    })
+    .finally(() => { entriesMuatLama = null; });
+  return entriesMuatLama;
+}
+
+/** Tanggal paling awal yang dijangkau saringan daftar saat ini. null = cukup
+    yang sudah ada (bawaan seminggu terakhir); '' = seluruh riwayat. */
+function entriesDariDibutuhkan(){
+  const from  = (document.getElementById('prFrom')   || {}).value || '';
+  const to    = (document.getElementById('prTo')     || {}).value || '';
+  const dinas = (document.getElementById('prDinas')  || {}).value || '';
+  const lokasi= (document.getElementById('prLokasi') || {}).value || '';
+  const cari  = String((document.getElementById('prCari') || {}).value || '').trim();
+  if(from) return from;
+  if(to || dinas || lokasi || cari || logbookTampilSemua) return '';
+  return null;
+}
+
 function entriesTersaring(){
   const from   = (document.getElementById('prFrom')   || {}).value || '';
   const to     = (document.getElementById('prTo')     || {}).value || '';
@@ -207,9 +272,17 @@ function resetFilterEntries(){
 }
 function renderEntries(){
   const wrap = document.getElementById('entryList');
+  // Saringan menjangkau ke belakang catatan yang termuat: ambil dulu dari
+  // server, lalu gambar ulang. Sementara itu yang sudah ada tetap tampil.
+  const dari = entriesDariDibutuhkan();
+  const memuat = dari !== null && perluMuatEntries(dari);
+  if(memuat){
+    pastikanEntriesSejak(dari).then(berubah => { if(berubah) renderEntries(); })
+      .catch(err => toast(T('entriesLamaGagal') + ' — ' + (err.message || err)));
+  }
   if(entries.length===0){ wrap.innerHTML = '<div class="empty">' + T('belumAdaCatatan') + '</div>'; return; }
   const daftar = entriesTersaring();
-  if(daftar.length===0){ wrap.innerHTML = '<div class="empty">' + T('takAdaFilter') + '</div>'; return; }
+  if(daftar.length===0){ wrap.innerHTML = '<div class="empty">' + T(memuat ? 'entriesLamaMemuat' : 'takAdaFilter') + '</div>'; return; }
   wrap.innerHTML = daftar.map(e=>{
     const namaList = teknisiListOf(e);
     const tekLabel = namaList.length ? namaList.map((n,i)=>`${i+1}. ${escapeHtml(n)}`).join('<br>') : 'Teknisi Pelaksana';

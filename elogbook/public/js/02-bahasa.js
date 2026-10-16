@@ -428,6 +428,8 @@ const KAMUS = {
     hanyaPembuatHapus:'Hanya pembuat lembar (sebelum di-TTD pejabat) atau admin yang bisa menghapus.',
     hanyaAdminUbah:'Hanya administrator atau admin unit yang bisa mengubah isu.',
     takAdaFilter:'Tidak ada catatan pada filter tanggal/dinas itu.',
+    entriesLamaMemuat:'Memuat catatan yang lebih lama…',
+    entriesLamaGagal:'Catatan lama gagal dimuat',
     takAdaIsuFilter:'Tidak ada isu pada filter itu.',
     gagalSimpan:'Gagal menyimpan', gagalHapus:'Gagal menghapus', coba:'coba lagi.',
     /* sunting catatan */
@@ -826,6 +828,8 @@ const KAMUS = {
     hanyaPembuatHapus:'Only the sheet creator (before the official signs) or an admin can delete.',
     hanyaAdminUbah:'Only an administrator or unit admin can edit issues.',
     takAdaFilter:'No entries match that date/shift filter.',
+    entriesLamaMemuat:'Loading older entries…',
+    entriesLamaGagal:'Older entries failed to load',
     takAdaIsuFilter:'No issues match that filter.',
     gagalSimpan:'Failed to save', gagalHapus:'Failed to delete', coba:'please try again.',
     /* edit entry */
@@ -1197,6 +1201,8 @@ const KAMUS = {
     hanyaPembuatHapus:'Solo el creador de la hoja (antes de la firma oficial) o un administrador puede borrar.',
     hanyaAdminUbah:'Solo un administrador o administrador de unidad puede editar incidencias.',
     takAdaFilter:'Ninguna anotación coincide con ese filtro de fecha/turno.',
+    entriesLamaMemuat:'Cargando anotaciones anteriores…',
+    entriesLamaGagal:'No se pudieron cargar las anotaciones anteriores',
     takAdaIsuFilter:'Ninguna incidencia coincide con ese filtro.',
     gagalSimpan:'No se pudo guardar', gagalHapus:'No se pudo borrar', coba:'inténtelo de nuevo.',
     /* editar anotación */

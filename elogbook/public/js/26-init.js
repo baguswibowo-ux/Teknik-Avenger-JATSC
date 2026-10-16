@@ -49,7 +49,7 @@ async function init(){
   isiPilihanLokasi();
   if(Number.isFinite(data.batasTautan) && data.batasTautan > 0) batasTautan = data.batasTautan;
   // render tiap bagian terpisah — kalau satu error, yang lain tetap tampil
-  try{ entries = (data.entries||[]).map(mapEntry); renderEntries(); }
+  try{ entries = (data.entries||[]).map(mapEntry); setEntriesTerpotong(!!data.entriesTerpotong); renderEntries(); }
   catch(e){ document.getElementById('entryList').innerHTML = '<div class="empty">Logbook gagal ditampilkan: '+escapeHtml(String(e.message||e))+'</div>'; }
   try{ dcHistory = (data.dcHistory||[]).map(mapDc); renderDcHistory(); }
   catch(e){ document.getElementById('dcHistory').innerHTML = '<div class="empty">Riwayat daily check gagal ditampilkan: '+escapeHtml(String(e.message||e))+'</div>'; }
