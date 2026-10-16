@@ -48,12 +48,14 @@ const PERAN_PIC_UNIT_MODUL = {
     kalau bukan PIC. */
 const modulPicAkun = () => (akun && PERAN_PIC_MODUL[akun.role]) ? PERAN_PIC_MODUL[akun.role][0] : null;
 /** Subtab yang tampil di unit ini, atau null kalau semua subtab tampil.
-    Terisi untuk unit yang bukan milik akun ini: Jadwal Dinas selalu (jadwal
-    sengaja terbuka untuk semua akun, hanya untuk dilihat), ditambah modul PIC
-    kalau akunnya PIC — modul itu yang jadi subtab pertama. Di unitnya sendiri
-    semua orang melihat semuanya. */
+    Terisi untuk unit yang bukan milik akun ini: Jadwal Dinas, ISR, dan NOTAM
+    selalu (sengaja terbuka untuk semua akun, hanya untuk dilihat — tombol
+    tulisnya dijaga bolehSuntingDb, dan server menolak tulisan di unit yang
+    tidak dipegang), ditambah modul PIC kalau akunnya PIC — modul itu yang jadi
+    subtab pertama. Di unitnya sendiri semua orang melihat semuanya. */
+const SUBTAB_UNIT_LAIN = ['dinas', 'isr', 'notam'];
 const subtabTerbatasDi = (kode) => bolehBuka(kode) ? null
-  : [...new Set([modulPicAkun(), 'dinas'].filter(Boolean))];
+  : [...new Set([modulPicAkun(), ...SUBTAB_UNIT_LAIN].filter(Boolean))];
 /** Modul ini modul semua-unit milik PIC yang sedang masuk? */
 const modulPicSemuaUnit = (modul) => !!akun && (PERAN_PIC_MODUL[akun.role] || []).includes(modul);
 /** Cetak PUM per Grup (semua unit dijadikan satu) hanya dikirim PIC Jadwal

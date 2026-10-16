@@ -88,7 +88,9 @@ function panelIsrHtml(unit){
 
   const kepala = `<div class="atur-data">
     <span class="ket">${daftar.length} ${T('izin terdaftar','licences registered')}${
-      awas ? ` · <b style="color:var(--warn)">${awas} ${T('perlu diperhatikan','need attention')}</b>` : ''}</span>
+      awas ? ` · <b style="color:var(--warn)">${awas} ${T('perlu diperhatikan','need attention')}</b>` : ''}${
+      // Unit lain dibuka untuk dilihat saja (SUBTAB_UNIT_LAIN) — katakan terus terang.
+      !boleh && !bolehBuka(unit) ? ` · ${T('lihat saja, bukan unit Anda','view-only, not your unit')}` : ''}</span>
     <span class="tombol">${boleh
       ? `<button class="btn garis kecil" data-isr-pdf title="${T('Isian terisi sendiri dari PDF ISR SDPPI/DJID',
           'Fields fill themselves from the SDPPI/DJID licence PDF')}">${T('Tambah dari PDF','Add from PDF')}</button>

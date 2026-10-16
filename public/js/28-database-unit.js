@@ -34,13 +34,14 @@ function gambarPilihUnit(){
       'This account has not been assigned to any unit yet. Ask an administrator to assign one under Manage Accounts.')}</div>`;
 
   /* Unit lain menyusul di belakang, lebih kecil dan terpisah: di sana hanya
-     jadwal dinasnya yang bisa dibuka, untuk dilihat saja. */
+     Jadwal Dinas, ISR, dan NOTAM-nya yang bisa dibuka, untuk dilihat saja
+     (SUBTAB_UNIT_LAIN di 20-hak-modul.js). */
   const lain = UNIT.filter(u=>!bolehMasukUnit(u.kode));
   el('pilihUnit').innerHTML = tanpaUnit + boleh.map(u=>
     `<button class="btn ${u.kode===unitDibuka?'':'garis'}" data-unit="${u.kode}">${esc(u.nama)}</button>`
-  ).join('') + (lain.length ? `<span class="pilih-unit-lain">${T('Jadwal dinas unit lain:','Other units’ rosters:')}</span>`
+  ).join('') + (lain.length ? `<span class="pilih-unit-lain">${T('Unit lain (lihat saja):','Other units (view-only):')}</span>`
     + lain.map(u=>`<button class="btn kecil ${u.kode===unitDibuka?'':'garis'}" data-unit="${u.kode}" title="${
-        T('Hanya jadwal dinasnya, untuk dilihat','Duty roster only, view-only')}">${esc(u.nama)}</button>`).join('') : '');
+        T('Jadwal Dinas, ISR, dan NOTAM-nya, untuk dilihat','Duty roster, ISR, and NOTAM, view-only')}">${esc(u.nama)}</button>`).join('') : '');
   el('pilihUnit').querySelectorAll('button[data-unit]').forEach(b=>{
     b.addEventListener('click', ()=>bukaUnit(b.dataset.unit));
   });

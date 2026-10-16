@@ -94,7 +94,7 @@ const bolehMasukUnit = (kode) => bolehBuka(kode)
   || (typeof modulPicAkun === 'function' && !!modulPicAkun());
 const unitBoleh = () => UNIT.filter(u=>bolehMasukUnit(u.kode));
 /** Boleh MEMBUKA layar unit ini sama sekali. Semua akun yang masuk boleh: di
-    unit yang bukan miliknya hanya subtab Jadwal Dinas (dan modul PIC) yang
+    unit yang bukan miliknya hanya subtab Jadwal Dinas, ISR, NOTAM (dan modul PIC) yang
     tampil, untuk dilihat saja. */
 const bolehLihatUnit = (kode) => !!akun && UNIT.some(u=>u.kode === kode);
 

@@ -166,9 +166,10 @@ function gambarNotam(){
   }
 
   el('tblNotam').innerHTML = kepala + `<tbody>${tampil.map(r=>{
-    // Baris bisa diklik hanya kalau unitnya memang terbuka penuh untuk akun
-    // ini — subtab NOTAM tidak tampil di unit yang cuma dibuka lewat peran PIC.
-    const buka = bolehBuka(r.unit);
+    // Baris bisa diklik oleh siapa pun yang sudah masuk: subtab NOTAM ikut
+    // tampil (baca saja) di unit yang bukan miliknya — SUBTAB_UNIT_LAIN di
+    // 20-hak-modul.js.
+    const buka = bolehLihatUnit(r.unit);
     const rinci = notamStatusRinci(r, r.status);
     return `<tr ${buka ? `data-notam-unit="${esc(r.unit)}" style="cursor:pointer" title="${
         T('Buka NOTAM unit ini','Open this unit\'s NOTAM')}"` : ''}>
@@ -201,7 +202,9 @@ function panelNotamHtml(unit){
 
   const kepala = `<div class="atur-data">
     <span class="ket">${daftar.length} ${T('NOTAM tercatat','NOTAMs recorded')}${
-      berlaku ? ` · <b style="color:var(--fail)">${berlaku} ${T('sedang berlaku','in force')}</b>` : ''}</span>
+      berlaku ? ` · <b style="color:var(--fail)">${berlaku} ${T('sedang berlaku','in force')}</b>` : ''}${
+      // Unit lain dibuka untuk dilihat saja (SUBTAB_UNIT_LAIN) — katakan terus terang.
+      !boleh && !bolehBuka(unit) ? ` · ${T('lihat saja, bukan unit Anda','view-only, not your unit')}` : ''}</span>
     <span class="tombol">${boleh
       ? `<button class="btn kecil" data-notam-tambah>${T('Tambah NOTAM','Add NOTAM')}</button>` : ''}</span>
   </div>`;
@@ -214,12 +217,16 @@ function panelNotamHtml(unit){
   }
 
   const baris = daftar.map(r=>{
-    const nL = notamLampiran(r.id).length;
+    // Lampiran jadi tautan untuk SEMUA yang membuka tabel ini, seperti ISR —
+    // yang cuma melihat (unit lain) tidak punya tombol Ubah untuk membukanya.
+    const lampiran = notamLampiran(r.id);
     const rinci = notamStatusRinci(r, r.status);
     return `<tr>
-      <td><span class="mono">${esc(r.nomor)}</span>${nL
-        ? ` <span class="mono" style="color:var(--muted);font-size:11px" title="${
-            T('berkas lampiran','attached files')}">📎${nL}</span>` : ''}</td>
+      <td><span class="mono">${esc(r.nomor)}</span>${lampiran.length
+        ? `<div style="display:flex;flex-direction:column;gap:2px;margin-top:3px">${lampiran.map(b=>
+            `<a href="${esc(b.url || `/dokumen/${unit}/${b.id}`)}" target="_blank" rel="noopener" title="${esc(b.nama)}"
+              style="font-size:11.5px;color:var(--accent);text-decoration:none;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📎 ${
+              esc(b.nama)}</a>`).join('')}</div>` : ''}</td>
       <td>${esc(notamNamaAlat(unit, r) || '—')}</td>
       <td><span class="mono" style="font-size:11px;white-space:nowrap">${notamJamTeks(r.mulai)}</span></td>
       <td><span class="mono" style="font-size:11px;white-space:nowrap">${esc(notamSelesaiTeks(r))}</span></td>
