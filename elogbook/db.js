@@ -2060,6 +2060,25 @@ export function listDailyChecks(unit = 'radtel', limit = 200) {
                            FROM dailychecks WHERE unit = ?
                            ORDER BY tanggal_urut DESC, dibuat_pada DESC LIMIT ?`)
     .all(unit, limit);
+  return dcKeTampilan(rows);
+}
+
+/** Daily check satu unit dalam rentang tanggal_urut (dua ujung ikut; kosong =
+    tak berbatas) — pasangan listEntriesRentang untuk riwayat yang lebih lama
+    dari batas pemuatan layar. */
+export function listDailyChecksRentang(unit, dari = '', sampai = '', limit = 5000) {
+  const rows = db.prepare(`SELECT id, tanggal, tanggal_urut, dinas, suhu, remark, teknisi_nama, teknisi_ttd,
+                                  manager_nama, manager_ttd, fails_json, warns_json, teknisi_nama_list,
+                                  dibuat_oleh, dibuat_pada, ttd_oleh, ttd_pada, ttd_untuk, state_json
+                           FROM dailychecks WHERE unit = ?
+                             AND (? = '' OR tanggal_urut >= ?)
+                             AND (? = '' OR tanggal_urut <= ?)
+                           ORDER BY tanggal_urut DESC, dibuat_pada DESC LIMIT ?`)
+    .all(unit, dari, dari, sampai, sampai, limit);
+  return dcKeTampilan(rows);
+}
+
+function dcKeTampilan(rows) {
   const nama = petaNamaPengguna();
   return rows.map((r) => rowToDcRingkas(r, {
     diinputOleh: namaTampil(nama, r.dibuat_oleh),

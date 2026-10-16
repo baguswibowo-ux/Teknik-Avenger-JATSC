@@ -443,9 +443,29 @@ function dalamSeminggu(dateLike){
     daily check biasa (renderDcHistory) dan AMHS (renderDcAmhsHistory) — bukan
     oleh cetak (cetak per-catatan), jadi batas ini murni untuk tampilan layar. */
 let dcTampilSemua = false;
+
+/* Riwayat yang lebih lama dari 200 terbaru diambil saat saringan menjangkau
+   ke sana — lihat buatPemuatLama di 06-keadaan.js. */
+const pemuatDcLama = buatPemuatLama({
+  fungsi: 'getDailyChecksRentang',
+  tanggal: r => String(r.tanggalIso || '').slice(0,10),
+  ambil: () => dcHistory,
+  simpan: arr => { dcHistory = arr; },
+  map: r => mapDc(r),
+  urut: (a, b) => String(b.tanggalIso || '').localeCompare(String(a.tanggalIso || '')) ||
+                  String(b.dibuatPada || '').localeCompare(String(a.dibuatPada || ''))
+});
+
 function dcHistoryTersaring(){
   const from = (document.getElementById('cariDcDari')   || {}).value || '';
   const to   = (document.getElementById('cariDcSampai') || {}).value || '';
+  // Rentang (atau "Tampilkan Semua") menjangkau ke belakang yang termuat:
+  // ambil dulu, lalu gambar ulang daftar yang sedang tampil.
+  const dari = from || ((to || dcTampilSemua) ? '' : null);
+  if(dari !== null && pemuatDcLama.perlu(dari)){
+    pemuatDcLama.pastikan(dari).then(berubah => { if(berubah) renderDcHistory(); })
+      .catch(err => toast(T('entriesLamaGagal') + ' — ' + (err.message || err)));
+  }
   if(from || to){
     return dcHistory.filter(r=>{
       const d = String(r.tanggalIso || '').slice(0,10);

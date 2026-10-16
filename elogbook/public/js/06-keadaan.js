@@ -5,6 +5,48 @@ let entries = [];
 let dcHistory = [];
 let issues = [];
 
+/* Pemuatan layar hanya membawa catatan TERBARU tiap jenis (batas server, 200).
+   Unit yang rajin mencatat melewatinya dalam beberapa minggu — Radtel:
+   logbook Agustus–September dan daily check 7–14 Agustus tampak hilang padahal
+   utuh di database (16 Okt 2026). Pemuat ini mengambil yang lebih lama dari
+   server begitu saringan menjangkau ke belakang, lalu menggabungkannya.
+
+   lengkapSejak: semua catatan bertanggal >= nilai ini sudah termuat; '' =
+   seluruh riwayat sudah ada. */
+function buatPemuatLama({ fungsi, tanggal, ambil, simpan, map, urut }){
+  let lengkapSejak = '';
+  let janji = null;   // pemuatan yang sedang berjalan
+  const perlu = (dari) => !!lengkapSejak && (!dari || dari < lengkapSejak);
+  const pastikan = (dari) => {
+    if(!perlu(dari)) return Promise.resolve(false);
+    if(janji) return janji.then(() => pastikan(dari));
+    const unit = unitAktif;
+    janji = gsRun(fungsi, { unit, dari: dari || '', sampai: lengkapSejak })
+      .then(res => {
+        if(unit !== unitAktif) return false;   // sudah pindah unit
+        const ada = new Set(ambil().map(x => x.id));
+        const baru = (res && res.rows || []).map(map).filter(x => !ada.has(x.id));
+        simpan(ambil().concat(baru).sort(urut));
+        lengkapSejak = dari || '';
+        return true;
+      })
+      .finally(() => { janji = null; });
+    return janji;
+  };
+  return {
+    perlu, pastikan,
+    /** Dipanggil 26-init.js sesudah pemuatan layar. Hari tertua di daftar
+        mungkin baru sebagian; ia ikut diambil ulang (tanpa ganda) nanti. */
+    setTerpotong(terpotong){
+      lengkapSejak = '';
+      janji = null;
+      const arr = ambil();
+      if(!terpotong || !arr.length) return;
+      lengkapSejak = arr.reduce((m, x) => { const d = tanggal(x); return d && d < m ? d : m; }, '9999-12-31');
+    }
+  };
+}
+
 /* Daftar gedung untuk catatan logbook. Diisi server saat memuat data; nilai di
    bawah hanya penyangga supaya form tetap terisi kalau data belum sampai. */
 let lokasiPilihan = ['JATSC', 'New JATSC'];

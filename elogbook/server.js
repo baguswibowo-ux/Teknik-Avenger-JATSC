@@ -61,7 +61,7 @@ try { process.loadEnvFile?.(); } catch { /* tidak ada .env */ }
 const {
   UPLOAD_DIR, LAMPIRAN_MAKS_BYTE, LAMPIRAN_MAKS_JUMLAH,
   listEntries, listEntriesRentang, insertEntry, removeEntry, updateEntry, updateTtdRouting,
-  listDailyChecks, insertDailyCheck, removeDailyCheck, updateDailyCheck, getDailyCheckDetailById,
+  listDailyChecks, listDailyChecksRentang, insertDailyCheck, removeDailyCheck, updateDailyCheck, getDailyCheckDetailById,
   listIssues, insertIssue, updateIssue, removeIssue, getIssue,
   tutupIsu, tambahBuktiTutupIsu,
   tambahLampiranIsu, hapusLampiranIsu,
@@ -966,6 +966,16 @@ const API_TTD = new Set(['tandaTangani']);
  */
 const tanpaJejakInput = (rows) => rows.map(({ DibuatPada, ...sisa }) => sisa);
 
+/** Riwayat satu jenis dalam rentang { unit, dari, sampai } (YYYY-MM-DD; yang
+    bukan tanggal dianggap kosong = tak berbatas). */
+async function riwayatRentang(ambil, opsi, user) {
+  const o = opsi && typeof opsi === 'object' ? opsi : {};
+  const unit = await unitDiminta(user, o.unit);
+  const tgl = (v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? String(v) : '';
+  const rows = await ambil(unit, tgl(o.dari), tgl(o.sampai));
+  return { unit, rows: isAdmin(user) ? rows : tanpaJejakInput(rows) };
+}
+
 /* ============== REKAP & MATRIK PENGALAMAN ==============
  * Satu-satunya tempat rumus rekap ditulis. Kedua lapisan database hanya
  * menyetor baris mentah (rekapMentah), sisanya dihitung di sini.
@@ -1192,17 +1202,12 @@ const API = {
       untuk menyegarkan daftarnya tanpa menarik ulang data satu unit penuh. */
   kotakTtdSaya: async (user) => inboxTtdDenganPh(user),
 
-  /** Catatan logbook yang lebih lama dari yang dibawa getAllData (yang hanya
-      memuat MAX_ROWS terbaru). Dipanggil daftar/cetak Logbook Fasilitas saat
-      saringannya menjangkau ke belakang batas itu. Pagar unit sama dengan
-      getAllData, dan jejak input tetap disembunyikan dari non-admin. */
-  getEntriesRentang: async (opsi, user) => {
-    const o = opsi && typeof opsi === 'object' ? opsi : {};
-    const unit = await unitDiminta(user, o.unit);
-    const tgl = (v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? String(v) : '';
-    const rows = await listEntriesRentang(unit, tgl(o.dari), tgl(o.sampai));
-    return { unit, entries: isAdmin(user) ? rows : tanpaJejakInput(rows) };
-  },
+  /** Catatan logbook / daily check yang lebih lama dari yang dibawa getAllData
+      (yang hanya memuat MAX_ROWS terbaru). Dipanggil daftar, pencarian, dan
+      cetak saat saringannya menjangkau ke belakang batas itu. Pagar unit sama
+      dengan getAllData, dan jejak input tetap disembunyikan dari non-admin. */
+  getEntriesRentang: async (opsi, user) => riwayatRentang(listEntriesRentang, opsi, user),
+  getDailyChecksRentang: async (opsi, user) => riwayatRentang(listDailyChecksRentang, opsi, user),
 
   getAllData: async (unit, user) => {
     // Pemanggil boleh tidak menyertakan unit sama sekali. Argumen terakhir
@@ -1281,9 +1286,11 @@ const API = {
        */
       unitSemua: UNIT.map((x) => ({ kode: x.kode, nama: x.nama, peralatan: x.peralatan })),
       entries: jejak(entries),
-      // Penuh = mungkin ada yang lebih lama; layar mengambilnya lewat getEntriesRentang.
+      // Penuh = mungkin ada yang lebih lama; layar mengambilnya lewat
+      // getEntriesRentang / getDailyChecksRentang.
       entriesTerpotong: entries.length >= MAX_ROWS,
       dcHistory: jejak(dcHistory),
+      dcTerpotong: dcHistory.length >= MAX_ROWS,
       issues: jejak(issues),
       monitoring: jejak(monitoring),
       ltk: jejak(ltk),

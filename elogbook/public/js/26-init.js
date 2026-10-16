@@ -51,7 +51,7 @@ async function init(){
   // render tiap bagian terpisah — kalau satu error, yang lain tetap tampil
   try{ entries = (data.entries||[]).map(mapEntry); setEntriesTerpotong(!!data.entriesTerpotong); renderEntries(); }
   catch(e){ document.getElementById('entryList').innerHTML = '<div class="empty">Logbook gagal ditampilkan: '+escapeHtml(String(e.message||e))+'</div>'; }
-  try{ dcHistory = (data.dcHistory||[]).map(mapDc); renderDcHistory(); }
+  try{ dcHistory = (data.dcHistory||[]).map(mapDc); pemuatDcLama.setTerpotong(!!data.dcTerpotong); renderDcHistory(); }
   catch(e){ document.getElementById('dcHistory').innerHTML = '<div class="empty">Riwayat daily check gagal ditampilkan: '+escapeHtml(String(e.message||e))+'</div>'; }
   try{ issues = (data.issues||[]).map(mapIssue); renderIssues(); }
   catch(e){ document.getElementById('issuesBody').innerHTML = '<tr><td colspan="10">Isu gagal ditampilkan: '+escapeHtml(String(e.message||e))+'</td></tr>'; }

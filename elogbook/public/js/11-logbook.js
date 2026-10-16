@@ -169,56 +169,20 @@ function teknisiListOf(r){
     nama teknisi (termasuk daftar), dan nama penanggung jawab. */
 let logbookTampilSemua = false;
 
-/* Pemuatan layar hanya membawa catatan TERBARU (batas server, 200). Unit yang
-   rajin mencatat melewatinya dalam beberapa minggu — Radtel: Agustus–September
-   tampak hilang padahal utuh di database (16 Okt 2026). Jadi begitu saringan
-   menjangkau ke belakang, catatan yang lebih lama diambil dari server lalu
-   digabung ke `entries`.
-
-   entriesLengkapSejak: semua catatan bertanggal >= nilai ini sudah ada di
-   `entries`. '' berarti seluruh riwayat sudah termuat. */
-let entriesLengkapSejak = '';
-let entriesMuatLama = null;   // janji pemuatan yang sedang berjalan
-
-/** Dipanggil 26-init.js sesudah pemuatan layar. */
-function setEntriesTerpotong(terpotong){
-  entriesLengkapSejak = '';
-  entriesMuatLama = null;
-  if(!terpotong || !entries.length) return;
-  // Hari tertua di daftar mungkin baru sebagian; ia ikut diambil ulang nanti.
-  entriesLengkapSejak = entries.reduce((m, e) => {
-    const d = String(e.tanggal || '').slice(0,10);
-    return d && d < m ? d : m;
-  }, '9999-12-31');
-}
-
-/** Perlu mengambil catatan lama untuk menjangkau tanggal `dari` ('' = semua)? */
-function perluMuatEntries(dari){
-  if(!entriesLengkapSejak) return false;
-  return !dari || dari < entriesLengkapSejak;
-}
-
-/** Ambil catatan dari `dari` ('' = paling awal) sampai batas yang sudah
-    termuat, gabungkan tanpa ganda. Pemanggil yang datang selagi pemuatan
-    berjalan menunggu janji yang sama. */
-function pastikanEntriesSejak(dari){
-  if(!perluMuatEntries(dari)) return Promise.resolve(false);
-  if(entriesMuatLama) return entriesMuatLama.then(() => pastikanEntriesSejak(dari));
-  const unit = unitAktif;
-  entriesMuatLama = gsRun('getEntriesRentang', { unit, dari: dari || '', sampai: entriesLengkapSejak })
-    .then(res => {
-      if(unit !== unitAktif) return false;   // sudah pindah unit
-      const ada = new Set(entries.map(e => e.id));
-      const baru = (res && res.entries || []).map(mapEntry).filter(e => !ada.has(e.id));
-      entries = entries.concat(baru).sort((a, b) =>
-        String(b.tanggal || '').localeCompare(String(a.tanggal || '')) ||
-        String(b.jam || '').localeCompare(String(a.jam || '')));
-      entriesLengkapSejak = dari || '';
-      return true;
-    })
-    .finally(() => { entriesMuatLama = null; });
-  return entriesMuatLama;
-}
+/* Catatan yang lebih lama dari 200 terbaru diambil saat dibutuhkan — lihat
+   buatPemuatLama di 06-keadaan.js. */
+const pemuatEntriesLama = buatPemuatLama({
+  fungsi: 'getEntriesRentang',
+  tanggal: e => String(e.tanggal || '').slice(0,10),
+  ambil: () => entries,
+  simpan: arr => { entries = arr; },
+  map: r => mapEntry(r),
+  urut: (a, b) => String(b.tanggal || '').localeCompare(String(a.tanggal || '')) ||
+                  String(b.jam || '').localeCompare(String(a.jam || ''))
+});
+const setEntriesTerpotong = (t) => pemuatEntriesLama.setTerpotong(t);
+const perluMuatEntries = (dari) => pemuatEntriesLama.perlu(dari);
+const pastikanEntriesSejak = (dari) => pemuatEntriesLama.pastikan(dari);
 
 /** Tanggal paling awal yang dijangkau saringan daftar saat ini. null = cukup
     yang sudah ada (bawaan seminggu terakhir); '' = seluruh riwayat. */
