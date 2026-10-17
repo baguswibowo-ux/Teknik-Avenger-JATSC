@@ -134,7 +134,8 @@ function nomor(baris, teks){
   for(const b of baris){
     const m = label.exec(b);
     if(m){
-      const v = m[1].trim().split(/\s{2,}/)[0].replace(/\s+(?:tanggal|date|tgl)\b.*$/i,'').replace(/[.\s]+$/,'');
+      const v = m[1].trim().split(/\s{2,}/)[0].replace(/\s+(?:tanggal|date|tgl)\b.*$/i,'').replace(/[.\s]+$/,'')
+        .replace(/\s*([\/\-])\s*/g, '$1');      // OCR: "062 /RDT/XII/IAEETA- 2026"
       // Depannya kosong ("/RDT/..."): sambung dengan angka urut yang ditempel.
       if(v.startsWith('/')){ const a = angkaUrut(baris); if(a) return a + v.replace(/\s+/g,''); }
       const w = v.replace(/^\/+/, '');
@@ -261,6 +262,21 @@ function muatPdfjs(){
   return pdfjsJanji;
 }
 
+/** Ubah kanvas (di tempat) jadi hitam-putih "tinta": piksel berwarna jenuh atau
+    gelap -> hitam, sisanya -> putih. Lihat bacaPdfPelatihan. */
+function jadiTinta(kanvas, ambangWarna = 60, ambangGelap = 140){
+  const c = kanvas.getContext('2d');
+  const img = c.getImageData(0, 0, kanvas.width, kanvas.height), d = img.data;
+  for(let i = 0; i < d.length; i += 4){
+    const r = d[i], g = d[i+1], b = d[i+2];
+    const jenuh = Math.max(r, g, b) - Math.min(r, g, b);
+    const terang = 0.299 * r + 0.587 * g + 0.114 * b;
+    d[i] = d[i+1] = d[i+2] = (jenuh > ambangWarna || terang < ambangGelap) ? 0 : 255;
+  }
+  c.putImageData(img, 0, 0);
+  return kanvas;
+}
+
 /** Potongan teks satu halaman -> baris, atas ke bawah. */
 function keBaris(items){
   const pot = items.filter(it=>'str' in it && it.str.trim())
@@ -301,13 +317,22 @@ export async function bacaPdfPelatihan(berkas, opsi = {}){
     if(jarang){
       sumber = 'kosong';     // sampai OCR berhasil, isinya dianggap tidak terbaca
       if(typeof opsi.ocr === 'function'){
-        const vp = hal.getViewport({ scale: 2.2 });
+        /* Skala 3: pada 2,2 huruf kecil berspasi lebar masih salah baca ("XII" jadi "XIN").
+           OCR dijalankan dua kali lalu digabung:
+             1. gambar apa adanya — aman untuk tulisan putih di latar gelap;
+             2. gambar "tinta" hitam-putih — tiap piksel berwarna atau gelap jadi
+                hitam, sisanya putih. Huruf oranye tipis di latar terang (nomor
+                sertifikat IAEETA) luput sama sekali di gambar asli tetapi terbaca
+                utuh di sini. */
+        const vp = hal.getViewport({ scale: 3 });
         const kanvas = document.createElement('canvas');
         kanvas.width = Math.ceil(vp.width); kanvas.height = Math.ceil(vp.height);
         const ctx = kanvas.getContext('2d');
         ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, kanvas.width, kanvas.height);
         await hal.render({ canvasContext: ctx, viewport: vp }).promise;
-        const hasilOcr = String(await opsi.ocr(kanvas) || '');
+        const ocrAsli = String(await opsi.ocr(kanvas) || '');
+        const ocrTinta = String(await opsi.ocr(jadiTinta(kanvas)) || '');
+        const hasilOcr = [ocrAsli, ocrTinta].filter(t => t.trim()).join('\n');
         if(hasilOcr.replace(/\s/g,'').length >= 20){
           teks = (teks ? teks + '\n' : '') + hasilOcr;
           sumber = baris.length ? 'teks+ocr' : 'ocr';

@@ -139,6 +139,27 @@ For Participating in Webinar X hosted by IAEETA on October 15 2026`,
     harap: { nomor:'062/RDT/XII/IAEETA-2026' }, cocokNama:true
   },
   {
+    nama: 'OCR ASLI (gambar tinta, skala 3) IAEETA: "NO : 062 /RDT/XII/IAEETA-2026"',
+    orang: 'Bagus Wibowo',
+    teks: `062
+Bagus Wibowo
+CERTIFICATE
+This Certificate is Proudly Presented to :
+For Participating in Webinar Festival IAAETA Techno Fest 2026
+“Remote Digital Tower” hosted by IAEETA DPC Cengkareng 2 on
+October 15 2026.
+SPEAKER                               SPEAKER
+Nea
+CERTIFICATE
+NO : 062 /RDT/XII/IAEETA-2026
+For Participating in Webinar Festival IAAETA Techno Fest 2026
+“Remote Digital Tower” hosted by IAEETA DPC Cengkareng 2 on
+October 15 2026.`,
+    harap: { nomor:'062/RDT/XII/IAEETA-2026', nama:'Webinar Festival IAAETA Techno Fest 2026 Remote Digital Tower',
+             tempat:'IAEETA DPC Cengkareng 2', mulai:'2026-10-15', selesai:'2026-10-15',
+             tglSert:'2026-10-15', kategori:'SEMINAR' }, cocokNama:true
+  },
+  {
     nama: 'Teks kosong (PDF pindaian tanpa OCR)',
     orang: 'Bagus',
     teks: '',
