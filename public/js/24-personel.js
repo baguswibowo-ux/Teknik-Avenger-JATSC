@@ -28,6 +28,9 @@ const ECHAIN_KATEGORI = ['MANDATORY','NON MANDATORY','MANAGERIAL','KURSUS','SEMI
   'WORKSHOP','BASIC','ADVANCED','CONTINUATION','DEVELOPMENTAL'];
 /* Gerbang VPN — bookmarklet yang meneruskan ke halaman form setelah login. */
 const ECHAIN_VPN = 'https://vpn.airnavindonesia.co.id:20443/';
+/* eChain langsung, untuk yang sedang di jaringan kantor (tanpa VPN). Bookmarklet
+   menghitung alamat eChain dari halaman yang terbuka, jadi jalan di keduanya. */
+const ECHAIN_LANGSUNG = 'https://e-chain.airnavindonesia.co.id/';
 const sertJenisNama = (j) => BHS === 'en' ? (SERT_JENIS_EN[j] || j) : j;
 
 const PSN = {
@@ -845,6 +848,7 @@ async function pltEchainKirimBatch(){
 
   // Persetujuan kirim diputuskan DI SINI, di Avengers. Bot di eChain tidak
   // bertanya lagi untuk muatan yang sudah disetujui (selama masih segar).
+  // Jawabannya 'vpn' | 'kantor' (jalan masuk ke eChain) atau false.
   const setuju = await pltTanyaKirim(p, pilih);
   if(!setuju) return;
 
@@ -853,20 +857,26 @@ async function pltEchainKirimBatch(){
   pilih.forEach(t => t.dikirim = true);
   psnGambarKartu();
 
-  /* Halaman login VPN yang ASLI, di TAB biasa. Kata sandi, token, dan captcha
-     diketik langsung ke halaman resmi itu — Avengers tidak pernah melihat atau
+  /* Halaman login yang ASLI — gerbang VPN, atau eChain langsung bila sedang di
+     jaringan kantor — di TAB biasa. Kata sandi, token, dan captcha diketik
+     langsung ke halaman resmi itu; Avengers tidak pernah melihat atau
      menyimpannya. Bukan jendela popup: jendela popup Chrome tidak punya bilah
      bookmark, padahal langkah terakhirnya klik bookmark "Isi eChain". */
-  const jendela = window.open(ECHAIN_VPN, '_blank');
-  pesan(jendela
-    ? T('Disetujui dan tersalin. Login VPN di tab yang terbuka, buka e-Chain, login, lalu klik bookmark "Isi eChain" di bilah bookmark sekali. Tekan Simpan di sini agar tanda ✓ tetap.',
-        'Approved and copied. Log in to VPN in the tab that opened, open e-Chain, log in, then click the "Isi eChain" bookmark once.')
-    : T('Disetujui dan tersalin, tapi jendela login diblokir browser. Izinkan pop-up untuk Avengers, atau buka VPN sendiri.',
-        'Approved and copied, but the login window was blocked. Allow pop-ups for Avengers or open the VPN yourself.'));
+  const kantor = setuju === 'kantor';
+  const jendela = window.open(kantor ? ECHAIN_LANGSUNG : ECHAIN_VPN, '_blank');
+  pesan(!jendela
+    ? T('Disetujui dan tersalin, tapi tab login diblokir browser. Izinkan pop-up untuk Avengers, atau buka eChain sendiri.',
+        'Approved and copied, but the login tab was blocked. Allow pop-ups for Avengers or open eChain yourself.')
+    : kantor
+      ? T('Disetujui dan tersalin. Login eChain di tab yang terbuka, lalu klik bookmark "Isi eChain" sekali. Tekan Simpan di sini agar tanda ✓ tetap.',
+          'Approved and copied. Log in to eChain in the tab that opened, then click the "Isi eChain" bookmark once.')
+      : T('Disetujui dan tersalin. Login VPN di tab yang terbuka, buka e-Chain, login, lalu klik bookmark "Isi eChain" sekali. Tekan Simpan di sini agar tanda ✓ tetap.',
+          'Approved and copied. Log in to VPN in the tab that opened, open e-Chain, log in, then click the "Isi eChain" bookmark once.'));
 }
 
-/* Popup persetujuan kirim, bergaya kartu Avengers. Menjawab true (Sesuai)
-   atau false (Tidak / tutup). Ditumpuk di atas kartu personel. */
+/* Popup persetujuan kirim, bergaya kartu Avengers. Menjawab 'vpn' atau
+   'kantor' (Sesuai, dengan jalan masuk ke eChain) atau false (Tidak / tutup).
+   Ditumpuk di atas kartu personel. */
 function pltTanyaKirim(p, pilih){
   return new Promise(selesai => {
     const lapis = document.createElement('div');
@@ -888,18 +898,21 @@ function pltTanyaKirim(p, pilih){
       </div>
       <div class="kaki">
         <button class="btn garis" data-jawab="0">${T('Tidak','No')}</button>
-        <button class="btn" data-jawab="1">${T('Sesuai, kirim','Correct, send')}</button>
+        <button class="btn garis" data-jawab="kantor" title="${T('Sedang di jaringan kantor: buka eChain langsung, tanpa VPN',
+          'On the office network: open eChain directly, without VPN')}">${T('Sesuai — jaringan kantor','Correct — office network')}</button>
+        <button class="btn" data-jawab="vpn" title="${T('Dari luar kantor: buka login VPN dulu','Outside the office: open the VPN login first')}">${
+          T('Sesuai — lewat VPN','Correct — via VPN')}</button>
       </div></div>`;
-    const tutup = (ya) => { lapis.remove(); document.removeEventListener('keydown', esc_); selesai(ya); };
+    const tutup = (jawab) => { lapis.remove(); document.removeEventListener('keydown', esc_); selesai(jawab); };
     const esc_ = (e) => { if(e.key === 'Escape') tutup(false); };
     lapis.addEventListener('click', e => {
       if(e.target === lapis) return tutup(false);
       const b = e.target.closest('[data-jawab]');
-      if(b) tutup(b.dataset.jawab === '1');
+      if(b) tutup(b.dataset.jawab === '0' ? false : b.dataset.jawab);
     });
     document.addEventListener('keydown', esc_);
     document.body.appendChild(lapis);
-    lapis.querySelector('[data-jawab="1"]').focus();
+    lapis.querySelector('[data-jawab="vpn"]').focus();
   });
 }
 
