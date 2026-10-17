@@ -2412,8 +2412,23 @@ function rapikanPersonel(p, adaId) {
       nomor:  String(s?.nomor  || '').trim().slice(0, 60),
       rating: String(s?.rating || '').trim().slice(0, 80),
       terbit:  tglSah(s?.terbit),
-      berlaku: tglSah(s?.berlaku)
-    })).filter((s) => s.nama || s.nomor || s.rating)
+      berlaku: tglSah(s?.berlaku),
+      /* Kolom tambahan untuk jembatan eChain. Semuanya opsional: baris
+         lisensi/rating biasa tidak memakainya dan tetap tersimpan apa adanya.
+         Pemetaan ke eChain:
+           Pelatihan — kategori→jenis, mulai→tgl_masuk, selesai→tgl_lulus,
+                       nama→training, nomor→no_sert, terbit→tgl_sert, tempat→tempat
+           Performance/Medical — terbit→tgl pelaksanaan, mulai→tgl berlaku,
+                       berlaku→tgl berakhir, pemeriksa/hasil/tingkat/notes seperti namanya */
+      kategori:  String(s?.kategori  || '').trim().slice(0, 40),
+      mulai:     tglSah(s?.mulai),
+      selesai:   tglSah(s?.selesai),
+      tempat:    String(s?.tempat    || '').trim().slice(0, 160),
+      pemeriksa: String(s?.pemeriksa || '').trim().slice(0, 120),
+      hasil:     String(s?.hasil     || '').trim().slice(0, 120),
+      tingkat:   String(s?.tingkat   || '').trim().slice(0, 40),
+      notes:     String(s?.notes     || '').trim().slice(0, 200)
+    })).filter((s) => s.nama || s.nomor || s.rating || s.pemeriksa || s.hasil || s.mulai || s.tempat)
   };
 }
 

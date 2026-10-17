@@ -18,9 +18,16 @@
    ======================================================================= */
 
 const SERT_AWAS = 60;                 // hari sebelum habis, saat peringatannya menyala
-const SERT_JENIS = ['Lisensi','Rating','Sertifikat','Medical','Lainnya'];
+const SERT_JENIS = ['Lisensi','Rating','Sertifikat','Pelatihan','Performance Check','Medical','Lainnya'];
 const SERT_JENIS_EN = { 'Lisensi':'Licence','Rating':'Rating','Sertifikat':'Certificate',
-  'Medical':'Medical','Lainnya':'Other' };
+  'Pelatihan':'Training','Performance Check':'Performance Check','Medical':'Medical','Lainnya':'Other' };
+
+/* Kategori pelatihan di eChain (label = nilai yang disimpan; bookmarklet yang
+   mencocokkannya ke pilihan di form eChain). */
+const ECHAIN_KATEGORI = ['MANDATORY','NON MANDATORY','MANAGERIAL','KURSUS','SEMINAR',
+  'WORKSHOP','BASIC','ADVANCED','CONTINUATION','DEVELOPMENTAL'];
+/* Gerbang VPN — bookmarklet yang meneruskan ke halaman form setelah login. */
+const ECHAIN_VPN = 'https://vpn.airnavindonesia.co.id:20443/';
 const sertJenisNama = (j) => BHS === 'en' ? (SERT_JENIS_EN[j] || j) : j;
 
 const PSN = {
@@ -332,8 +339,89 @@ const psnBarisSert = (s, i) => `
     <button class="btn garis kecil" data-sert-buang="${i}"
       title="${T('Hapus baris ini','Delete this row')}">✕</button>
   </div>
+  ${psnSertEkstra(s, i)}
   ${psnBerkasCip(PSN.dibuka, s)}
   </div>`;
+
+/* Kolom tambahan khusus Pelatihan — baru muncul saat jenisnya Pelatihan, jadi
+   baris lisensi/rating biasa tetap seperti semula. Dipakai saat "Siapkan ke
+   eChain". Input memakai data-sk/data-kolom yang sama, jadi otomatis terikat. */
+function psnSertEkstra(s, i){
+  if((s.jenis || '') !== 'Pelatihan') return '';
+  return `
+  <div class="sert-sunting" style="margin-top:6px">
+    <div class="isian" style="margin-bottom:0;min-width:150px">
+      <label>${T('Kategori','Category')}</label>
+      <select data-sk="${i}" data-kolom="kategori">
+        <option value="">${T('— pilih —','— choose —')}</option>
+        ${ECHAIN_KATEGORI.map(k=>`<option value="${esc(k)}"${k===(s.kategori||'')?' selected':''}>${esc(k)}</option>`).join('')}
+      </select></div>
+    <div class="isian" style="margin-bottom:0;min-width:140px">
+      <label>${T('Tgl. mulai','Start date')}</label>
+      <input type="date" data-sk="${i}" data-kolom="mulai" value="${esc(s.mulai || '')}"></div>
+    <div class="isian" style="margin-bottom:0;min-width:140px">
+      <label>${T('Tgl. selesai','End date')}</label>
+      <input type="date" data-sk="${i}" data-kolom="selesai" value="${esc(s.selesai || '')}"></div>
+    <div class="isian" style="margin-bottom:0;flex:2;min-width:180px">
+      <label>${T('Tempat / Penyelenggara','Place / Organiser')}</label>
+      <input type="text" data-sk="${i}" data-kolom="tempat" value="${esc(s.tempat || '')}"></div>
+    <div class="isian" style="margin-bottom:0;align-self:flex-end">
+      <button class="btn garis kecil" data-echain="${i}" type="button"
+        title="${T('Salin data ini dan buka eChain untuk diunggah','Copy this row and open eChain to upload')}">
+        ${T('Siapkan ke eChain ⧉','Prepare for eChain ⧉')}</button></div>
+  </div>`;
+}
+
+/* Menyiapkan satu baris Pelatihan untuk diunggah ke eChain: menyalin datanya
+   ke clipboard (dibaca bookmarklet di sisi eChain) lalu membuka gerbang VPN.
+   TIDAK pernah menulis ke eChain — pengisian form & tombol Simpan tetap di
+   tangan orangnya, karena unggahan eChain tak bisa dihapus. */
+async function psnEchainKirim(s){
+  if(!s) return;
+  const p = PSN.dibuka;
+  const nik = (p.username || '').trim();
+  if(!nik){
+    pesan(T('Kaitkan dulu baris ini ke akun E-Logbook (NIK) sebelum kirim ke eChain.',
+            'Link this person to an E-Logbook account (NIK) first.'));
+    return;
+  }
+  const kurang = [];
+  if(!s.kategori) kurang.push(T('kategori','category'));
+  if(!s.nama)     kurang.push(T('nama pelatihan','training name'));
+  if(!s.mulai)    kurang.push(T('tgl. mulai','start date'));
+  if(!s.selesai)  kurang.push(T('tgl. selesai','end date'));
+  if(kurang.length && !confirm(
+      T('Masih kosong: ','Still empty: ') + kurang.join(', ') +
+      T('.\nTetap siapkan ke eChain? Sisanya bisa dilengkapi di form eChain.',
+        '.\nPrepare for eChain anyway? The rest can be filled on the eChain form.'))) return;
+
+  const muatan = {
+    v: 1, src: 'avengers-echain', tipe: 'pelatihan',
+    nik, nama: p.nama || '',
+    item: {
+      kategori: s.kategori || '',
+      mulai:    s.mulai    || '',   // tgl_masuk
+      selesai:  s.selesai  || '',   // tgl_lulus
+      training: s.nama     || '',   // nama pelatihan
+      no_sert:  s.nomor    || '',
+      tgl_sert: s.terbit   || '',
+      tempat:   s.tempat   || ''
+    }
+  };
+  const teks = JSON.stringify(muatan);
+  try{
+    await navigator.clipboard.writeText(teks);
+  }catch(e){
+    // Fallback bila clipboard API diblokir: tampung di textarea sementara.
+    const ta = document.createElement('textarea');
+    ta.value = teks; document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); }catch(_){}
+    ta.remove();
+  }
+  pesan(T('Tersalin. Buka eChain, login, lalu klik bookmarklet "Isi Pelatihan".',
+          'Copied. Open eChain, log in, then click the "Fill Training" bookmarklet.'));
+  window.open(ECHAIN_VPN, '_blank', 'noopener');
+}
 
 function psnBuka(asal, unitBawaan){
   // Salinan dalam: Batal harus benar-benar mengembalikan keadaan semula,
@@ -368,7 +456,10 @@ function psnGambarKartu(){
       <span class="ket">${(p.sertifikat || []).length} ${
         T('lisensi / rating / sertifikat','licences / ratings / certificates')}</span>
       <span class="tombol"><button class="btn garis kecil" id="btnTambahSert">${
-        T('Tambah baris','Add a row')}</button></span>
+        T('Tambah baris','Add a row')}</button>
+        <a class="btn garis kecil" href="/alat-echain.html" target="_blank" rel="noopener"
+           style="text-decoration:none" title="${T('Pasang bookmarklet pengisi form Pelatihan eChain',
+           'Install the eChain training-form bookmarklet')}">${T('Bot eChain','eChain bot')}</a></span>
     </div>
     ${(p.sertifikat || []).length
       ? (p.sertifikat).map(psnBarisSert).join('')
@@ -389,6 +480,8 @@ function psnGambarKartu(){
     if(!s) return;
     i.addEventListener(i.tagName === 'SELECT' ? 'change' : 'input', ()=>{
       s[i.dataset.kolom] = i.value;
+      // Ganti jenis menyalakan/mematikan kolom tambahan Pelatihan: gambar ulang.
+      if(i.dataset.kolom === 'jenis') psnGambarKartu();
     });
   });
   el('badanPersonel').querySelectorAll('[data-sert-buang]').forEach(b=>{
@@ -396,6 +489,9 @@ function psnGambarKartu(){
       PSN.dibuka.sertifikat.splice(Number(b.dataset.sertBuang), 1);
       psnGambarKartu();
     });
+  });
+  el('badanPersonel').querySelectorAll('[data-echain]').forEach(b=>{
+    b.addEventListener('click', ()=>psnEchainKirim(PSN.dibuka.sertifikat[Number(b.dataset.echain)]));
   });
   el('btnTambahSert').addEventListener('click', ()=>{
     /* id dibuat di sini, bukan menunggu server: begitu barisnya ada di layar

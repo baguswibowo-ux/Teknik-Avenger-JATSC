@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bot eChain — Isi Pelatihan</title>
+<style>
+  :root{ --bg:#f5f6f8; --kartu:#fff; --garis:#e2e5ea; --teks:#1d2430; --redup:#6b7280;
+         --biru:#1d5fd0; --birumuda:#eaf1fe; }
+  @media (prefers-color-scheme:dark){ :root:not([data-theme=light]){
+    --bg:#0f141b; --kartu:#171d26; --garis:#2a323d; --teks:#e8ebf0; --redup:#9aa3af;
+    --biru:#5b8cf0; --birumuda:#17233b; } }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg); color:var(--teks); font:15px/1.6 system-ui,Segoe UI,Roboto,sans-serif; }
+  .bungkus{ max-width:720px; margin:0 auto; padding:28px 16px 60px; }
+  h1{ font-size:21px; margin:0 0 4px; }
+  .sub{ color:var(--redup); margin:0 0 22px; }
+  .kartu{ background:var(--kartu); border:1px solid var(--garis); border-radius:12px; padding:18px 20px; margin:14px 0; }
+  ol{ padding-left:20px; margin:8px 0; } li{ margin:7px 0; }
+  .tombol{ display:inline-block; background:var(--biru); color:#fff; text-decoration:none;
+           padding:11px 18px; border-radius:9px; font-weight:600; cursor:grab; }
+  .tombol:active{ cursor:grabbing; }
+  .catatan{ background:var(--birumuda); border-radius:9px; padding:12px 14px; font-size:13.5px; color:var(--redup); }
+  code{ background:var(--garis); padding:1px 6px; border-radius:5px; font-size:13px; }
+  .kecil{ font-size:13px; color:var(--redup); }
+  button.salin{ border:1px solid var(--garis); background:var(--kartu); color:var(--teks);
+                padding:8px 14px; border-radius:8px; cursor:pointer; font-size:13.5px; }
+</style>
+</head>
+<body>
+<div class="bungkus">
+  <h1>Bot eChain — Isi Pelatihan</h1>
+  <p class="sub">Mengisi form <b>Pelatihan</b> di eChain dari data yang kamu siapkan di Avengers.
+     Bot tidak pernah menekan Simpan — kamu yang pilih PDF dan Simpan sendiri.</p>
+
+  <div class="kartu">
+    <b>Pasang sekali saja</b>
+    <ol>
+      <li>Munculkan bilah bookmark browser: <code>Ctrl</code> + <code>Shift</code> + <code>B</code>.</li>
+      <li>Seret tombol biru ini ke bilah bookmark:
+          &nbsp; <a class="tombol" id="bm" href="#">Isi Pelatihan eChain</a></li>
+      <li>Atau: <button class="salin" id="btnSalin">Salin kode bookmarklet</button>
+          lalu buat bookmark baru dan tempel sebagai alamatnya.</li>
+    </ol>
+  </div>
+
+  <div class="kartu">
+    <b>Cara pakai</b>
+    <ol>
+      <li>Di Avengers (Personel), isi baris <b>Pelatihan</b> lalu tekan
+          <b>“Siapkan ke eChain ⧉”</b>. Datanya tersalin dan gerbang VPN terbuka.</li>
+      <li>Login VPN lalu eChain seperti biasa.</li>
+      <li>Klik bookmark <b>Isi Pelatihan eChain</b>. Kalau belum di halaman form, dia akan
+          meloncat ke sana dulu — klik sekali lagi untuk mengisi.</li>
+      <li>Periksa isiannya, <b>pilih file PDF</b>, lalu tekan <b>Simpan</b> sendiri.</li>
+    </ol>
+    <p class="catatan">Kalau nomor sertifikatnya sudah pernah diunggah, bot akan memberi peringatan
+      lebih dulu — unggahan di eChain tidak bisa dihapus, jadi hati-hati dengan duplikat.</p>
+  </div>
+
+  <p class="kecil">Data berpindah lewat clipboard karena eChain di balik VPN tidak bisa dihubungi
+    langsung oleh server Avengers.</p>
+</div>
+
+<script>
+/* ============================================================
+   Logika bookmarklet. Ditulis utuh di sini (readable) lalu
+   dirangkai jadi tautan javascript: supaya mudah dirawat dan
+   TIDAK memuat apa pun dari luar saat dijalankan di eChain
+   (eChain di balik VPN memblokir panggilan ke server Avengers).
+   ============================================================ */
+function ECHAIN_BOT(){
+  var KEY = 'avxEchainPelatihan';
+  // id(name) -> elemen, di dalam form unggah (multipart)
+  function form(){
+    var fs = document.querySelectorAll('form');
+    for (var i=0;i<fs.length;i++){ if ((fs[i].getAttribute('enctype')||'').indexOf('multipart')>=0
+          && fs[i].querySelector('[name=training],[name=no_sert]')) return fs[i]; }
+    return null;
+  }
+  function iso2id(d){ // yyyy-mm-dd -> dd.mm.yyyy
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d||''); return m ? (m[3]+'.'+m[2]+'.'+m[1]) : (d||'');
+  }
+  function setNilai(f, nama, nilai){
+    var el = f.querySelector('[name='+nama+']'); if(!el || nilai==null) return;
+    if (el.tagName==='SELECT'){
+      var t=String(nilai).trim().toUpperCase(), ok=false;
+      for (var i=0;i<el.options.length;i++){
+        if (el.options[i].text.trim().toUpperCase()===t){ el.selectedIndex=i; ok=true; break; }
+      }
+      if(!ok) return;
+    } else { el.value = nilai; }
+    el.dispatchEvent(new Event('change',{bubbles:true}));
+    el.dispatchEvent(new Event('input',{bubbles:true}));
+  }
+  function basis(){ // prefix proxy VPN + host eChain, dengan garis miring penutup
+    var h = location.href, p = h.split('/e-chain.airnavindonesia.co.id/')[0];
+    return p + '/e-chain.airnavindonesia.co.id/';
+  }
+  function cekDobel(b, nik, no){
+    if(!no) return Promise.resolve(false);
+    return fetch(b+'ess/ess/pelatihan?idp='+encodeURIComponent(nik), {credentials:'include'})
+      .then(function(r){return r.text();})
+      .then(function(t){ return t.indexOf(no) >= 0; })
+      .catch(function(){ return false; });
+  }
+  function isi(data){
+    var f = form();
+    if(!f){ alert('Belum di halaman form Tambah Pelatihan. Bot akan membukanya — klik bookmark sekali lagi di sana.');
+      try{ sessionStorage.setItem(KEY, JSON.stringify(data)); }catch(e){}
+      location.href = basis()+'ess/ess/add_pelatihan?idp='+encodeURIComponent(data.nik); return; }
+    var it = data.item || {};
+    setNilai(f,'jenis',    it.kategori);
+    setNilai(f,'tgl_masuk',iso2id(it.mulai));
+    setNilai(f,'tgl_lulus',iso2id(it.selesai));
+    setNilai(f,'training', it.training);
+    setNilai(f,'no_sert',  it.no_sert);
+    setNilai(f,'tgl_sert', iso2id(it.tgl_sert));
+    setNilai(f,'tempat',   it.tempat);
+    cekDobel(basis(), data.nik, it.no_sert).then(function(ada){
+      var pesan = ada
+        ? '⚠ Nomor sertifikat "'+it.no_sert+'" sepertinya SUDAH ada di eChain. Periksa dulu sebelum Simpan.'
+        : 'Form terisi. Pilih file PDF lalu tekan Simpan sendiri.';
+      try{ sessionStorage.removeItem(KEY); }catch(e){}
+      alert(pesan);
+    });
+  }
+  function jalan(teks){
+    var data=null;
+    try{ data = JSON.parse(teks); }catch(e){}
+    if(!data){ try{ data = JSON.parse(sessionStorage.getItem(KEY)||'null'); }catch(e){} }
+    if(!data || data.src!=='avengers-echain' || data.tipe!=='pelatihan'){
+      alert('Clipboard belum berisi data Pelatihan dari Avengers. Tekan "Siapkan ke eChain" dulu di Avengers.');
+      return;
+    }
+    isi(data);
+  }
+  if (navigator.clipboard && navigator.clipboard.readText){
+    navigator.clipboard.readText().then(jalan).catch(function(){ jalan(''); });
+  } else { jalan(''); }
+}
+
+(function(){
+  var kode = '(' + ECHAIN_BOT.toString() + ')();void 0';
+  var href = 'javascript:' + kode;
+  document.getElementById('bm').setAttribute('href', href);
+  document.getElementById('btnSalin').addEventListener('click', function(){
+    navigator.clipboard.writeText(href).then(function(){ this.textContent='Tersalin ✓'; }.bind(this))
+      .catch(function(){ alert('Gagal menyalin, seret tombol birunya saja.'); });
+  });
+})();
+</script>
+</body>
+</html>
