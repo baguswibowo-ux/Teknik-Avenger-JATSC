@@ -118,6 +118,27 @@ IAEETA`,
              tglSert:'2026-10-15', kategori:'SEMINAR' }, cocokNama:true
   },
   {
+    nama: 'OCR huruf renggang tanpa label "NO" + angka urut dari teks asli',
+    orang: 'Bagus Wibowo',
+    teks: `062
+Bagus Wibowo
+CERTIFICATE
+/ R D T / X I I / I A E E T A - 2 0 2 6
+For Participating in Webinar Festival IAAETA Techno Fest 2026
+hosted by IAEETA DPC Cengkareng 2 on October 15 2026.`,
+    harap: { nomor:'062/RDT/XII/IAEETA-2026', tempat:'IAEETA DPC Cengkareng 2',
+             mulai:'2026-10-15', kategori:'SEMINAR' }, cocokNama:true
+  },
+  {
+    nama: 'OCR membaca label sebagai "N0:" tergabung',
+    orang: 'Bagus Wibowo',
+    teks: `062
+Bagus Wibowo
+N0:/RDT/XII/IAEETA-2026
+For Participating in Webinar X hosted by IAEETA on October 15 2026`,
+    harap: { nomor:'062/RDT/XII/IAEETA-2026' }, cocokNama:true
+  },
+  {
     nama: 'Teks kosong (PDF pindaian tanpa OCR)',
     orang: 'Bagus',
     teks: '',

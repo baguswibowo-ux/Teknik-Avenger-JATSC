@@ -129,7 +129,8 @@ function angkaUrut(baris){
 
 /** Nomor sertifikat. */
 function nomor(baris, teks){
-  const label = /\b(?:no(?:mor)?|number|nr|cert(?:ificate)?\s*no)\b\.?\s*(?:sertifikat|certificate|seri)?\s*[:.#]?\s*([\/A-Z0-9][A-Z0-9 .\/\-_]{2,60})/i;
+  // "N0" (nol): salah baca OCR yang lazim untuk "NO".
+  const label = /\b(?:n[o0](?:mor)?|number|nr|cert(?:ificate)?\s*n[o0])\b\.?\s*(?:sertifikat|certificate|seri)?\s*[:.#]?\s*([\/A-Z0-9][A-Z0-9 .\/\-_]{2,60})/i;
   for(const b of baris){
     const m = label.exec(b);
     if(m){
@@ -142,7 +143,23 @@ function nomor(baris, teks){
   }
   // Tanpa label: kode berpemisah garis miring/strip yang memuat angka.
   const m = /\b([A-Z0-9]{1,12}(?:[\/.\-][A-Z0-9]{1,15}){2,8})\b/.exec(teks);
-  if(m && /\d/.test(m[1]) && !semuaTanggal(m[1]).length) return m[1];
+  if(m && /\d/.test(m[1]) && !semuaTanggal(m[1]).length){
+    // Diawali "/" di teks (depannya kosong): sambung angka urut bila ada.
+    if(teks[m.index - 1] === '/'){ const a = angkaUrut(baris); if(a) return a + '/' + m[1]; }
+    return m[1];
+  }
+
+  /* Cetakan berhuruf renggang ("/ R D T / X I I / I A E E T A - 2 0 2 6") dan
+     label yang terbaca OCR sebagai "N0", "NO." atau tergabung: buang spasi
+     per baris, lalu cari kode bergaris miring minimal tiga bagian. */
+  for(const b of baris){
+    const rapat = b.replace(/\s+/g, '').replace(/^(?:N[O0]|NOMOR|NUMBER)[:.]*/i, '');
+    const k = /^(\/?[A-Z0-9]{1,12}(?:\/[A-Z0-9][A-Z0-9\-]{0,20}){2,6})$/i.exec(rapat);
+    if(k && /\d/.test(k[1]) && !semuaTanggal(k[1]).length){
+      if(k[1].startsWith('/')){ const a = angkaUrut(baris); return a ? a + k[1] : k[1].slice(1); }
+      return k[1];
+    }
+  }
   return '';
 }
 
@@ -298,7 +315,9 @@ export async function bacaPdfPelatihan(berkas, opsi = {}){
       }
     }
     const { isi, cocokNama } = uraiSertifikat(teks, opsi.namaOrang);
-    return { isi, cocokNama, sumber };
+    // `teks` ikut dikembalikan supaya bisa diperlihatkan saat ada kolom yang
+    // tidak terbaca — tanpa itu, tidak ada cara tahu apa kata OCR.
+    return { isi, cocokNama, sumber, teks };
   }finally{
     dok.destroy();
   }

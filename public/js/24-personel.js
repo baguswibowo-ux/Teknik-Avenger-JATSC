@@ -651,11 +651,14 @@ async function pltIsiDariPdf(e){
     : null;
 
   const baru = [], tanpaTeks = [], bedaNama = [], gagal = [], kembar = [], lewatOcr = [];
+  const terbaca = [];      // { nama, kurang, teks } untuk PDF yang masih ada kolom kosong
   for(let i = 0; i < daftar.length; i++){
     const f = daftar[i];
     lapor(T(`Membaca ${i + 1}/${daftar.length}: `, `Reading ${i + 1}/${daftar.length}: `) + esc(f.name));
     try{
-      const { isi, cocokNama, sumber } = await modul.bacaPdfPelatihan(f, { namaOrang: p.nama, ocr });
+      const { isi, cocokNama, sumber, teks } = await modul.bacaPdfPelatihan(f, { namaOrang: p.nama, ocr });
+      const kosong = PLT_WAJIB.filter(([kol]) => !String(isi[kol] || '').trim()).map(([, label]) => label);
+      if(kosong.length) terbaca.push({ nama: f.name, kurang: kosong, teks: String(teks || '') });
       const t = {
         id: 't' + Date.now().toString(36) + i,
         kategori: isi.kategori, nama: isi.nama || f.name.replace(/\.pdf$/i, ''),
@@ -701,6 +704,15 @@ async function pltIsiDariPdf(e){
   if(kembar.length) html += `<br><b style="color:var(--warn)">${
     T('No. sertifikat ini sudah ada di daftar','This certificate number is already listed')}: ${potong(kembar)}.</b>`;
   if(gagal.length) html += `<br><span style="color:var(--fail)">${T('Gagal dibaca','Could not read')}: ${potong(gagal)}.</span>`;
+  /* Kolom yang tidak terbaca: perlihatkan teks mentahnya. Orangnya bisa
+     menyalin nilai yang benar dari sini, dan teks ini yang dibutuhkan untuk
+     menyetel pembaca bila format sertifikatnya baru. */
+  terbaca.forEach(x => {
+    html += `<details style="margin-top:6px"><summary style="cursor:pointer">${esc(x.nama)} — ${
+      T('belum terbaca','not read')}: ${esc(x.kurang.join(', '))}. ${T('Lihat teks yang terbaca','Show the text that was read')}</summary>
+      <pre style="white-space:pre-wrap;max-height:220px;overflow:auto;font-size:11px;background:var(--panel-2);padding:8px;border-radius:6px;margin:6px 0 0">${
+        esc(x.teks.slice(0, 3000) || T('(tidak ada teks sama sekali)','(no text at all)'))}</pre></details>`;
+  });
 
   PSN.pltPdfKet = html;
   psnGambarKartu();
