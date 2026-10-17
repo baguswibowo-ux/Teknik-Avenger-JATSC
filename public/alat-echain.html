@@ -49,20 +49,25 @@
   </div>
 
   <div class="kartu">
-    <b>Cara pakai</b>
+    <b>Cara pakai — kirim banyak sekaligus</b>
     <ol>
-      <li>Di Avengers: Personel → buka orangnya → tab <b>Pelatihan</b>. <b>Centang</b> sertifikat yang mau
-          diunggah, tekan <b>“Siapkan terpilih ke eChain”</b>. Antreannya tersalin.</li>
-      <li>Login VPN lalu eChain seperti biasa.</li>
-      <li>Klik bookmark <b>Isi eChain</b> sekali → <b>semua tab langsung terbuka</b>, satu per sertifikat.</li>
-      <li>Di <b>tiap tab</b>: klik bookmark <b>Isi eChain</b> → form tab itu terisi dengan sertifikatnya sendiri.</li>
-      <li>Periksa isian, <b>pilih file PDF</b>, tekan <b>Submit</b> sendiri.</li>
+      <li>Di Avengers: Personel → buka orangnya → tab <b>Pelatihan</b>. Pastikan tiap sertifikat lengkap
+          dan punya lampiran PDF, lalu <b>Simpan</b>.</li>
+      <li>Buka lagi, <b>centang</b> yang mau diunggah, tekan <b>“Kirim ke eChain”</b>. Data beserta PDF-nya tersalin.</li>
+      <li>Login VPN lalu eChain seperti biasa (login tetap kamu sendiri).</li>
+      <li>Klik bookmark <b>Isi eChain</b> sekali. Bot memeriksa yang sudah ada di eChain, lalu menampilkan
+          <b>satu popup</b> berisi daftar yang akan dikirim.</li>
+      <li><b>OK</b> = bot mengunggah semuanya beserta PDF-nya, lalu memeriksa ulang dan melaporkan hasilnya
+          di kotak kanan atas. <b>Batal</b> = tidak ada yang dikirim.</li>
     </ol>
-    <p class="catatan"><b>Pertama kali:</b> Chrome biasanya memblokir banyak tab sekaligus. Klik ikon pop-up
-      yang muncul di ujung kanan address bar → pilih <b>“Selalu izinkan pop-up dan pengalihan”</b> → Selesai.
-      Lalu klik bookmark lagi — tab yang tadi terblokir akan dibuka.</p>
-    <p class="catatan">Kalau nomor sertifikat sepertinya sudah ada di eChain, bot memberi peringatan dulu.
-      Unggahan eChain tidak bisa dihapus, jadi hati-hati dengan duplikat.</p>
+    <p class="catatan">Yang nomor sertifikatnya sudah ada di eChain otomatis dilewati. Data yang sudah terkirim
+      tidak bisa dihapus sendiri di eChain dan menunggu persetujuan admin, jadi periksa daftar di popup sebelum OK.</p>
+  </div>
+
+  <div class="kartu">
+    <b>Isi satu form saja (tanpa mengirim)</b>
+    <p style="margin:6px 0 0">Tekan <b>“Siapkan ke eChain”</b> di satu baris, buka form Tambah Pelatihan, klik
+      bookmark yang sama: kolomnya terisi, lalu pilih PDF dan Submit sendiri.</p>
   </div>
 
   <p class="kecil">Data berpindah lewat clipboard karena eChain di balik VPN tidak bisa dihubungi
@@ -124,7 +129,7 @@ function ECHAIN_BOT(){
   function urai(teks){
     try{
       var d = JSON.parse(teks);
-      if(d && d.src==='avengers-echain' && (d.tipe==='pelatihan' || d.tipe==='pelatihan-batch')) return d;
+      if(d && d.src==='avengers-echain' && /^pelatihan(-batch|-kirim)?$/.test(d.tipe)) return d;
     }catch(e){}
     return null;
   }
@@ -209,6 +214,152 @@ function ECHAIN_BOT(){
     lapor(q, h, null);
   }
 
+  /* ---------- Mode kirim otomatis (muatan 'pelatihan-kirim', berisi PDF) ----------
+     Satu tab saja. Periksa daftar Pelatihan yang sudah ada, satu popup ringkas,
+     lalu tiap item: ambil form Tambah Pelatihan yang segar (token "start"-nya
+     sekali pakai), isi, lampirkan PDF, kirim. Sesudahnya daftar diperiksa lagi
+     untuk memastikan tiap item benar-benar masuk. Batal di popup = tidak ada
+     yang terkirim sama sekali. */
+  function panel(){
+    var p = document.getElementById('avxPanel');
+    if(!p){
+      p = document.createElement('div'); p.id = 'avxPanel';
+      p.style.cssText = 'position:fixed;top:12px;right:12px;z-index:2147483647;width:420px;max-height:80vh;overflow:auto;'
+        + 'background:#10161f;color:#e8ebf0;font:13px/1.5 system-ui,Segoe UI,sans-serif;border:1px solid #2a323d;'
+        + 'border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,.4);padding:12px 14px';
+      p.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+        + '<b>Bot eChain — Kirim Pelatihan</b><button id="avxTutup" style="background:none;border:0;color:#9aa3af;font-size:16px;cursor:pointer">✕</button></div>'
+        + '<div id="avxIsi"></div>';
+      document.body.appendChild(p);
+      document.getElementById('avxTutup').onclick = function(){ p.remove(); };
+    }
+    return p;
+  }
+  function tulis(teks, warna){
+    panel();
+    var d = document.createElement('div');
+    d.textContent = teks; if(warna) d.style.color = warna;
+    document.getElementById('avxIsi').appendChild(d);
+  }
+  function normal(t){ return String(t||'').replace(/\\\//g,'/').replace(/&amp;/g,'&').toLowerCase(); }
+  /* Teks daftar Pelatihan: halaman daftarnya, ditambah data tabelnya (DataTables
+     memuat barisnya lewat AJAX, jadi HTML halamannya sendiri sering kosong). */
+  function daftarEchain(nik){
+    return fetch(basis()+'ess/ess/pelatihan?idp='+encodeURIComponent(nik), {credentials:'include'})
+      .then(function(r){ return r.text(); })
+      .then(function(html){
+        var m = /AjaxSource["']?\s*:\s*['"]([^'"]+)['"]/.exec(html);
+        if(!m) return html;
+        return fetch(m[1], { method:'POST', credentials:'include',
+            headers:{ 'Content-Type':'application/x-www-form-urlencoded' },
+            body:'sEcho=1&iDisplayStart=0&iDisplayLength=2000' })
+          .then(function(r){ return r.text(); })
+          .then(function(j){ return html + '\n' + j; })
+          .catch(function(){ return html; });
+      });
+  }
+  function sudahAda(teks, it){
+    var t = normal(teks), no = String(it.no_sert || '').trim();
+    // Nomor dipakai hanya kalau benar-benar nomor (ada angka, >= 3 huruf).
+    // Isian pengganti seperti "-" atau "0" pasti muncul di halaman mana pun.
+    if(no.length >= 3 && /\d/.test(no)) return t.indexOf(normal(no)) >= 0;
+    return !!it.training && t.indexOf(normal(it.training)) >= 0;
+  }
+  function keBerkas(f){
+    var biner = atob(f.b64), u8 = new Uint8Array(biner.length);
+    for (var i=0;i<biner.length;i++) u8[i] = biner.charCodeAt(i);
+    return new File([u8], f.nama || 'sertifikat.pdf', { type: f.tipe || 'application/pdf' });
+  }
+  function formDari(doc){
+    var fs = doc.querySelectorAll('form');
+    for (var i=0;i<fs.length;i++){
+      if ((fs[i].getAttribute('enctype')||'').indexOf('multipart')>=0 && fs[i].querySelector('[name=training]')) return fs[i];
+    }
+    return null;
+  }
+  function nilaiOpsi(f, nama, teks){
+    var el = f.querySelector('select[name='+nama+']'); if(!el) return '';
+    var t = String(teks||'').trim().toUpperCase();
+    for (var i=0;i<el.options.length;i++) if (el.options[i].text.trim().toUpperCase()===t) return el.options[i].value;
+    return '';
+  }
+  function kirimSatu(nik, it){
+    return fetch(basis()+'ess/ess/add_pelatihan?idp='+encodeURIComponent(nik), {credentials:'include'})
+      .then(function(r){ return r.text(); })
+      .then(function(html){
+        var f = formDari(new DOMParser().parseFromString(html, 'text/html'));
+        if(!f) throw new Error('form Tambah Pelatihan tidak terbuka (sesi eChain habis?)');
+        var jenis = nilaiOpsi(f, 'jenis', it.kategori);
+        if(!jenis) throw new Error('kategori "'+it.kategori+'" tidak ada di pilihan eChain');
+        var fd = new FormData();
+        var el = f.querySelectorAll('input,select,textarea');
+        for (var i=0;i<el.length;i++){
+          var x = el[i];
+          if(!x.name || x.type==='file') continue;
+          if((x.type==='checkbox' || x.type==='radio') && !x.checked) continue;
+          fd.append(x.name, x.value);          // termasuk token "start" dan tombol submit
+        }
+        fd.set('jenis', jenis);
+        fd.set('tgl_masuk', iso2id(it.mulai));
+        fd.set('tgl_lulus', iso2id(it.selesai));
+        fd.set('training',  it.training);
+        fd.set('no_sert',   it.no_sert);
+        fd.set('tgl_sert',  iso2id(it.tgl_sert));
+        fd.set('tempat',    it.tempat);
+        fd.set('file_pelatihan', keBerkas(it.file));
+        var aksi = new URL(f.getAttribute('action') || location.href, location.href).href;
+        return fetch(aksi, { method:'POST', body:fd, credentials:'include' })
+          .then(function(r){ if(!r.ok) throw new Error('eChain menjawab '+r.status); });
+      });
+  }
+  function kirimOtomatis(d){
+    var p = panel(); document.getElementById('avxIsi').innerHTML = '';
+    tulis('Memeriksa daftar Pelatihan '+(d.nama||d.nik)+' di eChain...');
+    daftarEchain(d.nik).then(function(teks){
+      var kirim = [], lewat = [], kurang = [];
+      for (var i=0;i<d.items.length;i++){
+        var it = d.items[i];
+        if(!it.file || !it.file.b64) kurang.push(it);
+        else if(sudahAda(teks, it)) lewat.push(it);
+        else kirim.push(it);
+      }
+      if(lewat.length) tulis('Dilewati, sudah ada di eChain: '+lewat.length, '#f0b429');
+      if(kurang.length) tulis('Tanpa PDF, tidak dikirim: '+kurang.length, '#f0b429');
+      if(!kirim.length){ tulis('Tidak ada yang perlu dikirim.'); return; }
+
+      var daftar = kirim.map(function(it, i){
+        return (i+1)+'. '+(it.training||'-')+'  ['+iso2id(it.mulai)+(it.selesai && it.selesai!==it.mulai ? ' – '+iso2id(it.selesai) : '')+']';
+      }).join('\n');
+      var tanya = 'Kirim '+kirim.length+' sertifikat Pelatihan ke eChain atas nama '+(d.nama||d.nik)+'?\n\n'+daftar
+        + (lewat.length ? '\n\nDilewati karena sudah ada: '+lewat.length : '')
+        + '\n\nSesudah terkirim, data di eChain tidak bisa dihapus sendiri.\nOK = kirim sekarang.   Batal = tidak ada yang dikirim.';
+      if(!confirm(tanya)){ tulis('Dibatalkan. Tidak ada yang dikirim ke eChain.', '#9aa3af'); return; }
+
+      var hasil = [], i = 0;
+      (function lanjut(){
+        if(i >= kirim.length){
+          tulis('Memeriksa ulang daftar eChain...');
+          return daftarEchain(d.nik).then(function(t2){
+            var masuk = 0;
+            hasil.forEach(function(h){
+              if(h.ok && !sudahAda(t2, h.it)){ h.ok = false; h.galat = 'terkirim tapi belum tampil di daftar (mungkin menunggu persetujuan admin)'; }
+              if(h.ok) masuk++;
+            });
+            tulis('Selesai: '+masuk+' dari '+kirim.length+' masuk ke daftar eChain.', masuk===kirim.length ? '#3ecf8e' : '#f0b429');
+            hasil.forEach(function(h){ if(!h.ok) tulis('• '+h.it.training+': '+h.galat, '#f0b429'); });
+            tulis('Data sudah dikirim; persetujuan dokumen mengikuti proses admin eChain.', '#9aa3af');
+          });
+        }
+        var it = kirim[i++];
+        tulis('Mengirim '+i+'/'+kirim.length+': '+it.training+' ...');
+        kirimSatu(d.nik, it)
+          .then(function(){ hasil.push({ it:it, ok:true }); tulis('  ✓ terkirim', '#3ecf8e'); })
+          .catch(function(e){ hasil.push({ it:it, ok:false, galat:e.message }); tulis('  ✗ '+e.message, '#ff6b6b'); })
+          .then(lanjut);
+      })();
+    }).catch(function(e){ tulis('Gagal memeriksa daftar eChain: '+e.message+'. Pastikan sudah login eChain.', '#ff6b6b'); });
+  }
+
   // 1) Tab ber-penanda #avx=N: isi item N dari antrean tersimpan.
   var m = /avx=(\d+)/.exec(location.hash || '');
   var tersimpan = muat();
@@ -216,7 +367,9 @@ function ECHAIN_BOT(){
 
   // 2) Klik tanpa penanda: antrean baru dari clipboard, atau lanjutkan yang lama.
   function dariTeks(teks){
-    var d = urai(teks), baru = d ? jadiAntrean(d) : null;
+    var d = urai(teks);
+    if (d && d.tipe === 'pelatihan-kirim'){ kirimOtomatis(d); return; }
+    var baru = d ? jadiAntrean(d) : null;
     var lama = (tersimpan && tersimpan.items && sisa(tersimpan) > 0) ? tersimpan : null;
     if (baru && lama && !sama(baru, lama)){
       if (confirm('Ada antrean baru di clipboard ('+baru.items.length+' sertifikat). Ganti antrean lama yang masih sisa '+sisa(lama)+'?')){
@@ -228,9 +381,12 @@ function ECHAIN_BOT(){
     if (baru){ simpan(baru); luncur(baru); return; }
     alert('Clipboard belum berisi data Pelatihan dari Avengers. Tekan "Siapkan ke eChain" dulu di Avengers.');
   }
+  // Gagal MEMBACA clipboard berbeda dengan galat di dalam bot: yang kedua
+  // ditampilkan apa adanya, bukan disamarkan jadi "clipboard kosong".
+  function galat(e){ alert('Bot eChain bermasalah: ' + (e && e.message || e)); }
   if (navigator.clipboard && navigator.clipboard.readText){
-    navigator.clipboard.readText().then(dariTeks).catch(function(){ dariTeks(''); });
-  } else { dariTeks(''); }
+    navigator.clipboard.readText().then(dariTeks, function(){ dariTeks(''); }).catch(galat);
+  } else { try{ dariTeks(''); }catch(e){ galat(e); } }
 }
 
 (function(){

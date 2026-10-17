@@ -519,7 +519,7 @@ function psnTabPelatihan(p){
         <a class="btn garis kecil" href="/alat-echain.html" target="_blank" rel="noopener"
            style="text-decoration:none" title="${T('Pasang bookmarklet pengisi form eChain','Install the eChain form bookmarklet')}">${T('Bot eChain','eChain bot')}</a>
         ${PSN.pltPilih.size ? `<button class="btn kecil" id="btnBatchPlt">${
-          T('Siapkan terpilih ke eChain','Prepare picked for eChain')} (${PSN.pltPilih.size})</button>` : ''}
+          T('Kirim ke eChain','Send to eChain')} (${PSN.pltPilih.size})</button>` : ''}
         <button class="btn garis kecil" id="btnTambahPlt">${T('Tambah pelatihan','Add training')}</button></span>
     </div>
     <div class="isian" style="border-bottom:1px dashed var(--line);padding-bottom:10px;margin-bottom:10px">
@@ -776,21 +776,64 @@ async function pltEchainKirim(t){
   window.open(ECHAIN_VPN, '_blank', 'noopener');
 }
 
-/* Batch: kumpulkan pelatihan yang dicentang jadi satu antrean, salin ke
-   clipboard, buka gerbang VPN. Di eChain, bookmarklet "Isi & Lanjut" mengisi
-   satu tab lalu membuka tab berikutnya untuk item selanjutnya. */
+/* Kolom yang di form eChain bertanda wajib. Baris yang belum lengkap tidak
+   ikut dikirim: lebih baik ketahuan di Avengers daripada ditolak (atau
+   diterima setengah kosong) di eChain yang tidak bisa dihapus. */
+const PLT_WAJIB = [['kategori','kategori'],['nama','nama pelatihan'],['mulai','tgl. mulai'],
+  ['selesai','tgl. selesai'],['nomor','no. sertifikat'],['tglSert','tgl. sertifikat'],['tempat','tempat/penyelenggara']];
+
+/* Kirim ke eChain: pelatihan yang dicentang, LENGKAP dengan PDF lampirannya,
+   disalin ke clipboard sebagai satu muatan. Di eChain, bookmarklet "Isi eChain"
+   memeriksa yang sudah ada, menampilkan satu popup ringkas, lalu mengunggah
+   semuanya sendiri. PDF diambil dari rak berkas personel (harus sudah
+   tersimpan), jadi kartunya perlu di-Simpan dulu. */
 async function pltEchainKirimBatch(){
   const p = PSN.dibuka;
   const nik = (p.username || '').trim();
   if(!nik){ pesan(T('Kaitkan akun (NIK) dulu sebelum kirim ke eChain.','Link an account (NIK) first.')); return; }
-  const pilih = (p.pelatihan || []).filter(t => PSN.pltPilih.has(t.id) && t.nama);
-  if(!pilih.length){ pesan(T('Centang dulu pelatihan yang mau dikirim (yang ada namanya).','Tick the training rows to send first.')); return; }
-  await psnSalin(JSON.stringify({ v:1, src:'avengers-echain', tipe:'pelatihan-batch', nik, nama:p.nama||'', items:pilih.map(pltItem) }));
-  pilih.forEach(t => t.dikirim = true);
-  psnGambarKartu();
-  pesan(T(`Tersalin ${pilih.length} pelatihan. Login eChain, klik bookmark "Isi eChain" sekali (semua tab terbuka), lalu klik lagi di tiap tab. Tekan Simpan agar tanda tetap.`,
-          `Copied ${pilih.length} training records. In eChain click "Isi eChain" once (all tabs open), then click it in each tab.`));
-  window.open(ECHAIN_VPN, '_blank', 'noopener');
+  const pilih = (p.pelatihan || []).filter(t => PSN.pltPilih.has(t.id));
+  if(!pilih.length){ pesan(T('Centang dulu pelatihan yang mau dikirim.','Tick the training rows to send first.')); return; }
+  if(!p.id || pilih.some(t => PSN.tunda.some(x => x.sert === t.id))){
+    pesan(T('Simpan kartunya dulu supaya PDF-nya naik ke server, lalu buka lagi dan tekan Kirim ke eChain.',
+            'Save the card first so the PDFs are uploaded, then reopen it and press Send to eChain.'));
+    return;
+  }
+  const kurang = [];
+  for(const t of pilih){
+    const k = PLT_WAJIB.filter(([kol]) => !String(t[kol] || '').trim()).map(([, label]) => label);
+    if(!psnBerkasSert(p.id, t.id).length) k.push('PDF');
+    if(k.length) kurang.push(`"${t.nama || '(tanpa nama)'}": ${k.join(', ')}`);
+  }
+  if(kurang.length){
+    alert(T('Belum bisa dikirim, lengkapi dulu (eChain mewajibkan semua kolom):\n\n',
+            'Cannot send yet, complete these first (eChain requires every field):\n\n') + kurang.join('\n'));
+    return;
+  }
+
+  const btn = el('btnBatchPlt'), asal = btn ? btn.textContent : '';
+  if(btn) btn.disabled = true;
+  try{
+    const items = [];
+    for(let i = 0; i < pilih.length; i++){
+      const t = pilih[i];
+      if(btn) btn.textContent = T(`Menyiapkan PDF ${i + 1}/${pilih.length}...`, `Preparing PDF ${i + 1}/${pilih.length}...`);
+      const b = psnBerkasSert(p.id, t.id).find(x => /\.pdf$/i.test(x.nama)) || psnBerkasSert(p.id, t.id)[0];
+      const r = await fetch(`/personel/${encodeURIComponent(p.id)}/berkas/${encodeURIComponent(b.id)}`, { credentials:'same-origin' });
+      if(!r.ok) throw new Error(`PDF "${b.nama}" tidak terambil (${r.status})`);
+      const blob = await r.blob();
+      items.push({ ...pltItem(t), file: { nama: b.nama, tipe: blob.type || 'application/pdf', b64: await berkasBase64(blob) } });
+    }
+    await psnSalin(JSON.stringify({ v:1, src:'avengers-echain', tipe:'pelatihan-kirim', nik, nama:p.nama||'', items }));
+    pilih.forEach(t => t.dikirim = true);
+    psnGambarKartu();
+    pesan(T(`${pilih.length} pelatihan + PDF tersalin. Login VPN dan eChain, lalu klik bookmark "Isi eChain" sekali. Tekan Simpan di sini agar tanda ✓ tetap.`,
+            `${pilih.length} records + PDFs copied. Log in to VPN and eChain, then click the "Isi eChain" bookmark once.`));
+    window.open(ECHAIN_VPN, '_blank', 'noopener');
+  }catch(err){
+    pesan(T('Gagal menyiapkan: ','Could not prepare: ') + (err && err.message || err));
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = asal; }
+  }
 }
 
 function psnTutup(){
