@@ -650,7 +650,7 @@ async function pltIsiDariPdf(e){
       }
     : null;
 
-  const baru = [], tanpaTeks = [], bedaNama = [], gagal = [], kembar = [];
+  const baru = [], tanpaTeks = [], bedaNama = [], gagal = [], kembar = [], lewatOcr = [];
   for(let i = 0; i < daftar.length; i++){
     const f = daftar[i];
     lapor(T(`Membaca ${i + 1}/${daftar.length}: `, `Reading ${i + 1}/${daftar.length}: `) + esc(f.name));
@@ -670,6 +670,7 @@ async function pltIsiDariPdf(e){
         PSN.tunda.push({ id: 'b' + Date.now().toString(36) + PSN.tunda.length, sert: t.id, file: f });
       }
       if(sumber === 'kosong') tanpaTeks.push(f.name);
+      if(/ocr/.test(sumber)) lewatOcr.push(f.name);
       if(cocokNama === false) bedaNama.push(f.name);
     }catch(err){
       console.warn('[pelatihan] PDF gagal dibaca:', f.name, err);
@@ -690,8 +691,10 @@ async function pltIsiDariPdf(e){
     : T('Tidak ada PDF yang terbaca.','No PDF could be read.');
   if(tahun.length > 1) html += `<br>${T('Tersebar di tahun','Spread over years')} ${esc(tahun.join(', '))} — ${
     T('ganti Tahun untuk melihat sisanya.','switch Year to see the rest.')}`;
+  if(lewatOcr.length) html += `<br>${
+    T('Dibaca dari gambar (OCR) — periksa lebih teliti','Read from the image (OCR) — check carefully')}: ${potong(lewatOcr)}.`;
   if(tanpaTeks.length) html += `<br><span style="color:var(--warn)">${
-    T('Tidak terbaca (pindaian tanpa teks?) — lengkapi manual','No text found (a scan?) — fill in by hand')}: ${potong(tanpaTeks)}.</span>`;
+    T('Sebagian besar berupa gambar dan tidak terbaca — lengkapi manual','Mostly an image and could not be read — fill in by hand')}: ${potong(tanpaTeks)}.</span>`;
   if(bedaNama.length) html += `<br><span style="color:var(--warn)">${
     T(`Nama ${esc(p.nama || '')} tidak ditemukan di sertifikat — pastikan bukan milik orang lain`,
       `The name ${esc(p.nama || '')} was not found on the certificate — make sure it is theirs`)}: ${potong(bedaNama)}.</span>`;

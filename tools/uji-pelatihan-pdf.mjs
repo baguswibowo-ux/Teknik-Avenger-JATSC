@@ -86,6 +86,38 @@ Tangerang, 26 September 2026`,
              tglSert:'2026-09-26', kategori:'' }, cocokNama:true
   },
   {
+    nama: 'ASLI 1: vendor, Certificate of Attendance (halaman 1 dari pdf.js)',
+    orang: 'Bagus Wibowo',
+    teks: `Certificate of A ttendance
+Bagus Wibowo
+Has successfully completed the Networking & Firewall Fundamentals Training
+14 - 16 July 2026
+All other trademarks mentioned in this document are property of their respective owne r . The use of the word partner does
+not imply a partnership relationship between principal and any other company.`,
+    harap: { nomor:'', nama:'Networking & Firewall Fundamentals Training', tempat:'',
+             mulai:'2026-07-14', selesai:'2026-07-16', tglSert:'2026-07-16', kategori:'BASIC' }, cocokNama:true
+  },
+  {
+    nama: 'ASLI 2: sertifikat massal IAEETA (teks asli "062"+nama, sisanya OCR)',
+    orang: 'Bagus Wibowo',
+    teks: `062
+Bagus Wibowo
+CERTIFICATE
+NO : /RDT/XII/IAEETA-2026
+This Certificate is Proudly Presented to :
+For Participating in Webinar Festival IAAETA Techno Fest 2026
+“Remote Digital Tower” hosted by IAEETA DPC Cengkareng 2 on
+October 15 2026.
+SPEAKER Chairperson SPEAKER
+IAEETA DPC CGK 2
+Alessandro Carrozzo Marcello D. Mannino
+Nur Ihsan
+IAEETA`,
+    harap: { nomor:'062/RDT/XII/IAEETA-2026', nama:'Webinar Festival IAAETA Techno Fest 2026 Remote Digital Tower',
+             tempat:'IAEETA DPC Cengkareng 2', mulai:'2026-10-15', selesai:'2026-10-15',
+             tglSert:'2026-10-15', kategori:'SEMINAR' }, cocokNama:true
+  },
+  {
     nama: 'Teks kosong (PDF pindaian tanpa OCR)',
     orang: 'Bagus',
     teks: '',

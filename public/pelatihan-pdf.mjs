@@ -51,7 +51,7 @@ const KATEGORI = [
   ['SEMINAR',       /\bseminar|webinar|simposium|symposium|konferensi|conference\b/i],
   ['CONTINUATION',  /\bcontinuation|refreshment|refresher|recurrent|penyegaran\b/i],
   ['ADVANCED',      /\badvance[d]?\b|\blanjut(an)?\b/i],
-  ['BASIC',         /\bbasic\b|\bdasar\b/i],
+  ['BASIC',         /\bbasic\b|\bdasar\b|\bfundamentals?\b/i],
   ['MANAGERIAL',    /\bmanag(erial|ement)|manajerial|kepemimpinan|leadership\b/i],
   ['DEVELOPMENTAL', /\bdevelopmental|pengembangan\b/i],
   ['KURSUS',        /\bkursus|course\b/i],
@@ -60,7 +60,7 @@ const KATEGORI = [
 
 /* Kalimat pengantar nama pelatihan di badan sertifikat. */
 const PEMICU_NAMA = /(telah\s+(?:mengikuti|menyelesaikan|lulus(?:\s+dari)?)|sebagai\s+peserta(?:\s+dalam|\s+pada)?|atas\s+partisipasi(?:nya)?\s+(?:dalam|pada|sebagai\s+peserta)|has\s+(?:successfully\s+)?(?:attended|completed|participated\s+in|passed)|for\s+(?:attending|completing|participating\s+in)|in\s+recognition\s+of\s+(?:attending|completing))\s*[:\-]?\s*/i;
-const PEMICU_TEMPAT = /\b(yang\s+diselenggarakan\s+oleh|diselenggarakan\s+oleh|penyelenggara\s*:?|organi[sz]ed\s+by|conducted\s+by|held\s+by|presented\s+by|bertempat\s+di|held\s+(?:at|in))\s*/i;
+const PEMICU_TEMPAT = /\b(yang\s+diselenggarakan\s+oleh|diselenggarakan\s+oleh|penyelenggara\s*:|organi[sz]ed\s+by|conducted\s+by|held\s+by|hosted\s+by|presented\s+by|in\s+collaboration\s+with|bertempat\s+di|held\s+(?:at|in))\s*/i;
 const PENUTUP_NAMA = /^(yang\s+diselenggarakan|diselenggarakan|pada\s+tanggal|tanggal|held|conducted|organi[sz]ed|on\s+\d|from\s+\d|di\s+[A-Z]|bertempat|sebanyak|selama|with\s+|dengan\s+(?:hasil|predikat|nilai))/i;
 
 const rapi = (s) => String(s || '').replace(/[“”"«»]/g,'').replace(/\s+/g,' ').trim().replace(/^[\s:;,.\-–]+|[\s:;,\-–]+$/g,'');
@@ -119,14 +119,25 @@ function tanggalTerbit(baris){
   return '';
 }
 
+/* Sertifikat massal: latar gambar berisi "NO : ___/RDT/XII/..." dan hanya angka
+   urutnya ("062") yang ditempel sebagai teks. Angka itu berdiri sendiri
+   sebaris dan bukan tahun. */
+function angkaUrut(baris){
+  const c = baris.find(b=>/^\d{1,6}$/.test(b.trim()) && !/^(19|20)\d\d$/.test(b.trim()));
+  return c ? c.trim() : '';
+}
+
 /** Nomor sertifikat. */
 function nomor(baris, teks){
-  const label = /\b(?:no(?:mor)?|number|nr|cert(?:ificate)?\s*no)\b\.?\s*(?:sertifikat|certificate|seri)?\s*[:.#]?\s*([A-Z0-9][A-Z0-9 .\/\-_]{2,60})/i;
+  const label = /\b(?:no(?:mor)?|number|nr|cert(?:ificate)?\s*no)\b\.?\s*(?:sertifikat|certificate|seri)?\s*[:.#]?\s*([\/A-Z0-9][A-Z0-9 .\/\-_]{2,60})/i;
   for(const b of baris){
     const m = label.exec(b);
     if(m){
       const v = m[1].trim().split(/\s{2,}/)[0].replace(/\s+(?:tanggal|date|tgl)\b.*$/i,'').replace(/[.\s]+$/,'');
-      if(/\d/.test(v) && v.length >= 3) return v;
+      // Depannya kosong ("/RDT/..."): sambung dengan angka urut yang ditempel.
+      if(v.startsWith('/')){ const a = angkaUrut(baris); if(a) return a + v.replace(/\s+/g,''); }
+      const w = v.replace(/^\/+/, '');
+      if(/\d/.test(w) && w.length >= 3) return w;
     }
   }
   // Tanpa label: kode berpemisah garis miring/strip yang memuat angka.
@@ -153,6 +164,7 @@ function namaPelatihan(baris){
     let nama = rapi(ambil.join(' ')
       .split(PEMICU_TEMPAT)[0]                 // potong "... diselenggarakan oleh ..."
       .replace(new RegExp(`\\b(pada|tanggal|on|from)\\b.*\\d{4}.*$`, 'i'), ''));
+    nama = nama.replace(/^(the|a|an)\s+/i, '');
     if(nama.length >= 4) return nama.slice(0, 160);
   }
   // Cadangan: baris terpanjang yang menyebut jenis kegiatan, bukan judul "SERTIFIKAT".
@@ -249,33 +261,40 @@ function keBaris(items){
  * Baca satu File PDF sertifikat.
  * @param {File} berkas
  * @param {object} [opsi] { namaOrang, ocr: async (canvas) => teks }
- * @returns {Promise<{isi, cocokNama, sumber:'teks'|'ocr'|'kosong'}>}
+ * @returns {Promise<{isi, cocokNama, sumber:'teks'|'teks+ocr'|'ocr'|'kosong'}>}
  */
 export async function bacaPdfPelatihan(berkas, opsi = {}){
   const pdfjs = await muatPdfjs();
   const data = new Uint8Array(await berkas.arrayBuffer());
   const dok = await pdfjs.getDocument({ data, verbosity: 0, isEvalSupported: false }).promise;
   try{
-    const baris = [];
-    const n = Math.min(dok.numPages, 3);         // sertifikat jarang lebih dari 1–2 halaman
-    for(let i = 1; i <= n; i++){
-      baris.push(...keBaris((await (await dok.getPage(i)).getTextContent()).items));
-    }
+    /* Hanya halaman 1. Halaman berikutnya biasanya agenda/materi, dan di sana
+       ada nama lembaga peserta (mis. "Perum Lembaga Penyelenggara ...") serta
+       deretan tanggal yang mengacaukan tebakan penyelenggara dan tanggal. */
+    const hal = await dok.getPage(1);
+    const baris = keBaris((await hal.getTextContent()).items);
     let teks = baris.join('\n'), sumber = 'teks';
 
-    // Hampir tanpa teks: hasil pindai. Gambar halaman 1 lalu OCR, kalau disediakan.
-    if(teks.replace(/\s/g,'').length < 20){
-      sumber = 'kosong';
+    /* Teks asli jarang: entah PDF pindaian (tanpa teks sama sekali), entah
+       sertifikat massal yang seluruh isinya gambar dan hanya nama + nomor urut
+       yang ditempel sebagai teks. Halaman 1 digambar lalu dibaca OCR, dan
+       hasilnya DIGABUNG dengan teks asli — teks asli (nama, "062") lebih
+       dipercaya daripada tebakan OCR, jadi ia tetap di depan. */
+    const jarang = teks.replace(/\s/g,'').length < 80 || baris.length < 4;
+    if(jarang){
+      sumber = 'kosong';     // sampai OCR berhasil, isinya dianggap tidak terbaca
       if(typeof opsi.ocr === 'function'){
-        const hal = await dok.getPage(1);
         const vp = hal.getViewport({ scale: 2.2 });
         const kanvas = document.createElement('canvas');
         kanvas.width = Math.ceil(vp.width); kanvas.height = Math.ceil(vp.height);
         const ctx = kanvas.getContext('2d');
         ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, kanvas.width, kanvas.height);
         await hal.render({ canvasContext: ctx, viewport: vp }).promise;
-        teks = String(await opsi.ocr(kanvas) || '');
-        if(teks.replace(/\s/g,'').length >= 20) sumber = 'ocr';
+        const hasilOcr = String(await opsi.ocr(kanvas) || '');
+        if(hasilOcr.replace(/\s/g,'').length >= 20){
+          teks = (teks ? teks + '\n' : '') + hasilOcr;
+          sumber = baris.length ? 'teks+ocr' : 'ocr';
+        }
       }
     }
     const { isi, cocokNama } = uraiSertifikat(teks, opsi.namaOrang);
