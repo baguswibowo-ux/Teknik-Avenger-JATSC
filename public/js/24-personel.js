@@ -139,7 +139,6 @@ function psnBaris(p){
   return `<tr>
     <td><b>${esc(p.nama)}</b>${p.username
       ? `<br><span class="mono" style="color:var(--muted);font-size:10.5px">${esc(p.username)}</span>` : ''}</td>
-    <td>${p.jabatan ? esc(p.jabatan) : '<span class="mono" style="color:var(--muted)">—</span>'}</td>
     <td>${daftar.length ? `<div class="sert-baris">${daftar.map(s=>{
       const n = sertSisa(s);
       return `<span class="sert-pil ${sertRupa(n)}" title="${esc([s.nomor, s.rating].filter(Boolean).join(' · '))}">
@@ -164,7 +163,7 @@ function psnBaris(p){
 }
 
 const psnKepalaTabel = () => `<thead><tr>
-  <th>${T('Nama','Name')}</th><th>${T('Jabatan','Position')}</th>
+  <th>${T('Nama','Name')}</th>
   <th>${T('Lisensi, rating, sertifikat','Licences, ratings, certificates')}</th>
   <th>${T('Paling dekat habis','Nearest expiry')}</th>
   <th>${T('Bukti','Proof')}</th><th></th></tr></thead>`;
@@ -223,7 +222,7 @@ function psnIsi(unit){
       </div>
       <div class="gulir" style="max-height:none"><table id="tblPersonel">${psnKepalaTabel()}<tbody>${
         tampil.length ? tampil.map(psnBaris).join('')
-        : `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">${
+        : `<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">${
             orang.length
               ? T('Tidak ada yang cocok dengan saringan itu.','Nothing matches that filter.')
               : T('Belum ada personel terdaftar di unit ini.','No personnel on record in this unit yet.')
@@ -347,8 +346,11 @@ function psnBuka(asal, unitBawaan){
   // termasuk sertifikat yang sudah dihapus dari daftar di kartunya.
   PSN.dibuka = asal
     ? JSON.parse(JSON.stringify(asal))
-    : { id:'', nama:'', unit: unitBawaan || '', username:'', jabatan:'', sertifikat:[] };
+    : { id:'', nama:'', unit: unitBawaan || '', username:'', sertifikat:[], pelatihan:[] };
+  if(!Array.isArray(PSN.dibuka.pelatihan)) PSN.dibuka.pelatihan = [];
   PSN.tunda = [];
+  PSN.tab = 'sert';                       // tab aktif di kartu: 'sert' | 'plt'
+  PSN.pltTahun = String(new Date().getFullYear());   // tahun yang sedang dilihat di tab Pelatihan
   el('judulPersonel').textContent = asal ? T('Ubah personel','Edit person')
                                          : T('Tambah personel','Add person');
   el('ketKartuPersonel').textContent = asal ? asal.nama : '';
@@ -366,21 +368,19 @@ function psnGambarKartu(){
       ${dIsian('pNama', T('Nama','Name'), p.nama)}
       ${dPilih('pUnit', 'Unit', [['', T('— tidak ditetapkan —','— not set —')]]
         .concat(UNIT.map(u=>[u.kode, u.nama])), p.unit)}
-      ${dIsian('pJabatan', T('Jabatan','Position'), p.jabatan)}
-      ${dPilih('pAkun', T('Akun E-Logbook','E-Logbook account'), akunPilihan, p.username,
-        T('Ke sinilah peringatan masa berlaku dikirim.','This is where the expiry warning is sent.'))}
+      ${dPilih('pAkun', T('Akun E-Logbook (NIK)','E-Logbook account (NIK)'), akunPilihan, p.username,
+        T('Terisi otomatis dari nama. Ke sinilah peringatan masa berlaku dikirim.',
+          'Auto-filled from the name. This is where the expiry warning is sent.'))}
     </div>
 
-    <div class="atur-data" style="margin:18px 0 10px">
-      <span class="ket">${(p.sertifikat || []).length} ${
-        T('lisensi / rating / sertifikat','licences / ratings / certificates')}</span>
-      <span class="tombol"><button class="btn garis kecil" id="btnTambahSert">${
-        T('Tambah baris','Add a row')}</button></span>
+    <div class="subtab" style="margin-top:14px">
+      <button type="button" data-ptab="sert" class="${PSN.tab==='sert'?'aktif':''}">${
+        T('Lisensi, Rating & Medec','Licences, Ratings & Medical')}</button>
+      <button type="button" data-ptab="plt" class="${PSN.tab==='plt'?'aktif':''}">${
+        T('Pelatihan','Training')}</button>
     </div>
-    ${(p.sertifikat || []).length
-      ? (p.sertifikat).map(psnBarisSert).join('')
-      : `<div style="color:var(--muted);font-size:12.5px;padding:6px 0">${
-          T('Belum ada. Tekan Tambah baris.','None yet. Press Add a row.')}</div>`}
+
+    <div style="margin-top:12px">${PSN.tab==='plt' ? psnTabPelatihan(p) : psnTabSert(p)}</div>
 
     ${psnBerkasLepas(p)}
 
@@ -391,26 +391,17 @@ function psnGambarKartu(){
       <button class="btn bahaya-tombol" id="btnHapusPersonel">${T('Hapus','Delete')}</button>
     </div>` : ''}`;
 
-  el('badanPersonel').querySelectorAll('[data-sk]').forEach(i=>{
-    const s = PSN.dibuka.sertifikat[Number(i.dataset.sk)];
-    if(!s) return;
-    i.addEventListener(i.tagName === 'SELECT' ? 'change' : 'input', ()=>{
-      s[i.dataset.kolom] = i.value;
-    });
-  });
-  el('badanPersonel').querySelectorAll('[data-sert-buang]').forEach(b=>{
-    b.addEventListener('click', ()=>{
-      PSN.dibuka.sertifikat.splice(Number(b.dataset.sertBuang), 1);
-      psnGambarKartu();
-    });
-  });
-  el('btnTambahSert').addEventListener('click', ()=>{
-    /* id dibuat di sini, bukan menunggu server: begitu barisnya ada di layar
-       ia sudah bisa dilampiri bukti, dan bukti butuh sesuatu untuk ditunjuk. */
-    PSN.dibuka.sertifikat.push({ id:'s' + Date.now().toString(36),
-      jenis:'Lisensi', nama:'', nomor:'', rating:'', terbit:'', berlaku:'' });
-    psnGambarKartu();
-  });
+  // Ganti tab: baca dulu isian kepala supaya tidak hilang saat digambar ulang.
+  el('badanPersonel').querySelectorAll('[data-ptab]').forEach(b=>b.addEventListener('click', ()=>{
+    psnBacaKepala(); PSN.tab = b.dataset.ptab; psnGambarKartu();
+  }));
+  // Nama -> akun/NIK otomatis.
+  const nm = el('pNama');
+  if(nm) nm.addEventListener('input', ()=>{ PSN.dibuka.nama = nm.value; psnAutoAkun(); });
+  el('pUnit').addEventListener('change', ()=>{ PSN.dibuka.unit = el('pUnit').value; });
+  el('pAkun').addEventListener('change', ()=>{ PSN.dibuka.username = el('pAkun').value; });
+
+  if(PSN.tab === 'plt') psnWirePlt(); else psnWireSert();
   psnBerkasPasang();
 
   const hapus = el('btnHapusPersonel');
@@ -431,6 +422,180 @@ function psnGambarKartu(){
   });
 }
 
+/* Membaca isian kepala kartu ke objek yang sedang dibuka. Dipakai sebelum
+   menggambar ulang (ganti tab) supaya nama/unit/akun tidak hilang. */
+function psnBacaKepala(){
+  const p = PSN.dibuka; if(!p) return;
+  const nm = el('pNama'), un = el('pUnit'), ak = el('pAkun');
+  if(nm) p.nama = nm.value;
+  if(un) p.unit = un.value;
+  if(ak) p.username = ak.value;
+}
+
+/* Begitu nama diketik, cari akun E-Logbook yang namanya sama persis dan
+   kaitkan NIK-nya otomatis. Pencocokan nama tidak selalu kena (banyak nama
+   kembar / beda ejaan), jadi hanya mengisi kalau belum dikaitkan dan kalau
+   kecocokannya tunggal; sisanya dipilih manual lewat dropdown. */
+function psnAutoAkun(){
+  const p = PSN.dibuka, ak = el('pAkun'); if(!ak) return;
+  if(p.username) return;
+  const nama = (p.nama || '').trim().toLowerCase();
+  if(!nama) return;
+  const cocok = USERS.filter(u => String(u.nama || '').trim().toLowerCase() === nama);
+  if(cocok.length === 1){ p.username = cocok[0].username; ak.value = cocok[0].username; }
+}
+
+const pltTahunOf = (t) => String(t.mulai || t.tglSert || t.selesai || '').slice(0, 4);
+
+/* ---------- Tab 1: Lisensi, Rating & Medec ---------- */
+function psnTabSert(p){
+  return `
+    <div class="atur-data" style="margin:4px 0 10px">
+      <span class="ket">${(p.sertifikat || []).length} ${
+        T('lisensi / rating / medec','licences / ratings / medical')}</span>
+      <span class="tombol"><button class="btn garis kecil" id="btnTambahSert">${
+        T('Tambah baris','Add a row')}</button></span>
+    </div>
+    ${(p.sertifikat || []).length
+      ? (p.sertifikat).map(psnBarisSert).join('')
+      : `<div style="color:var(--muted);font-size:12.5px;padding:6px 0">${
+          T('Belum ada. Tekan Tambah baris.','None yet. Press Add a row.')}</div>`}`;
+}
+
+function psnWireSert(){
+  const badan = el('badanPersonel');
+  badan.querySelectorAll('[data-sk]').forEach(i=>{
+    const s = PSN.dibuka.sertifikat[Number(i.dataset.sk)];
+    if(!s) return;
+    i.addEventListener(i.tagName === 'SELECT' ? 'change' : 'input', ()=>{ s[i.dataset.kolom] = i.value; });
+  });
+  badan.querySelectorAll('[data-sert-buang]').forEach(b=>{
+    b.addEventListener('click', ()=>{ PSN.dibuka.sertifikat.splice(Number(b.dataset.sertBuang), 1); psnGambarKartu(); });
+  });
+  const tb = el('btnTambahSert');
+  if(tb) tb.addEventListener('click', ()=>{
+    PSN.dibuka.sertifikat.push({ id:'s' + Date.now().toString(36),
+      jenis:'Lisensi', nama:'', nomor:'', rating:'', terbit:'', berlaku:'' });
+    psnGambarKartu();
+  });
+}
+
+/* ---------- Tab 2: Pelatihan (per tahun) ---------- */
+function psnTabPelatihan(p){
+  const list = p.pelatihan || [];
+  const tahunAda = [...new Set(list.map(pltTahunOf).filter(Boolean))];
+  const kini = String(new Date().getFullYear());
+  const tahunPil = [...new Set([...tahunAda, kini, PSN.pltTahun])].filter(Boolean).sort().reverse();
+  // Yang tampil: tahun terpilih, plus baris baru yang belum ada tanggalnya.
+  const tampil = list.map((t, i) => ({ t, i }))
+    .filter(x => pltTahunOf(x.t) === PSN.pltTahun || !pltTahunOf(x.t));
+  return `
+    <div class="atur-data" style="margin:4px 0 10px;gap:8px">
+      <span class="ket">${T('Tahun','Year')}
+        <select id="pltTahunPilih">${tahunPil.map(y=>`<option value="${esc(y)}"${y===PSN.pltTahun?' selected':''}>${esc(y)}</option>`).join('')}</select>
+        · ${list.length} ${T('total','total')}</span>
+      <span class="tombol">
+        <a class="btn garis kecil" href="/alat-echain.html" target="_blank" rel="noopener"
+           style="text-decoration:none" title="${T('Pasang bookmarklet pengisi form eChain','Install the eChain form bookmarklet')}">${T('Bot eChain','eChain bot')}</a>
+        <button class="btn garis kecil" id="btnTambahPlt">${T('Tambah pelatihan','Add training')}</button></span>
+    </div>
+    ${tampil.length
+      ? tampil.map(x => pltBarisKartu(x.t, x.i)).join('')
+      : `<div style="color:var(--muted);font-size:12.5px;padding:6px 0">${
+          T('Belum ada pelatihan di tahun ini. Tekan Tambah pelatihan.','No training this year. Press Add training.')}</div>`}`;
+}
+
+function pltBarisKartu(t, i){
+  return `
+  <div class="sert-bungkus" data-plt="${i}">
+  <div class="sert-sunting">
+    <div class="isian" style="margin-bottom:0;min-width:150px">
+      <label>${T('Kategori','Category')}</label>
+      <select data-pk="${i}" data-pcol="kategori">
+        <option value="">${T('- pilih -','- choose -')}</option>
+        ${ECHAIN_KATEGORI.map(k=>`<option value="${esc(k)}"${k===(t.kategori||'')?' selected':''}>${esc(k)}</option>`).join('')}
+      </select></div>
+    <div class="isian" style="margin-bottom:0;flex:2;min-width:180px">
+      <label>${T('Nama pelatihan','Training name')}</label>
+      <input type="text" data-pk="${i}" data-pcol="nama" value="${esc(t.nama||'')}"></div>
+    <div class="isian" style="margin-bottom:0;min-width:140px">
+      <label>${T('No. Sertifikat','Certificate no.')}</label>
+      <input type="text" data-pk="${i}" data-pcol="nomor" value="${esc(t.nomor||'')}"></div>
+    <div class="isian" style="margin-bottom:0;min-width:128px">
+      <label>${T('Tgl. mulai','Start')}</label>
+      <input type="date" data-pk="${i}" data-pcol="mulai" value="${esc(t.mulai||'')}"></div>
+    <div class="isian" style="margin-bottom:0;min-width:128px">
+      <label>${T('Tgl. selesai','End')}</label>
+      <input type="date" data-pk="${i}" data-pcol="selesai" value="${esc(t.selesai||'')}"></div>
+    <div class="isian" style="margin-bottom:0;min-width:128px">
+      <label>${T('Tgl. sertifikat','Cert. date')}</label>
+      <input type="date" data-pk="${i}" data-pcol="tglSert" value="${esc(t.tglSert||'')}"></div>
+    <button class="btn garis kecil" data-plt-buang="${i}" title="${T('Hapus baris ini','Delete this row')}">&#10005;</button>
+  </div>
+  <div class="sert-sunting" style="margin-top:4px">
+    <div class="isian" style="margin-bottom:0;flex:2;min-width:200px">
+      <label>${T('Tempat / Penyelenggara','Place / Organiser')}</label>
+      <input type="text" data-pk="${i}" data-pcol="tempat" value="${esc(t.tempat||'')}"></div>
+    <div class="isian" style="margin-bottom:0;align-self:flex-end">
+      ${t.dikirim
+        ? `<span class="sert-sisa aman" title="${T('Sudah disiapkan ke eChain','Prepared for eChain')}">&#10003; eChain</span>`
+        : `<button class="btn garis kecil" data-plt-echain="${i}" type="button">${T('Siapkan ke eChain','Prepare for eChain')}</button>`}</div>
+  </div>
+  </div>`;
+}
+
+function psnWirePlt(){
+  const badan = el('badanPersonel');
+  badan.querySelectorAll('[data-pk]').forEach(i=>{
+    const t = PSN.dibuka.pelatihan[Number(i.dataset.pk)];
+    if(!t) return;
+    i.addEventListener(i.tagName === 'SELECT' ? 'change' : 'input', ()=>{ t[i.dataset.pcol] = i.value; });
+  });
+  badan.querySelectorAll('[data-plt-buang]').forEach(b=>b.addEventListener('click', ()=>{
+    PSN.dibuka.pelatihan.splice(Number(b.dataset.pltBuang), 1); psnGambarKartu();
+  }));
+  badan.querySelectorAll('[data-plt-echain]').forEach(b=>b.addEventListener('click', ()=>{
+    pltEchainKirim(PSN.dibuka.pelatihan[Number(b.dataset.pltEchain)]);
+  }));
+  const th = el('pltTahunPilih');
+  if(th) th.addEventListener('change', ()=>{ PSN.pltTahun = th.value; psnGambarKartu(); });
+  const tb = el('btnTambahPlt');
+  if(tb) tb.addEventListener('click', ()=>{
+    PSN.dibuka.pelatihan.push({ id:'t' + Date.now().toString(36),
+      kategori:'', nama:'', nomor:'', tempat:'', mulai:'', selesai:'', tglSert:'', dikirim:false });
+    psnGambarKartu();
+  });
+}
+
+/* Menyiapkan satu pelatihan untuk eChain: salin ke clipboard, buka gerbang VPN,
+   tandai. Tidak menulis langsung ke eChain (form & Simpan tetap di tangan orang,
+   unggahan eChain tak bisa dihapus). Tanda disimpan saat kartu ini ditekan Simpan. */
+async function pltEchainKirim(t){
+  if(!t) return;
+  const p = PSN.dibuka;
+  const nik = (p.username || '').trim();
+  if(!nik){ pesan(T('Kaitkan akun (NIK) dulu sebelum kirim ke eChain.','Link an account (NIK) first.')); return; }
+  if(!t.nama){ pesan(T('Isi nama pelatihan dulu.','Fill the training name first.')); return; }
+  const muatan = {
+    v:1, src:'avengers-echain', tipe:'pelatihan', nik, nama: p.nama || '',
+    item:{ kategori:t.kategori||'', mulai:t.mulai||'', selesai:t.selesai||'',
+      training:t.nama||'', no_sert:t.nomor||'', tgl_sert:t.tglSert||'', tempat:t.tempat||'' }
+  };
+  const teks = JSON.stringify(muatan);
+  try{ await navigator.clipboard.writeText(teks); }
+  catch(e){
+    const ta = document.createElement('textarea'); ta.value = teks;
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); }catch(_){}
+    ta.remove();
+  }
+  t.dikirim = true;
+  psnGambarKartu();
+  pesan(T('Tersalin. Login eChain, klik bookmarklet, lalu tekan Simpan di kartu ini agar tandanya tetap.',
+          'Copied. Fill in eChain via the bookmarklet, then press Save here to keep the mark.'));
+  window.open(ECHAIN_VPN, '_blank', 'noopener');
+}
+
 function psnTutup(){
   el('lapisPersonel').classList.remove('buka');
   PSN.dibuka = null;
@@ -447,9 +612,11 @@ el('btnSimpanPersonel').addEventListener('click', async ()=>{
   const p = PSN.dibuka; if(!p) return;
   p.nama     = el('pNama').value.trim();
   p.unit     = el('pUnit').value;
-  p.jabatan  = el('pJabatan').value.trim();
   p.username = el('pAkun').value;
   if(!p.nama){ pesan(T('Nama belum diisi.','The name is empty.')); return; }
+  // Baris pelatihan yang benar-benar kosong dibuang diam-diam (Tambah lalu batal).
+  p.pelatihan = (p.pelatihan || []).filter(t =>
+    t.nama || t.nomor || t.kategori || t.mulai || t.selesai || t.tglSert || t.tempat);
   // Baris sertifikat yang sama sekali kosong dibuang tanpa berkata apa-apa:
   // menekan Tambah baris lalu berubah pikiran bukan kesalahan yang perlu
   // dilaporkan.
@@ -723,259 +890,3 @@ function psnBerkasLepas(orang){
         'Left over from a deleted certificate row, or from a row whose save was cancelled.')}</div>`;
 }
 
-/* =======================================================================
-   PELATIHAN — riwayat pelatihan per orang, berdiri sebagai tab sendiri
-
-   Dipisah dari kartu sertifikat dengan sengaja: satu orang bisa punya
-   puluhan pelatihan dalam setahun, dan sifatnya riwayat yang menumpuk —
-   tiap pelatihan baru ditambahkan, yang lama tetap. Menaruhnya di kartu
-   orang membuat kartunya tak terbaca; menaruhnya di sertifikat (dibatasi
-   30 baris) membuat yang lama terbuang. Jadi ia punya daftar sendiri
-   (p.pelatihan) dan tabnya sendiri, bisa disaring per tahun.
-
-   Gunanya satu lagi: tiap entri bisa "Disiapkan ke eChain" — datanya
-   disalin ke clipboard lalu diisikan ke form Tambah Pelatihan eChain oleh
-   bookmarklet (/alat-echain.html). Avengers tidak pernah menulis langsung
-   ke eChain. */
-
-const PLT = { tahun: '', cari: '', edit: null };
-
-const pltUnit = (unit) => PSN.daftar.filter(p => (p.unit || '') === unit);
-const pltJumlahUnit = (unit) => pltUnit(unit).reduce((n, p) => n + ((p.pelatihan || []).length), 0);
-const pltTahun = (t) => String(t.mulai || t.tglSert || t.selesai || '').slice(0, 4);
-
-function pltEntriUnit(unit){
-  const keluar = [];
-  pltUnit(unit).forEach(p => (p.pelatihan || []).forEach(t => keluar.push({ orang: p, t })));
-  return keluar;
-}
-
-function pltLolos(x){
-  if(PLT.tahun && pltTahun(x.t) !== PLT.tahun) return false;
-  if(PLT.cari){
-    const q = PLT.cari.toLowerCase();
-    const isi = [x.orang.nama, x.orang.username, x.t.nama, x.t.nomor, x.t.kategori, x.t.tempat]
-      .filter(Boolean).join(' ').toLowerCase();
-    if(!isi.includes(q)) return false;
-  }
-  return true;
-}
-
-/** Isi subtab Pelatihan satu unit. */
-function pltIsi(unit){
-  const semua = pltEntriUnit(unit);
-  const tahunAda = [...new Set(semua.map(x => pltTahun(x.t)).filter(Boolean))].sort().reverse();
-  const tampil = semua.filter(pltLolos)
-    .sort((a, b) => String(b.t.mulai || b.t.tglSert || '').localeCompare(String(a.t.mulai || a.t.tglSert || '')));
-
-  const perTahun = {};
-  tampil.forEach(x => { const th = pltTahun(x.t) || '-'; (perTahun[th] = perTahun[th] || []).push(x); });
-  const tahunUrut = Object.keys(perTahun).sort().reverse();
-
-  const belumKirim = semua.filter(x => !x.t.dikirim).length;
-
-  const tabel = tahunUrut.length ? tahunUrut.map(th => `
-    <div class="plt-tahun" style="font-weight:600;margin:14px 0 4px">${th === '-' ? T('Tanpa tanggal', 'No date') : th}
-      <span class="mono" style="color:var(--muted);font-weight:normal"> · ${perTahun[th].length}</span></div>
-    <table class="tabel"><thead><tr>
-      <th>${T('Nama', 'Name')}</th><th>${T('Kategori', 'Category')}</th>
-      <th>${T('Pelatihan', 'Training')}</th><th>${T('No. Sertifikat', 'Certificate no.')}</th>
-      <th>${T('Mulai - Selesai', 'Start - End')}</th><th>eChain</th><th></th>
-    </tr></thead><tbody>
-    ${perTahun[th].map(x => pltBaris(x.orang, x.t)).join('')}
-    </tbody></table>`).join('')
-    : `<div style="color:var(--muted);font-size:12.5px;padding:10px 0">${
-        T('Belum ada pelatihan tercatat di unit ini.', 'No training recorded in this unit yet.')}</div>`;
-
-  return `
-    <div class="atur-data">
-      <span class="ket">${semua.length} ${T('pelatihan tercatat', 'training records')}
-        · ${belumKirim} ${T('belum disiapkan ke eChain', 'not yet prepared for eChain')}</span>
-      <span class="tombol">
-        <a class="btn garis kecil" href="/alat-echain.html" target="_blank" rel="noopener"
-           style="text-decoration:none" title="${T('Pasang bookmarklet pengisi form eChain', 'Install the eChain form bookmarklet')}">${T('Bot eChain', 'eChain bot')}</a>
-        ${PSN.boleh ? `<button class="btn kecil" id="pltTambah">${T('Tambah pelatihan', 'Add training')}</button>` : ''}
-      </span>
-    </div>
-
-    <div class="atur-data" style="margin-top:4px;gap:8px">
-      <select id="pltTahun">
-        <option value="">${T('Semua tahun', 'All years')}</option>
-        ${tahunAda.map(y => `<option value="${esc(y)}"${y === PLT.tahun ? ' selected' : ''}>${esc(y)}</option>`).join('')}
-      </select>
-      <input type="text" id="pltCari" placeholder="${T('Cari nama / pelatihan / nomor', 'Search name / training / number')}" value="${esc(PLT.cari)}">
-    </div>
-
-    <div class="panel" style="margin-top:12px"><div class="badan">${tabel}</div></div>`;
-}
-
-/** Satu baris pelatihan di tabel. */
-function pltBaris(p, t){
-  const rentang = [t.mulai, t.selesai].filter(Boolean).map(tglRingkas).join(' - ') || '-';
-  const tanda = `${p.id}|${t.id}`;
-  return `<tr>
-    <td><b>${esc(p.nama)}</b>${p.username
-      ? `<br><span class="mono" style="color:var(--muted);font-size:10.5px">${esc(p.username)}</span>` : ''}</td>
-    <td>${t.kategori ? esc(t.kategori) : '<span class="mono" style="color:var(--muted)">-</span>'}</td>
-    <td>${esc(t.nama || '-')}${t.tempat ? `<br><span style="color:var(--muted);font-size:11px">${esc(t.tempat)}</span>` : ''}</td>
-    <td class="mono">${t.nomor ? esc(t.nomor) : '-'}</td>
-    <td class="mono" style="font-size:11px">${rentang}</td>
-    <td>${t.dikirim
-      ? `<span class="sert-sisa aman" title="${T('Sudah disiapkan ke eChain', 'Prepared for eChain')}">&#10003;</span>`
-      : (PSN.boleh ? `<button class="btn garis kecil" data-plt-echain="${esc(tanda)}"
-            title="${T('Salin data ini lalu buka eChain', 'Copy this row then open eChain')}">${T('Siapkan', 'Prepare')}</button>` : '-')}</td>
-    <td style="text-align:right">${PSN.boleh
-      ? `<button class="btn garis kecil" data-plt-ubah="${esc(tanda)}">${T('Ubah', 'Edit')}</button>` : ''}</td>
-  </tr>`;
-}
-
-function gambarPelatihan(){
-  const kotak = el('s-pelatihan');
-  if(!kotak || typeof unitDibuka === 'undefined' || !unitDibuka) return;
-  kotak.innerHTML = pltIsi(unitDibuka);
-
-  const cari = el('pltCari');
-  if(cari) cari.addEventListener('input', () => {
-    PLT.cari = cari.value;
-    const pos = cari.selectionStart; gambarPelatihan();
-    const baru = el('pltCari'); if(baru){ baru.focus(); try{ baru.setSelectionRange(pos, pos); }catch(e){} }
-  });
-  const th = el('pltTahun');
-  if(th) th.addEventListener('change', () => { PLT.tahun = th.value; gambarPelatihan(); });
-  const tambah = el('pltTambah');
-  if(tambah) tambah.addEventListener('click', () => pltBuka(null));
-
-  kotak.querySelectorAll('[data-plt-ubah]').forEach(b => b.addEventListener('click', () => {
-    const [pid, tid] = b.dataset.pltUbah.split('|');
-    const orang = PSN.daftar.find(p => p.id === pid);
-    const t = orang && (orang.pelatihan || []).find(x => x.id === tid);
-    if(orang && t) pltBuka({ orangId: pid, t });
-  }));
-  kotak.querySelectorAll('[data-plt-echain]').forEach(b => b.addEventListener('click', () => {
-    const [pid, tid] = b.dataset.pltEchain.split('|');
-    const orang = PSN.daftar.find(p => p.id === pid);
-    const t = orang && (orang.pelatihan || []).find(x => x.id === tid);
-    if(orang && t) pltEchainKirim(t, orang);
-  }));
-}
-
-/* ---------- Kartu tambah/ubah satu pelatihan ---------- */
-
-function pltBuka(asal){
-  PLT.edit = asal
-    ? { orangId: asal.orangId, baru: false, t: JSON.parse(JSON.stringify(asal.t)) }
-    : { orangId: '', baru: true, t: { id: '', kategori: '', nama: '', nomor: '', tempat: '', mulai: '', selesai: '', tglSert: '' } };
-  el('judulPelatihan').textContent = asal ? T('Ubah pelatihan', 'Edit training') : T('Tambah pelatihan', 'Add training');
-  const orang = PSN.daftar.find(p => p.id === PLT.edit.orangId);
-  el('ketKartuPelatihan').textContent = orang ? orang.nama : '';
-  pltGambarKartu();
-  el('lapisPelatihan').classList.add('buka');
-}
-
-function pltGambarKartu(){
-  const e = PLT.edit, t = e.t;
-  const orangPilihan = pltUnit(unitDibuka)
-    .map(p => `<option value="${esc(p.id)}"${p.id === e.orangId ? ' selected' : ''}>${esc(p.nama)}${p.username ? ' · ' + esc(p.username) : ''}</option>`).join('');
-  const katPilihan = `<option value="">${T('- pilih -', '- choose -')}</option>` +
-    ECHAIN_KATEGORI.map(k => `<option value="${esc(k)}"${k === t.kategori ? ' selected' : ''}>${esc(k)}</option>`).join('');
-
-  el('badanPelatihan').innerHTML = `
-    <div class="imp-atur" style="margin-top:0;padding-top:0;border-top:none">
-      <div class="isian"><label>${T('Orang', 'Person')}</label>
-        <select id="pltOrang"${e.baru ? '' : ' disabled'}>${e.baru ? `<option value="">${T('- pilih orang -', '- choose person -')}</option>` : ''}${orangPilihan}</select></div>
-      <div class="isian"><label>${T('Kategori', 'Category')}</label>
-        <select id="pltKategori">${katPilihan}</select></div>
-      <div class="isian" style="flex:2"><label>${T('Nama pelatihan', 'Training name')}</label>
-        <input type="text" id="pltNama" value="${esc(t.nama || '')}"></div>
-      <div class="isian"><label>${T('No. Sertifikat', 'Certificate no.')}</label>
-        <input type="text" id="pltNomor" value="${esc(t.nomor || '')}"></div>
-      <div class="isian" style="flex:2"><label>${T('Tempat / Penyelenggara', 'Place / Organiser')}</label>
-        <input type="text" id="pltTempat" value="${esc(t.tempat || '')}"></div>
-      <div class="isian"><label>${T('Tgl. mulai', 'Start date')}</label>
-        <input type="date" id="pltMulai" value="${esc(t.mulai || '')}"></div>
-      <div class="isian"><label>${T('Tgl. selesai', 'End date')}</label>
-        <input type="date" id="pltSelesai" value="${esc(t.selesai || '')}"></div>
-      <div class="isian"><label>${T('Tgl. sertifikat', 'Certificate date')}</label>
-        <input type="date" id="pltTglSert" value="${esc(t.tglSert || '')}"></div>
-    </div>`;
-}
-
-function pltBacaKartu(){
-  const e = PLT.edit;
-  if(e.baru) e.orangId = el('pltOrang').value;
-  e.t.kategori = el('pltKategori').value;
-  e.t.nama     = el('pltNama').value.trim();
-  e.t.nomor    = el('pltNomor').value.trim();
-  e.t.tempat   = el('pltTempat').value.trim();
-  e.t.mulai    = el('pltMulai').value;
-  e.t.selesai  = el('pltSelesai').value;
-  e.t.tglSert  = el('pltTglSert').value;
-}
-
-function pltTutup(){
-  el('lapisPelatihan').classList.remove('buka');
-  PLT.edit = null;
-}
-
-el('btnBatalPelatihan').addEventListener('click', pltTutup);
-el('lapisPelatihan').addEventListener('click', ev => { if(ev.target === el('lapisPelatihan')) pltTutup(); });
-document.addEventListener('keydown', ev => {
-  if(ev.key === 'Escape' && el('lapisPelatihan').classList.contains('buka')) pltTutup();
-});
-
-el('btnSimpanPelatihan').addEventListener('click', async () => {
-  const e = PLT.edit; if(!e) return;
-  pltBacaKartu();
-  const orang = PSN.daftar.find(p => p.id === e.orangId);
-  if(!orang){ pesan(T('Pilih orangnya dulu.', 'Choose the person first.')); return; }
-  if(!e.t.nama){ pesan(T('Nama pelatihan belum diisi.', 'Training name is empty.')); return; }
-
-  if(!Array.isArray(orang.pelatihan)) orang.pelatihan = [];
-  if(e.baru){
-    e.t.id = 't' + Date.now().toString(36);
-    orang.pelatihan.push(e.t);
-  } else {
-    const i = orang.pelatihan.findIndex(x => x.id === e.t.id);
-    if(i >= 0) orang.pelatihan[i] = e.t; else orang.pelatihan.push(e.t);
-  }
-  try{
-    await psnSimpan('simpan', orang);
-    pltTutup(); gambarPelatihan();
-    pesan(T('Pelatihan tersimpan.', 'Training saved.'));
-  }catch(err){
-    pesan(T('Gagal menyimpan: ', 'Could not save: ') + (err && err.message || err));
-  }
-});
-
-/* Menyiapkan satu pelatihan untuk diunggah ke eChain: salin ke clipboard lalu
-   buka gerbang VPN. Tidak pernah menulis ke eChain - form & Simpan tetap di
-   tangan orangnya, karena unggahan eChain tak bisa dihapus. */
-async function pltEchainKirim(t, orang){
-  const nik = (orang.username || '').trim();
-  if(!nik){
-    pesan(T('Kaitkan orang ini ke akun E-Logbook (NIK) dulu sebelum kirim ke eChain.',
-            'Link this person to an E-Logbook account (NIK) first.'));
-    return;
-  }
-  const muatan = {
-    v: 1, src: 'avengers-echain', tipe: 'pelatihan', nik, nama: orang.nama || '',
-    item: {
-      kategori: t.kategori || '', mulai: t.mulai || '', selesai: t.selesai || '',
-      training: t.nama || '', no_sert: t.nomor || '', tgl_sert: t.tglSert || '', tempat: t.tempat || ''
-    }
-  };
-  const teks = JSON.stringify(muatan);
-  try{ await navigator.clipboard.writeText(teks); }
-  catch(err){
-    const ta = document.createElement('textarea');
-    ta.value = teks; document.body.appendChild(ta); ta.select();
-    try{ document.execCommand('copy'); }catch(_){}
-    ta.remove();
-  }
-  t.dikirim = true;
-  try{ await psnSimpan('simpan', orang); }catch(_){}
-  gambarPelatihan();
-  pesan(T('Tersalin. Login eChain lalu klik bookmarklet "Isi Pelatihan eChain".',
-          'Copied. Log in to eChain then click the "Fill Training" bookmarklet.'));
-  window.open(ECHAIN_VPN, '_blank', 'noopener');
-}
