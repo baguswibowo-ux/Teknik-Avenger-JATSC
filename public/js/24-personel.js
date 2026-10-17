@@ -360,17 +360,25 @@ function psnBuka(asal, unitBawaan){
 
 function psnGambarKartu(){
   const p = PSN.dibuka;
-  const akunPilihan = [['', T('— tidak dikaitkan —','— not linked —')]]
-    .concat(USERS.map(u=>[u.username, `${u.nama || u.username} · ${u.username}`]));
+  // Unit yang boleh dipilih akun ini: administrator melihat semua, akun unit
+  // hanya unitnya. Kalau cuma satu, unitnya dikunci dan diisi otomatis.
+  const unitPakai = (typeof unitBoleh === 'function' && unitBoleh().length) ? unitBoleh() : UNIT;
+  const kunciUnit = unitPakai.length <= 1;
+  if(kunciUnit && unitPakai[0]) p.unit = unitPakai[0].kode;
+  const unitOpsi = kunciUnit
+    ? unitPakai.map(u=>[u.kode, u.nama])
+    : [['', T('— pilih unit —','— choose unit —')]].concat(unitPakai.map(u=>[u.kode, u.nama]));
 
   el('badanPersonel').innerHTML =
     `<div class="imp-atur" style="margin-top:0;padding-top:0;border-top:none">
-      ${dIsian('pNama', T('Nama','Name'), p.nama)}
-      ${dPilih('pUnit', 'Unit', [['', T('— tidak ditetapkan —','— not set —')]]
-        .concat(UNIT.map(u=>[u.kode, u.nama])), p.unit)}
-      ${dPilih('pAkun', T('Akun E-Logbook (NIK)','E-Logbook account (NIK)'), akunPilihan, p.username,
-        T('Terisi otomatis dari nama. Ke sinilah peringatan masa berlaku dikirim.',
-          'Auto-filled from the name. This is where the expiry warning is sent.'))}
+      <div class="isian"><label>${T('Nama','Name')}</label>
+        <input type="text" id="pNama" list="dlAkunNama" autocomplete="off" value="${esc(p.nama || '')}"
+          placeholder="${T('ketik atau pilih dari akun','type or pick from accounts')}">
+        <datalist id="dlAkunNama">${USERS.map(u=>`<option value="${esc(u.nama || '')}"></option>`).join('')}</datalist>
+        <div class="ket" id="pNikKet" style="font-size:11px;margin-top:4px;color:var(--muted)">${
+          p.username ? 'NIK ' + esc(p.username) : T('akun belum terkait','no account linked')}</div></div>
+      ${dPilih('pUnit', 'Unit', unitOpsi, p.unit,
+        kunciUnit ? T('Unit Anda','Your unit') : T('Ikut dari nama bila akunnya cocok','From the name when the account matches'))}
     </div>
 
     <div class="subtab" style="margin-top:14px">
@@ -395,11 +403,11 @@ function psnGambarKartu(){
   el('badanPersonel').querySelectorAll('[data-ptab]').forEach(b=>b.addEventListener('click', ()=>{
     psnBacaKepala(); PSN.tab = b.dataset.ptab; psnGambarKartu();
   }));
-  // Nama -> akun/NIK otomatis.
+  // Nama -> akun/NIK + unit otomatis.
   const nm = el('pNama');
   if(nm) nm.addEventListener('input', ()=>{ PSN.dibuka.nama = nm.value; psnAutoAkun(); });
-  el('pUnit').addEventListener('change', ()=>{ PSN.dibuka.unit = el('pUnit').value; });
-  el('pAkun').addEventListener('change', ()=>{ PSN.dibuka.username = el('pAkun').value; });
+  const un = el('pUnit');
+  if(un) un.addEventListener('change', ()=>{ PSN.dibuka.unit = un.value; });
 
   if(PSN.tab === 'plt') psnWirePlt(); else psnWireSert();
   psnBerkasPasang();
@@ -426,23 +434,31 @@ function psnGambarKartu(){
    menggambar ulang (ganti tab) supaya nama/unit/akun tidak hilang. */
 function psnBacaKepala(){
   const p = PSN.dibuka; if(!p) return;
-  const nm = el('pNama'), un = el('pUnit'), ak = el('pAkun');
+  const nm = el('pNama'), un = el('pUnit');
   if(nm) p.nama = nm.value;
   if(un) p.unit = un.value;
-  if(ak) p.username = ak.value;
+  // p.username dijaga oleh psnAutoAkun, tidak dibaca dari kolom lagi.
 }
 
-/* Begitu nama diketik, cari akun E-Logbook yang namanya sama persis dan
-   kaitkan NIK-nya otomatis. Pencocokan nama tidak selalu kena (banyak nama
-   kembar / beda ejaan), jadi hanya mengisi kalau belum dikaitkan dan kalau
-   kecocokannya tunggal; sisanya dipilih manual lewat dropdown. */
+/* Begitu nama cocok persis dengan satu akun E-Logbook, NIK-nya dikaitkan dan
+   unitnya ikut (kalau unitnya tidak dikunci). Nama dari <datalist> akun, jadi
+   kecocokan biasanya tepat; nama kembar (cocok lebih dari satu) dibiarkan
+   supaya tidak salah kait. Kaitan lama tidak dihapus saat nama diketik ulang. */
 function psnAutoAkun(){
-  const p = PSN.dibuka, ak = el('pAkun'); if(!ak) return;
-  if(p.username) return;
+  const p = PSN.dibuka; if(!p) return;
   const nama = (p.nama || '').trim().toLowerCase();
-  if(!nama) return;
-  const cocok = USERS.filter(u => String(u.nama || '').trim().toLowerCase() === nama);
-  if(cocok.length === 1){ p.username = cocok[0].username; ak.value = cocok[0].username; }
+  const cocok = nama ? USERS.filter(u => String(u.nama || '').trim().toLowerCase() === nama) : [];
+  if(cocok.length === 1){
+    p.username = cocok[0].username || '';
+    const un = el('pUnit');
+    // Unit ikut hanya kalau tidak dikunci dan akunnya punya unit.
+    if(un && !un.disabled && un.options.length > 1 && Array.isArray(cocok[0].unit) && cocok[0].unit[0]){
+      p.unit = cocok[0].unit[0];
+      un.value = p.unit;
+    }
+  }
+  const ket = el('pNikKet');
+  if(ket) ket.textContent = p.username ? 'NIK ' + p.username : T('akun belum terkait','no account linked');
 }
 
 const pltTahunOf = (t) => String(t.mulai || t.tglSert || t.selesai || '').slice(0, 4);
@@ -490,11 +506,13 @@ function psnTabPelatihan(p){
   const tampil = list.map((t, i) => ({ t, i }))
     .filter(x => pltTahunOf(x.t) === PSN.pltTahun || !pltTahunOf(x.t));
   return `
-    <div class="atur-data" style="margin:4px 0 10px;gap:8px">
-      <span class="ket">${T('Tahun','Year')}
+    <div class="atur-data" style="margin:4px 0 10px;gap:10px;align-items:flex-end">
+      <div class="isian" style="margin-bottom:0;max-width:120px">
+        <label>${T('Tahun','Year')}</label>
         <select id="pltTahunPilih">${tahunPil.map(y=>`<option value="${esc(y)}"${y===PSN.pltTahun?' selected':''}>${esc(y)}</option>`).join('')}</select>
-        · ${list.length} ${T('total','total')}</span>
-      <span class="tombol">
+      </div>
+      <span class="ket">${list.length} ${T('pelatihan total','training total')}</span>
+      <span class="tombol" style="margin-left:auto">
         <a class="btn garis kecil" href="/alat-echain.html" target="_blank" rel="noopener"
            style="text-decoration:none" title="${T('Pasang bookmarklet pengisi form eChain','Install the eChain form bookmarklet')}">${T('Bot eChain','eChain bot')}</a>
         <button class="btn garis kecil" id="btnTambahPlt">${T('Tambah pelatihan','Add training')}</button></span>
@@ -610,9 +628,9 @@ document.addEventListener('keydown', e=>{
 
 el('btnSimpanPersonel').addEventListener('click', async ()=>{
   const p = PSN.dibuka; if(!p) return;
-  p.nama     = el('pNama').value.trim();
-  p.unit     = el('pUnit').value;
-  p.username = el('pAkun').value;
+  p.nama = el('pNama').value.trim();
+  p.unit = el('pUnit').value;
+  // p.username sudah dikaitkan otomatis dari nama (psnAutoAkun).
   if(!p.nama){ pesan(T('Nama belum diisi.','The name is empty.')); return; }
   // Baris pelatihan yang benar-benar kosong dibuang diam-diam (Tambah lalu batal).
   p.pelatihan = (p.pelatihan || []).filter(t =>
