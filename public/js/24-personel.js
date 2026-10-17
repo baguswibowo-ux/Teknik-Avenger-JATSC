@@ -352,6 +352,7 @@ function psnBuka(asal, unitBawaan){
   PSN.tab = 'sert';                       // tab aktif di kartu: 'sert' | 'plt'
   PSN.pltTahun = String(new Date().getFullYear());   // tahun yang sedang dilihat di tab Pelatihan
   PSN.pltPilih = new Set();               // id pelatihan yang dicentang untuk batch ke eChain
+  PSN.pltPdfKet = '';                     // laporan terakhir "Isi dari PDF sertifikat"
   el('judulPersonel').textContent = asal ? T('Ubah personel','Edit person')
                                          : T('Tambah personel','Add person');
   el('ketKartuPersonel').textContent = asal ? asal.nama : '';
@@ -521,6 +522,15 @@ function psnTabPelatihan(p){
           T('Siapkan terpilih ke eChain','Prepare picked for eChain')} (${PSN.pltPilih.size})</button>` : ''}
         <button class="btn garis kecil" id="btnTambahPlt">${T('Tambah pelatihan','Add training')}</button></span>
     </div>
+    <div class="isian" style="border-bottom:1px dashed var(--line);padding-bottom:10px;margin-bottom:10px">
+      <label class="btn garis kecil" style="display:inline-block;cursor:pointer">
+        📄 ${T('Isi dari PDF sertifikat','Fill from certificate PDFs')}
+        <input type="file" id="pltPdf" accept=".pdf,application/pdf" multiple hidden>
+      </label>
+      <div class="bantu" id="pltPdfKet" style="margin-top:6px">${PSN.pltPdfKet || T(
+        'Pilih satu atau banyak PDF sertifikat sekaligus. Tiap PDF jadi satu baris pelatihan, isiannya terisi sendiri, dan PDF-nya ikut jadi lampiran. Periksa isian bergaris biru, lalu Simpan.',
+        'Pick one or many certificate PDFs. Each becomes a training row, filled in automatically, with the PDF attached. Check the fields outlined in blue, then Save.')}</div>
+    </div>
     ${tampil.length
       ? tampil.map(x => pltBarisKartu(x.t, x.i)).join('')
       : `<div style="color:var(--muted);font-size:12.5px;padding:6px 0">${
@@ -528,6 +538,8 @@ function psnTabPelatihan(p){
 }
 
 function pltBarisKartu(t, i){
+  // Kolom yang terisi dari PDF diberi garis biru sampai orangnya menyentuhnya.
+  const biru = (k) => (t._pdf || []).includes(k) ? ' style="box-shadow:0 0 0 1px var(--accent)"' : '';
   return `
   <div class="sert-bungkus" data-plt="${i}">
   <div class="sert-sunting">
@@ -537,37 +549,158 @@ function pltBarisKartu(t, i){
         style="width:18px;height:18px;cursor:pointer"></div>
     <div class="isian" style="margin-bottom:0;min-width:150px">
       <label>${T('Kategori','Category')}</label>
-      <select data-pk="${i}" data-pcol="kategori">
+      <select data-pk="${i}" data-pcol="kategori"${biru('kategori')}>
         <option value="">${T('- pilih -','- choose -')}</option>
         ${ECHAIN_KATEGORI.map(k=>`<option value="${esc(k)}"${k===(t.kategori||'')?' selected':''}>${esc(k)}</option>`).join('')}
       </select></div>
     <div class="isian" style="margin-bottom:0;flex:2;min-width:180px">
       <label>${T('Nama pelatihan','Training name')}</label>
-      <input type="text" data-pk="${i}" data-pcol="nama" value="${esc(t.nama||'')}"></div>
+      <input type="text" data-pk="${i}" data-pcol="nama"${biru('nama')} value="${esc(t.nama||'')}"></div>
     <div class="isian" style="margin-bottom:0;min-width:140px">
       <label>${T('No. Sertifikat','Certificate no.')}</label>
-      <input type="text" data-pk="${i}" data-pcol="nomor" value="${esc(t.nomor||'')}"></div>
+      <input type="text" data-pk="${i}" data-pcol="nomor"${biru('nomor')} value="${esc(t.nomor||'')}"></div>
     <div class="isian" style="margin-bottom:0;min-width:128px">
       <label>${T('Tgl. mulai','Start')}</label>
-      <input type="date" data-pk="${i}" data-pcol="mulai" value="${esc(t.mulai||'')}"></div>
+      <input type="date" data-pk="${i}" data-pcol="mulai"${biru('mulai')} value="${esc(t.mulai||'')}"></div>
     <div class="isian" style="margin-bottom:0;min-width:128px">
       <label>${T('Tgl. selesai','End')}</label>
-      <input type="date" data-pk="${i}" data-pcol="selesai" value="${esc(t.selesai||'')}"></div>
+      <input type="date" data-pk="${i}" data-pcol="selesai"${biru('selesai')} value="${esc(t.selesai||'')}"></div>
     <div class="isian" style="margin-bottom:0;min-width:128px">
       <label>${T('Tgl. sertifikat','Cert. date')}</label>
-      <input type="date" data-pk="${i}" data-pcol="tglSert" value="${esc(t.tglSert||'')}"></div>
+      <input type="date" data-pk="${i}" data-pcol="tglSert"${biru('tglSert')} value="${esc(t.tglSert||'')}"></div>
     <button class="btn garis kecil" data-plt-buang="${i}" title="${T('Hapus baris ini','Delete this row')}">&#10005;</button>
   </div>
   <div class="sert-sunting" style="margin-top:4px">
     <div class="isian" style="margin-bottom:0;flex:2;min-width:200px">
       <label>${T('Tempat / Penyelenggara','Place / Organiser')}</label>
-      <input type="text" data-pk="${i}" data-pcol="tempat" value="${esc(t.tempat||'')}"></div>
+      <input type="text" data-pk="${i}" data-pcol="tempat"${biru('tempat')} value="${esc(t.tempat||'')}"></div>
     <div class="isian" style="margin-bottom:0;align-self:flex-end">
       ${t.dikirim
         ? `<span class="sert-sisa aman" title="${T('Sudah disiapkan ke eChain','Prepared for eChain')}">&#10003; eChain</span>`
         : `<button class="btn garis kecil" data-plt-echain="${i}" type="button">${T('Siapkan ke eChain','Prepare for eChain')}</button>`}</div>
   </div>
+  ${pltBerkasCip(PSN.dibuka, t)}
   </div>`;
+}
+
+/* Lampiran satu baris pelatihan. Memakai rak berkas personel yang sama dengan
+   sertifikat (berkas menempel lewat id barisnya). Bedanya dengan psnBerkasCip:
+   berkas yang masih ditahan (PSN.tunda) ikut ditampilkan juga untuk orang yang
+   sudah tersimpan, karena PDF dari "Isi dari PDF" selalu ditahan dulu dan baru
+   naik saat Simpan — Batal tidak meninggalkan berkas yatim di server. */
+function pltBerkasCip(orang, t){
+  const nunggu = PSN.tunda.filter(x=>x.sert === t.id);
+  const milik  = orang.id ? psnBerkasSert(orang.id, t.id) : [];
+  return `<div class="psn-berkas">
+    ${milik.map(b=>`<span class="psn-cip">
+      <a href="/personel/${esc(orang.id)}/berkas/${esc(b.id)}" target="_blank" rel="noopener"
+        title="${esc(b.nama)} · ${brkUkuran(b.ukuran)}">${esc(brkEkstensi(b.nama))} · ${esc(b.nama)}</a>
+      ${BOLEH_HAPUS.personel
+        ? `<button class="psn-cip-buang" data-brk-buang="${esc(b.id)}"
+             title="${T('Hapus berkas ini','Delete this file')}">✕</button>` : ''}
+    </span>`).join('')}
+    ${nunggu.map(x=>`<span class="psn-cip">
+      <span class="psn-cip-tunda" title="${esc(x.file.name)} · ${brkUkuran(x.file.size)}">${
+        esc(brkEkstensi(x.file.name))} · ${esc(x.file.name)}</span>
+      <button class="psn-cip-buang" data-brk-tunda="${esc(x.id)}"
+        title="${T('Batalkan berkas ini','Drop this file')}">✕</button>
+    </span>`).join('')}
+    ${PSN.berkasBisaTulis
+      ? `<button class="btn garis kecil" data-brk-lampir="${esc(t.id)}">${
+          milik.length || nunggu.length ? T('Tambah bukti','Add proof') : T('Lampirkan PDF','Attach PDF')}</button>
+         ${nunggu.length ? `<span class="psn-berkas-ket">${
+           T('Naik ke server begitu Simpan ditekan.','Uploaded when you press Save.')}</span>` : ''}`
+      : ''}
+  </div>`;
+}
+
+/* "Isi dari PDF sertifikat": tiap PDF dibaca di peramban (public/pelatihan-pdf.mjs,
+   dimuat saat pertama dipakai), jadi satu baris pelatihan baru yang isiannya
+   terisi sendiri, dan PDF-nya ditahan sebagai lampiran baris itu. Tidak ada
+   yang tersimpan sebelum Simpan ditekan. PDF hasil pindai (tanpa teks)
+   dibaca lewat OCR yang sudah ada (ocrSiapkan, public/vendor/ocr/). */
+async function pltIsiDariPdf(e){
+  const input = e.target;
+  const daftar = [...(input.files || [])].filter(f=>/\.pdf$/i.test(f.name) || f.type === 'application/pdf');
+  input.value = '';
+  if(!daftar.length){ pesan(T('Pilih berkas PDF.','Choose PDF files.')); return; }
+  const p = PSN.dibuka; if(!p) return;
+  if(!Array.isArray(p.pelatihan)) p.pelatihan = [];
+
+  const lapor = (html, warna) => {
+    PSN.pltPdfKet = html;
+    const k = el('pltPdfKet'); if(k){ k.innerHTML = html; k.style.color = warna || ''; }
+  };
+  input.disabled = true;
+
+  let modul;
+  try{
+    lapor(T('Memuat pembaca PDF (pertama kali saja, ±1,8 MB)...','Loading the PDF reader (first time only, ~1.8 MB)...'));
+    modul = await import(new URL('pelatihan-pdf.mjs', location.href).href);
+  }catch(err){
+    input.disabled = false;
+    lapor(T('Pembaca PDF gagal dimuat: ','The PDF reader failed to load: ') + esc(err && err.message || err), 'var(--fail)');
+    return;
+  }
+  const ocr = typeof ocrSiapkan === 'function'
+    ? async (kanvas) => {
+        const w = await ocrSiapkan(m => lapor(esc(m)));
+        await w.setParameters({ tessedit_pageseg_mode: '3' });   // halaman utuh, tata letak bebas
+        return (await w.recognize(kanvas)).data.text;
+      }
+    : null;
+
+  const baru = [], tanpaTeks = [], bedaNama = [], gagal = [], kembar = [];
+  for(let i = 0; i < daftar.length; i++){
+    const f = daftar[i];
+    lapor(T(`Membaca ${i + 1}/${daftar.length}: `, `Reading ${i + 1}/${daftar.length}: `) + esc(f.name));
+    try{
+      const { isi, cocokNama, sumber } = await modul.bacaPdfPelatihan(f, { namaOrang: p.nama, ocr });
+      const t = {
+        id: 't' + Date.now().toString(36) + i,
+        kategori: isi.kategori, nama: isi.nama || f.name.replace(/\.pdf$/i, ''),
+        nomor: isi.nomor, tempat: isi.tempat, mulai: isi.mulai, selesai: isi.selesai,
+        tglSert: isi.tglSert, dikirim: false
+      };
+      t._pdf = Object.keys(isi).filter(k=>isi[k]);
+      if(t.nomor && p.pelatihan.some(x=>x.nomor && x.nomor === t.nomor)) kembar.push(t.nomor);
+      p.pelatihan.push(t);
+      baru.push(t);
+      if(PSN.berkasBisaTulis && f.size <= BRK_BATAS){
+        PSN.tunda.push({ id: 'b' + Date.now().toString(36) + PSN.tunda.length, sert: t.id, file: f });
+      }
+      if(sumber === 'kosong') tanpaTeks.push(f.name);
+      if(cocokNama === false) bedaNama.push(f.name);
+    }catch(err){
+      console.warn('[pelatihan] PDF gagal dibaca:', f.name, err);
+      gagal.push(f.name);
+    }
+  }
+  input.disabled = false;
+
+  // Tampilkan tahun dari baris baru pertama; sebut kalau tersebar di beberapa tahun.
+  const tahun = [...new Set(baru.map(pltTahunOf).filter(Boolean))].sort().reverse();
+  if(tahun[0]) PSN.pltTahun = tahun[0];
+
+  const potong = (a) => esc(a.slice(0, 4).join(', ') + (a.length > 4 ? ` +${a.length - 4}` : ''));
+  let html = baru.length
+    ? `<b>${baru.length}</b> ${T('PDF terbaca jadi baris pelatihan baru','PDFs became new training rows')}. ${
+        T('Isian bergaris biru diambil dari PDF — periksa lagi, lalu Simpan. PDF-nya ikut jadi lampiran.',
+          'Fields outlined in blue came from the PDF — check them, then Save. The PDFs are attached.')}`
+    : T('Tidak ada PDF yang terbaca.','No PDF could be read.');
+  if(tahun.length > 1) html += `<br>${T('Tersebar di tahun','Spread over years')} ${esc(tahun.join(', '))} — ${
+    T('ganti Tahun untuk melihat sisanya.','switch Year to see the rest.')}`;
+  if(tanpaTeks.length) html += `<br><span style="color:var(--warn)">${
+    T('Tidak terbaca (pindaian tanpa teks?) — lengkapi manual','No text found (a scan?) — fill in by hand')}: ${potong(tanpaTeks)}.</span>`;
+  if(bedaNama.length) html += `<br><span style="color:var(--warn)">${
+    T(`Nama ${esc(p.nama || '')} tidak ditemukan di sertifikat — pastikan bukan milik orang lain`,
+      `The name ${esc(p.nama || '')} was not found on the certificate — make sure it is theirs`)}: ${potong(bedaNama)}.</span>`;
+  if(kembar.length) html += `<br><b style="color:var(--warn)">${
+    T('No. sertifikat ini sudah ada di daftar','This certificate number is already listed')}: ${potong(kembar)}.</b>`;
+  if(gagal.length) html += `<br><span style="color:var(--fail)">${T('Gagal dibaca','Could not read')}: ${potong(gagal)}.</span>`;
+
+  PSN.pltPdfKet = html;
+  psnGambarKartu();
 }
 
 function psnWirePlt(){
@@ -575,8 +708,14 @@ function psnWirePlt(){
   badan.querySelectorAll('[data-pk]').forEach(i=>{
     const t = PSN.dibuka.pelatihan[Number(i.dataset.pk)];
     if(!t) return;
-    i.addEventListener(i.tagName === 'SELECT' ? 'change' : 'input', ()=>{ t[i.dataset.pcol] = i.value; });
+    i.addEventListener(i.tagName === 'SELECT' ? 'change' : 'input', ()=>{
+      t[i.dataset.pcol] = i.value;
+      // Sudah diperiksa/diubah orangnya: garis biru "dari PDF" dilepas.
+      if(t._pdf){ t._pdf = t._pdf.filter(k=>k !== i.dataset.pcol); i.style.boxShadow = ''; }
+    });
   });
+  const pdf = el('pltPdf');
+  if(pdf) pdf.addEventListener('change', pltIsiDariPdf);
   badan.querySelectorAll('[data-plt-buang]').forEach(b=>b.addEventListener('click', ()=>{
     PSN.dibuka.pelatihan.splice(Number(b.dataset.pltBuang), 1); psnGambarKartu();
   }));
@@ -671,7 +810,11 @@ el('btnSimpanPersonel').addEventListener('click', async ()=>{
   if(!p.nama){ pesan(T('Nama belum diisi.','The name is empty.')); return; }
   // Baris pelatihan yang benar-benar kosong dibuang diam-diam (Tambah lalu batal).
   p.pelatihan = (p.pelatihan || []).filter(t =>
-    t.nama || t.nomor || t.kategori || t.mulai || t.selesai || t.tglSert || t.tempat);
+    t.nama || t.nomor || t.kategori || t.mulai || t.selesai || t.tglSert || t.tempat ||
+    PSN.tunda.some(x=>x.sert === t.id));
+  // Penanda "dari PDF" hanya untuk kartu yang sedang terbuka, bukan data.
+  p.pelatihan.forEach(t => { delete t._pdf; });
+  PSN.pltPdfKet = '';
   // Baris sertifikat yang sama sekali kosong dibuang tanpa berkata apa-apa:
   // menekan Tambah baris lalu berubah pikiran bukan kesalahan yang perlu
   // dilaporkan.
@@ -924,7 +1067,8 @@ async function psnTundaKirim(orangId, tombol){
  */
 function psnBerkasLepas(orang){
   if(!orang.id) return '';
-  const idSert = new Set((orang.sertifikat || []).map(s=>s.id || ''));
+  // Lampiran baris pelatihan juga punya tempat, jadi bukan berkas lepas.
+  const idSert = new Set([...(orang.sertifikat || []), ...(orang.pelatihan || [])].map(s=>s.id || ''));
   const lepas = (PSN.berkas[orang.id] || []).filter(b=>!idSert.has(b.sert || ''));
   if(!lepas.length) return '';
   return `<div class="atur-data" style="margin:16px 0 6px">
