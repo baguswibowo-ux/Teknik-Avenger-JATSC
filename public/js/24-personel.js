@@ -351,6 +351,7 @@ function psnBuka(asal, unitBawaan){
   PSN.tunda = [];
   PSN.tab = 'sert';                       // tab aktif di kartu: 'sert' | 'plt'
   PSN.pltTahun = String(new Date().getFullYear());   // tahun yang sedang dilihat di tab Pelatihan
+  PSN.pltPilih = new Set();               // id pelatihan yang dicentang untuk batch ke eChain
   el('judulPersonel').textContent = asal ? T('Ubah personel','Edit person')
                                          : T('Tambah personel','Add person');
   el('ketKartuPersonel').textContent = asal ? asal.nama : '';
@@ -511,10 +512,13 @@ function psnTabPelatihan(p){
         <label>${T('Tahun','Year')}</label>
         <select id="pltTahunPilih">${tahunPil.map(y=>`<option value="${esc(y)}"${y===PSN.pltTahun?' selected':''}>${esc(y)}</option>`).join('')}</select>
       </div>
-      <span class="ket">${list.length} ${T('pelatihan total','training total')}</span>
+      <span class="ket">${list.length} ${T('pelatihan total','training total')}${
+        PSN.pltPilih.size ? ` · ${PSN.pltPilih.size} ${T('dipilih','picked')}` : ''}</span>
       <span class="tombol" style="margin-left:auto">
         <a class="btn garis kecil" href="/alat-echain.html" target="_blank" rel="noopener"
            style="text-decoration:none" title="${T('Pasang bookmarklet pengisi form eChain','Install the eChain form bookmarklet')}">${T('Bot eChain','eChain bot')}</a>
+        ${PSN.pltPilih.size ? `<button class="btn kecil" id="btnBatchPlt">${
+          T('Siapkan terpilih ke eChain','Prepare picked for eChain')} (${PSN.pltPilih.size})</button>` : ''}
         <button class="btn garis kecil" id="btnTambahPlt">${T('Tambah pelatihan','Add training')}</button></span>
     </div>
     ${tampil.length
@@ -527,6 +531,10 @@ function pltBarisKartu(t, i){
   return `
   <div class="sert-bungkus" data-plt="${i}">
   <div class="sert-sunting">
+    <div class="isian" style="margin-bottom:0;align-self:flex-end;min-width:0">
+      <input type="checkbox" data-plt-pick="${esc(t.id)}" ${PSN.pltPilih.has(t.id)?'checked':''}
+        title="${T('Pilih untuk dikirim bareng ke eChain','Pick to send together to eChain')}"
+        style="width:18px;height:18px;cursor:pointer"></div>
     <div class="isian" style="margin-bottom:0;min-width:150px">
       <label>${T('Kategori','Category')}</label>
       <select data-pk="${i}" data-pcol="kategori">
@@ -575,6 +583,13 @@ function psnWirePlt(){
   badan.querySelectorAll('[data-plt-echain]').forEach(b=>b.addEventListener('click', ()=>{
     pltEchainKirim(PSN.dibuka.pelatihan[Number(b.dataset.pltEchain)]);
   }));
+  badan.querySelectorAll('[data-plt-pick]').forEach(c=>c.addEventListener('change', ()=>{
+    const id = c.dataset.pltPick;
+    if(c.checked) PSN.pltPilih.add(id); else PSN.pltPilih.delete(id);
+    psnGambarKartu();   // perbarui penghitung & tombol batch
+  }));
+  const bb = el('btnBatchPlt');
+  if(bb) bb.addEventListener('click', pltEchainKirimBatch);
   const th = el('pltTahunPilih');
   if(th) th.addEventListener('change', ()=>{ PSN.pltTahun = th.value; psnGambarKartu(); });
   const tb = el('btnTambahPlt');
@@ -588,18 +603,8 @@ function psnWirePlt(){
 /* Menyiapkan satu pelatihan untuk eChain: salin ke clipboard, buka gerbang VPN,
    tandai. Tidak menulis langsung ke eChain (form & Simpan tetap di tangan orang,
    unggahan eChain tak bisa dihapus). Tanda disimpan saat kartu ini ditekan Simpan. */
-async function pltEchainKirim(t){
-  if(!t) return;
-  const p = PSN.dibuka;
-  const nik = (p.username || '').trim();
-  if(!nik){ pesan(T('Kaitkan akun (NIK) dulu sebelum kirim ke eChain.','Link an account (NIK) first.')); return; }
-  if(!t.nama){ pesan(T('Isi nama pelatihan dulu.','Fill the training name first.')); return; }
-  const muatan = {
-    v:1, src:'avengers-echain', tipe:'pelatihan', nik, nama: p.nama || '',
-    item:{ kategori:t.kategori||'', mulai:t.mulai||'', selesai:t.selesai||'',
-      training:t.nama||'', no_sert:t.nomor||'', tgl_sert:t.tglSert||'', tempat:t.tempat||'' }
-  };
-  const teks = JSON.stringify(muatan);
+/** Menyalin teks ke clipboard, dengan cadangan textarea bila API diblokir. */
+async function psnSalin(teks){
   try{ await navigator.clipboard.writeText(teks); }
   catch(e){
     const ta = document.createElement('textarea'); ta.value = teks;
@@ -607,10 +612,42 @@ async function pltEchainKirim(t){
     try{ document.execCommand('copy'); }catch(_){}
     ta.remove();
   }
+}
+
+/** Bentuk satu entri pelatihan menjadi item muatan eChain. */
+const pltItem = (t) => ({
+  kategori:t.kategori||'', mulai:t.mulai||'', selesai:t.selesai||'',
+  training:t.nama||'', no_sert:t.nomor||'', tgl_sert:t.tglSert||'', tempat:t.tempat||''
+});
+
+async function pltEchainKirim(t){
+  if(!t) return;
+  const p = PSN.dibuka;
+  const nik = (p.username || '').trim();
+  if(!nik){ pesan(T('Kaitkan akun (NIK) dulu sebelum kirim ke eChain.','Link an account (NIK) first.')); return; }
+  if(!t.nama){ pesan(T('Isi nama pelatihan dulu.','Fill the training name first.')); return; }
+  await psnSalin(JSON.stringify({ v:1, src:'avengers-echain', tipe:'pelatihan', nik, nama:p.nama||'', item:pltItem(t) }));
   t.dikirim = true;
   psnGambarKartu();
-  pesan(T('Tersalin. Login eChain, klik bookmarklet, lalu tekan Simpan di kartu ini agar tandanya tetap.',
+  pesan(T('Tersalin. Login eChain, klik bookmark "Isi eChain", lalu tekan Simpan di kartu ini agar tandanya tetap.',
           'Copied. Fill in eChain via the bookmarklet, then press Save here to keep the mark.'));
+  window.open(ECHAIN_VPN, '_blank', 'noopener');
+}
+
+/* Batch: kumpulkan pelatihan yang dicentang jadi satu antrean, salin ke
+   clipboard, buka gerbang VPN. Di eChain, bookmarklet "Isi & Lanjut" mengisi
+   satu tab lalu membuka tab berikutnya untuk item selanjutnya. */
+async function pltEchainKirimBatch(){
+  const p = PSN.dibuka;
+  const nik = (p.username || '').trim();
+  if(!nik){ pesan(T('Kaitkan akun (NIK) dulu sebelum kirim ke eChain.','Link an account (NIK) first.')); return; }
+  const pilih = (p.pelatihan || []).filter(t => PSN.pltPilih.has(t.id) && t.nama);
+  if(!pilih.length){ pesan(T('Centang dulu pelatihan yang mau dikirim (yang ada namanya).','Tick the training rows to send first.')); return; }
+  await psnSalin(JSON.stringify({ v:1, src:'avengers-echain', tipe:'pelatihan-batch', nik, nama:p.nama||'', items:pilih.map(pltItem) }));
+  pilih.forEach(t => t.dikirim = true);
+  psnGambarKartu();
+  pesan(T(`Tersalin ${pilih.length} pelatihan. Login eChain, klik bookmark "Isi eChain" sekali (semua tab terbuka), lalu klik lagi di tiap tab. Tekan Simpan agar tanda tetap.`,
+          `Copied ${pilih.length} training records. In eChain click "Isi eChain" once (all tabs open), then click it in each tab.`));
   window.open(ECHAIN_VPN, '_blank', 'noopener');
 }
 

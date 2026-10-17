@@ -3,13 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Bot eChain — Isi Pelatihan</title>
+<title>Bot eChain — Banyak Tab</title>
 <style>
   :root{ --bg:#f5f6f8; --kartu:#fff; --garis:#e2e5ea; --teks:#1d2430; --redup:#6b7280;
          --biru:#1d5fd0; --birumuda:#eaf1fe; }
   @media (prefers-color-scheme:dark){ :root:not([data-theme=light]){
     --bg:#0f141b; --kartu:#171d26; --garis:#2a323d; --teks:#e8ebf0; --redup:#9aa3af;
     --biru:#5b8cf0; --birumuda:#17233b; } }
+  :root[data-theme=dark]{ --bg:#0f141b; --kartu:#171d26; --garis:#2a323d; --teks:#e8ebf0; --redup:#9aa3af;
+    --biru:#5b8cf0; --birumuda:#17233b; }
   *{ box-sizing:border-box; }
   body{ margin:0; background:var(--bg); color:var(--teks); font:15px/1.6 system-ui,Segoe UI,Roboto,sans-serif; }
   .bungkus{ max-width:720px; margin:0 auto; padding:28px 16px 60px; }
@@ -29,60 +31,82 @@
 </head>
 <body>
 <div class="bungkus">
-  <h1>Bot eChain — Isi Pelatihan</h1>
-  <p class="sub">Mengisi form <b>Pelatihan</b> di eChain dari data yang kamu siapkan di Avengers.
-     Bot tidak pernah menekan Simpan — kamu yang pilih PDF dan Simpan sendiri.</p>
+  <h1>Bot eChain — Banyak Tab</h1>
+  <p class="sub">Mengisi form <b>Pelatihan</b> di eChain dari data yang disiapkan di Avengers.
+     Sekali klik, satu tab terbuka untuk tiap sertifikat. Bot tidak pernah menekan Submit:
+     lampiran PDF dan Submit tetap kamu sendiri.</p>
 
   <div class="kartu">
     <b>Pasang sekali saja</b>
     <ol>
       <li>Munculkan bilah bookmark browser: <code>Ctrl</code> + <code>Shift</code> + <code>B</code>.</li>
       <li>Seret tombol biru ini ke bilah bookmark:
-          &nbsp; <a class="tombol" id="bm" href="#">Isi Pelatihan eChain</a></li>
+          &nbsp; <a class="tombol" id="bm" href="#">Isi eChain</a></li>
       <li>Atau: <button class="salin" id="btnSalin">Salin kode bookmarklet</button>
           lalu buat bookmark baru dan tempel sebagai alamatnya.</li>
     </ol>
+    <p class="kecil">Sudah pernah pasang versi lama? Hapus yang lama, pasang yang ini.</p>
   </div>
 
   <div class="kartu">
     <b>Cara pakai</b>
     <ol>
-      <li>Di Avengers (Personel), isi baris <b>Pelatihan</b> lalu tekan
-          <b>“Siapkan ke eChain ⧉”</b>. Datanya tersalin dan gerbang VPN terbuka.</li>
+      <li>Di Avengers: Personel → buka orangnya → tab <b>Pelatihan</b>. <b>Centang</b> sertifikat yang mau
+          diunggah, tekan <b>“Siapkan terpilih ke eChain”</b>. Antreannya tersalin.</li>
       <li>Login VPN lalu eChain seperti biasa.</li>
-      <li>Klik bookmark <b>Isi Pelatihan eChain</b>. Kalau belum di halaman form, dia akan
-          meloncat ke sana dulu — klik sekali lagi untuk mengisi.</li>
-      <li>Periksa isiannya, <b>pilih file PDF</b>, lalu tekan <b>Simpan</b> sendiri.</li>
+      <li>Klik bookmark <b>Isi eChain</b> sekali → <b>semua tab langsung terbuka</b>, satu per sertifikat.</li>
+      <li>Di <b>tiap tab</b>: klik bookmark <b>Isi eChain</b> → form tab itu terisi dengan sertifikatnya sendiri.</li>
+      <li>Periksa isian, <b>pilih file PDF</b>, tekan <b>Submit</b> sendiri.</li>
     </ol>
-    <p class="catatan">Kalau nomor sertifikatnya sudah pernah diunggah, bot akan memberi peringatan
-      lebih dulu — unggahan di eChain tidak bisa dihapus, jadi hati-hati dengan duplikat.</p>
+    <p class="catatan"><b>Pertama kali:</b> Chrome biasanya memblokir banyak tab sekaligus. Klik ikon pop-up
+      yang muncul di ujung kanan address bar → pilih <b>“Selalu izinkan pop-up dan pengalihan”</b> → Selesai.
+      Lalu klik bookmark lagi — tab yang tadi terblokir akan dibuka.</p>
+    <p class="catatan">Kalau nomor sertifikat sepertinya sudah ada di eChain, bot memberi peringatan dulu.
+      Unggahan eChain tidak bisa dihapus, jadi hati-hati dengan duplikat.</p>
   </div>
 
   <p class="kecil">Data berpindah lewat clipboard karena eChain di balik VPN tidak bisa dihubungi
-    langsung oleh server Avengers.</p>
+    langsung oleh server Avengers. Antreannya disimpan di browser ini (localStorage eChain)
+    sampai semua terisi; judul tiap tab diberi tanda [nomor/total].</p>
 </div>
 
 <script>
 /* ============================================================
-   Logika bookmarklet. Ditulis utuh di sini (readable) lalu
-   dirangkai jadi tautan javascript: supaya mudah dirawat dan
-   TIDAK memuat apa pun dari luar saat dijalankan di eChain
-   (eChain di balik VPN memblokir panggilan ke server Avengers).
+   Logika bookmarklet. Ditulis utuh di sini lalu dirangkai jadi
+   tautan javascript:, dan TIDAK memuat apa pun dari luar saat
+   dijalankan di eChain (VPN memblokir panggilan ke Avengers).
+
+   Antrean { nik, nama, items:[{it, done, buka}] } disimpan di
+   localStorage asal eChain, jadi semua tab eChain berbagi antrean.
+   - Klik tanpa penanda (#avx=N): ambil antrean (clipboard/lama),
+     buka SEMUA item yang belum punya tab, tiap tab diberi #avx=N.
+     Kalau halaman ini sudah form kosong, ia mengambil item pertama.
+   - Klik di tab ber-#avx=N: isi item N saja.
+   window.open yang mengembalikan null = diblokir; item itu tetap
+   belum "buka" dan dibuka lagi pada klik berikutnya.
    ============================================================ */
 function ECHAIN_BOT(){
-  var KEY = 'avxEchainPelatihan';
-  // id(name) -> elemen, di dalam form unggah (multipart)
+  var QKEY = 'avxEchainAntrean';
+
+  function basis(){
+    return location.href.split('/e-chain.airnavindonesia.co.id/')[0] + '/e-chain.airnavindonesia.co.id/';
+  }
+  function urlForm(q, i){
+    return basis()+'ess/ess/add_pelatihan?idp='+encodeURIComponent(q.nik)+'#avx='+i;
+  }
   function form(){
     var fs = document.querySelectorAll('form');
-    for (var i=0;i<fs.length;i++){ if ((fs[i].getAttribute('enctype')||'').indexOf('multipart')>=0
-          && fs[i].querySelector('[name=training],[name=no_sert]')) return fs[i]; }
+    for (var i=0;i<fs.length;i++){
+      if ((fs[i].getAttribute('enctype')||'').indexOf('multipart')>=0
+          && fs[i].querySelector('[name=training],[name=no_sert]')) return fs[i];
+    }
     return null;
   }
-  function iso2id(d){ // yyyy-mm-dd -> dd.mm.yyyy
+  function iso2id(d){
     var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d||''); return m ? (m[3]+'.'+m[2]+'.'+m[1]) : (d||'');
   }
   function setNilai(f, nama, nilai){
-    var el = f.querySelector('[name='+nama+']'); if(!el || nilai==null) return;
+    var el = f.querySelector('[name='+nama+']'); if(!el || nilai==null || nilai==='') return;
     if (el.tagName==='SELECT'){
       var t=String(nilai).trim().toUpperCase(), ok=false;
       for (var i=0;i<el.options.length;i++){
@@ -93,51 +117,120 @@ function ECHAIN_BOT(){
     el.dispatchEvent(new Event('change',{bubbles:true}));
     el.dispatchEvent(new Event('input',{bubbles:true}));
   }
-  function basis(){ // prefix proxy VPN + host eChain, dengan garis miring penutup
-    var h = location.href, p = h.split('/e-chain.airnavindonesia.co.id/')[0];
-    return p + '/e-chain.airnavindonesia.co.id/';
+  function muat(){ try{ return JSON.parse(localStorage.getItem(QKEY)||'null'); }catch(e){ return null; } }
+  function simpan(q){ try{ localStorage.setItem(QKEY, JSON.stringify(q)); }catch(e){} }
+  function hapus(){ try{ localStorage.removeItem(QKEY); }catch(e){} }
+  function sisa(q){ var n=0; for(var i=0;i<q.items.length;i++) if(!q.items[i].done) n++; return n; }
+  function urai(teks){
+    try{
+      var d = JSON.parse(teks);
+      if(d && d.src==='avengers-echain' && (d.tipe==='pelatihan' || d.tipe==='pelatihan-batch')) return d;
+    }catch(e){}
+    return null;
   }
-  function cekDobel(b, nik, no){
+  function jadiAntrean(d){
+    var arr = d.items ? d.items : (d.item ? [d.item] : []);
+    var items = [];
+    for (var i=0;i<arr.length;i++) items.push({ it:arr[i], done:false, buka:false });
+    return { nik:d.nik, nama:d.nama||'', items:items };
+  }
+  function sama(a, b){
+    return JSON.stringify(a.items.map(function(x){return x.it;})) === JSON.stringify(b.items.map(function(x){return x.it;}));
+  }
+  function cekDobel(nik, no){
     if(!no) return Promise.resolve(false);
-    return fetch(b+'ess/ess/pelatihan?idp='+encodeURIComponent(nik), {credentials:'include'})
-      .then(function(r){return r.text();})
+    return fetch(basis()+'ess/ess/pelatihan?idp='+encodeURIComponent(nik), {credentials:'include'})
+      .then(function(r){ return r.text(); })
       .then(function(t){ return t.indexOf(no) >= 0; })
       .catch(function(){ return false; });
   }
-  function isi(data){
-    var f = form();
-    if(!f){ alert('Belum di halaman form Tambah Pelatihan. Bot akan membukanya — klik bookmark sekali lagi di sana.');
-      try{ sessionStorage.setItem(KEY, JSON.stringify(data)); }catch(e){}
-      location.href = basis()+'ess/ess/add_pelatihan?idp='+encodeURIComponent(data.nik); return; }
-    var it = data.item || {};
-    setNilai(f,'jenis',    it.kategori);
-    setNilai(f,'tgl_masuk',iso2id(it.mulai));
-    setNilai(f,'tgl_lulus',iso2id(it.selesai));
-    setNilai(f,'training', it.training);
-    setNilai(f,'no_sert',  it.no_sert);
-    setNilai(f,'tgl_sert', iso2id(it.tgl_sert));
-    setNilai(f,'tempat',   it.tempat);
-    cekDobel(basis(), data.nik, it.no_sert).then(function(ada){
-      var pesan = ada
-        ? '⚠ Nomor sertifikat "'+it.no_sert+'" sepertinya SUDAH ada di eChain. Periksa dulu sebelum Simpan.'
-        : 'Form terisi. Pilih file PDF lalu tekan Simpan sendiri.';
-      try{ sessionStorage.removeItem(KEY); }catch(e){}
-      alert(pesan);
+
+  /* Isi form di tab ini dengan item ke-i. */
+  function isi(q, i){
+    var f = form(), item = q.items[i];
+    if(!f){ alert('Halaman ini bukan form Tambah Pelatihan.'); return; }
+    if(!item){ alert('Sertifikat nomor '+(i+1)+' tidak ada di antrean.'); return; }
+    if(item.done && !confirm('Sertifikat '+(i+1)+' sudah pernah diisikan. Isi ulang tab ini?')) return;
+    var it = item.it;
+    setNilai(f,'jenis',     it.kategori);
+    setNilai(f,'tgl_masuk', iso2id(it.mulai));
+    setNilai(f,'tgl_lulus', iso2id(it.selesai));
+    setNilai(f,'training',  it.training);
+    setNilai(f,'no_sert',   it.no_sert);
+    setNilai(f,'tgl_sert',  iso2id(it.tgl_sert));
+    setNilai(f,'tempat',    it.tempat);
+    item.done = true; item.buka = true;
+    var total = q.items.length, tinggal = sisa(q);
+    if (tinggal > 0) simpan(q); else hapus();
+    document.title = '['+(i+1)+'/'+total+'] ' + document.title.replace(/^\[\d+\/\d+\] /,'');
+    cekDobel(q.nik, it.no_sert).then(function(ada){
+      alert((ada ? '⚠ No. sertifikat "'+it.no_sert+'" sepertinya SUDAH ada di eChain. Periksa sebelum Submit.\n\n' : '')
+        + 'Tab ini terisi: sertifikat '+(i+1)+' dari '+total+' ("'+(it.training||'-')+'").\n'
+        + (tinggal > 0 ? 'Masih '+tinggal+' tab lain yang belum diisi.\n' : 'Semua sudah terisi.\n')
+        + 'Pilih file PDF lalu tekan Submit sendiri.');
     });
   }
-  function jalan(teks){
-    var data=null;
-    try{ data = JSON.parse(teks); }catch(e){}
-    if(!data){ try{ data = JSON.parse(sessionStorage.getItem(KEY)||'null'); }catch(e){} }
-    if(!data || data.src!=='avengers-echain' || data.tipe!=='pelatihan'){
-      alert('Clipboard belum berisi data Pelatihan dari Avengers. Tekan "Siapkan ke eChain" dulu di Avengers.');
+
+  /* Buka tab untuk semua item yang belum punya tab (kecuali `kecuali`). */
+  function bukaSemua(q, kecuali){
+    var dibuka = 0, blok = 0;
+    for (var i=0;i<q.items.length;i++){
+      var x = q.items[i];
+      if (x.done || x.buka || i === kecuali) continue;
+      var w = window.open(urlForm(q, i), '_blank');
+      if (w){ x.buka = true; dibuka++; } else { blok++; }
+    }
+    simpan(q);
+    return { dibuka:dibuka, blok:blok };
+  }
+
+  function lapor(q, h, sini){
+    var t = 'Antrean '+q.items.length+' sertifikat untuk '+(q.nama||q.nik)+'.\n'
+      + (sini != null ? 'Tab ini mengambil sertifikat '+(sini+1)+'.\n' : '')
+      + (h.dibuka ? h.dibuka+' tab baru dibuka — klik bookmark ini di tiap tab untuk mengisinya.\n' : '');
+    if (h.blok) t += '\n⚠ '+h.blok+' tab diblokir browser. Klik ikon pop-up di ujung kanan address bar → '
+      + '"Selalu izinkan pop-up", lalu klik bookmark ini sekali lagi untuk membuka sisanya.';
+    alert(t);
+  }
+
+  /* Klik tanpa penanda: buka semua tab; isi tab ini bila ia form kosong. */
+  function luncur(q){
+    var sini = null;
+    if (form()){
+      for (var i=0;i<q.items.length;i++){ if(!q.items[i].done && !q.items[i].buka){ sini = i; break; } }
+    }
+    var h = bukaSemua(q, sini);
+    if (sini != null){ isi(q, sini); if (h.dibuka || h.blok) lapor(q, h, sini); return; }
+    if (!h.dibuka && !h.blok){
+      alert(sisa(q) ? 'Semua tab sudah terbuka. Klik bookmark ini di tiap tab untuk mengisinya.'
+                    : 'Antrean sudah habis — semua sertifikat sudah diisikan.');
       return;
     }
-    isi(data);
+    lapor(q, h, null);
+  }
+
+  // 1) Tab ber-penanda #avx=N: isi item N dari antrean tersimpan.
+  var m = /avx=(\d+)/.exec(location.hash || '');
+  var tersimpan = muat();
+  if (m && tersimpan && tersimpan.items){ isi(tersimpan, Number(m[1])); return; }
+
+  // 2) Klik tanpa penanda: antrean baru dari clipboard, atau lanjutkan yang lama.
+  function dariTeks(teks){
+    var d = urai(teks), baru = d ? jadiAntrean(d) : null;
+    var lama = (tersimpan && tersimpan.items && sisa(tersimpan) > 0) ? tersimpan : null;
+    if (baru && lama && !sama(baru, lama)){
+      if (confirm('Ada antrean baru di clipboard ('+baru.items.length+' sertifikat). Ganti antrean lama yang masih sisa '+sisa(lama)+'?')){
+        simpan(baru); luncur(baru);
+      } else { luncur(lama); }
+      return;
+    }
+    if (lama){ luncur(lama); return; }
+    if (baru){ simpan(baru); luncur(baru); return; }
+    alert('Clipboard belum berisi data Pelatihan dari Avengers. Tekan "Siapkan ke eChain" dulu di Avengers.');
   }
   if (navigator.clipboard && navigator.clipboard.readText){
-    navigator.clipboard.readText().then(jalan).catch(function(){ jalan(''); });
-  } else { jalan(''); }
+    navigator.clipboard.readText().then(dariTeks).catch(function(){ dariTeks(''); });
+  } else { dariTeks(''); }
 }
 
 (function(){
@@ -145,7 +238,8 @@ function ECHAIN_BOT(){
   var href = 'javascript:' + kode;
   document.getElementById('bm').setAttribute('href', href);
   document.getElementById('btnSalin').addEventListener('click', function(){
-    navigator.clipboard.writeText(href).then(function(){ this.textContent='Tersalin ✓'; }.bind(this))
+    var b = this;
+    navigator.clipboard.writeText(href).then(function(){ b.textContent='Tersalin ✓'; })
       .catch(function(){ alert('Gagal menyalin, seret tombol birunya saja.'); });
   });
 })();
