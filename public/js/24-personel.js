@@ -853,13 +853,14 @@ async function pltEchainKirimBatch(){
   pilih.forEach(t => t.dikirim = true);
   psnGambarKartu();
 
-  /* Halaman login VPN yang ASLI, di jendela popup. Kata sandi, token, dan
-     captcha diketik langsung ke halaman resmi itu — Avengers tidak pernah
-     melihat atau menyimpannya. */
-  const jendela = window.open(ECHAIN_VPN, 'avxEchainLogin', 'popup=yes,width=1180,height=820');
+  /* Halaman login VPN yang ASLI, di TAB biasa. Kata sandi, token, dan captcha
+     diketik langsung ke halaman resmi itu — Avengers tidak pernah melihat atau
+     menyimpannya. Bukan jendela popup: jendela popup Chrome tidak punya bilah
+     bookmark, padahal langkah terakhirnya klik bookmark "Isi eChain". */
+  const jendela = window.open(ECHAIN_VPN, '_blank');
   pesan(jendela
-    ? T('Disetujui dan tersalin. Login VPN di jendela yang terbuka, buka e-Chain, login, lalu klik bookmark "Isi eChain" sekali. Tekan Simpan di sini agar tanda ✓ tetap.',
-        'Approved and copied. Log in to VPN in the window that opened, open e-Chain, log in, then click the "Isi eChain" bookmark once.')
+    ? T('Disetujui dan tersalin. Login VPN di tab yang terbuka, buka e-Chain, login, lalu klik bookmark "Isi eChain" di bilah bookmark sekali. Tekan Simpan di sini agar tanda ✓ tetap.',
+        'Approved and copied. Log in to VPN in the tab that opened, open e-Chain, log in, then click the "Isi eChain" bookmark once.')
     : T('Disetujui dan tersalin, tapi jendela login diblokir browser. Izinkan pop-up untuk Avengers, atau buka VPN sendiri.',
         'Approved and copied, but the login window was blocked. Allow pop-ups for Avengers or open the VPN yourself.'));
 }
