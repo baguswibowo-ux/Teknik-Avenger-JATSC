@@ -53,12 +53,13 @@
     <ol>
       <li>Di Avengers: Personel → buka orangnya → tab <b>Pelatihan</b>. Pastikan tiap sertifikat lengkap
           dan punya lampiran PDF, lalu <b>Simpan</b>.</li>
-      <li>Buka lagi, <b>centang</b> yang mau diunggah, tekan <b>“Kirim ke eChain”</b>. Data beserta PDF-nya tersalin.</li>
-      <li>Login VPN lalu eChain seperti biasa (login tetap kamu sendiri).</li>
-      <li>Klik bookmark <b>Isi eChain</b> sekali. Bot memeriksa yang sudah ada di eChain, lalu menampilkan
-          <b>satu popup</b> berisi daftar yang akan dikirim.</li>
-      <li><b>OK</b> = bot mengunggah semuanya beserta PDF-nya, lalu memeriksa ulang dan melaporkan hasilnya
-          di kotak kanan atas. <b>Batal</b> = tidak ada yang dikirim.</li>
+      <li>Buka lagi, <b>centang</b> yang mau diunggah, tekan <b>“Kirim ke eChain”</b>.</li>
+      <li>Di Avengers muncul <b>popup persetujuan</b> berisi daftarnya. <b>Sesuai, kirim</b> = data tersalin dan
+          jendela <b>login VPN resmi</b> terbuka. <b>Tidak</b> = tidak terjadi apa-apa.</li>
+      <li>Di jendela itu login VPN, buka e-Chain, login eChain (semua di halaman resminya, kamu yang ketik).</li>
+      <li>Klik bookmark <b>Isi eChain</b> sekali. Karena sudah disetujui di Avengers, bot langsung mengunggah
+          semuanya beserta PDF-nya (yang sudah ada dilewati), memeriksa ulang, dan melaporkan hasilnya di kotak
+          kanan atas. Tekan <b>Selesai</b> untuk menutup jendela.</li>
     </ol>
     <p class="catatan">Yang nomor sertifikatnya sudah ada di eChain otomatis dilewati. Data yang sudah terkirim
       tidak bisa dihapus sendiri di eChain dan menunggu persetujuan admin, jadi periksa daftar di popup sebelum OK.</p>
@@ -333,7 +334,13 @@ function ECHAIN_BOT(){
       var tanya = 'Kirim '+kirim.length+' sertifikat Pelatihan ke eChain atas nama '+(d.nama||d.nik)+'?\n\n'+daftar
         + (lewat.length ? '\n\nDilewati karena sudah ada: '+lewat.length : '')
         + '\n\nSesudah terkirim, data di eChain tidak bisa dihapus sendiri.\nOK = kirim sekarang.   Batal = tidak ada yang dikirim.';
-      if(!confirm(tanya)){ tulis('Dibatalkan. Tidak ada yang dikirim ke eChain.', '#9aa3af'); return; }
+      // Sudah disetujui di Avengers dan masih segar: tidak ditanya lagi.
+      // Persetujuan yang sudah basi (> 3 jam, mis. clipboard lama) ditanyakan ulang.
+      var segar = d.disetujui && d.waktu && (Date.now() - d.waktu) < 3 * 3600 * 1000;
+      if(segar){
+        tulis('Disetujui di Avengers. Mengirim '+kirim.length+' sertifikat:');
+        kirim.forEach(function(it, i){ tulis('  '+(i+1)+'. '+(it.training||'-')); });
+      } else if(!confirm(tanya)){ tulis('Dibatalkan. Tidak ada yang dikirim ke eChain.', '#9aa3af'); return; }
 
       var hasil = [], i = 0;
       (function lanjut(){
@@ -348,6 +355,14 @@ function ECHAIN_BOT(){
             tulis('Selesai: '+masuk+' dari '+kirim.length+' masuk ke daftar eChain.', masuk===kirim.length ? '#3ecf8e' : '#f0b429');
             hasil.forEach(function(h){ if(!h.ok) tulis('• '+h.it.training+': '+h.galat, '#f0b429'); });
             tulis('Data sudah dikirim; persetujuan dokumen mengikuti proses admin eChain.', '#9aa3af');
+            // Muatan dipakai sekali: kosongkan clipboard supaya klik ulang tidak mengirim lagi.
+            try{ navigator.clipboard.writeText(''); }catch(e){}
+            var tb = document.createElement('button');
+            tb.textContent = 'Selesai — tutup jendela ini';
+            // Tanpa tanda persen: di tautan javascript: tanda itu bisa dibaca sebagai kode.
+            tb.style.cssText = 'margin-top:10px;display:block;box-sizing:border-box;width:390px;padding:8px;border:0;border-radius:7px;background:#5b8cf0;color:#fff;font-weight:600;cursor:pointer';
+            tb.onclick = function(){ window.close(); var p = document.getElementById('avxPanel'); if(p) p.remove(); };
+            document.getElementById('avxIsi').appendChild(tb);
           });
         }
         var it = kirim[i++];

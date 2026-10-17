@@ -824,8 +824,9 @@ async function pltEchainKirimBatch(){
 
   const btn = el('btnBatchPlt'), asal = btn ? btn.textContent : '';
   if(btn) btn.disabled = true;
+  let items;
   try{
-    const items = [];
+    items = [];
     for(let i = 0; i < pilih.length; i++){
       const t = pilih[i];
       if(btn) btn.textContent = T(`Menyiapkan PDF ${i + 1}/${pilih.length}...`, `Preparing PDF ${i + 1}/${pilih.length}...`);
@@ -835,17 +836,70 @@ async function pltEchainKirimBatch(){
       const blob = await r.blob();
       items.push({ ...pltItem(t), file: { nama: b.nama, tipe: blob.type || 'application/pdf', b64: await berkasBase64(blob) } });
     }
-    await psnSalin(JSON.stringify({ v:1, src:'avengers-echain', tipe:'pelatihan-kirim', nik, nama:p.nama||'', items }));
-    pilih.forEach(t => t.dikirim = true);
-    psnGambarKartu();
-    pesan(T(`${pilih.length} pelatihan + PDF tersalin. Login VPN dan eChain, lalu klik bookmark "Isi eChain" sekali. Tekan Simpan di sini agar tanda ✓ tetap.`,
-            `${pilih.length} records + PDFs copied. Log in to VPN and eChain, then click the "Isi eChain" bookmark once.`));
-    window.open(ECHAIN_VPN, '_blank', 'noopener');
   }catch(err){
     pesan(T('Gagal menyiapkan: ','Could not prepare: ') + (err && err.message || err));
+    return;
   }finally{
     if(btn){ btn.disabled = false; btn.textContent = asal; }
   }
+
+  // Persetujuan kirim diputuskan DI SINI, di Avengers. Bot di eChain tidak
+  // bertanya lagi untuk muatan yang sudah disetujui (selama masih segar).
+  const setuju = await pltTanyaKirim(p, pilih);
+  if(!setuju) return;
+
+  await psnSalin(JSON.stringify({ v:1, src:'avengers-echain', tipe:'pelatihan-kirim',
+    nik, nama:p.nama||'', disetujui:true, waktu:Date.now(), items }));
+  pilih.forEach(t => t.dikirim = true);
+  psnGambarKartu();
+
+  /* Halaman login VPN yang ASLI, di jendela popup. Kata sandi, token, dan
+     captcha diketik langsung ke halaman resmi itu — Avengers tidak pernah
+     melihat atau menyimpannya. */
+  const jendela = window.open(ECHAIN_VPN, 'avxEchainLogin', 'popup=yes,width=1180,height=820');
+  pesan(jendela
+    ? T('Disetujui dan tersalin. Login VPN di jendela yang terbuka, buka e-Chain, login, lalu klik bookmark "Isi eChain" sekali. Tekan Simpan di sini agar tanda ✓ tetap.',
+        'Approved and copied. Log in to VPN in the window that opened, open e-Chain, log in, then click the "Isi eChain" bookmark once.')
+    : T('Disetujui dan tersalin, tapi jendela login diblokir browser. Izinkan pop-up untuk Avengers, atau buka VPN sendiri.',
+        'Approved and copied, but the login window was blocked. Allow pop-ups for Avengers or open the VPN yourself.'));
+}
+
+/* Popup persetujuan kirim, bergaya kartu Avengers. Menjawab true (Sesuai)
+   atau false (Tidak / tutup). Ditumpuk di atas kartu personel. */
+function pltTanyaKirim(p, pilih){
+  return new Promise(selesai => {
+    const lapis = document.createElement('div');
+    lapis.className = 'lapis-ubah buka';
+    lapis.setAttribute('role', 'dialog');
+    lapis.setAttribute('aria-modal', 'true');
+    lapis.innerHTML = `<div class="kartu-ubah">
+      <div class="kepala"><h3>${T('Kirim ke eChain?','Send to eChain?')}</h3>
+        <span class="ket">${esc(p.nama || '')}${p.username ? ' · NIK ' + esc(p.username) : ''}</span></div>
+      <div class="badan">
+        <p style="margin:0 0 10px">${T(`${pilih.length} sertifikat Pelatihan berikut akan diunggah ke eChain beserta PDF-nya:`,
+          `These ${pilih.length} training certificates will be uploaded to eChain with their PDFs:`)}</p>
+        <ol style="margin:0 0 12px;padding-left:20px">${pilih.map(t => `<li style="margin:4px 0">
+          <b>${esc(t.nama)}</b><br><span class="mono" style="color:var(--muted);font-size:11px">${
+            esc([t.kategori, t.nomor, [t.mulai, t.selesai].filter(Boolean).map(tglRingkas).join(' – ')].filter(Boolean).join(' · '))}</span></li>`).join('')}</ol>
+        <div style="font-size:12px;color:var(--muted)">${T(
+          'Yang sudah ada di eChain dilewati otomatis. Sesudah terkirim, data di eChain tidak bisa dihapus sendiri dan menunggu persetujuan admin. Login VPN dan eChain tetap kamu isi sendiri di halaman resminya.',
+          'Anything already in eChain is skipped. Once sent, it cannot be deleted from eChain and awaits admin approval. You still log in to VPN and eChain yourself on their official pages.')}</div>
+      </div>
+      <div class="kaki">
+        <button class="btn garis" data-jawab="0">${T('Tidak','No')}</button>
+        <button class="btn" data-jawab="1">${T('Sesuai, kirim','Correct, send')}</button>
+      </div></div>`;
+    const tutup = (ya) => { lapis.remove(); document.removeEventListener('keydown', esc_); selesai(ya); };
+    const esc_ = (e) => { if(e.key === 'Escape') tutup(false); };
+    lapis.addEventListener('click', e => {
+      if(e.target === lapis) return tutup(false);
+      const b = e.target.closest('[data-jawab]');
+      if(b) tutup(b.dataset.jawab === '1');
+    });
+    document.addEventListener('keydown', esc_);
+    document.body.appendChild(lapis);
+    lapis.querySelector('[data-jawab="1"]').focus();
+  });
 }
 
 function psnTutup(){
