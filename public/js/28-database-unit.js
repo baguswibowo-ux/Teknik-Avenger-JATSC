@@ -279,6 +279,7 @@ function gambarUnit(){
       ${tab('berkala',T('Kegiatan Berkala','Recurring Jobs'),
             bklJatuhTempo(unitDibuka).filter(x=>x.sisa <= 0).length || '')}
       ${tab('personel',T('Personel','Personnel'), psnAwasUnit(unitDibuka) || '')}
+      ${tab('pelatihan',T('Pelatihan','Training'), pltJumlahUnit(unitDibuka) || '')}
       ${tab('logbook','E-Logbook')}
       ${tab('galeri',T('Galeri','Gallery'),foto.length)}
       ${tab('dokumen',T('Dokumen','Documents'),(BERKAS[unitDibuka] || []).length)}
@@ -482,6 +483,10 @@ function gambarUnit(){
     <!-- PERSONEL unit ini. Alasannya sama lagi: saringan dan tombol tambahnya
          menggambar ulang isinya sendiri. -->
     <div class="subisi ${subtabAktif==='personel'?'aktif':''}" id="s-personel"></div>
+
+    <!-- PELATIHAN unit ini. Digambar JS karena saringan tahun & tombolnya
+         menggambar ulang isinya sendiri (lihat 24-personel.js). -->
+    <div class="subisi ${subtabAktif==='pelatihan'?'aktif':''}" id="s-pelatihan"></div>
 
     <!-- LOGBOOK -->
     <div class="subisi ${subtabAktif==='logbook'?'aktif':''}" id="s-logbook">
@@ -798,6 +803,7 @@ function gambarUnit(){
   bklGambar();
   // Personel juga: saringan dan tombol tambahnya menggambar ulang isinya.
   gambarPersonel();
+  gambarPelatihan();
   pasangIkonUnit();
   // Layar ini digambar ulang tiap pindah unit, jadi tombol E-Logbook di
   // dalamnya selalu lahir kembali dengan href="#" — alamatnya harus dipasang

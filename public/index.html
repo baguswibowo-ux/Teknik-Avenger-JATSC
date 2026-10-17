@@ -795,6 +795,24 @@ try{ document.documentElement.setAttribute('data-tema',
   </div>
 </div>
 
+<!-- Kartu tambah/ubah satu entri Pelatihan. Berdiri sendiri dari kartu personel
+     karena pelatihan jumlahnya puluhan per tahun dan diurus di tab Pelatihan,
+     bukan di dalam kartu orangnya. Isinya dibangun JS (24-personel.js). -->
+<div class="lapis-ubah" id="lapisPelatihan" role="dialog" aria-modal="true" aria-labelledby="judulPelatihan">
+  <div class="kartu-ubah">
+    <div class="kepala">
+      <h3 id="judulPelatihan" data-en="Add training">Tambah pelatihan</h3>
+      <span class="ket" id="ketKartuPelatihan"></span>
+      <button type="button" class="tutup-x" data-tutup="btnBatalPelatihan" title="Tutup" data-en-judul="Close" aria-label="Tutup">&#10005;</button>
+    </div>
+    <div class="badan" id="badanPelatihan"></div>
+    <div class="kaki">
+      <button class="btn garis" id="btnBatalPelatihan" data-en="Cancel">Batal</button>
+      <button class="btn" id="btnSimpanPelatihan" data-en="Save">Simpan</button>
+    </div>
+  </div>
+</div>
+
 <!-- Impor jadwal dinas. Kartunya lebih lebar daripada dua di atas karena isinya
      pratinjau tabel selebar sebulan — memaksanya ke lebar kartu biasa berarti
      yang diperiksa sebelum dimasukkan cuma tiga hari pertama.
