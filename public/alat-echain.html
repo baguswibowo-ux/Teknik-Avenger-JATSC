@@ -31,13 +31,13 @@
 </head>
 <body>
 <div class="bungkus">
-  <h1>Bot eChain — Banyak Tab</h1>
-  <p class="sub">Mengisi form <b>Pelatihan</b> di eChain dari data yang disiapkan di Avengers.
-     Sekali klik, satu tab terbuka untuk tiap sertifikat. Bot tidak pernah menekan Submit:
-     lampiran PDF dan Submit tetap kamu sendiri.</p>
+  <h1>Bot eChain — Kirim Pelatihan</h1>
+  <p class="sub">Mengunggah sertifikat <b>Pelatihan</b> ke eChain dari data dan PDF yang disiapkan di Avengers.
+     Keputusan kirim diambil di Avengers (popup persetujuan); di eChain cukup login lalu satu klik bookmark,
+     dan bot mengirim semuanya beserta PDF-nya. Login VPN dan eChain tetap kamu ketik sendiri di halaman resminya.</p>
 
   <div class="kartu">
-    <b>Pasang sekali saja</b>
+    <b>Pasang sekali saja — di PC</b>
     <ol>
       <li>Munculkan bilah bookmark browser: <code>Ctrl</code> + <code>Shift</code> + <code>B</code>.</li>
       <li>Seret tombol biru ini ke bilah bookmark:
@@ -46,6 +46,39 @@
           lalu buat bookmark baru dan tempel sebagai alamatnya.</li>
     </ol>
     <p class="kecil">Sudah pernah pasang versi lama? Hapus yang lama, pasang yang ini.</p>
+  </div>
+
+  <div class="kartu" id="hp">
+    <b>Di HP</b>
+    <p style="margin:6px 0 10px">Browser HP tidak punya bilah bookmark untuk diseret, jadi bookmarknya dibuat dari
+      kode yang disalin, lalu dipanggil dengan mengetik namanya.</p>
+    <p style="margin:0 0 6px"><button class="salin" id="btnSalinHp" style="width:100%;padding:12px;font-weight:600">
+      1 · Salin kode bookmarklet</button></p>
+    <p class="kecil" style="margin:0 0 4px">Kalau tombol di atas gagal menyalin: tekan lama di kotak ini → Pilih semua → Salin.</p>
+    <textarea id="kodeHp" readonly rows="3" style="width:100%;font:11px/1.3 monospace;background:var(--garis);color:var(--teks);
+      border:0;border-radius:8px;padding:8px;resize:none"></textarea>
+
+    <p style="margin:12px 0 4px"><b>Android (Chrome)</b></p>
+    <ol>
+      <li>Di halaman ini, ketuk <b>⋮</b> → ikon <b>☆</b> (bookmark). Muncul “Bookmark ditambahkan” → ketuk <b>Edit</b>.</li>
+      <li>Ganti <b>Nama</b> jadi <code>Isi eChain</code>.</li>
+      <li>Hapus isi <b>URL</b>, lalu <b>tempel</b> kode yang tadi disalin. Simpan (tombol kembali).</li>
+      <li>Saat memakai: buka eChain dan login → ketuk <b>address bar</b> → ketik <code>Isi eChain</code> →
+          ketuk saran yang ber-ikon <b>☆</b>. (Jangan tekan Enter — yang jalan harus saran bookmark-nya.)</li>
+    </ol>
+
+    <p style="margin:12px 0 4px"><b>iPhone (Safari)</b></p>
+    <ol>
+      <li>Di halaman ini, ketuk <b>Bagikan</b> → <b>Tambah Penanda</b> → Simpan.</li>
+      <li>Buka <b>Penanda</b> → <b>Edit</b> → ketuk penanda tadi → ganti nama jadi <code>Isi eChain</code>,
+          hapus alamatnya, <b>tempel</b> kode yang disalin → Selesai.</li>
+      <li>Saat memakai: buka eChain dan login → buka <b>Penanda</b> → ketuk <b>Isi eChain</b>.</li>
+    </ol>
+
+    <p class="catatan">Di HP, browser biasanya menanyakan izin <b>tempel / clipboard</b> saat bot jalan — izinkan, karena
+      data dan PDF-nya dibawa lewat clipboard. Membaca sertifikat bergambar (OCR) di HP juga lebih lambat:
+      pertama kali mengunduh mesin pembacanya ±12 MB. Di <b>jaringan kantor</b>, pilih
+      <b>“Sesuai — jaringan kantor”</b> di Avengers supaya eChain terbuka langsung tanpa VPN.</p>
   </div>
 
   <div class="kartu">
@@ -408,6 +441,20 @@ function ECHAIN_BOT(){
   var kode = '(' + ECHAIN_BOT.toString() + ')();void 0';
   var href = 'javascript:' + kode;
   document.getElementById('bm').setAttribute('href', href);
+  // HP: kode yang sama, di kotak teks (salin manual) dan tombol salin besar.
+  document.getElementById('kodeHp').value = href;
+  document.getElementById('kodeHp').addEventListener('focus', function(){ this.select(); });
+  document.getElementById('btnSalinHp').addEventListener('click', function(){
+    var b = this, kotak = document.getElementById('kodeHp');
+    function berhasil(){ b.textContent = '1 · Tersalin ✓ — lanjut langkah di bawah'; }
+    function cadangan(){
+      kotak.focus(); kotak.select(); kotak.setSelectionRange(0, kotak.value.length);
+      try { if (document.execCommand('copy')) return berhasil(); } catch(e) {}
+      alert('Browser menolak menyalin otomatis. Tekan lama di kotak kode → Pilih semua → Salin.');
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(href).then(berhasil, cadangan);
+    else cadangan();
+  });
   document.getElementById('btnSalin').addEventListener('click', function(){
     var b = this;
     navigator.clipboard.writeText(href).then(function(){ b.textContent='Tersalin ✓'; })
