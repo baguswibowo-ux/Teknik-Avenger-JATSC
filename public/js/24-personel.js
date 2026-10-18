@@ -578,9 +578,7 @@ function pltBarisKartu(t, i){
       <label>${T('Tempat / Penyelenggara','Place / Organiser')}</label>
       <input type="text" data-pk="${i}" data-pcol="tempat"${biru('tempat')} value="${esc(t.tempat||'')}"></div>
     <div class="isian" style="margin-bottom:0;align-self:flex-end">
-      ${t.dikirim
-        ? `<span class="sert-sisa aman" title="${T('Sudah disiapkan ke eChain','Prepared for eChain')}">&#10003; eChain</span>`
-        : `<button class="btn garis kecil" data-plt-echain="${i}" type="button">${T('Siapkan ke eChain','Prepare for eChain')}</button>`}</div>
+      ${pltLabelEchain(t, i)}</div>
   </div>
   ${pltBerkasCip(PSN.dibuka, t)}
   </div>`;
@@ -837,7 +835,8 @@ async function pltEchainKirimBatch(){
       const r = await fetch(`/personel/${encodeURIComponent(p.id)}/berkas/${encodeURIComponent(b.id)}`, { credentials:'same-origin' });
       if(!r.ok) throw new Error(`PDF "${b.nama}" tidak terambil (${r.status})`);
       const blob = await r.blob();
-      items.push({ ...pltItem(t), file: { nama: b.nama, tipe: blob.type || 'application/pdf', b64: await berkasBase64(blob) } });
+      // id ikut dibawa supaya hasil dari bot eChain bisa dipasangkan ke barisnya.
+      items.push({ id: t.id, ...pltItem(t), file: { nama: b.nama, tipe: blob.type || 'application/pdf', b64: await berkasBase64(blob) } });
     }
   }catch(err){
     pesan(T('Gagal menyiapkan: ','Could not prepare: ') + (err && err.message || err));
@@ -856,22 +855,156 @@ async function pltEchainKirimBatch(){
     nik, nama:p.nama||'', disetujui:true, waktu:Date.now(), items }));
   pilih.forEach(t => t.dikirim = true);
   psnGambarKartu();
+  pltPetunjukLogin(setuju === 'kantor', p, pilih.length);
+}
 
-  /* Halaman login yang ASLI — gerbang VPN, atau eChain langsung bila sedang di
-     jaringan kantor — di TAB biasa. Kata sandi, token, dan captcha diketik
-     langsung ke halaman resmi itu; Avengers tidak pernah melihat atau
-     menyimpannya. Bukan jendela popup: jendela popup Chrome tidak punya bilah
-     bookmark, padahal langkah terakhirnya klik bookmark "Isi eChain". */
-  const kantor = setuju === 'kantor';
-  const jendela = window.open(kantor ? ECHAIN_LANGSUNG : ECHAIN_VPN, '_blank');
-  pesan(!jendela
-    ? T('Disetujui dan tersalin, tapi tab login diblokir browser. Izinkan pop-up untuk Avengers, atau buka eChain sendiri.',
-        'Approved and copied, but the login tab was blocked. Allow pop-ups for Avengers or open eChain yourself.')
-    : kantor
-      ? T('Disetujui dan tersalin. Login eChain di tab yang terbuka, lalu klik bookmark "Isi eChain" sekali. Tekan Simpan di sini agar tanda ✓ tetap.',
-          'Approved and copied. Log in to eChain in the tab that opened, then click the "Isi eChain" bookmark once.')
-      : T('Disetujui dan tersalin. Login VPN di tab yang terbuka, buka e-Chain, login, lalu klik bookmark "Isi eChain" sekali. Tekan Simpan di sini agar tanda ✓ tetap.',
-          'Approved and copied. Log in to VPN in the tab that opened, open e-Chain, log in, then click the "Isi eChain" bookmark once.'));
+/* Penanda eChain di satu baris pelatihan: hasil terakhir dari bot bila ada,
+   "disetujui" bila sudah dikirim tapi hasilnya belum kembali, atau tombol. */
+function pltLabelEchain(t, i){
+  const st = PLT_STATUS[t.statusEchain];
+  if(st){
+    const [ikon, warna, label] = st;
+    return `<span class="sert-sisa" style="color:${warna};border-color:${warna}" title="${esc(
+      [label(), t.catatanEchain, t.waktuEchain].filter(Boolean).join(' · '))}">${ikon} ${esc(label())}</span>`
+      + (t.statusEchain === 'gagal' ? ` <button class="btn garis kecil" data-plt-echain="${i}" type="button">${T('Siapkan lagi','Prepare again')}</button>` : '');
+  }
+  if(t.dikirim) return `<span class="sert-sisa aman" title="${T('Disetujui untuk dikirim; hasil dari eChain belum kembali','Approved; no result from eChain yet')}">&#10003; ${T('disetujui','approved')}</span>`;
+  return `<button class="btn garis kecil" data-plt-echain="${i}" type="button">${T('Siapkan ke eChain','Prepare for eChain')}</button>`;
+}
+
+/* Kotak popup bergaya kartu Avengers, ditumpuk di atas kartu personel.
+   tombol: [{ label, utama?, aksi(tutup) }]. Mengembalikan { lapis, tutup }. */
+function pltKotak(judul, ket, isiHtml, tombol, saatTutup){
+  const lapis = document.createElement('div');
+  lapis.className = 'lapis-ubah buka';
+  lapis.setAttribute('role', 'dialog');
+  lapis.setAttribute('aria-modal', 'true');
+  lapis.innerHTML = `<div class="kartu-ubah">
+    <div class="kepala"><h3>${esc(judul)}</h3><span class="ket">${esc(ket || '')}</span></div>
+    <div class="badan">${isiHtml}</div>
+    <div class="kaki">${tombol.map((b, i) =>
+      `<button class="btn${b.utama ? '' : ' garis'}" data-kotak="${i}">${esc(b.label)}</button>`).join('')}</div></div>`;
+  const esc_ = (e) => { if(e.key === 'Escape') tutup(); };
+  function tutup(){ lapis.remove(); document.removeEventListener('keydown', esc_); if(saatTutup) saatTutup(); }
+  lapis.addEventListener('click', e => {
+    const b = e.target.closest('[data-kotak]');
+    if(b) tombol[Number(b.dataset.kotak)].aksi(tutup);
+  });
+  document.addEventListener('keydown', esc_);
+  document.body.appendChild(lapis);
+  return { lapis, tutup };
+}
+
+/* Popup petunjuk login, sesudah kiriman disetujui. Tab login dibuka lewat
+   tombol di sini (klik orangnya, jadi tidak diblokir browser), di TAB biasa:
+   jendela popup Chrome tidak punya bilah bookmark. Halaman login yang dibuka
+   adalah halaman ASLI — gerbang VPN, atau eChain langsung bila di jaringan
+   kantor — dan kata sandi/token/captcha diketik di sana; Avengers tidak pernah
+   melihat atau menyimpannya.
+   Popup tetap terbuka menunggu hasil: begitu orangnya kembali ke tab ini,
+   hasil yang ditaruh bot di clipboard dibaca otomatis (atau lewat tombol). */
+function pltPetunjukLogin(kantor, p, jumlah){
+  const alamat = kantor ? ECHAIN_LANGSUNG : ECHAIN_VPN;
+  const langkah = kantor
+    ? [T('Tekan <b>Buka eChain</b> di bawah, lalu login eChain.','Press <b>Open eChain</b> below and log in to eChain.')]
+    : [T('Tekan <b>Buka login VPN</b> di bawah, lalu login VPN.','Press <b>Open VPN login</b> below and log in to VPN.'),
+       T('Di portal VPN klik <b>e-Chain</b>, lalu login eChain.','In the VPN portal click <b>e-Chain</b> and log in to eChain.')];
+  langkah.push(
+    T('Di tab eChain, klik bookmark <b>Isi eChain</b> sekali. Bot mengirim semuanya dan melaporkannya di kotak kanan atas.',
+      'In the eChain tab, click the <b>Isi eChain</b> bookmark once. The bot sends everything and reports in the top-right box.'),
+    T('Kembali ke tab Avengers ini — hasilnya tampil otomatis.','Come back to this Avengers tab — the result shows automatically.'));
+  const isi = `<p style="margin:0 0 10px">${T(`${jumlah} sertifikat sudah disetujui dan siap dikirim atas nama <b>${esc(p.nama || '')}</b>.`,
+      `${jumlah} certificates approved and ready to send for <b>${esc(p.nama || '')}</b>.`)}</p>
+    <ol style="margin:0 0 10px;padding-left:20px">${langkah.map(l => `<li style="margin:5px 0">${l}</li>`).join('')}</ol>
+    <div class="bantu" id="pltHasilKet" style="font-size:12px;color:var(--muted)">${T(
+      'Belum pasang bookmark? Buka tombol <b>Bot eChain</b> di tab Pelatihan.',
+      'No bookmark yet? Use the <b>Bot eChain</b> button in the Training tab.')}</div>`;
+
+  let selesai = false;
+  const coba = async (sengaja) => {
+    if(selesai) return;
+    let teks = '';
+    try{ teks = await navigator.clipboard.readText(); }
+    catch(e){
+      if(sengaja) setKet(T('Browser tidak mengizinkan membaca clipboard. Izinkan, lalu tekan Ambil hasil lagi.',
+                           'The browser did not allow reading the clipboard. Allow it, then press Get result again.'), 'var(--warn)');
+      return;
+    }
+    const hasil = pltUraiHasil(teks, p.username);
+    if(!hasil){
+      if(sengaja) setKet(T('Belum ada hasil dari bot eChain. Klik bookmark Isi eChain di tab eChain dulu.',
+                           'No result from the eChain bot yet. Click the Isi eChain bookmark in the eChain tab first.'), 'var(--warn)');
+      return;
+    }
+    selesai = true;
+    kotak.tutup();
+    await pltTerapkanHasil(hasil);
+  };
+  const setKet = (html, warna) => { const k = el('pltHasilKet'); if(k){ k.innerHTML = html; k.style.color = warna || ''; } };
+  const saatFokus = () => { coba(false); };
+  window.addEventListener('focus', saatFokus);
+
+  const kotak = pltKotak(T('Kirim ke eChain — langkah berikutnya','Send to eChain — next steps'),
+    kantor ? T('jaringan kantor','office network') : T('lewat VPN','via VPN'), isi, [
+      { label: T('Tutup','Close'), aksi: tutup => tutup() },
+      { label: T('Ambil hasil','Get result'), aksi: () => coba(true) },
+      { label: kantor ? T('Buka eChain','Open eChain') : T('Buka login VPN','Open VPN login'), utama: true,
+        aksi: () => { if(!window.open(alamat, '_blank')) setKet(T('Tab diblokir browser — izinkan pop-up untuk Avengers.',
+          'The tab was blocked — allow pop-ups for Avengers.'), 'var(--warn)'); } }
+    ], () => window.removeEventListener('focus', saatFokus));
+}
+
+/* Muatan hasil yang ditaruh bot eChain di clipboard. null bila bukan. */
+function pltUraiHasil(teks, nik){
+  let d = null;
+  try{ d = JSON.parse(teks); }catch(e){ return null; }
+  if(!d || d.src !== 'echain-hasil' || !Array.isArray(d.items)) return null;
+  if(nik && d.nik && String(d.nik) !== String(nik)) return null;
+  return d;
+}
+
+/* Tandai baris pelatihan sesuai hasil bot, simpan, lalu tampilkan popup hasil. */
+async function pltTerapkanHasil(hasil){
+  const waktu = new Date().toISOString().slice(0, 16).replace('T', ' ');
+  const peta = new Map(hasil.items.filter(x => x.id).map(x => [x.id, x]));
+  const tandai = (orang) => (orang && orang.pelatihan || []).forEach(t => {
+    const x = peta.get(t.id); if(!x) return;
+    t.statusEchain = x.status; t.catatanEchain = x.catatan || ''; t.waktuEchain = waktu;
+  });
+  const pemilik = PSN.daftar.find(o => (o.username || '') === String(hasil.nik));
+  tandai(pemilik);
+  if(PSN.dibuka && pemilik && PSN.dibuka.id === pemilik.id) tandai(PSN.dibuka);
+  let galatSimpan = '';
+  try{ await psnSimpan('ubah', pemilik); }catch(e){ galatSimpan = e && e.message || String(e); }
+  if(PSN.dibuka) psnGambarKartu();
+  gambarPersonel();
+  try{ await navigator.clipboard.writeText(''); }catch(e){}   // hasil dipakai sekali
+  pltTampilHasil(hasil, galatSimpan);
+}
+
+const PLT_STATUS = {
+  masuk:    ['✓', 'var(--ok, #3ecf8e)', () => T('masuk eChain','in eChain')],
+  menunggu: ['⏳', 'var(--warn, #f0b429)', () => T('terkirim, menunggu approve admin','sent, awaiting admin approval')],
+  gagal:    ['✗', 'var(--fail, #ff6b6b)', () => T('gagal','failed')]
+};
+
+/* Popup hasil kiriman per sertifikat. */
+function pltTampilHasil(hasil, galatSimpan){
+  const n = (s) => hasil.items.filter(x => x.status === s).length;
+  const isi = `<p style="margin:0 0 10px">${T(
+      `${n('menunggu')} terkirim menunggu approve · ${n('masuk')} sudah masuk · ${n('gagal')} gagal`,
+      `${n('menunggu')} sent awaiting approval · ${n('masuk')} already in · ${n('gagal')} failed`)}</p>
+    <ul style="list-style:none;margin:0;padding:0">${hasil.items.map(x => {
+      const [ikon, warna, label] = PLT_STATUS[x.status] || ['•', 'var(--muted)', () => x.status];
+      return `<li style="margin:6px 0;display:flex;gap:8px"><span style="color:${warna};font-weight:700">${ikon}</span>
+        <span><b>${esc(x.training || '-')}</b><br><span style="font-size:12px;color:${warna}">${esc(label())}${
+          x.catatan ? ' — ' + esc(x.catatan) : ''}</span></span></li>`; }).join('')}</ul>
+    <div style="font-size:12px;color:var(--muted);margin-top:10px">${T(
+      'Status ini tersimpan di baris pelatihannya. Yang menunggu approve akan tampil di daftar eChain setelah disetujui admin.',
+      'This status is saved on each training row. Items awaiting approval appear in the eChain list once the admin approves.')}${
+      galatSimpan ? `<br><span style="color:var(--warn)">${T('Status gagal disimpan: ','Could not save status: ')}${esc(galatSimpan)}</span>` : ''}</div>`;
+  pltKotak(T('Hasil kiriman ke eChain','eChain send result'), hasil.nama || '', isi,
+    [{ label: 'OK', utama: true, aksi: tutup => tutup() }]);
 }
 
 /* Popup persetujuan kirim, bergaya kartu Avengers. Menjawab 'vpn' atau

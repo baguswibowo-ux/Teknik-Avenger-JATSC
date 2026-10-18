@@ -355,6 +355,31 @@ function ECHAIN_BOT(){
     return fetch(s.aksi, { method:'POST', body:s.fd, credentials:'include' })
       .then(function(r){ if(!r.ok) throw new Error('eChain menjawab '+r.status); });
   }
+  /* Hasil dibawa balik ke Avengers lewat clipboard (eChain di balik VPN tidak
+     bisa menghubungi Avengers). Muatan ini sekaligus menggantikan muatan kirim,
+     jadi klik bookmark berikutnya tidak mengirim ulang. */
+  function taruhHasil(d, daftarHasil){
+    var muatan = { v:1, src:'echain-hasil', nik:d.nik, nama:d.nama||'', waktu:Date.now(),
+      items: daftarHasil.map(function(h){ return { id:h.it.id||'', training:h.it.training||'', no_sert:h.it.no_sert||'', status:h.status, catatan:h.catatan||'' }; }) };
+    var teks = JSON.stringify(muatan);
+    var ok = function(){ tulis('Hasil disalin. Kembali ke tab Avengers — hasilnya tampil di sana.', '#5b8cf0'); };
+    var gagal = function(){
+      tulis('Hasil tidak bisa disalin otomatis — tekan tombol di bawah, lalu kembali ke Avengers.', '#f0b429');
+      var b = document.createElement('button'); b.textContent = 'Salin hasil untuk Avengers';
+      b.style.cssText = 'margin-top:8px;display:block;box-sizing:border-box;width:390px;padding:8px;border:0;border-radius:7px;background:#2a323d;color:#e8ebf0;cursor:pointer';
+      b.onclick = function(){ navigator.clipboard.writeText(teks).then(ok, function(){}); };
+      document.getElementById('avxIsi').appendChild(b);
+    };
+    try{ navigator.clipboard.writeText(teks).then(ok, gagal); }catch(e){ gagal(); }
+  }
+  function tombolSelesai(){
+    var tb = document.createElement('button');
+    tb.textContent = 'Selesai — tutup kotak ini';
+    // Tanpa tanda persen: di tautan javascript: tanda itu bisa dibaca sebagai kode.
+    tb.style.cssText = 'margin-top:10px;display:block;box-sizing:border-box;width:390px;padding:8px;border:0;border-radius:7px;background:#5b8cf0;color:#fff;font-weight:600;cursor:pointer';
+    tb.onclick = function(){ var p = document.getElementById('avxPanel'); if(p) p.remove(); };
+    document.getElementById('avxIsi').appendChild(tb);
+  }
   function kirimOtomatis(d){
     var p = panel(); document.getElementById('avxIsi').innerHTML = '';
     tulis('Memeriksa daftar Pelatihan '+(d.nama||d.nik)+' di eChain...');
@@ -366,9 +391,12 @@ function ECHAIN_BOT(){
         else if(sudahAda(teks, it)) lewat.push(it);
         else kirim.push(it);
       }
+      // Hasil untuk yang tidak ikut dikirim.
+      var hasilAwal = lewat.map(function(it){ return { it:it, status:'masuk', catatan:'sudah ada di eChain sebelumnya' }; })
+        .concat(kurang.map(function(it){ return { it:it, status:'gagal', catatan:'tanpa PDF' }; }));
       if(lewat.length) tulis('Dilewati, sudah ada di eChain: '+lewat.length, '#f0b429');
       if(kurang.length) tulis('Tanpa PDF, tidak dikirim: '+kurang.length, '#f0b429');
-      if(!kirim.length){ tulis('Tidak ada yang perlu dikirim.'); return; }
+      if(!kirim.length){ tulis('Tidak ada yang perlu dikirim.'); taruhHasil(d, hasilAwal); tombolSelesai(); return; }
 
       var daftar = kirim.map(function(it, i){
         return (i+1)+'. '+(it.training||'-')+'  ['+iso2id(it.mulai)+(it.selesai && it.selesai!==it.mulai ? ' – '+iso2id(it.selesai) : '')+']';
@@ -395,6 +423,9 @@ function ECHAIN_BOT(){
           .catch(function(e){
             tulis('✗ Form untuk "'+(it.training||'-')+'" tidak bisa dibuka: '+e.message, '#ff6b6b');
             tulis('Tidak ada yang dikirim. Coba lagi sesudah kiriman sebelumnya disetujui admin, atau login ulang eChain.', '#f0b429');
+            taruhHasil(d, hasilAwal.concat(kirim.map(function(x){
+              return { it:x, status:'gagal', catatan:'tidak dikirim: '+e.message }; })));
+            tombolSelesai();
           });
       })();
 
@@ -404,24 +435,23 @@ function ECHAIN_BOT(){
       function lanjut(){
         if(i >= siap.length){
           tulis('Memeriksa ulang daftar eChain...');
-          return daftarEchain(d.nik).then(function(t2){
-            var masuk = 0;
-            hasil.forEach(function(h){
-              if(h.ok && !sudahAda(t2, h.it)){ h.ok = false; h.galat = 'terkirim tapi belum tampil di daftar (mungkin menunggu persetujuan admin)'; }
-              if(h.ok) masuk++;
+          var akhir = function(t2){
+            // Terkirim + tampil di daftar = masuk; terkirim tapi belum tampil =
+            // menunggu approve admin; galat saat kirim = gagal.
+            var rinci = hasil.map(function(h){
+              if(!h.ok) return { it:h.it, status:'gagal', catatan:h.galat };
+              return (t2 != null && sudahAda(t2, h.it))
+                ? { it:h.it, status:'masuk', catatan:'' }
+                : { it:h.it, status:'menunggu', catatan:'menunggu persetujuan admin eChain' };
             });
-            tulis('Selesai: '+masuk+' dari '+kirim.length+' masuk ke daftar eChain.', masuk===kirim.length ? '#3ecf8e' : '#f0b429');
-            hasil.forEach(function(h){ if(!h.ok) tulis('• '+h.it.training+': '+h.galat, '#f0b429'); });
-            tulis('Data sudah dikirim; persetujuan dokumen mengikuti proses admin eChain.', '#9aa3af');
-            // Muatan dipakai sekali: kosongkan clipboard supaya klik ulang tidak mengirim lagi.
-            try{ navigator.clipboard.writeText(''); }catch(e){}
-            var tb = document.createElement('button');
-            tb.textContent = 'Selesai — tutup jendela ini';
-            // Tanpa tanda persen: di tautan javascript: tanda itu bisa dibaca sebagai kode.
-            tb.style.cssText = 'margin-top:10px;display:block;box-sizing:border-box;width:390px;padding:8px;border:0;border-radius:7px;background:#5b8cf0;color:#fff;font-weight:600;cursor:pointer';
-            tb.onclick = function(){ window.close(); var p = document.getElementById('avxPanel'); if(p) p.remove(); };
-            document.getElementById('avxIsi').appendChild(tb);
-          });
+            var n = function(s){ return rinci.filter(function(r){ return r.status === s; }).length; };
+            tulis('Selesai: '+n('menunggu')+' menunggu approve, '+n('masuk')+' masuk, '+n('gagal')+' gagal (dari '+kirim.length+').',
+              n('gagal') ? '#f0b429' : '#3ecf8e');
+            rinci.forEach(function(r){ if(r.status === 'gagal') tulis('• '+r.it.training+': '+r.catatan, '#ff6b6b'); });
+            taruhHasil(d, hasilAwal.concat(rinci));
+            tombolSelesai();
+          };
+          return daftarEchain(d.nik).then(akhir, function(){ akhir(null); });
         }
         var s = siap[i++], it = s.it;
         tulis('Mengirim '+i+'/'+siap.length+': '+it.training+' ...');

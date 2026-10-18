@@ -2435,7 +2435,13 @@ function rapikanPelatihan(t, i) {
     mulai:    tglSah(t?.mulai),
     selesai:  tglSah(t?.selesai),
     tglSert:  tglSah(t?.tglSert),
-    dikirim:  !!t?.dikirim          // sudah disiapkan/diunggah ke eChain?
+    dikirim:  !!t?.dikirim,         // sudah disetujui untuk dikirim ke eChain?
+    /* Hasil kiriman terakhir yang dilaporkan bot eChain (dibawa balik lewat
+       clipboard): 'menunggu' = terkirim, menunggu approve admin; 'masuk' =
+       sudah tampil di daftar eChain; 'gagal' = tidak terkirim (lihat catatan). */
+    statusEchain:  ['menunggu', 'masuk', 'gagal'].includes(t?.statusEchain) ? t.statusEchain : '',
+    catatanEchain: String(t?.catatanEchain || '').trim().slice(0, 200),
+    waktuEchain:   String(t?.waktuEchain || '').trim().slice(0, 30)
   };
 }
 
