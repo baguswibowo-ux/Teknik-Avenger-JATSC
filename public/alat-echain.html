@@ -317,12 +317,17 @@ function ECHAIN_BOT(){
     for (var i=0;i<el.options.length;i++) if (el.options[i].text.trim().toUpperCase()===t) return el.options[i].value;
     return '';
   }
-  function kirimSatu(nik, it){
+  /* Tahap 1: ambil SATU form Tambah Pelatihan yang segar dan rakit kirimannya,
+     TANPA mengirim. eChain mengunci penambahan begitu ada kiriman yang menunggu
+     persetujuan admin, jadi semua form harus sudah "terbuka" (tokennya sudah di
+     tangan) sebelum satu pun dikirim — sama seperti membuka banyak tab dulu,
+     baru menekan Submit di semuanya. */
+  function siapkanSatu(nik, it){
     return fetch(basis()+'ess/ess/add_pelatihan?idp='+encodeURIComponent(nik), {credentials:'include'})
       .then(function(r){ return r.text(); })
       .then(function(html){
         var f = formDari(new DOMParser().parseFromString(html, 'text/html'));
-        if(!f) throw new Error('form Tambah Pelatihan tidak terbuka (sesi eChain habis?)');
+        if(!f) throw new Error('form Tambah Pelatihan tidak terbuka — masih ada kiriman yang menunggu persetujuan admin, atau sesi eChain habis');
         var jenis = nilaiOpsi(f, 'jenis', it.kategori);
         if(!jenis) throw new Error('kategori "'+it.kategori+'" tidak ada di pilihan eChain');
         var fd = new FormData();
@@ -342,9 +347,13 @@ function ECHAIN_BOT(){
         fd.set('tempat',    it.tempat);
         fd.set('file_pelatihan', keBerkas(it.file));
         var aksi = new URL(f.getAttribute('action') || location.href, location.href).href;
-        return fetch(aksi, { method:'POST', body:fd, credentials:'include' })
-          .then(function(r){ if(!r.ok) throw new Error('eChain menjawab '+r.status); });
+        return { it: it, fd: fd, aksi: aksi };
       });
+  }
+  /* Tahap 2: kirim satu form yang sudah disiapkan. */
+  function kirimSiap(s){
+    return fetch(s.aksi, { method:'POST', body:s.fd, credentials:'include' })
+      .then(function(r){ if(!r.ok) throw new Error('eChain menjawab '+r.status); });
   }
   function kirimOtomatis(d){
     var p = panel(); document.getElementById('avxIsi').innerHTML = '';
@@ -375,9 +384,25 @@ function ECHAIN_BOT(){
         kirim.forEach(function(it, i){ tulis('  '+(i+1)+'. '+(it.training||'-')); });
       } else if(!confirm(tanya)){ tulis('Dibatalkan. Tidak ada yang dikirim ke eChain.', '#9aa3af'); return; }
 
+      // Tahap 1: buka semua form dulu. Satu saja gagal = tidak ada yang dikirim.
+      var siap = [], j = 0;
+      tulis('Membuka '+kirim.length+' form Tambah Pelatihan sekaligus...');
+      (function bukaForm(){
+        if(j >= kirim.length) return kirimSemua();
+        var it = kirim[j++];
+        siapkanSatu(d.nik, it)
+          .then(function(s){ siap.push(s); tulis('  form '+j+'/'+kirim.length+' siap', '#9aa3af'); bukaForm(); })
+          .catch(function(e){
+            tulis('✗ Form untuk "'+(it.training||'-')+'" tidak bisa dibuka: '+e.message, '#ff6b6b');
+            tulis('Tidak ada yang dikirim. Coba lagi sesudah kiriman sebelumnya disetujui admin, atau login ulang eChain.', '#f0b429');
+          });
+      })();
+
+      // Tahap 2: semua form siap -> kirim berturut-turut.
       var hasil = [], i = 0;
-      (function lanjut(){
-        if(i >= kirim.length){
+      function kirimSemua(){ lanjut(); }
+      function lanjut(){
+        if(i >= siap.length){
           tulis('Memeriksa ulang daftar eChain...');
           return daftarEchain(d.nik).then(function(t2){
             var masuk = 0;
@@ -398,13 +423,13 @@ function ECHAIN_BOT(){
             document.getElementById('avxIsi').appendChild(tb);
           });
         }
-        var it = kirim[i++];
-        tulis('Mengirim '+i+'/'+kirim.length+': '+it.training+' ...');
-        kirimSatu(d.nik, it)
+        var s = siap[i++], it = s.it;
+        tulis('Mengirim '+i+'/'+siap.length+': '+it.training+' ...');
+        kirimSiap(s)
           .then(function(){ hasil.push({ it:it, ok:true }); tulis('  ✓ terkirim', '#3ecf8e'); })
           .catch(function(e){ hasil.push({ it:it, ok:false, galat:e.message }); tulis('  ✗ '+e.message, '#ff6b6b'); })
           .then(lanjut);
-      })();
+      }
     }).catch(function(e){ tulis('Gagal memeriksa daftar eChain: '+e.message+'. Pastikan sudah login eChain.', '#ff6b6b'); });
   }
 
